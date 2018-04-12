@@ -117,7 +117,7 @@ public class CalciteUtils {
       type = type.withRowSchema(toBeamSchema(calciteType));
     }
     if (calciteType.getKeyType() != null && calciteType.getValueType() != null) {
-      type = type.withMapType(toFieldType(calciteType.getKeyType()),
+      type = type.withMapType(toFieldType(calciteType.getKeyType()).getTypeName(),
           toFieldType(calciteType.getValueType()));
     }
     return type;
@@ -132,12 +132,12 @@ public class CalciteUtils {
   }
 
   public static FieldType toMapType(SqlTypeName componentKeyType, SqlTypeName componentValueType) {
-    return TypeName.MAP.type().withMapType(toFieldType(componentKeyType),
+    return TypeName.MAP.type().withMapType(toFieldType(componentKeyType).getTypeName(),
         toFieldType(componentValueType));
   }
 
   public static FieldType toMapType(RelDataType componentKeyType, RelDataType componentValueType) {
-    return TypeName.MAP.type().withMapType(toFieldType(componentKeyType),
+    return TypeName.MAP.type().withMapType(toFieldType(componentKeyType).getTypeName(),
         toFieldType(componentValueType));
   }
 
@@ -172,9 +172,9 @@ public class CalciteUtils {
       return dataTypeFactory.createArrayType(componentType, UNLIMITED_ARRAY_SIZE);
     } else if (SqlTypeName.MAP.equals(typeName)) {
       RelDataType componentKeyType = toRelDataType(
-          dataTypeFactory, fieldType.getComponentKeyType());
+          dataTypeFactory, fieldType.getMapKeyType().type());
       RelDataType componentValueType = toRelDataType(
-          dataTypeFactory, fieldType.getComponentValueType());
+          dataTypeFactory, fieldType.getMapValueType());
       return dataTypeFactory.createMapType(componentKeyType, componentValueType);
     } else if (SqlTypeName.ROW.equals(typeName)) {
       return toCalciteRowType(fieldType.getRowSchema(), dataTypeFactory);

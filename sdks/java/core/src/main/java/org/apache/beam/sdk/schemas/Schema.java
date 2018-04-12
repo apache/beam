@@ -212,6 +212,9 @@ public class Schema implements Serializable {
     public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
+    public boolean isPrimitiveType() {
+      return isNumericType() || isStringType() || isDateType();
+    }
     public boolean isNumericType() {
       return NUMERIC_TYPES.contains(this);
     }
@@ -247,10 +250,10 @@ public class Schema implements Serializable {
     public abstract TypeName getTypeName();
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable public abstract FieldType getComponentType();
-    // For MAP type, returns the type of the key element.
-    @Nullable public abstract FieldType getComponentKeyType();
-    // For MAP type, returns the type of the value element.
-    @Nullable public abstract FieldType getComponentValueType();
+    // For MAP type, returns the type of the key element, it must be a primitive type;
+    @Nullable public abstract TypeName getMapKeyType();
+    // For MAP type, returns the type of the value element, it can be a nested type;
+    @Nullable public abstract FieldType getMapValueType();
     // For ROW types, returns the schema for the row.
     @Nullable public abstract Schema getRowSchema();
     /**
@@ -262,8 +265,8 @@ public class Schema implements Serializable {
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
       abstract Builder setComponentType(@Nullable FieldType componentType);
-      abstract Builder setComponentKeyType(@Nullable FieldType componentKeyType);
-      abstract Builder setComponentValueType(@Nullable FieldType componentValueType);
+      abstract Builder setMapKeyType(@Nullable TypeName mapKeyType);
+      abstract Builder setMapValueType(@Nullable FieldType mapValueType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
       abstract Builder setMetadata(@Nullable byte[] metadata);
       abstract FieldType build();
@@ -289,13 +292,14 @@ public class Schema implements Serializable {
     /**
      * For MAP type, adds the type of the component key/value element.
      */
-    public FieldType withMapType(@Nullable FieldType componentKeyType,
-        @Nullable FieldType componentValueType) {
-      if (componentKeyType != null && componentValueType != null) {
+    public FieldType withMapType(@Nullable TypeName mapKeyType,
+        @Nullable FieldType mapValueType) {
+      if (mapKeyType != null && mapValueType != null) {
         checkArgument(getTypeName().isMapType());
+        checkArgument(mapKeyType.isPrimitiveType());
       }
-      return toBuilder().setComponentKeyType(componentKeyType)
-          .setComponentValueType(componentValueType).build();
+      return toBuilder().setMapKeyType(mapKeyType)
+          .setMapValueType(mapValueType).build();
     }
 
     /**
@@ -330,8 +334,8 @@ public class Schema implements Serializable {
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
           && Objects.equals(getComponentType(), other.getComponentType())
-          && Objects.equals(getComponentKeyType(), other.getComponentKeyType())
-          && Objects.equals(getComponentValueType(), other.getComponentValueType())
+          && Objects.equals(getMapKeyType(), other.getMapKeyType())
+          && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
           && Arrays.equals(getMetadata(), other.getMetadata());
 
@@ -340,7 +344,7 @@ public class Schema implements Serializable {
     @Override
     public int hashCode() {
       return Arrays.deepHashCode(new Object[] { getTypeName(), getComponentType(),
-          getComponentKeyType(), getComponentValueType(), getRowSchema(), getMetadata() });
+          getMapKeyType(), getMapValueType(), getRowSchema(), getMetadata() });
     }
   }
 
