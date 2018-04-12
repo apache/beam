@@ -20,46 +20,52 @@ description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 apply plugin: 'java'
 
 def exportedJavadocProjects = [
-//  ':beam-runners-apex',
-//  ':beam-runners-core-construction-java',
-//  ':beam-runners-core-java',
-//  ':beam-runners-direct-java',
-//  ':beam-runners-flink_2.11',
-//  ':beam-runners-google-cloud-dataflow-java',
-//  ':beam-runners-spark',
-//  ':beam-runners-gearpump',
+  ':beam-runners-apex',
+  ':beam-runners-core-construction-java',
+  ':beam-runners-core-java',
+  ':beam-local-artifact-service-java',
+  ':beam-runners-java-fn-execution',
+  ':beam-runners-local-java-core',
+  ':beam-runners-direct-java',
+  ':beam-runners-reference-java',
+  ':beam-runners-reference-job-server',
+  ':beam-runners-flink_2.11',
+  ':beam-runners-google-cloud-dataflow-java',
+  ':beam-runners-spark',
+  ':beam-runners-gearpump',
   ':beam-sdks-java-core',
-//  ':beam-sdks-java-extensions-google-cloud-platform-core',
-//  ':beam-sdks-java-extensions-join-library',
-//  ':beam-sdks-java-extensions-json-jackson',
-//  ':beam-sdks-java-extensions-protobuf',
-//  ':beam-sdks-java-extensions-sketching',
-//  ':beam-sdks-java-extensions-sorter',
-//  ':beam-sdks-java-extensions-sql',
+  ':beam-sdks-java-fn-execution',
+  ':beam-sdks-java-extensions-google-cloud-platform-core',
+  ':beam-sdks-java-extensions-join-library',
+  ':beam-sdks-java-extensions-json-jackson',
+  ':beam-sdks-java-extensions-protobuf',
+  ':beam-sdks-java-extensions-sketching',
+  ':beam-sdks-java-extensions-sorter',
+  ':beam-sdks-java-extensions-sql',
   ':beam-sdks-java-harness',
-//  ':beam-sdks-java-io-amazon-web-services',
-//  ':beam-sdks-java-io-amqp',
-//  ':beam-sdks-java-io-cassandra',
-//  ':beam-sdks-java-io-elasticsearch',
-//  ':beam-sdks-java-io-elasticsearch-tests-2',
-//  ':beam-sdks-java-io-elasticsearch-tests-5',
-//  ':beam-sdks-java-io-elasticsearch-tests-common',
-//  ':beam-sdks-java-io-google-cloud-platform',
-//  ':beam-sdks-java-io-hadoop-common',
-//  ':beam-sdks-java-io-hadoop-file-system',
-//  ':beam-sdks-java-io-hadoop-input-format',
-//  ':beam-sdks-java-io-hbase',
-//  ':beam-sdks-java-io-hcatalog',
-//  ':beam-sdks-java-io-jdbc',
-//  ':beam-sdks-java-io-jms',
-//  ':beam-sdks-java-io-kafka',
-//  ':beam-sdks-java-io-kinesis',
-//  ':beam-sdks-java-io-mongodb',
-//  ':beam-sdks-java-io-mqtt',
-//  ':beam-sdks-java-io-redis',
-//  ':beam-sdks-java-io-solr',
-//  ':beam-sdks-java-io-tika',
-//  ':beam-sdks-java-io-xml',
+  ':beam-sdks-java-io-amazon-web-services',
+  ':beam-sdks-java-io-amqp',
+  ':beam-sdks-java-io-cassandra',
+  ':beam-sdks-java-io-elasticsearch',
+  ':beam-sdks-java-io-elasticsearch-tests-2',
+  ':beam-sdks-java-io-elasticsearch-tests-5',
+  ':beam-sdks-java-io-elasticsearch-tests-common',
+  ':beam-sdks-java-io-google-cloud-platform',
+  ':beam-sdks-java-io-hadoop-common',
+  ':beam-sdks-java-io-hadoop-file-system',
+  ':beam-sdks-java-io-hadoop-input-format',
+  ':beam-sdks-java-io-hbase',
+  ':beam-sdks-java-io-hcatalog',
+  ':beam-sdks-java-io-jdbc',
+  ':beam-sdks-java-io-jms',
+  ':beam-sdks-java-io-kafka',
+  ':beam-sdks-java-io-kinesis',
+  ':beam-sdks-java-io-mongodb',
+  ':beam-sdks-java-io-mqtt',
+  ':beam-sdks-java-io-redis',
+  ':beam-sdks-java-io-solr',
+  ':beam-sdks-java-io-tika',
+  ':beam-sdks-java-io-xml',
 ]
 
 for (String exportedJavadocProject : exportedJavadocProjects) {
@@ -72,7 +78,7 @@ task aggregateJavadoc(type: Javadoc) {
   destinationDir = file("${buildDir}/docs/javadoc")
 
   exclude "org/apache/beam/examples/*"
-  exclude "org/apache/beam/fn/*"
+  exclude "org/apache/beam/fn/harness/*"
   exclude "org/apache/beam/runners/apex/translation/*"
   exclude "org/apache/beam/runners/core/*"
   exclude "org/apache/beam/runners/dataflow/internal/*"
@@ -85,7 +91,10 @@ task aggregateJavadoc(type: Javadoc) {
   exclude "org/apache/beam/sdk/util/*"
 
   options.with {
-    title "Apache Beam 2.5.0"
+    // TODO: Re-enable title after validating diff against maven-produced javadoc
+    title ""
+    failOnError false
+    // title "Apache Beam 2.5.0"
     overview 'overview.html'
     // TODO: Double check doclint is working
     addStringOption('Xdoclint:all', '-quiet')
