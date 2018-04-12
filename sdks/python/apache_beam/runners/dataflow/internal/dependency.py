@@ -481,7 +481,7 @@ def _stage_beam_sdk(sdk_remote_location, staging_location, temp_dir):
   """Stages a Beam SDK file with the appropriate version.
 
   Args:
-    sdk_remote_location: A GCS path to a SDK file or a URL from
+    sdk_remote_location: A GCS path to a SDK file or a URL from which
       the file can be downloaded. The SDK file can be a tarball or a wheel.
       Set to 'pypi' to download and stage a wheel and source SDK from PyPi.
     staging_location: A GCS bucket where the SDK file should be copied.
@@ -676,6 +676,6 @@ def _download_pypi_sdk_package(temp_dir, fetch_binary=False,
     if os.path.exists(tgz_expected):
       return tgz_expected
     raise RuntimeError(
-        'Failed to download a distribution for the running SDK. Expected '
-        'either %s or %s to be found in the download folder.' % (
+        'Failed to download a source distribution for the running SDK. '
+        'Expected either %s or %s to be found in the download folder.' % (
             zip_expected, tgz_expected))

@@ -291,7 +291,7 @@ class SetupTest(unittest.TestCase):
           elif args[7] == '--only-binary' and len(args) >= 18:
             if not has_wheels:
               # Imitate the case when desired wheel distribution is not in PyPI.
-              raise RuntimeError("No matching distribution.")
+              raise RuntimeError('No matching distribution.')
 
             # Per PEP-0427 in wheel filenames non-alphanumeric characters
             # in distribution name are replaced with underscore.
@@ -304,9 +304,9 @@ class SetupTest(unittest.TestCase):
                 args[17]   # platform
             )
 
-      assert package_file, "Pip fake does not support the command: " + str(args)
+      assert package_file, 'Pip fake does not support the command: ' + str(args)
       self.create_temp_file(
-          FileSystems.join(args[5], package_file), "SDK from PyPi.")
+          FileSystems.join(args[5], package_file), 'Package content.')
 
     return pip_fake
 
@@ -328,7 +328,7 @@ class SetupTest(unittest.TestCase):
 
     with open(os.path.join(
         staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)) as f:
-      self.assertEqual(f.read(), 'SDK from PyPi.')
+      self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_default_with_wheels(self):
     staging_dir = self.make_temp_dir()
@@ -351,7 +351,7 @@ class SetupTest(unittest.TestCase):
       self.assertTrue(staged_resources[1].endswith('whl'))
       for name in staged_resources:
         with open(os.path.join(staging_dir, name)) as f:
-          self.assertEqual(f.read(), 'SDK from PyPi.')
+          self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_local_directory(self):
     staging_dir = self.make_temp_dir()
@@ -360,7 +360,7 @@ class SetupTest(unittest.TestCase):
         os.path.join(
             sdk_location,
             names.DATAFLOW_SDK_TARBALL_FILE),
-        'contents')
+        'Package content.')
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -373,14 +373,14 @@ class SetupTest(unittest.TestCase):
     tarball_path = os.path.join(
         staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
-      self.assertEqual(f.read(), 'contents')
+      self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_local_source_file(self):
     staging_dir = self.make_temp_dir()
     sdk_directory = self.make_temp_dir()
     sdk_filename = 'apache-beam-3.0.0.tar.gz'
     sdk_location = os.path.join(sdk_directory, sdk_filename)
-    self.create_temp_file(sdk_location, 'contents')
+    self.create_temp_file(sdk_location, 'Package content.')
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -393,14 +393,14 @@ class SetupTest(unittest.TestCase):
     tarball_path = os.path.join(
         staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
-      self.assertEqual(f.read(), 'contents')
+      self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_local_wheel_file(self):
     staging_dir = self.make_temp_dir()
     sdk_directory = self.make_temp_dir()
     sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
     sdk_location = os.path.join(sdk_directory, sdk_filename)
-    self.create_temp_file(sdk_location, 'contents')
+    self.create_temp_file(sdk_location, 'Package content.')
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -413,7 +413,7 @@ class SetupTest(unittest.TestCase):
     tarball_path = os.path.join(
         staging_dir, sdk_filename)
     with open(tarball_path) as f:
-      self.assertEqual(f.read(), 'contents')
+      self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_local_directory_not_present(self):
     staging_dir = self.make_temp_dir()
@@ -458,7 +458,7 @@ class SetupTest(unittest.TestCase):
     def file_download(_, to_folder):
       tarball_path = os.path.join(to_folder, 'sdk-tarball')
       with open(tarball_path, 'w') as f:
-        f.write('SDK from HTTP location.')
+        f.write('Package content.')
       return tarball_path
 
     with mock.patch('apache_beam.runners.dataflow.internal.'
@@ -470,7 +470,7 @@ class SetupTest(unittest.TestCase):
     tarball_path = os.path.join(
         staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
-      self.assertEqual(f.read(), 'SDK from HTTP location.')
+      self.assertEqual(f.read(), 'Package content.')
 
   def test_with_extra_packages(self):
     staging_dir = self.make_temp_dir()
