@@ -113,13 +113,13 @@ public class BeamSqlMapTest {
 
   private PCollection<Row> pCollectionOf2Elements() {
     return PBegin.in(pipeline).apply("boundedInput1", Create
-        .of(Row.withSchema(INPUT_ROW_TYPE).addValues(1).addMap(new HashMap<String, Integer>() {
+        .of(Row.withSchema(INPUT_ROW_TYPE).addValues(1).addValue(new HashMap<String, Integer>() {
           {
             put("key11", 11);
             put("key22", 22);
           }
         }).build(),
-            Row.withSchema(INPUT_ROW_TYPE).addValues(2).addMap(new HashMap<String, Integer>() {
+            Row.withSchema(INPUT_ROW_TYPE).addValues(2).addValue(new HashMap<String, Integer>() {
               {
                 put("key33", 33);
                 put("key44", 44);

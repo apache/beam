@@ -379,11 +379,6 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    public <T1, T2> Builder addMap(Map<T1, T2> data) {
-      this.values.add(data);
-      return this;
-    }
-
     public Builder addArray(Object ... values) {
       addArray(Arrays.asList(values));
       return this;
@@ -414,7 +409,7 @@ public abstract class Row implements Serializable {
             verifiedValues.add(arrayElements);
           } else if (TypeName.MAP.equals(type.getTypeName())) {
             Map<Object, Object> mapElements = verifyMap(
-                value, type.getComponentKeyType(), type.getComponentValueType(), field.getName());
+                value, type.getMapKeyType(), type.getMapValueType(), field.getName());
             verifiedValues.add(mapElements);
           } else if (TypeName.ROW.equals(type.getTypeName())) {
             verifiedValues.add(verifyRow(value, field.getName()));
@@ -450,8 +445,8 @@ public abstract class Row implements Serializable {
       return verifiedList;
     }
 
-    private Map<Object, Object> verifyMap(Object value, FieldType componentKeyType,
-        FieldType componentValueType, String fieldName) {
+    private Map<Object, Object> verifyMap(Object value, TypeName keyTypeName,
+        FieldType valueType, String fieldName) {
       if (!(value instanceof Map)) {
         throw new IllegalArgumentException(String.format(
             "For field name %s and map type expected Map class. Instead " + "class type was %s.",
@@ -460,8 +455,24 @@ public abstract class Row implements Serializable {
       Map<Object, Object> valueMap = (Map<Object, Object>) value;
       Map<Object, Object> verifiedMap = Maps.newHashMapWithExpectedSize(valueMap.size());
       for (Entry<Object, Object> kv : valueMap.entrySet()) {
-        verifiedMap.put(verifyPrimitiveType(kv.getKey(), componentKeyType.getTypeName(), fieldName),
-            verifyPrimitiveType(kv.getValue(), componentValueType.getTypeName(), fieldName));
+        switch (valueType.getTypeName()) {
+        case ARRAY:
+          verifiedMap.put(verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+              verifyArray(kv.getValue(), valueType.getComponentType(), fieldName));
+          break;
+        case MAP:
+          verifiedMap.put(verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+              verifyMap(kv.getValue(), valueType.getMapKeyType(),
+                  valueType.getMapValueType(), fieldName));
+          break;
+        case ROW:
+          verifiedMap.put(verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+              verifyRow(kv.getValue(), fieldName));
+          break;
+        default:
+          verifiedMap.put(verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+              verifyPrimitiveType(kv.getValue(), valueType.getTypeName(), fieldName));
+        }
       }
       return verifiedMap;
     }
