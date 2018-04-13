@@ -283,8 +283,8 @@ public class KafkaIO {
     abstract ValueProvider<List<TopicPartition>> getTopicPartitions();
     @Nullable abstract Coder<K> getKeyCoder();
     @Nullable abstract Coder<V> getValueCoder();
-    @Nullable abstract ValueProvider<Class<? extends Deserializer<?>>> getKeyDeserializer();
-    @Nullable abstract ValueProvider<Class<? extends Deserializer<?>>> getValueDeserializer();
+    @Nullable abstract ValueProvider<Class<? extends Deserializer<K>>> getKeyDeserializer();
+    @Nullable abstract ValueProvider<Class<? extends Deserializer<V>>> getValueDeserializer();
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
     @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
@@ -308,9 +308,9 @@ public class KafkaIO {
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
       abstract Builder<K, V> setKeyDeserializer(
-          ValueProvider<Class<? extends Deserializer<?>>> keyDeserializer);
+          ValueProvider<Class<? extends Deserializer<K>>> keyDeserializer);
       abstract Builder<K, V> setValueDeserializer(
-          ValueProvider<Class<? extends Deserializer<?>>> valueDeserializer);
+          ValueProvider<Class<? extends Deserializer<V>>> valueDeserializer);
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
@@ -435,9 +435,6 @@ public class KafkaIO {
       }
     }
 
-
-
-
     /**
      * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka.
      * Provided String is used for setting the keyDeserializer
@@ -451,7 +448,7 @@ public class KafkaIO {
      */
     public Read<K, V> withKeyDeserializer(ValueProvider<String> keyDeserializer) {
       return toBuilder().setKeyDeserializer(ValueProvider
-              .NestedValueProvider.of(keyDeserializer, new DeserializerTranslator())).build();
+              .NestedValueProvider.of(keyDeserializer, new KeyDeserializerTranslator())).build();
     }
 
     /**
@@ -462,16 +459,35 @@ public class KafkaIO {
      * however in case that fails, you can use {@link #withKeyDeserializerAndCoder(Class, Coder)} to
      * provide the key coder explicitly.
      */
-    public Read<K, V> withKeyDeserializer(Class<? extends Deserializer<?>> keyDeserializer) {
+    public Read<K, V> withKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer) {
       return toBuilder().setKeyDeserializer(
           ValueProvider.StaticValueProvider.of(keyDeserializer)).build();
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Deserializer>}.
+     * Used to build a {@link ValueProvider} for {@link Deserializer<K>}.
      */
-    private static class DeserializerTranslator
-            implements SerializableFunction<String, Class<? extends Deserializer<?>>> {
+    private class KeyDeserializerTranslator
+        implements SerializableFunction<String, Class<? extends Deserializer<K>>> {
+      @Override
+      public Class apply(String deserializer) {
+        Class deserializerClass;
+        try {
+          deserializerClass =  Class.forName(deserializer);
+        } catch (ClassNotFoundException e) {
+          LOG.error("Provided class for KeySerializer not found {}", deserializer);
+          throw new RuntimeException("Please check for the existence of the KeySerializer Class",
+              e);
+        }
+        return deserializerClass;
+      }
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Deserializer<V>}.
+     */
+    private class ValueDeserializerTranslator
+            implements SerializableFunction<String, Class<? extends Deserializer<V>>> {
       @Override
       public Class apply(String deserializer) {
         Class deserializerClass;
@@ -524,7 +540,7 @@ public class KafkaIO {
      */
     public Read<K, V> withValueDeserializer(ValueProvider<String> valueDeserializer) {
       return toBuilder().setValueDeserializer(ValueProvider
-              .NestedValueProvider.of(valueDeserializer, new DeserializerTranslator())).build();
+              .NestedValueProvider.of(valueDeserializer, new ValueDeserializerTranslator())).build();
     }
 
     /**
@@ -993,8 +1009,8 @@ public class KafkaIO {
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
-    @Nullable abstract ValueProvider<Class<? extends Serializer<?>>> getKeySerializer();
-    @Nullable abstract ValueProvider<Class<? extends Serializer<?>>> getValueSerializer();
+    @Nullable abstract ValueProvider<Class<? extends Serializer<K>>> getKeySerializer();
+    @Nullable abstract ValueProvider<Class<? extends Serializer<V>>> getValueSerializer();
 
     @Nullable abstract KafkaPublishTimestampFunction<KV<K, V>> getPublishTimestampFunction();
 
@@ -1014,9 +1030,9 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
       abstract Builder<K, V> setKeySerializer(
-          ValueProvider<Class<? extends Serializer<?>>> serializer);
+          ValueProvider<Class<? extends Serializer<K>>> serializer);
       abstract Builder<K, V> setValueSerializer(
-          ValueProvider<Class<? extends Serializer<?>>> serializer);
+          ValueProvider<Class<? extends Serializer<V>>> serializer);
       abstract Builder<K, V> setPublishTimestampFunction(
         KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
@@ -1080,7 +1096,7 @@ public class KafkaIO {
      */
     public Write<K, V> withKeySerializer(ValueProvider<String> keySerializer) {
       return toBuilder().setKeySerializer(ValueProvider.
-              NestedValueProvider.of(keySerializer, new SerializerTranslator())).build();
+              NestedValueProvider.of(keySerializer, new SerializerKeyTranslator())).build();
     }
 
     /**
@@ -1103,13 +1119,33 @@ public class KafkaIO {
      */
     public Write<K, V> withValueSerializer(ValueProvider<String> valueSerializer) {
       return toBuilder().setValueSerializer(ValueProvider
-              .NestedValueProvider.of(valueSerializer, new SerializerTranslator())).build();
+              .NestedValueProvider.of(valueSerializer, new SerializerValueTranslator())).build();
     }
+
     /**
-     * Used to build a {@link ValueProvider} for {@link Class<? extends Serializer<?>>}.
+     * Used to build a {@link ValueProvider} for {@link Serializer<K>}.
      */
-    private static class SerializerTranslator
-            implements SerializableFunction<String, Class<? extends Serializer<?>>> {
+    private class SerializerKeyTranslator
+        implements SerializableFunction<String, Class<? extends Serializer<K>>> {
+      @Override
+      public Class apply(String serializer) {
+        Class serializerClass;
+        try {
+          serializerClass =  Class.forName(serializer);
+        } catch (ClassNotFoundException e) {
+          LOG.error("Provided class for KeySerializer not found {}", serializer);
+          throw new RuntimeException("Please check for the existence of the KeySerializer Class",
+              e);
+        }
+        return serializerClass;
+      }
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Serializer<V>}.
+     */
+    private class SerializerValueTranslator
+            implements SerializableFunction<String, Class<? extends Serializer<V>>> {
       @Override
       public Class apply(String serializer) {
         Class serializerClass;
