@@ -21,14 +21,14 @@ package org.apache.beam.runners.fnexecution;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.SynchronousQueue;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
+import org.apache.beam.runners.fnexecution.control.QueueControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -67,13 +67,13 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     return dataServer.getApiServiceDescriptor();
   }
 
-  protected void before() throws IOException, InterruptedException {
+  protected void before() throws Exception {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
-    SynchronousQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
+    ControlClientPool<FnApiControlClient> clientPool = QueueControlClientPool.createSynchronous();
     FnApiControlClientPoolService clientPoolService =
         FnApiControlClientPoolService.offeringClientsToPool(
-            clientPool, GrpcContextHeaderAccessorProvider.getHeaderAccessor());
+            clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
 
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
@@ -98,7 +98,8 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
           return null;
         });
 
-    client = SdkHarnessClient.usingFnApiClient(clientPool.take(), dataServer.getService());
+    client = SdkHarnessClient.usingFnApiClient(clientPool.getSource().get(),
+        dataServer.getService());
   }
 
   protected void after() {
