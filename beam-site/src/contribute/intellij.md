@@ -39,6 +39,8 @@ the "build" task in the root Gradle module.
 
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
+Note: Older versions of IntelliJ may not support the Checkstyle file used by Beam.
+
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle
 3. Set Checkstyle version to the same as in `/build_rules.gradle` (e.g. 8.7)
