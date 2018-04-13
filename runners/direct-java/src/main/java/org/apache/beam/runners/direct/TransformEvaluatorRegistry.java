@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
-class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
+class TransformEvaluatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
 
   /**
@@ -164,7 +164,6 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
     this.factories = factories;
   }
 
-  @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
@@ -179,7 +178,6 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
     return factory.forApplication(application, inputBundle);
   }
 
-  @Override
   public void cleanup() throws Exception {
     Collection<Exception> thrownInCleanup = new ArrayList<>();
     for (TransformEvaluatorFactory factory : factories.values()) {

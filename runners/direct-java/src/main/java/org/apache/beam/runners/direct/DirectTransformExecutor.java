@@ -72,7 +72,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
     }
   }
 
-  private final TransformEvaluatorFactory evaluatorFactory;
+  private final TransformEvaluatorRegistry evaluatorRegistry;
   private final Iterable<? extends ModelEnforcementFactory> modelEnforcements;
 
   /** The transform that will be evaluated. */
@@ -87,13 +87,13 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   @VisibleForTesting
   DirectTransformExecutor(
       EvaluationContext context,
-      TransformEvaluatorFactory factory,
+      TransformEvaluatorRegistry factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
-    this.evaluatorFactory = factory;
+    this.evaluatorRegistry = factory;
     this.modelEnforcements = modelEnforcements;
 
     this.inputBundle = inputBundle;
@@ -115,7 +115,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         enforcements.add(enforcement);
       }
       TransformEvaluator<T> evaluator =
-          evaluatorFactory.forApplication(transform, inputBundle);
+          evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {
         onComplete.handleEmpty(transform);
         // Nothing to do
