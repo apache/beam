@@ -54,8 +54,8 @@ class RowJsonValidation {
       return;
     }
 
-    if (fieldTypeName.isContainerType()) {
-      verifyFieldTypeSupported(fieldType.getComponentType());
+    if (fieldTypeName.isCollectionType()) {
+      verifyFieldTypeSupported(fieldType.getCollectionType());
       return;
     }
 

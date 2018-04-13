@@ -144,7 +144,7 @@ public class RowJsonDeserializerTest {
         Schema
             .builder()
             .addArrayField("f_arrayOfIntArrays",
-                           FieldType.of(ARRAY).withComponentType(INT32.type()))
+                           FieldType.of(ARRAY).withCollectionType(INT32.type()))
             .build();
 
     String rowString = "{\n"
@@ -174,7 +174,7 @@ public class RowJsonDeserializerTest {
         Schema
             .builder()
             .addArrayField("f_arrayOfIntArrays",
-                           FieldType.of(ARRAY).withComponentType(INT32.type()))
+                           FieldType.of(ARRAY).withCollectionType(INT32.type()))
             .build();
 
     String rowString = "{\n"
