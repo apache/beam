@@ -370,9 +370,10 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(ValueProvider<String> topics) {
       checkState(
-              getTopicPartitions() == null,
+              getTopicPartitions().get().isEmpty(),
               "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopics(ValueProvider.NestedValueProvider.of(topics, new TopicTranslator())).build();
+      return toBuilder()
+          .setTopics(ValueProvider.NestedValueProvider.of(topics, new TopicTranslator())).build();
     }
     /**
      * Sets a list of partitions to read from. This allows reading only a subset
@@ -402,13 +403,14 @@ public class KafkaIO {
      * Like above but with a {@link ValueProvider}.
      */
     public Read<K, V> withTopicPartitions(ValueProvider<String> topicPartitions) {
-      checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
+      checkState(getTopics().get().isEmpty(),
+          "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopicPartitions(ValueProvider
               .NestedValueProvider.of(topicPartitions, new TopicPartitionTranslator())).build();
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link List<String>}.
+     * Used to build a {@link ValueProvider} for {@link List} of {@link String}.
      */
     private static class TopicTranslator implements SerializableFunction<String, List<String>> {
       @Override
@@ -420,7 +422,7 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link List<TopicPartition>}.
+     * Used to build a {@link ValueProvider} for {@link List} of {@link TopicPartition}.
      */
     private static class TopicPartitionTranslator
         implements SerializableFunction<String, List<TopicPartition>> {
@@ -428,10 +430,11 @@ public class KafkaIO {
       public List<TopicPartition> apply(String topicPartitions) {
         List<TopicPartition> topicPartitionList = new ArrayList<>();
         for (String topicPartition: Splitter.on(',').trimResults().omitEmptyStrings()
-            .splitToList(topicPartitions))
+              .splitToList(topicPartitions)) {
           topicPartitionList
               .add(new TopicPartition(Splitter.on('-').splitToList(topicPartition).get(0),
                   Integer.parseInt(Splitter.on('-').splitToList(topicPartition).get(1))));
+        }
       return ImmutableList.copyOf(topicPartitionList);
       }
     }
@@ -466,7 +469,7 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Deserializer<K>}.
+     * Used to build a {@link ValueProvider} for {@link Deserializer} of {@link K}.
      */
     private class KeyDeserializerTranslator
         implements SerializableFunction<String, Class<? extends Deserializer<K>>> {
@@ -485,7 +488,7 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Deserializer<V>}.
+     * Used to build a {@link ValueProvider} for {@link Deserializer} of {@link V}.
      */
     private class ValueDeserializerTranslator
             implements SerializableFunction<String, Class<? extends Deserializer<V>>> {
@@ -540,8 +543,9 @@ public class KafkaIO {
      * Like above but with a {@link ValueProvider}.
      */
     public Read<K, V> withValueDeserializer(ValueProvider<String> valueDeserializer) {
-      return toBuilder().setValueDeserializer(ValueProvider
-              .NestedValueProvider.of(valueDeserializer, new ValueDeserializerTranslator())).build();
+      return toBuilder()
+          .setValueDeserializer(ValueProvider.NestedValueProvider
+          .of(valueDeserializer, new ValueDeserializerTranslator())).build();
     }
 
     /**
@@ -608,9 +612,10 @@ public class KafkaIO {
         return configUpdates
                 .entrySet()
                 .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object)e.getValue()));
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
       }
     }
+
     /**
      * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxNumRecords(long)}.
      * Mainly used for tests and demo applications.
@@ -796,8 +801,8 @@ public class KafkaIO {
           "withBootstrapServers() is required");
       checkArgument(getTopics().get().size() > 0 || getTopicPartitions().get().size() > 0,
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
-      checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
-      checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
+      checkArgument(getKeyDeserializer().get() != null, "withKeyDeserializer() is required");
+      checkArgument(getValueDeserializer().get() != null, "withValueDeserializer() is required");
       ConsumerSpEL consumerSpEL = new ConsumerSpEL();
 
       if (!consumerSpEL.hasOffsetsForTimes()) {
@@ -834,8 +839,8 @@ public class KafkaIO {
               + "key coder explicitly using withKeyDeserializerAndCoder()");
 
       Coder<V> valueCoder =
-          getValueCoder() !=
-              null ? getValueCoder() : inferCoder(registry, getValueDeserializer().get());
+          getValueCoder()
+              != null ? getValueCoder() : inferCoder(registry, getValueDeserializer().get());
       checkArgument(
           valueCoder != null,
           "Value coder could not be inferred from value deserializer. Please provide"
@@ -1049,9 +1054,9 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
       abstract Builder<K, V> setKeySerializer(
-          ValueProvider<Class<? extends Serializer<K>>> serializer);
+          ValueProvider<Class<? extends Serializer<K>>> keySerializer);
       abstract Builder<K, V> setValueSerializer(
-          ValueProvider<Class<? extends Serializer<V>>> serializer);
+          ValueProvider<Class<? extends Serializer<V>>> valueSerializer);
       abstract Builder<K, V> setPublishTimestampFunction(
         KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
@@ -1104,7 +1109,7 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a {@link Serializer} for serializing key (if any) to bytes using a String
+     * Sets a {@link Serializer} for serializing key (if any) to bytes using a String.
      */
     public Write<K, V> withKeySerializer(String keySerializer) {
       return withKeySerializer(ValueProvider.StaticValueProvider.of(keySerializer));
@@ -1127,7 +1132,7 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a {@link Serializer} for serializing value (if any) to bytes using a String
+     * Sets a {@link Serializer} for serializing value (if any) to bytes using a String.
      */
     public Write<K, V> withValueSerializer(String valueSerializer) {
       return withValueSerializer(ValueProvider.StaticValueProvider.of(valueSerializer));
@@ -1142,7 +1147,7 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Serializer<K>}.
+     * Used to build a {@link ValueProvider} for {@link Serializer} of {@link K}.
      */
     private class SerializerKeyTranslator
         implements SerializableFunction<String, Class<? extends Serializer<K>>> {
@@ -1161,7 +1166,7 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Serializer<V>}.
+     * Used to build a {@link ValueProvider} for {@link Serializer} of {@link V}.
      */
     private class SerializerValueTranslator
             implements SerializableFunction<String, Class<? extends Serializer<V>>> {
@@ -1209,7 +1214,7 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Map<String, Object>}.
+     * Used to build a {@link ValueProvider} for {@link Map} of {@link String} and {@link Object}.
      */
     private static class PropertyTranslator
         implements SerializableFunction<String, Map<String, Object>> {
@@ -1220,7 +1225,7 @@ public class KafkaIO {
         return configUpdates
             .entrySet()
             .stream()
-            .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object)e.getValue()));
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
       }
     }
 
