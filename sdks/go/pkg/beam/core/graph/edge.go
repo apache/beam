@@ -377,7 +377,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 // built-in bytes coder.
 func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	ft := typex.New(reflectx.ByteSlice)
-	w := window.NewGlobalWindow()
+	w := window.NewGlobalWindows()
 	n := g.NewNode(ft, w)
 	n.Coder = coder.NewBytes()
 
@@ -388,9 +388,9 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	return edge
 }
 
-func inputWindow(in []*Node) *window.Window {
+func inputWindow(in []*Node) *window.WindowingStrategy {
 	if len(in) == 0 {
-		return window.NewGlobalWindow()
+		return window.NewGlobalWindows()
 	}
 	return in[0].Window()
 }

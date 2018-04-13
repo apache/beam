@@ -38,7 +38,7 @@ type Node struct {
 	Coder *coder.Coder
 
 	// w defines the kind of windowing used.
-	w *window.Window
+	w *window.WindowingStrategy
 }
 
 // ID returns the graph-local identifier for the node.
@@ -51,8 +51,8 @@ func (n *Node) Type() typex.FullType {
 	return n.t
 }
 
-// Window returns the window applied to the data.
-func (n *Node) Window() *window.Window {
+// WindowingStrategy returns the window applied to the data.
+func (n *Node) Window() *window.WindowingStrategy {
 	return n.w
 }
 

@@ -426,7 +426,7 @@ func makeSerializedFnPayload(payload *v1.TransformPayload) string {
 
 func encodeCoderRef(c *coder.Coder) (*graphx.CoderRef, error) {
 	// TODO(herohde) 3/16/2018: ensure windowed values for Dataflow
-	return graphx.EncodeCoderRef(coder.NewW(c, window.NewGlobalWindow()))
+	return graphx.EncodeCoderRef(coder.NewW(c, window.NewGlobalWindows()))
 }
 
 // buildName computes a Dataflow composite name understood by the Dataflow UI,
@@ -454,9 +454,9 @@ func stepID(id int) string {
 	return fmt.Sprintf("s%v", id)
 }
 
-func translateWindow(w *window.Window) proto.Message {
+func translateWindow(w *window.WindowingStrategy) proto.Message {
 	// TODO: The only windowing strategy we support is the global window.
-	if w.Kind() != window.GlobalWindow {
+	if w.Kind() != window.GlobalWindows {
 		panic(fmt.Sprintf("Unsupported window type supplied: %v", w))
 	}
 	// We compute the fixed content of this message for use in workflows.

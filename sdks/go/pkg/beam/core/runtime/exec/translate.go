@@ -92,7 +92,7 @@ type builder struct {
 	prev map[string]int      // PCollectionID -> #incoming
 	succ map[string][]linkID // PCollectionID -> []linkID
 
-	windowing map[string]*window.Window
+	windowing map[string]*window.WindowingStrategy
 	nodes     map[string]Node // PCollectionID -> Node (cache)
 	links     map[linkID]Node // linkID -> Node (cache)
 
@@ -135,7 +135,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		prev: prev,
 		succ: succ,
 
-		windowing: make(map[string]*window.Window),
+		windowing: make(map[string]*window.WindowingStrategy),
 		nodes:     make(map[string]Node),
 		links:     make(map[linkID]Node),
 
@@ -148,7 +148,7 @@ func (b *builder) build() (*Plan, error) {
 	return NewPlan(b.desc.GetId(), b.units)
 }
 
-func (b *builder) makeWindow(id string) (*window.Window, error) {
+func (b *builder) makeWindow(id string) (*window.WindowingStrategy, error) {
 	if w, exists := b.windowing[id]; exists {
 		return w, nil
 	}
@@ -161,7 +161,7 @@ func (b *builder) makeWindow(id string) (*window.Window, error) {
 		return nil, fmt.Errorf("unsupported window type: %v", urn)
 	}
 
-	w := window.NewGlobalWindow()
+	w := window.NewGlobalWindows()
 	b.windowing[id] = w
 	return w, nil
 }
