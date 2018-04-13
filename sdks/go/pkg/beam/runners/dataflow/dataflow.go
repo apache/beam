@@ -54,7 +54,7 @@ var (
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	zone            = flag.String("zone", "", "GCP zone (optional)")
-	region          = flag.String("region", "", "GCP Region (optional)")
+	region          = flag.String("region", "us-central1", "GCP Region (optional)")
 	network         = flag.String("network", "", "GCP network (optional)")
 	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
 	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
@@ -182,7 +182,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				MachineType:                 *machineType,
 				Network:                     *network,
 				Zone:                        *zone,
-				Region:                      *region,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
 			Experiments:       jobopts.GetExperiments(),
@@ -212,7 +211,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	upd, err := client.Projects.Jobs.Create(project, job).Do()
+	upd, err := client.Projects.Locations.Jobs.Create(project, *region, job).Do()
 	if err != nil {
 		return err
 	}
@@ -230,7 +229,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	time.Sleep(1 * time.Minute)
 	for {
-		j, err := client.Projects.Jobs.Get(project, upd.Id).Do()
+		j, err := client.Projects.Locations.Jobs.Get(project, *region, upd.Id).Do()
 		if err != nil {
 			return fmt.Errorf("failed to get job: %v", err)
 		}
