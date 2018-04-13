@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJsonDeserializer;
@@ -28,8 +29,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Creates a {@link PTransform} to convert input JSON objects to {@link Row Rows} with given {@link
- * Schema}.
+ * <i>Experimental</i>
+ *
+ * <p>Creates a {@link PTransform} to convert input JSON objects to {@link Row Rows}
+ * with given {@link Schema}.
  *
  * <p>Currently supported {@link Schema} field types are: <ul> <li>{@link Schema.TypeName#BYTE}</li>
  * <li>{@link Schema.TypeName#INT16}</li> <li>{@link Schema.TypeName#INT32}</li> <li>{@link
@@ -56,15 +59,15 @@ import org.apache.beam.sdk.values.Row;
  * <p>Explicit {@code null} literals are allowed in JSON objects. No other values are parsed into
  * {@code null}.
  */
+@Experimental
 public class JsonToRow {
 
   public static PTransform<PCollection<? extends String>, PCollection<Row>> withSchema(
       Schema rowSchema) {
-
-    return MapElements.via(JsonToRowFn.forSchema(rowSchema));
+    return JsonToRowFn.forSchema(rowSchema);
   }
 
-  static class JsonToRowFn extends SimpleFunction<String, Row> {
+  static class JsonToRowFn extends PTransform<PCollection<? extends String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
     private Schema schema;
 
@@ -77,7 +80,20 @@ public class JsonToRow {
     }
 
     @Override
-    public Row apply(String jsonString) {
+    public PCollection<Row> expand(PCollection<? extends String> jsonStrings) {
+      return jsonStrings
+          .apply(
+              ParDo.of(
+                  new DoFn<String, Row>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext context) {
+                      context.output(jsonToRow(context.element()));
+                    }
+                  }))
+          .setCoder(schema.getRowCoder());
+    }
+
+    private Row jsonToRow(String jsonString) {
       try {
         return objectMapper().readValue(jsonString, Row.class);
       } catch (IOException e) {
