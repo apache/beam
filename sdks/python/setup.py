@@ -17,31 +17,29 @@
 
 """Apache Beam SDK for Python setup file."""
 
-from distutils.version import StrictVersion
+from __future__ import print_function
 
-import glob
 import os
-import pkg_resources
 import platform
 import re
-import shutil
-import subprocess
-import sys
 import warnings
+from distutils.version import StrictVersion
 
+# Pylint and isort disagree here.
+# pylint: disable=ungrouped-imports
 import setuptools
-
+from pkg_resources import DistributionNotFound
+from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
 from setuptools.command.sdist import sdist
 from setuptools.command.test import test
 
-from pkg_resources import get_distribution, DistributionNotFound
-
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
+  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)  # pylint: disable=exec-used
   return global_names['__version__']
+
 
 PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
@@ -120,14 +118,14 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  # oauth2client >=4 only works with google-apitools>=0.5.18.
-  'google-apitools>=0.5.18,<=0.5.20',
-  'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-  'googledatastore==7.0.1',
-  'google-cloud-pubsub==0.26.0',
-  'proto-google-cloud-pubsub-v1==0.15.4',
-  # GCP packages required by tests
-  'google-cloud-bigquery==0.25.0',
+    # oauth2client >=4 only works with google-apitools>=0.5.18.
+    'google-apitools>=0.5.18,<=0.5.20',
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
+    'googledatastore==7.0.1',
+    'google-cloud-pubsub==0.26.0',
+    'proto-google-cloud-pubsub-v1==0.15.4',
+    # GCP packages required by tests
+    'google-cloud-bigquery==0.25.0',
 ]
 
 
@@ -137,6 +135,7 @@ def generate_protos_first(original_cmd):
     # See https://issues.apache.org/jira/browse/BEAM-2366
     # pylint: disable=wrong-import-position
     import gen_protos
+
     class cmd(original_cmd, object):
       def run(self):
         gen_protos.generate_proto_files()
@@ -153,8 +152,8 @@ def generate_common_urns():
       '../../'
       'model/pipeline/src/main/resources/org/apache/beam/model/common_urns.md')
   out = os.path.join(
-    os.path.dirname(__file__),
-    'apache_beam/portability/common_urns.py')
+      os.path.dirname(__file__),
+      'apache_beam/portability/common_urns.py')
   src_time = os.path.getmtime(src) if os.path.exists(src) else -1
   out_time = os.path.getmtime(out) if os.path.exists(out) else -1
   if src_time > out_time:
@@ -173,6 +172,8 @@ def generate_common_urns():
         + '\n'.join('%s = "%s"' % urn
                     for urn in sorted(urns.items(), key=lambda kv: kv[1]))
         + '\n')
+
+
 generate_common_urns()
 
 python_requires = '>=2.7'
@@ -226,8 +227,8 @@ setuptools.setup(
     keywords=PACKAGE_KEYWORDS,
     entry_points={
         'nose.plugins.0.10': [
-            'beam_test_plugin = test_config:BeamTestPlugin'
-    ]},
+            'beam_test_plugin = test_config:BeamTestPlugin',
+        ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
         'sdist': generate_protos_first(sdist),
