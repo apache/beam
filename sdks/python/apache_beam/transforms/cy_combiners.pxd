@@ -90,23 +90,3 @@ cdef class AnyAccumulator(object):
   cpdef add_input(self, bint element)
   @cython.locals(accumulator=AnyAccumulator)
   cpdef merge(self, accumulators)
-
-cdef bint compare_to(int64_t x, int64_t y)
-
-@cython.locals(number_of_leading_zeros=int64_t, y=int64_t)
-cdef int64_t get_log10_round_to_floor(int64_t element)
-
-cdef class DistributionAccumulator(object):
-  cdef public int64_t min
-  cdef public int64_t max
-  cdef public int64_t count
-  cdef public int64_t sum
-  cdef public int64_t first_bucket_offset
-  cdef public list buckets
-  cdef public int64_t buckets_per_10
-  @cython.locals(bucket_index = int64_t, size_of_bucket=int64_t)
-  cpdef add_input(self, int64_t element)
-  @cython.locals(log10_floor=int64_t, power_of_ten=int64_t,
-                 bucket_offset=int64_t)
-  cpdef int64_t calculate_bucket_index(self, int64_t element)
-  cdef void increment_bucket(self, int64_t bucket_index)
