@@ -18,11 +18,9 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +32,6 @@ import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -60,7 +57,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
         createEvaluator(
-            (AppliedPTransform) application, (CommittedBundle) inputBundle);
+            (AppliedPTransform) application);
     return evaluator;
   }
 
@@ -69,11 +66,8 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <K, V> TransformEvaluator<KV<K, V>> createEvaluator(
       final AppliedPTransform<
-          PCollection<KV<K, V>>,
-          PCollection<KeyedWorkItem<K, V>>,
-          DirectGroupByKeyOnly<K, V>>
-          application,
-      final CommittedBundle<KV<K, V>> inputBundle) {
+              PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
+          application) {
     return new GroupByKeyOnlyEvaluator<>(evaluationContext, application);
   }
 
@@ -92,7 +86,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             PCollection<KeyedWorkItem<K, V>>,
             DirectGroupByKeyOnly<K, V>> application;
     private final Coder<K> keyCoder;
-    private Map<GroupingKey<K>, List<WindowedValue<V>>> groupingMap;
+    private Map<StructuralKey<K>, List<WindowedValue<V>>> groupingMap;
 
     public GroupByKeyOnlyEvaluator(
         EvaluationContext evaluationContext,
@@ -126,17 +120,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
     public void processElement(WindowedValue<KV<K, V>> element) {
       KV<K, V> kv = element.getValue();
       K key = kv.getKey();
-      byte[] encodedKey;
-      try {
-        encodedKey = encodeToByteArray(keyCoder, key);
-      } catch (CoderException exn) {
-        // TODO: Put in better element printing:
-        // truncate if too long.
-        throw new IllegalArgumentException(
-            String.format("unable to encode key %s of input to %s using %s", key, this, keyCoder),
-            exn);
-      }
-      GroupingKey<K> groupingKey = new GroupingKey<>(key, encodedKey);
+      StructuralKey<K> groupingKey = StructuralKey.of(key, keyCoder);
       List<WindowedValue<V>> values =
           groupingMap.computeIfAbsent(groupingKey, k -> new ArrayList<>());
       values.add(element.withValue(kv.getValue()));
@@ -145,9 +129,9 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult<KV<K, V>> finishBundle() {
       Builder resultBuilder = StepTransformResult.withoutHold(application);
-      for (Map.Entry<GroupingKey<K>, List<WindowedValue<V>>> groupedEntry :
+      for (Map.Entry<StructuralKey<K>, List<WindowedValue<V>>> groupedEntry :
           groupingMap.entrySet()) {
-        K key = groupedEntry.getKey().key;
+        K key = groupedEntry.getKey().getKey();
         KeyedWorkItem<K, V> groupedKv =
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
         UncommittedBundle<KeyedWorkItem<K, V>> bundle =
@@ -159,31 +143,6 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
         resultBuilder.addOutput(bundle);
       }
       return resultBuilder.build();
-    }
-
-    private static class GroupingKey<K> {
-      private K key;
-      private byte[] encodedKey;
-
-      public GroupingKey(K key, byte[] encodedKey) {
-        this.key = key;
-        this.encodedKey = encodedKey;
-      }
-
-      @Override
-      public boolean equals(Object o) {
-        if (o instanceof GroupingKey) {
-          GroupingKey<?> that = (GroupingKey<?>) o;
-          return Arrays.equals(this.encodedKey, that.encodedKey);
-        } else {
-          return false;
-        }
-      }
-
-      @Override
-      public int hashCode() {
-        return Arrays.hashCode(encodedKey);
-      }
     }
   }
 }
