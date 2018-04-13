@@ -65,7 +65,6 @@ public class JsonToRowSqlTest {
     PCollection<Row> sqlResult =
         jsonPersons
             .apply(JsonToRow.withSchema(personSchema))
-            .setCoder(personSchema.getRowCoder())
             .apply(BeamSql.query("SELECT AVG(height) as avg_height FROM PCOLLECTION"));
 
     PAssert
