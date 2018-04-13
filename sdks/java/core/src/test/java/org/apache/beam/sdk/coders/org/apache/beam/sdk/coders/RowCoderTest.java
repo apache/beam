@@ -101,8 +101,8 @@ public class RowCoderTest {
     Schema nestedSchema = Schema.builder()
         .addInt32Field("f1_int", false)
         .addStringField("f1_str", false).build();
-    FieldType componentType = TypeName.ROW.type().withRowSchema(nestedSchema);
-    Schema schema = Schema.builder().addArrayField("f_array", componentType).build();
+    FieldType collectionType = TypeName.ROW.type().withRowSchema(nestedSchema);
+    Schema schema = Schema.builder().addArrayField("f_array", collectionType).build();
     Row row = Row.withSchema(schema).addArray(
         Row.withSchema(nestedSchema).addValues(1, "one").build(),
         Row.withSchema(nestedSchema).addValues(2, "two").build(),
@@ -114,8 +114,8 @@ public class RowCoderTest {
   @Test
   public void testArrayOfArray() throws Exception {
     FieldType arrayType = TypeName.ARRAY.type()
-        .withComponentType(TypeName.ARRAY.type()
-            .withComponentType(TypeName.INT32.type()));
+        .withCollectionType(TypeName.ARRAY.type()
+            .withCollectionType(TypeName.INT32.type()));
     Schema schema = Schema.builder().addField(Field.of("f_array", arrayType)).build();
     Row row = Row.withSchema(schema).addArray(
         Lists.newArrayList(1, 2, 3, 4),
