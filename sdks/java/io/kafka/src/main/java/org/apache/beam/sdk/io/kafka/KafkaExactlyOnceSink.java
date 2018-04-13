@@ -639,8 +639,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
     Map<String, Object> producerConfig = new HashMap<>(spec.getProducerConfig());
     producerConfig.putAll(ImmutableMap.of(
-      ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, spec.getKeySerializer(),
-      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer(),
+      ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, spec.getKeySerializer().get(),
+      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer().get(),
       ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG, true,
       ProducerSpEL.TRANSACTIONAL_ID_CONFIG, producerName));
 
