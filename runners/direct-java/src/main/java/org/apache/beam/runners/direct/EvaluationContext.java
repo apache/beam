@@ -73,8 +73,6 @@ class EvaluationContext {
    */
   private final DirectGraph graph;
 
-  /** The options that were used to create this {@link Pipeline}. */
-  private final DirectOptions options;
   private final Clock clock;
 
   private final BundleFactory bundleFactory;
@@ -96,21 +94,18 @@ class EvaluationContext {
   private final Set<PValue> keyedPValues;
 
   public static EvaluationContext create(
-      DirectOptions options,
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
       Set<PValue> keyedPValues) {
-    return new EvaluationContext(options, clock, bundleFactory, graph, keyedPValues);
+    return new EvaluationContext(clock, bundleFactory, graph, keyedPValues);
   }
 
   private EvaluationContext(
-      DirectOptions options,
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
       Set<PValue> keyedPValues) {
-    this.options = checkNotNull(options);
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
@@ -324,13 +319,6 @@ class EvaluationContext {
     callbackExecutor.callOnWindowExpiration(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
-  }
-
-  /**
-   * Get the options used by this {@link Pipeline}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
   }
 
   /**
