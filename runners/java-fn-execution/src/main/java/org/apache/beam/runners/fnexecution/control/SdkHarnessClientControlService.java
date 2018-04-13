@@ -20,9 +20,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import io.grpc.ServerServiceDefinition;
 import java.util.Collection;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.function.Supplier;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
@@ -34,7 +32,7 @@ import org.apache.beam.runners.fnexecution.data.FnDataService;
  */
 public class SdkHarnessClientControlService implements FnService {
   private final FnApiControlClientPoolService clientPoolService;
-  private final BlockingQueue<FnApiControlClient> pendingClients;
+  private final ControlClientPool<FnApiControlClient> pendingClients;
 
   private final Supplier<FnDataService> dataService;
 
@@ -49,19 +47,22 @@ public class SdkHarnessClientControlService implements FnService {
       Supplier<FnDataService> dataService, HeaderAccessor headerAccessor) {
     this.dataService = dataService;
     activeClients = new ConcurrentLinkedQueue<>();
-    pendingClients = new SynchronousQueue<>();
+    pendingClients = QueueControlClientPool.createSynchronous();
     clientPoolService =
-        FnApiControlClientPoolService.offeringClientsToPool(pendingClients, headerAccessor);
+        FnApiControlClientPoolService.offeringClientsToPool(pendingClients.getSink(),
+            headerAccessor);
   }
 
   public SdkHarnessClient getClient() {
     try {
       // Block until a client is available.
-      FnApiControlClient getClient = pendingClients.take();
+      FnApiControlClient getClient = pendingClients.getSource().get();
       return SdkHarnessClient.usingFnApiClient(getClient, dataService.get());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException("Interrupted while waiting for client", e);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 

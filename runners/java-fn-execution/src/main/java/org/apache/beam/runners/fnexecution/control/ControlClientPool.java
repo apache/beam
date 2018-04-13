@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.fnexecution.control;
 
-package org.apache.beam.fn.harness.fn;
+import org.apache.beam.sdk.fn.function.ThrowingConsumer;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 
-import java.util.function.BiConsumer;
+/** Control client pool that exposes a source and sink of control clients. */
+public interface ControlClientPool<T extends InstructionRequestHandler> {
 
-/**
- * A {@link BiConsumer} which can throw {@link Exception}s.
- *
- * <p>Used to expand the allowed set of method references to be used by Java 8
- * functional interfaces.
- */
-@FunctionalInterface
-public interface ThrowingBiConsumer<T1, T2> {
-  void accept(T1 t1, T2 t2) throws Exception;
+  /** Source of control clients. */
+  ThrowingSupplier<T> getSource();
+
+  /** Sink for control clients. */
+  ThrowingConsumer<T> getSink();
+
 }
-

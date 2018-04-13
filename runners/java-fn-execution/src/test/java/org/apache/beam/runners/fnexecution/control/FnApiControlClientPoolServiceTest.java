@@ -26,10 +26,8 @@ import static org.mockito.Mockito.verify;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -51,10 +49,11 @@ public class FnApiControlClientPoolServiceTest {
 
   // For ease of straight-line testing, we use a LinkedBlockingQueue; in practice a SynchronousQueue
   // for matching incoming connections and server threads is likely.
-  private final BlockingQueue<FnApiControlClient> pool = new LinkedBlockingQueue<>();
+  private final ControlClientPool<FnApiControlClient> pool =
+      QueueControlClientPool.createBuffering();
   private final FnApiControlClientPoolService controlService =
       FnApiControlClientPoolService.offeringClientsToPool(
-          pool, GrpcContextHeaderAccessorProvider.getHeaderAccessor());
+          pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
   private GrpcFnServer<FnApiControlClientPoolService> server;
   private BeamFnControlGrpc.BeamFnControlStub stub;
 
@@ -77,7 +76,7 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    FnApiControlClient client = pool.take();
+    FnApiControlClient client = pool.getSource().get();
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -115,7 +114,7 @@ public class FnApiControlClientPoolServiceTest {
           }
         });
 
-    pool.take();
+    pool.getSource().get();
     server.close();
 
     latch.await();
