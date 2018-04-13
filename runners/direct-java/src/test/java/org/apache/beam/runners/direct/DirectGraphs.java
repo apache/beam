@@ -20,8 +20,6 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 
 /** Test utilities for the {@link DirectRunner}. */
@@ -39,12 +37,6 @@ final class DirectGraphs {
   }
 
   public static AppliedPTransform<?, ?, ?> getProducer(PValue value) {
-    if (value instanceof PCollection) {
-      return getGraph(value.getPipeline()).getProducer((PCollection<?>) value);
-    } else if (value instanceof PCollectionView) {
-      return getGraph(value.getPipeline()).getWriter((PCollectionView<?>) value);
-    }
-    throw new IllegalArgumentException(
-        String.format("Unexpected type of %s %s", PValue.class.getSimpleName(), value.getClass()));
+    return getGraph(value.getPipeline()).getProducer(value);
   }
 }

@@ -54,7 +54,6 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -62,7 +61,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Instant;
 
@@ -128,7 +126,7 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-class WatermarkManager {
+class WatermarkManager<ExecutableT, CollectionT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -755,12 +753,12 @@ class WatermarkManager {
    * The {@link DirectGraph} representing the {@link Pipeline} this {@link WatermarkManager} tracks
    * watermarks for.
    */
-  private final DirectGraph graph;
+  private final ExecutableGraph<ExecutableT, CollectionT> graph;
 
   /**
    * The input and output watermark of each {@link AppliedPTransform}.
    */
-  private final Map<AppliedPTransform<?, ?, ?>, TransformWatermarks> transformToWatermarks;
+  private final Map<ExecutableT, TransformWatermarks> transformToWatermarks;
 
   /**
    * A queue of pending updates to the state of this {@link WatermarkManager}.
@@ -777,7 +775,7 @@ class WatermarkManager {
    * stale data.
    */
   @GuardedBy("refreshLock")
-  private final Set<AppliedPTransform<?, ?, ?>> pendingRefreshes;
+  private final Set<ExecutableT> pendingRefreshes;
 
   /**
    * Creates a new {@link WatermarkManager}. All watermarks within the newly created {@link
@@ -787,11 +785,12 @@ class WatermarkManager {
    * @param clock the clock to use to determine processing time
    * @param graph the graph representing this pipeline
    */
-  public static WatermarkManager create(Clock clock, DirectGraph graph) {
-    return new WatermarkManager(clock, graph);
+  public static WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> create(
+      Clock clock, DirectGraph graph) {
+    return new WatermarkManager<>(clock, graph);
   }
 
-  private WatermarkManager(Clock clock, DirectGraph graph) {
+  private WatermarkManager(Clock clock, ExecutableGraph<ExecutableT, CollectionT> graph) {
     this.clock = clock;
     this.graph = graph;
 
@@ -802,27 +801,19 @@ class WatermarkManager {
 
     transformToWatermarks = new HashMap<>();
 
-    for (AppliedPTransform<?, ?, ?> rootTransform : graph.getRootTransforms()) {
+    for (ExecutableT rootTransform : graph.getRootTransforms()) {
       getTransformWatermark(rootTransform);
     }
-    for (AppliedPTransform<?, ?, ?> primitiveTransform : graph.getPrimitiveTransforms()) {
+    for (ExecutableT primitiveTransform : graph.getExecutables()) {
       getTransformWatermark(primitiveTransform);
     }
   }
 
-  private TransformWatermarks getValueWatermark(PValue pvalue) {
-    if (pvalue instanceof PCollection) {
-      return getTransformWatermark(graph.getProducer((PCollection<?>) pvalue));
-    } else if (pvalue instanceof PCollectionView<?>) {
-      return getTransformWatermark(graph.getWriter((PCollectionView<?>) pvalue));
-    } else {
-      throw new IllegalArgumentException(
-          String.format(
-              "Unknown type of %s %s", PValue.class.getSimpleName(), pvalue.getClass()));
-    }
+  private TransformWatermarks getValueWatermark(CollectionT value) {
+    return getTransformWatermark(graph.getProducer(value));
   }
 
-  private TransformWatermarks getTransformWatermark(AppliedPTransform<?, ?, ?> transform) {
+  private TransformWatermarks getTransformWatermark(ExecutableT transform) {
     TransformWatermarks wms = transformToWatermarks.get(transform);
     if (wms == null) {
       List<Watermark> inputCollectionWatermarks = getInputWatermarks(transform);
@@ -848,52 +839,50 @@ class WatermarkManager {
     return wms;
   }
 
-  private Collection<Watermark> getInputProcessingWatermarks(AppliedPTransform<?, ?, ?> transform) {
+  private Collection<Watermark> getInputProcessingWatermarks(ExecutableT transform) {
     ImmutableList.Builder<Watermark> inputWmsBuilder = ImmutableList.builder();
-    Collection<PValue> inputs = TransformInputs.nonAdditionalInputs(transform);
+    Collection<CollectionT> inputs = graph.getPerElementInputs(transform);
     if (inputs.isEmpty()) {
       inputWmsBuilder.add(THE_END_OF_TIME);
     }
-    for (PValue pvalue : inputs) {
+    for (CollectionT input : inputs) {
       Watermark producerOutputWatermark =
-          getValueWatermark(pvalue).synchronizedProcessingOutputWatermark;
+          getValueWatermark(input).synchronizedProcessingOutputWatermark;
       inputWmsBuilder.add(producerOutputWatermark);
     }
     return inputWmsBuilder.build();
   }
 
-  private List<Watermark> getInputWatermarks(AppliedPTransform<?, ?, ?> transform) {
+  private List<Watermark> getInputWatermarks(ExecutableT transform) {
     ImmutableList.Builder<Watermark> inputWatermarksBuilder = ImmutableList.builder();
-    Collection< PValue> inputs = TransformInputs.nonAdditionalInputs(transform);
+    Collection<CollectionT> inputs = graph.getPerElementInputs(transform);
     if (inputs.isEmpty()) {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
-    for (PValue pvalue : inputs) {
-      Watermark producerOutputWatermark = getValueWatermark(pvalue).outputWatermark;
+    for (CollectionT input : inputs) {
+      Watermark producerOutputWatermark = getValueWatermark(input).outputWatermark;
       inputWatermarksBuilder.add(producerOutputWatermark);
     }
-    List<Watermark> inputCollectionWatermarks = inputWatermarksBuilder.build();
-    return inputCollectionWatermarks;
+    return inputWatermarksBuilder.build();
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Gets the input and output watermarks for an {@link AppliedPTransform}. If the
-   * {@link AppliedPTransform PTransform} has not processed any elements, return a watermark of
-   * {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   * Gets the input and output watermarks for an {@link AppliedPTransform}. If the {@link
+   * AppliedPTransform PTransform} has not processed any elements, return a watermark of {@link
+   * BoundedWindow#TIMESTAMP_MIN_VALUE}.
    *
    * @return a snapshot of the input watermark and output watermark for the provided transform
    */
-  public TransformWatermarks getWatermarks(AppliedPTransform<?, ?, ?> transform) {
+  public TransformWatermarks getWatermarks(ExecutableT transform) {
     return transformToWatermarks.get(transform);
   }
 
-  public void initialize(
-      Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialBundles) {
+  public void initialize(Map<ExecutableT, ? extends Iterable<CommittedBundle<?>>> initialBundles) {
     refreshLock.lock();
     try {
-      for (Map.Entry<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> rootEntry :
+      for (Map.Entry<ExecutableT, ? extends Iterable<CommittedBundle<?>>> rootEntry :
           initialBundles.entrySet()) {
         TransformWatermarks rootWms = transformToWatermarks.get(rootEntry.getKey());
         for (CommittedBundle<?> initialBundle : rootEntry.getValue()) {
@@ -929,9 +918,11 @@ class WatermarkManager {
   public void updateWatermarks(
       @Nullable CommittedBundle<?> completed,
       TimerUpdate timerUpdate,
-      CommittedResult result,
+      CommittedResult<ExecutableT> result,
       Instant earliestHold) {
-    pendingUpdates.offer(PendingWatermarkUpdate.create(completed,
+    pendingUpdates.offer(PendingWatermarkUpdate.create(
+        result.getExecutable(),
+        completed,
         timerUpdate,
         result,
         earliestHold));
@@ -967,15 +958,15 @@ class WatermarkManager {
    */
   private void applyNUpdates(int numUpdates) {
     for (int i = 0; !pendingUpdates.isEmpty() && (i < numUpdates || numUpdates <= 0); i++) {
-      PendingWatermarkUpdate pending = pendingUpdates.poll();
+      PendingWatermarkUpdate<ExecutableT> pending = pendingUpdates.poll();
       applyPendingUpdate(pending);
-      pendingRefreshes.add(pending.getTransform());
+      pendingRefreshes.add(pending.getExecutable());
     }
   }
 
-  private void applyPendingUpdate(PendingWatermarkUpdate pending) {
-    CommittedResult result = pending.getResult();
-    AppliedPTransform<?, ?, ?> transform = result.getTransform();
+  private void applyPendingUpdate(PendingWatermarkUpdate<ExecutableT> pending) {
+    CommittedResult<ExecutableT> result = pending.getResult();
+    ExecutableT transform = result.getExecutable();
     CommittedBundle<?> inputBundle = pending.getInputBundle();
 
     updatePending(inputBundle, pending.getTimerUpdate(), result);
@@ -1000,19 +991,20 @@ class WatermarkManager {
   private void updatePending(
       CommittedBundle<?> input,
       TimerUpdate timerUpdate,
-      CommittedResult result) {
+      CommittedResult<ExecutableT> result) {
     // Newly pending elements must be added before completed elements are removed, as the two
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
     for (CommittedBundle<?> bundle : result.getOutputs()) {
-      for (AppliedPTransform<?, ?, ?> consumer :
-          graph.getPerElementConsumers(bundle.getPCollection())) {
+      for (ExecutableT consumer :
+          // TODO: Remove this cast once CommittedBundle returns a CollectionT
+          graph.getPerElementConsumers((CollectionT) bundle.getPCollection())) {
         TransformWatermarks watermarks = transformToWatermarks.get(consumer);
         watermarks.addPending(bundle);
       }
     }
 
-    TransformWatermarks completedTransform = transformToWatermarks.get(result.getTransform());
+    TransformWatermarks completedTransform = transformToWatermarks.get(result.getExecutable());
     if (result.getUnprocessedInputs().isPresent()) {
       // Add the unprocessed inputs
       completedTransform.addPending(result.getUnprocessedInputs().get());
@@ -1031,7 +1023,7 @@ class WatermarkManager {
     refreshLock.lock();
     try {
       applyAllPendingUpdates();
-      Set<AppliedPTransform<?, ?, ?>> toRefresh = pendingRefreshes;
+      Set<ExecutableT> toRefresh = pendingRefreshes;
       while (!toRefresh.isEmpty()) {
         toRefresh = refreshAllOf(toRefresh);
       }
@@ -1040,20 +1032,20 @@ class WatermarkManager {
     }
   }
 
-  private Set<AppliedPTransform<?, ?, ?>> refreshAllOf(Set<AppliedPTransform<?, ?, ?>> toRefresh) {
-    Set<AppliedPTransform<?, ?, ?>> newRefreshes = new HashSet<>();
-    for (AppliedPTransform<?, ?, ?> transform : toRefresh) {
+  private Set<ExecutableT> refreshAllOf(Set<ExecutableT> toRefresh) {
+    Set<ExecutableT> newRefreshes = new HashSet<>();
+    for (ExecutableT transform : toRefresh) {
       newRefreshes.addAll(refreshWatermarks(transform));
     }
     return newRefreshes;
   }
 
-  private Set<AppliedPTransform<?, ?, ?>> refreshWatermarks(AppliedPTransform<?, ?, ?> toRefresh) {
+  private Set<ExecutableT> refreshWatermarks(ExecutableT toRefresh) {
     TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
-      Set<AppliedPTransform<?, ?, ?>> additionalRefreshes = new HashSet<>();
-      for (PValue outputPValue : toRefresh.getOutputs().values()) {
+      Set<ExecutableT> additionalRefreshes = new HashSet<>();
+      for (CollectionT outputPValue : graph.getProduced(toRefresh)) {
         additionalRefreshes.addAll(graph.getPerElementConsumers(outputPValue));
       }
       return additionalRefreshes;
@@ -1065,13 +1057,14 @@ class WatermarkManager {
    * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
    * pending timers will be removed from this {@link WatermarkManager}.
    */
-  public Collection<FiredTimers> extractFiredTimers() {
-    Collection<FiredTimers> allTimers = new ArrayList<>();
+  public Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
+    Collection<FiredTimers<ExecutableT>> allTimers = new ArrayList<>();
     refreshLock.lock();
     try {
-      for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> watermarksEntry
+      for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry
           : transformToWatermarks.entrySet()) {
-        Collection<FiredTimers> firedTimers = watermarksEntry.getValue().extractFiredTimers();
+        Collection<FiredTimers<ExecutableT>> firedTimers =
+            watermarksEntry.getValue().extractFiredTimers();
         allTimers.addAll(firedTimers);
       }
       return allTimers;
@@ -1186,7 +1179,7 @@ class WatermarkManager {
    * A reference to the input and output watermarks of an {@link AppliedPTransform}.
    */
   public class TransformWatermarks {
-    private final AppliedPTransform<?, ?, ?> transform;
+    private final ExecutableT transform;
 
     private final AppliedPTransformInputWatermark inputWatermark;
     private final AppliedPTransformOutputWatermark outputWatermark;
@@ -1198,7 +1191,7 @@ class WatermarkManager {
     private Instant latestSynchronizedOutputWm;
 
     private TransformWatermarks(
-        AppliedPTransform<?, ?, ?> transform,
+        ExecutableT transform,
         AppliedPTransformInputWatermark inputWatermark,
         AppliedPTransformOutputWatermark outputWatermark,
         SynchronizedProcessingTimeInputWatermark inputSynchProcessingWatermark,
@@ -1275,7 +1268,7 @@ class WatermarkManager {
       synchronizedProcessingInputWatermark.addPending(bundle);
     }
 
-    private Collection<FiredTimers> extractFiredTimers() {
+    private Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
       Map<StructuralKey<?>, List<TimerData>> eventTimeTimers =
           inputWatermark.extractFiredEventTimeTimers();
       Map<StructuralKey<?>, List<TimerData>> processingTimers;
@@ -1287,11 +1280,11 @@ class WatermarkManager {
 
       Map<StructuralKey<?>, List<TimerData>> timersPerKey =
           groupFiredTimers(eventTimeTimers, processingTimers, synchronizedTimers);
-      Collection<FiredTimers> keyFiredTimers = new ArrayList<>(timersPerKey.size());
+      Collection<FiredTimers<ExecutableT>> keyFiredTimers = new ArrayList<>(timersPerKey.size());
       for (Map.Entry<StructuralKey<?>, List<TimerData>> firedTimers :
           timersPerKey.entrySet()) {
         keyFiredTimers.add(
-            new FiredTimers(transform, firedTimers.getKey(), firedTimers.getValue()));
+            new FiredTimers<>(transform, firedTimers.getKey(), firedTimers.getValue()));
       }
       return keyFiredTimers;
     }
@@ -1481,21 +1474,21 @@ class WatermarkManager {
    * the time domain in which it lives progresses past a specified time, as determined by the
    * {@link WatermarkManager}.
    */
-  public static class FiredTimers {
+  public static class FiredTimers<ExecutableT> {
     /** The transform the timers were set at and will be delivered to. */
-    private final AppliedPTransform<?, ?, ?> transform;
+    private final ExecutableT transform;
     /** The key the timers were set for and will be delivered to. */
     private final StructuralKey<?> key;
     private final Collection<TimerData> timers;
 
     private FiredTimers(
-        AppliedPTransform<?, ?, ?> transform, StructuralKey<?> key, Collection<TimerData> timers) {
+        ExecutableT transform, StructuralKey<?> key, Collection<TimerData> timers) {
       this.transform = transform;
       this.key = key;
       this.timers = timers;
     }
 
-    public AppliedPTransform<?, ?, ?> getTransform() {
+    public ExecutableT getTransform() {
       return transform;
     }
 
@@ -1529,9 +1522,9 @@ class WatermarkManager {
     }
   }
 
-  public Set<AppliedPTransform<?, ?, ?>> getCompletedTransforms() {
-    Set<AppliedPTransform<?, ?, ?>> result = new HashSet<>();
-    for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> wms :
+  public Set<ExecutableT> getCompletedTransforms() {
+    Set<ExecutableT> result = new HashSet<>();
+    for (Map.Entry<ExecutableT, TransformWatermarks> wms :
         transformToWatermarks.entrySet()) {
       if (wms.getValue().getOutputWatermark().equals(THE_END_OF_TIME.get())) {
         result.add(wms.getKey());
@@ -1541,28 +1534,26 @@ class WatermarkManager {
   }
 
   @AutoValue
-  abstract static class PendingWatermarkUpdate {
+  abstract static class PendingWatermarkUpdate<ExecutableT> {
+    abstract ExecutableT getExecutable();
+
     @Nullable
-    public abstract CommittedBundle<?> getInputBundle();
-    public abstract TimerUpdate getTimerUpdate();
-    public abstract CommittedResult getResult();
-    public abstract Instant getEarliestHold();
+    abstract CommittedBundle<?> getInputBundle();
 
-    /**
-     * Gets the {@link AppliedPTransform} that generated this result.
-     */
-    public AppliedPTransform<?, ?, ?> getTransform() {
-      return getResult().getTransform();
-    }
+    abstract TimerUpdate getTimerUpdate();
 
-    public static PendingWatermarkUpdate create(
+    abstract CommittedResult<ExecutableT> getResult();
+
+    abstract Instant getEarliestHold();
+
+    public static <ExecutableT> PendingWatermarkUpdate<ExecutableT> create(
+        ExecutableT executable,
         CommittedBundle<?> inputBundle,
         TimerUpdate timerUpdate,
-        CommittedResult result, Instant earliestHold) {
-      return new AutoValue_WatermarkManager_PendingWatermarkUpdate(inputBundle,
-          timerUpdate,
-          result,
-          earliestHold);
+        CommittedResult<ExecutableT> result,
+        Instant earliestHold) {
+      return new AutoValue_WatermarkManager_PendingWatermarkUpdate(
+          executable, inputBundle, timerUpdate, result, earliestHold);
     }
   }
 }
