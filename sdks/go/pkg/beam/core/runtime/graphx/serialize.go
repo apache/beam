@@ -949,9 +949,9 @@ func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {
 // encodeWindow translates the preprocessed representation of a Beam coder
 // into the wire representation, capturing the underlying types used by
 // the coder.
-func encodeWindow(w *window.Window) (*CoderRef, error) {
+func encodeWindow(w *window.WindowingStrategy) (*CoderRef, error) {
 	switch w.Kind() {
-	case window.GlobalWindow:
+	case window.GlobalWindows:
 		return &CoderRef{Type: GlobalWindowType}, nil
 	default:
 		return nil, fmt.Errorf("bad window kind: %v", w.Kind())
@@ -960,10 +960,10 @@ func encodeWindow(w *window.Window) (*CoderRef, error) {
 
 // decodeWindow receives the wire representation of a Beam coder, extracting
 // the preprocessed representation, expanding all types used by the coder.
-func decodeWindow(w *CoderRef) (*window.Window, error) {
+func decodeWindow(w *CoderRef) (*window.WindowingStrategy, error) {
 	switch w.Type {
 	case GlobalWindowType:
-		return window.NewGlobalWindow(), nil
+		return window.NewGlobalWindows(), nil
 	default:
 		return nil, fmt.Errorf("bad window: %v", w.Type)
 	}

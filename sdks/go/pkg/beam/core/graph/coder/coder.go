@@ -146,9 +146,9 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder       // WindowedValue, KV, CoGBK
-	Custom     *CustomCoder   // Custom
-	Window     *window.Window // WindowedValue
+	Components []*Coder                  // WindowedValue, KV, CoGBK
+	Custom     *CustomCoder              // Custom
+	Window     *window.WindowingStrategy // WindowedValue
 }
 
 // Equals returns true iff the two coders are equal. It assumes that
@@ -220,7 +220,7 @@ func IsW(c *Coder) bool {
 }
 
 // NewW returns a WindowedValue coder for the window of elements.
-func NewW(c *Coder, w *window.Window) *Coder {
+func NewW(c *Coder, w *window.WindowingStrategy) *Coder {
 	if c == nil {
 		panic("coder must not be nil")
 	}

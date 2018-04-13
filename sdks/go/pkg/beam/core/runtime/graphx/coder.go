@@ -75,7 +75,7 @@ type CoderUnmarshaller struct {
 	models map[string]*pb.Coder
 
 	coders  map[string]*coder.Coder
-	windows map[string]*window.Window
+	windows map[string]*window.WindowingStrategy
 }
 
 // NewCoderUnmarshaller returns a new CoderUnmarshaller.
@@ -83,7 +83,7 @@ func NewCoderUnmarshaller(m map[string]*pb.Coder) *CoderUnmarshaller {
 	return &CoderUnmarshaller{
 		models:  m,
 		coders:  make(map[string]*coder.Coder),
-		windows: make(map[string]*window.Window),
+		windows: make(map[string]*window.WindowingStrategy),
 	}
 }
 
@@ -118,8 +118,8 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 	return ret, nil
 }
 
-// Window unmarshals a window with the given id.
-func (b *CoderUnmarshaller) Window(id string) (*window.Window, error) {
+// WindowingStrategy unmarshals a window with the given id.
+func (b *CoderUnmarshaller) Window(id string) (*window.WindowingStrategy, error) {
 	if w, exists := b.windows[id]; exists {
 		return w, nil
 	}
@@ -132,7 +132,7 @@ func (b *CoderUnmarshaller) Window(id string) (*window.Window, error) {
 	urn := c.GetSpec().GetSpec().GetUrn()
 	switch urn {
 	case urnGlobalWindow:
-		w := window.NewGlobalWindow()
+		w := window.NewGlobalWindows()
 		b.windows[id] = w
 		return w, nil
 
@@ -375,9 +375,9 @@ func (b *CoderMarshaller) AddMulti(list []*coder.Coder) []string {
 }
 
 // AddWindow adds a window coder.
-func (b *CoderMarshaller) AddWindow(w *window.Window) string {
+func (b *CoderMarshaller) AddWindow(w *window.WindowingStrategy) string {
 	switch w.Kind() {
-	case window.GlobalWindow:
+	case window.GlobalWindows:
 		return b.internBuiltInCoder(urnGlobalWindow)
 
 	default:

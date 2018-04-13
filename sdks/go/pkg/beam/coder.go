@@ -148,7 +148,7 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 		case typex.CoGBKType:
 			return &coder.Coder{Kind: coder.CoGBK, T: t, Components: c}, nil
 		case typex.WindowedValueType:
-			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: window.NewGlobalWindow()}, nil
+			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: window.NewGlobalWindows()}, nil
 
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))

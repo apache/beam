@@ -13,37 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package window contains window representation and utilities.
+// Package window contains window representation, windowing strategies and utilities.
 package window
 
 import "fmt"
 
-// Window defines the types of windowing used in a pipeline and contains
+// WindowingStrategy defines the types of windowing used in a pipeline and contains
 // the data and code to support executing a windowing strategy.
-type Window struct {
+type WindowingStrategy struct {
 	k Kind
 	// TODO: pointer to windowing function
 	// TODO: other fields
 }
 
-// Kind is the semantic type of window.
+// Kind is the semantic type of windowing strategy.
 type Kind string
 
 const (
-	// GlobalWindow is the default window into which all elements are placed.
-	GlobalWindow Kind = "GW"
+	// GlobalWindows is the default windowing strategy, which places all elements
+	// into a single window.
+	GlobalWindows Kind = "GLO"
 )
 
-// NewGlobalWindow returns the default window to be used for a collection.
-func NewGlobalWindow() *Window {
-	return &Window{k: GlobalWindow}
+// NewGlobalWindows returns the default window to be used for a collection.
+func NewGlobalWindows() *WindowingStrategy {
+	return &WindowingStrategy{k: GlobalWindows}
 }
-func (w *Window) String() string {
+
+func (w *WindowingStrategy) String() string {
 	return string(w.k)
 }
 
-// Kind returns the kind of the window.
-func (w *Window) Kind() Kind {
+// Kind returns the kind of the windowing strategy.
+func (w *WindowingStrategy) Kind() Kind {
 	return w.k
 }
 
@@ -51,9 +53,9 @@ func (w *Window) Kind() Kind {
 // Built-in window types (such as global window) are only equal to the same
 // instances of the window. A user-defined window that happens to match a
 // built-in will not match on Equals().
-func (w *Window) Equals(o *Window) bool {
+func (w *WindowingStrategy) Equals(o *WindowingStrategy) bool {
 	switch w.Kind() {
-	case GlobalWindow:
+	case GlobalWindows:
 		return o.Kind() == w.Kind()
 	default:
 		panic(fmt.Sprintf("unknown window type: %v", w))

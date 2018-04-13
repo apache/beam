@@ -333,7 +333,7 @@ func (m *marshaller) addPCollection(id, cid string) string {
 		UniqueName:          id,
 		CoderId:             cid,
 		IsBounded:           pb.IsBounded_BOUNDED,
-		WindowingStrategyId: m.addWindowingStrategy(window.NewGlobalWindow()),
+		WindowingStrategyId: m.addWindowingStrategy(window.NewGlobalWindows()),
 	}
 	m.pcollections[id] = col
 	return id
@@ -347,8 +347,8 @@ func (m *marshaller) addDefaultEnv() string {
 	return id
 }
 
-func (m *marshaller) addWindowingStrategy(w *window.Window) string {
-	if w.Kind() != window.GlobalWindow {
+func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
+	if w.Kind() != window.GlobalWindows {
 		panic(fmt.Sprintf("Unsupported window type supplied: %v", w))
 	}
 
