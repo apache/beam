@@ -54,6 +54,7 @@ var (
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	zone            = flag.String("zone", "", "GCP zone (optional)")
+	region          = flag.String("region", "", "GCP Region (optional)")
 	network         = flag.String("network", "", "GCP network (optional)")
 	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
 	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
@@ -181,6 +182,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				MachineType:                 *machineType,
 				Network:                     *network,
 				Zone:                        *zone,
+				Region:                      *region,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
 			Experiments:       jobopts.GetExperiments(),
