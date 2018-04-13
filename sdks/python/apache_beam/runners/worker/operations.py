@@ -115,7 +115,7 @@ class Operation(object):
       state_sampler: The StateSampler for the current operation.
     """
     if isinstance(name_context, common.NameContext):
-      #TODO(pabloem) - Clean this up once it's completely migrated.
+      # TODO(BEAM-4028): Clean this up once it's completely migrated.
       # We use the specific operation name that is used for metrics and state
       # sampling.
       self.name_context = name_context
@@ -123,7 +123,7 @@ class Operation(object):
       logging.info('Creating namecontext within operation')
       self.name_context = common.NameContext(name_context)
 
-    #TODO(pabloem): Remove following two lines. Rely on name context.
+    # TODO(BEAM-4028): Remove following two lines. Rely on name context.
     self.operation_name = self.name_context.step_name
     self.step_name = self.name_context.logging_name()
 
@@ -588,7 +588,7 @@ def create_operation(name_context, spec, counter_factory, step_name,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
   if not isinstance(name_context, common.NameContext):
-    #TODO(pabloem): Remove this ad-hoc NameContext once all has been migrated.
+    # TODO(BEAM-4028): Remove ad-hoc NameContext once all has been migrated.
     name_context = common.DataflowNameContext(step_name=name_context,
                                               user_name=step_name,
                                               system_name=None)

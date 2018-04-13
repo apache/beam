@@ -71,6 +71,7 @@ class NameContext(object):
     return self.step_name
 
 
+# TODO(BEAM-4028): Move DataflowNameContext to Dataflow internal code.
 class DataflowNameContext(NameContext):
   """Holds the name information for a step in Dataflow.
 
