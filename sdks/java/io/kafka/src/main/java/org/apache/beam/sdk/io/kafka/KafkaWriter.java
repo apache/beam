@@ -59,7 +59,12 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
       : null;
 
     producer.send(new ProducerRecord<>(
-        spec.getTopic().get(), null, timestampMillis, kv.getKey(), kv.getValue()), new SendCallback());
+        spec.getTopic().get(),
+        null,
+        timestampMillis,
+        kv.getKey(),
+        kv.getValue()),
+        new SendCallback());
 
     elementsWritten.inc();
   }
@@ -95,9 +100,9 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
     this.producerConfig = new HashMap<>(spec.getProducerConfig());
 
     this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                            spec.getKeySerializer());
+                            spec.getKeySerializer().get());
     this.producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                            spec.getValueSerializer());
+                            spec.getValueSerializer().get());
   }
 
   private synchronized void checkForFailures() throws IOException {

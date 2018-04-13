@@ -1048,11 +1048,12 @@ public class KafkaIOTest {
 
   @Test
   public void testSourceWithExplicitStringPartitionsDisplayData() {
+    // 10 partitions
     KafkaIO.Read<byte[], byte[]> read = KafkaIO.readBytes()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopicPartitions("test-5,test-6")
             .withConsumerFactoryFn(new ConsumerFactoryFn(
-                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)); // 10 partitions
+                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
 
     DisplayData displayData = DisplayData.from(read);
 
