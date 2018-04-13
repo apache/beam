@@ -22,6 +22,8 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,6 +31,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -172,48 +176,53 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
-    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
-    pipeline.traverseTopologically(graphVisitor);
+    try {
+      DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+      pipeline.traverseTopologically(graphVisitor);
 
-    @SuppressWarnings("rawtypes")
-    KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
-    pipeline.traverseTopologically(keyedPValueVisitor);
+      @SuppressWarnings("rawtypes")
+      KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
+      pipeline.traverseTopologically(keyedPValueVisitor);
 
-    DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(getPipelineOptions());
+      DisplayDataValidator.validatePipeline(pipeline);
+      DisplayDataValidator.validateOptions(getPipelineOptions());
 
-    DirectGraph graph = graphVisitor.getGraph();
-    EvaluationContext context =
-        EvaluationContext.create(
-            getPipelineOptions(),
-            clockSupplier.get(),
-            Enforcement.bundleFactoryFor(enabledEnforcements, graph),
-            graph,
-            keyedPValueVisitor.getKeyedPValues());
+      DirectGraph graph = graphVisitor.getGraph();
+      ExecutorService metricsPool = Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+            .setThreadFactory(MoreExecutors.platformThreadFactory())
+            .setDaemon(false) // otherwise you say you want to leak, please don't!
+            .setNameFormat("direct-metrics-counter-committer")
+            .build());
+      EvaluationContext context = EvaluationContext.create(
+          getPipelineOptions(), clockSupplier.get(),
+          Enforcement.bundleFactoryFor(enabledEnforcements, graph),
+          graph, keyedPValueVisitor.getKeyedPValues(),
+          metricsPool);
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
-    PipelineExecutor executor =
-        ExecutorServiceParallelExecutor.create(
-            options.getTargetParallelism(),
-            registry,
-            Enforcement.defaultModelEnforcements(enabledEnforcements),
-            context);
-    executor.start(graph, RootProviderRegistry.defaultRegistry(context));
+      TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
+      PipelineExecutor executor = ExecutorServiceParallelExecutor.create(
+          options.getTargetParallelism(), registry,
+          Enforcement.defaultModelEnforcements(enabledEnforcements), context, metricsPool);
+      executor.start(graph, RootProviderRegistry.defaultRegistry(context));
 
-    DirectPipelineResult result = new DirectPipelineResult(executor, context);
-    if (options.isBlockOnRun()) {
-      try {
-        result.waitUntilFinish();
-      } catch (UserCodeException userException) {
-        throw new PipelineExecutionException(userException.getCause());
-      } catch (Throwable t) {
-        if (t instanceof RuntimeException) {
-          throw (RuntimeException) t;
+      DirectPipelineResult result = new DirectPipelineResult(executor, context);
+      if (options.isBlockOnRun()) {
+        try {
+          result.waitUntilFinish();
+        } catch (UserCodeException userException) {
+          throw new PipelineExecutionException(userException.getCause());
+        } catch (Throwable t) {
+          if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+          }
+          throw new RuntimeException(t);
         }
-        throw new RuntimeException(t);
       }
+      return result;
+    } finally {
+      MetricsEnvironment.setMetricsSupported(false);
     }
-    return result;
   }
 
   /**

@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -119,7 +120,8 @@ public class EvaluationContextTest {
             NanosOffsetClock.create(),
             bundleFactory,
             graph,
-            keyedPValueTrackingVisitor.getKeyedPValues());
+            keyedPValueTrackingVisitor.getKeyedPValues(),
+            Executors.newSingleThreadExecutor());
 
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);

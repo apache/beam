@@ -26,6 +26,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,11 +63,19 @@ public class DirectMetricsTest {
   private static final MetricName NAME3 = MetricName.named("ns2", "name1");
   private static final MetricName NAME4 = MetricName.named("ns2", "name2");
 
-  private DirectMetrics metrics = new DirectMetrics();
+  private DirectMetrics metrics;
+  private ExecutorService executor;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    executor = Executors.newSingleThreadExecutor();
+    metrics = new DirectMetrics(executor);
+  }
+
+  @After
+  public void tearDown() {
+    executor.shutdownNow();
   }
 
   @SuppressWarnings("unchecked")

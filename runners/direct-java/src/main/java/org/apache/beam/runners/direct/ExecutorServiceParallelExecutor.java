@@ -71,23 +71,28 @@ final class ExecutorServiceParallelExecutor
 
   private final QueueMessageReceiver visibleUpdates;
 
+  private final ExecutorService metricsExecutor;
+
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     return new ExecutorServiceParallelExecutor(
-        targetParallelism, registry, transformEnforcements, context);
+        targetParallelism, registry, transformEnforcements, context, metricsExecutor);
   }
 
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     this.targetParallelism = targetParallelism;
+    this.metricsExecutor = metricsExecutor;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
     this.executorService =
@@ -295,6 +300,11 @@ final class ExecutorServiceParallelExecutor
     }
     try {
       executorService.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+        metricsExecutor.shutdown();
     } catch (final RuntimeException re) {
       errors.add(re);
     }
