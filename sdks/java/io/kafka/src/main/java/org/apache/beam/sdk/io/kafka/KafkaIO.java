@@ -283,8 +283,8 @@ public class KafkaIO {
     abstract ValueProvider<List<TopicPartition>> getTopicPartitions();
     @Nullable abstract Coder<K> getKeyCoder();
     @Nullable abstract Coder<V> getValueCoder();
-    @Nullable abstract ValueProvider<Class<? extends Deserializer<K>>> getKeyDeserializer();
-    @Nullable abstract ValueProvider<Class<? extends Deserializer<V>>> getValueDeserializer();
+    @Nullable abstract ValueProvider<Class<? extends Deserializer<?>>> getKeyDeserializer();
+    @Nullable abstract ValueProvider<Class<? extends Deserializer<?>>> getValueDeserializer();
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
     @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
