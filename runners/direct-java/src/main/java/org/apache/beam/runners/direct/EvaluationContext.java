@@ -78,8 +78,9 @@ class EvaluationContext {
   private final Clock clock;
 
   private final BundleFactory bundleFactory;
+
   /** The current processing time and event time watermarks and timers. */
-  private final WatermarkManager watermarkManager;
+  private final WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> watermarkManager;
 
   /** Executes callbacks based on the progression of the watermark. */
   private final WatermarkCallbackExecutor callbackExecutor;
@@ -144,7 +145,7 @@ class EvaluationContext {
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
-  public CommittedResult handleResult(
+  public CommittedResult<AppliedPTransform<?, ?, ?>> handleResult(
       @Nullable CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       TransformResult<?> result) {
@@ -159,7 +160,7 @@ class EvaluationContext {
     } else {
       outputTypes.add(OutputType.BUNDLE);
     }
-    CommittedResult committedResult =
+    CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
         CommittedResult.create(
             result, getUnprocessedInput(completedBundle, result), committedBundles, outputTypes);
     // Update state internals
@@ -220,7 +221,7 @@ class EvaluationContext {
   }
 
   private void fireAllAvailableCallbacks() {
-    for (AppliedPTransform<?, ?, ?> transform : graph.getPrimitiveTransforms()) {
+    for (AppliedPTransform<?, ?, ?> transform : graph.getExecutables()) {
       fireAvailableCallbacks(transform);
     }
   }
@@ -304,7 +305,7 @@ class EvaluationContext {
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
-    AppliedPTransform<?, ?, ?> producing = graph.getWriter(view);
+    AppliedPTransform<?, ?, ?> producing = graph.getProducer(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -355,7 +356,7 @@ class EvaluationContext {
 
   /** Returns all of the steps in this {@link Pipeline}. */
   Collection<AppliedPTransform<?, ?, ?>> getSteps() {
-    return graph.getPrimitiveTransforms();
+    return graph.getExecutables();
   }
 
   /**
@@ -389,7 +390,7 @@ class EvaluationContext {
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Collection<FiredTimers> extractFiredTimers() {
+  public Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
     forceRefresh();
     return watermarkManager.extractFiredTimers();
   }
@@ -407,7 +408,7 @@ class EvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    for (AppliedPTransform<?, ?, ?> transform : graph.getPrimitiveTransforms()) {
+    for (AppliedPTransform<?, ?, ?> transform : graph.getExecutables()) {
       if (!isDone(transform)) {
         return false;
       }

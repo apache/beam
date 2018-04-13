@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -104,7 +105,7 @@ public class MockedBoundedTable extends MockedTable {
         "MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows));
   }
 
-  @Override public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+  @Override public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     return new OutputStore();
   }
 
@@ -112,7 +113,7 @@ public class MockedBoundedTable extends MockedTable {
    * Keep output in {@code CONTENT} for validation.
    *
    */
-  public static class OutputStore extends PTransform<PCollection<Row>, PDone> {
+  public static class OutputStore extends PTransform<PCollection<Row>, POutput> {
 
     @Override
     public PDone expand(PCollection<Row> input) {
