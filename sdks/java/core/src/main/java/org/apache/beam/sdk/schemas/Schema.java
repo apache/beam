@@ -247,6 +247,7 @@ public class Schema implements Serializable {
     /**
      * Returns optional extra metadata.
      */
+    @SuppressWarnings("mutable")
     @Nullable public abstract byte[] getMetadata();
     abstract FieldType.Builder toBuilder();
     @AutoValue.Builder
