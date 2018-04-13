@@ -365,7 +365,8 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(ValueProvider<String> topics) {
       checkState(
-              getTopicPartitions() == null,"Only topics or topicPartitions can be set, not both");
+              getTopicPartitions() == null,
+              "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopics(ValueProvider.NestedValueProvider.of(topics, new TopicTranslator())).build();
     }
     /**
@@ -456,9 +457,10 @@ public class KafkaIO {
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Class<? extends Deserializer<?>>}.
+     * Used to build a {@link ValueProvider} for {@link Deserializer>}.
      */
-    private static class DeserializerTranslator implements SerializableFunction<String, Class<? extends Deserializer<?>>> {
+    private static class DeserializerTranslator
+            implements SerializableFunction<String, Class<? extends Deserializer<?>>> {
       @Override
       public Class apply(String deserializer) {
         Class deserializerClass;
@@ -482,7 +484,8 @@ public class KafkaIO {
      */
     public Read<K, V> withKeyDeserializerAndCoder(
         Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
-      return toBuilder().setKeyDeserializer(ValueProvider.StaticValueProvider.of(keyDeserializer)).setKeyCoder(keyCoder).build();
+      return toBuilder()
+              .setKeyDeserializer(ValueProvider.StaticValueProvider.of(keyDeserializer)).setKeyCoder(keyCoder).build();
     }
 
     /**
@@ -521,7 +524,8 @@ public class KafkaIO {
      */
     public Read<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
-      return toBuilder().setValueDeserializer(ValueProvider.StaticValueProvider.of(valueDeserializer)).setValueCoder(valueCoder).build();
+      return toBuilder().setValueDeserializer(ValueProvider
+              .StaticValueProvider.of(valueDeserializer)).setValueCoder(valueCoder).build();
     }
 
     /**
@@ -555,19 +559,24 @@ public class KafkaIO {
      * Like above but with a {@link ValueProvider}.
      */
     public Read<K, V> updateConsumerProperties(ValueProvider<String> configUpdates) {
-      Map<String, Object> config = updateKafkaProperties(getConsumerConfig(),
-              IGNORED_CONSUMER_PROPERTIES, ValueProvider.NestedValueProvider.of(configUpdates, new PropertyTranslator()));
+      Map<String, Object> config = updateKafkaProperties(
+              getConsumerConfig(),
+              IGNORED_CONSUMER_PROPERTIES,
+              ValueProvider.NestedValueProvider.of(configUpdates, new PropertyTranslator()));
       return toBuilder().setConsumerConfig(config).build();
     }
 
     /**
-     * Used to build a {@link ValueProvider} for {@link Map<String, Object>}.
+     * Used to build a {@link ValueProvider} for updateConsumerProperties inside {@link Read}.
      */
     private static class PropertyTranslator implements SerializableFunction<String, Map<String, Object>> {
       @Override
       public Map<String, Object> apply(String properties) {
         Map<String, String> configUpdates = Splitter.on(",").withKeyValueSeparator(":").split(properties);
-        return configUpdates.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> (Object)e.getValue()));
+        return configUpdates
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object)e.getValue()));
       }
     }
     /**
@@ -1048,7 +1057,8 @@ public class KafkaIO {
      * Like above but with a {@link ValueProvider}.
      */
     public Write<K, V> withKeySerializer(ValueProvider<String> keySerializer) {
-      return toBuilder().setKeySerializer(ValueProvider.NestedValueProvider.of(keySerializer, new SerializerTranslator())).build();
+      return toBuilder().setKeySerializer(ValueProvider.
+              NestedValueProvider.of(keySerializer, new SerializerTranslator())).build();
     }
 
     /**
@@ -1069,12 +1079,14 @@ public class KafkaIO {
      * Like above but with a {@link ValueProvider}.
      */
     public Write<K, V> withValueSerializer(ValueProvider<String> valueSerializer) {
-      return toBuilder().setValueSerializer(ValueProvider.NestedValueProvider.of(valueSerializer, new SerializerTranslator())).build();
+      return toBuilder().setValueSerializer(ValueProvider
+              .NestedValueProvider.of(valueSerializer, new SerializerTranslator())).build();
     }
     /**
      * Used to build a {@link ValueProvider} for {@link Class<? extends Serializer<?>>}.
      */
-    private static class SerializerTranslator implements SerializableFunction<String, Class<? extends Serializer<?>>> {
+    private static class SerializerTranslator
+            implements SerializableFunction<String, Class<? extends Serializer<?>>> {
       @Override
       public Class apply(String serializer) {
         Class serializerClass;
@@ -1111,8 +1123,10 @@ public class KafkaIO {
      * Like above but with a {@link ValueProvider}.
      */
     public Write<K, V> updateProducerProperties(ValueProvider<String> configUpdates) {
-      Map<String, Object> config = updateKafkaProperties(getProducerConfig(),
-              IGNORED_PRODUCER_PROPERTIES, ValueProvider.NestedValueProvider.of(configUpdates, new PropertyTranslator()));
+      Map<String, Object> config = updateKafkaProperties(
+              getProducerConfig(),
+              IGNORED_PRODUCER_PROPERTIES,
+              ValueProvider.NestedValueProvider.of(configUpdates, new PropertyTranslator()));
       return toBuilder().setProducerConfig(config).build();
     }
 
@@ -1239,8 +1253,8 @@ public class KafkaIO {
         getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
         "withBootstrapServers() is required");
       checkArgument(getTopic().get() != null, "withTopic() is required");
-      checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
-      checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
+      checkArgument(getKeySerializer().get() != null, "withKeySerializer() is required");
+      checkArgument(getValueSerializer().get() != null, "withValueSerializer() is required");
 
       if (isEOS()) {
         KafkaExactlyOnceSink.ensureEOSSupport();
