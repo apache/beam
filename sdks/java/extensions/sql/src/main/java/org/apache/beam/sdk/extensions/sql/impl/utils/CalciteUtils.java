@@ -94,7 +94,7 @@ public class CalciteUtils {
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
     SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(
-        type.withComponentType(null).withRowSchema(null).withMapType(null, null));
+        type.withCollectionType(null).withRowSchema(null).withMapType(null, null));
     if (typeName != null) {
       return typeName;
     } else {
@@ -111,7 +111,7 @@ public class CalciteUtils {
   public static FieldType toFieldType(RelDataType calciteType) {
     FieldType type = toFieldType((calciteType.getSqlTypeName()));
     if (calciteType.getComponentType() != null) {
-      type = type.withComponentType(toFieldType(calciteType.getComponentType()));
+      type = type.withCollectionType(toFieldType(calciteType.getComponentType()));
     }
     if (calciteType.isStruct()) {
       type = type.withRowSchema(toBeamSchema(calciteType));
@@ -123,12 +123,12 @@ public class CalciteUtils {
     return type;
   }
 
-  public static FieldType toArrayType(SqlTypeName componentType) {
-    return TypeName.ARRAY.type().withComponentType(toFieldType(componentType));
+  public static FieldType toArrayType(SqlTypeName collectionType) {
+    return TypeName.ARRAY.type().withCollectionType(toFieldType(collectionType));
   }
 
-  public static FieldType toArrayType(RelDataType componentType) {
-    return TypeName.ARRAY.type().withComponentType(toFieldType(componentType));
+  public static FieldType toArrayType(RelDataType collectionType) {
+    return TypeName.ARRAY.type().withCollectionType(toFieldType(collectionType));
   }
 
   public static FieldType toMapType(SqlTypeName componentKeyType, SqlTypeName componentValueType) {
@@ -167,9 +167,9 @@ public class CalciteUtils {
       RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     SqlTypeName typeName = toSqlTypeName(fieldType);
     if (SqlTypeName.ARRAY.equals(typeName)) {
-      RelDataType componentType = toRelDataType(
-          dataTypeFactory, fieldType.getComponentType());
-      return dataTypeFactory.createArrayType(componentType, UNLIMITED_ARRAY_SIZE);
+      RelDataType collectionType = toRelDataType(
+          dataTypeFactory, fieldType.getCollectionType());
+      return dataTypeFactory.createArrayType(collectionType, UNLIMITED_ARRAY_SIZE);
     } else if (SqlTypeName.MAP.equals(typeName)) {
       RelDataType componentKeyType = toRelDataType(
           dataTypeFactory, fieldType.getMapKeyType().type());
