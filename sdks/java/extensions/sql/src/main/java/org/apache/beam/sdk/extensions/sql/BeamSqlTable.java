@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -46,7 +46,7 @@ public interface BeamSqlTable {
    * create a {@code IO.write()} instance to write to target.
    *
    */
-   PTransform<? super PCollection<Row>, PDone> buildIOWriter();
+   PTransform<? super PCollection<Row>, POutput> buildIOWriter();
 
   /**
    * Get the schema info of the table.

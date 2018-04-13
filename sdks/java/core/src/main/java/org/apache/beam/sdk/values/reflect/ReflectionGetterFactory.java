@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.values.reflect.ReflectionUtils.getPublicGetter
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
@@ -36,7 +37,8 @@ import org.apache.beam.sdk.schemas.Schema;
  * <p>Caching is not handled at this level, {@link RowFactory} should cache getters
  * for each {@link Schema}.
  */
-class ReflectionGetterFactory implements GetterFactory {
+@Internal
+public class ReflectionGetterFactory implements GetterFactory {
 
   /**
    * Returns a list of {@link FieldValueGetter}s.

@@ -40,7 +40,7 @@ import org.apache.commons.csv.CSVFormat;
  * )
  * TYPE 'text'
  * COMMENT 'this is the table orders'
- * LOCATION 'text://home/admin/orders'
+ * LOCATION '/home/admin/orders'
  * TBLPROPERTIES '{"format": "Excel"}' -- format of each text line(csv format)
  * }</pre>
  */
@@ -53,7 +53,7 @@ public class TextTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = getRowTypeFromTable(table);
 
-    String filePattern = table.getLocationAsString();
+    String filePattern = table.getLocation();
     CSVFormat format = CSVFormat.DEFAULT;
     JSONObject properties = table.getProperties();
     String csvFormatStr = properties.getString("format");
