@@ -168,6 +168,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				DisplayData: findPipelineFlags(),
 				Options: dataflowOptions{
 					PipelineURL: modelURL,
+					Region:      *region,
 				},
 				GoOptions: options,
 			}),
