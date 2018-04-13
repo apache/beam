@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -34,12 +35,15 @@ import org.apache.beam.sdk.transforms.PTransform;
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
-  public static RootProviderRegistry defaultRegistry(EvaluationContext context) {
-    ImmutableMap.Builder<String, RootInputProvider<?, ?, ?>>
-        defaultProviders = ImmutableMap.builder();
+  public static RootProviderRegistry defaultRegistry(
+      EvaluationContext context, PipelineOptions options) {
+    ImmutableMap.Builder<String, RootInputProvider<?, ?, ?>> defaultProviders =
+        ImmutableMap.builder();
     defaultProviders
         .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory.ImpulseRootProvider(context))
-        .put(PTransformTranslation.READ_TRANSFORM_URN, ReadEvaluatorFactory.inputProvider(context))
+        .put(
+            PTransformTranslation.READ_TRANSFORM_URN,
+            ReadEvaluatorFactory.inputProvider(context, options))
         .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory.InputProvider(context))
         .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider());
     return new RootProviderRegistry(defaultProviders.build());

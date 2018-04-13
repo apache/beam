@@ -81,6 +81,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Rule
   public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private PipelineOptions options;
 
   @Before
   public void setup() {
@@ -88,9 +89,10 @@ public class BoundedReadEvaluatorFactoryTest {
     source = CountingSource.upTo(10L);
     longs = p.apply(Read.from(source));
 
+    options = PipelineOptionsFactory.create();
     factory =
         new BoundedReadEvaluatorFactory(
-            context, Long.MAX_VALUE /* minimum size for dynamic splits */);
+            context, options, Long.MAX_VALUE /* minimum size for dynamic splits */);
     bundleFactory = ImmutableListBundleFactory.create();
     longsProducer = DirectGraphs.getProducer(longs);
   }
@@ -102,7 +104,7 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createBundle(longs)).thenReturn(outputBundle);
 
     Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context)
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(longsProducer, 1);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
@@ -132,7 +134,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Test
   public void boundedSourceEvaluatorProducesDynamicSplits() throws Exception {
-    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, 0L);
+    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, options, 0L);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     int numElements = 10;
@@ -144,7 +146,8 @@ public class BoundedReadEvaluatorFactoryTest {
         p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(transform, 1);
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
+            .getInitialInputs(transform, 1);
 
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
     int numIterations = 0;
@@ -187,7 +190,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Test
   public void boundedSourceEvaluatorDynamicSplitsUnsplittable() throws Exception {
-    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, 0L);
+    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, options, 0L);
 
     PCollection<Long> read =
         p.apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
@@ -196,7 +199,8 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(transform, 1);
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
+            .getInitialInputs(transform, 1);
 
     UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(read);
     when(context.createBundle(read)).thenReturn(outputBundle);
@@ -230,7 +234,7 @@ public class BoundedReadEvaluatorFactoryTest {
   public void getInitialInputsSplitsIntoBundles() throws Exception {
     when(context.createRootBundle()).thenAnswer(invocation -> bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context)
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(longsProducer, 3);
 
     assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(3), lessThanOrEqualTo(4))));

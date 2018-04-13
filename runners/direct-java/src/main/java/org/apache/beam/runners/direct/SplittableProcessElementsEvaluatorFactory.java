@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -56,31 +57,37 @@ class SplittableProcessElementsEvaluatorFactory<
       delegateFactory;
   private final ScheduledExecutorService ses;
   private final EvaluationContext evaluationContext;
+  private final PipelineOptions options;
 
-  SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
+  SplittableProcessElementsEvaluatorFactory(
+      EvaluationContext evaluationContext, PipelineOptions options) {
     this.evaluationContext = evaluationContext;
+    this.options = options;
     this.delegateFactory =
-      new ParDoEvaluatorFactory<>(
-        evaluationContext,
-        SplittableProcessElementsEvaluatorFactory.
-          <InputT, OutputT, RestrictionT>processFnRunnerFactory(),
-          new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
-            @Override
-            public DoFnLifecycleManager load(final AppliedPTransform<?, ?, ?> application) {
-              checkArgument(
-                ProcessElements.class.isInstance(application.getTransform()),
-                "No know extraction of the fn from " + application);
-              final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
-                (ProcessElements<InputT, OutputT, RestrictionT, TrackerT>)
-                  application.getTransform();
-              return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
-            }
-          });
-    this.ses = Executors.newSingleThreadScheduledExecutor(
-      new ThreadFactoryBuilder()
-        .setThreadFactory(MoreExecutors.platformThreadFactory())
-        .setNameFormat("direct-splittable-process-element-checkpoint-executor_" + hashCode())
-        .build());
+        new ParDoEvaluatorFactory<>(
+            evaluationContext,
+            SplittableProcessElementsEvaluatorFactory
+                .<InputT, OutputT, RestrictionT>processFnRunnerFactory(),
+            new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
+              @Override
+              public DoFnLifecycleManager load(final AppliedPTransform<?, ?, ?> application) {
+                checkArgument(
+                    ProcessElements.class.isInstance(application.getTransform()),
+                    "No know extraction of the fn from " + application);
+                final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+                    (ProcessElements<InputT, OutputT, RestrictionT, TrackerT>)
+                        application.getTransform();
+                return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
+              }
+            },
+            options);
+    this.ses =
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder()
+                .setThreadFactory(MoreExecutors.platformThreadFactory())
+                .setNameFormat(
+                    "direct-splittable-process-element-checkpoint-executor_" + hashCode())
+                .build());
   }
 
   @Override
@@ -156,7 +163,7 @@ class SplittableProcessElementsEvaluatorFactory<
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
-            evaluationContext.getPipelineOptions(),
+            options,
             outputWindowedValue,
             evaluationContext.createSideInputReader(transform.getSideInputs()),
             ses,
