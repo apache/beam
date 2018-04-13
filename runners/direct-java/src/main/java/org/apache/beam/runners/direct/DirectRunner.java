@@ -191,7 +191,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             graph,
             keyedPValueVisitor.getKeyedPValues());
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.javaSdkNativeRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             options.getTargetParallelism(),
