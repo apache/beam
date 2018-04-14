@@ -382,9 +382,6 @@ def stage_job_resources(
     else:
       stage_sdk_from_remote_location = False
 
-    staged_path = FileSystems.join(
-        google_cloud_options.staging_location,
-        _desired_sdk_filename_in_staging_location(setup_options.sdk_location))
     if stage_sdk_from_remote_location:
       # If --sdk_location is not specified then the appropriate package
       # will be obtained from PyPI (https://pypi.python.org) based on the
@@ -417,6 +414,10 @@ def stage_job_resources(
         sdk_path = setup_options.sdk_location
       if os.path.isfile(sdk_path):
         logging.info('Copying Beam SDK "%s" to staging location.', sdk_path)
+        staged_path = FileSystems.join(
+            google_cloud_options.staging_location,
+            _desired_sdk_filename_in_staging_location(
+                setup_options.sdk_location))
         file_copy(sdk_path, staged_path)
         _, sdk_staged_filename = FileSystems.split(staged_path)
         resources.append(sdk_staged_filename)
@@ -464,12 +465,8 @@ def _desired_sdk_filename_in_staging_location(sdk_location):
     sdk_location: Full path to SDK file.
   """
   if sdk_location.endswith('.whl'):
-    if sdk_location.startswith('http'):
-      raise RuntimeError('Staging SDK wheel from an HTTP location is currently'
-                         'not supported.')
     _, wheel_filename = FileSystems.split(sdk_location)
-    if (wheel_filename.startswith('apache_beam') or
-        wheel_filename.startswith('google_cloud_dataflow')):
+    if wheel_filename.startswith('apache_beam'):
       return wheel_filename
     else:
       raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
@@ -631,51 +628,44 @@ def _download_pypi_sdk_package(temp_dir, fetch_binary=False,
     raise RuntimeError('Please set --sdk_location command-line option '
                        'or install a valid {} distribution.'
                        .format(package_name))
-  if fetch_binary:
-    # Get a wheel distribution for the SDK from PyPI.
-    cmd_args = [
-        _get_python_executable(), '-m', 'pip', 'download', '--dest', temp_dir,
-        '%s==%s' % (package_name, version),
-        '--only-binary', ':all:', '--no-deps',
-        '--python-version', language_version_tag,
-        '--implementation', language_implementation_tag, '--abi', abi_tag,
-        '--platform', platform_tag
-    ]
-    logging.info('Executing command: %s', cmd_args)
-    try:
-      processes.check_call(cmd_args)
-    except subprocess.CalledProcessError as e:
-      raise RuntimeError(repr(e))
-    # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
-    whl_expected = os.path.join(
-        temp_dir,
-        '%s-%s-%s%s-%s-%s.whl' % (package_name.replace('-', '_'), version,
-                                  language_implementation_tag,
-                                  language_version_tag, abi_tag, platform_tag)
-    )
-    if os.path.exists(whl_expected):
-      return whl_expected
-    raise RuntimeError(
-        'Failed to download requested binary distribution for the running SDK. '
-        'Expected %s to be found in the download folder.' % whl_expected)
-  else:
-    # Get a source distribution for the SDK package from PyPI.
-    cmd_args = [
-        _get_python_executable(), '-m', 'pip', 'download', '--dest', temp_dir,
-        '%s==%s' % (package_name, version),
-        '--no-binary', ':all:', '--no-deps']
+  cmd_args = [
+      _get_python_executable(), '-m', 'pip', 'download', '--dest', temp_dir,
+      '%s==%s' % (package_name, version), '--no-deps']
 
-    logging.info('Executing command: %s', cmd_args)
+  if fetch_binary:
+    logging.info('Downloading binary distribtution of the SDK from PyPi')
+    # Get a wheel distribution for the SDK from PyPI.
+    cmd_args.extend([
+        '--only-binary', ':all:', '--python-version', language_version_tag,
+        '--implementation', language_implementation_tag, '--abi', abi_tag,
+        '--platform', platform_tag])
+    # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
+    expected_files = [
+        os.path.join(
+            temp_dir,
+            '%s-%s-%s%s-%s-%s.whl' % (package_name.replace('-', '_'), version,
+                                      language_implementation_tag,
+                                      language_version_tag, abi_tag,
+                                      platform_tag))]
+  else:
+    logging.info('Downloading source distribtution of the SDK from PyPi')
+    cmd_args.extend(['--no-binary', ':all:'])
+    expected_files = [
+        os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),
+        os.path.join(temp_dir, '%s-%s.tar.gz' % (package_name, version))
+    ]
+
+  logging.info('Executing command: %s', cmd_args)
+  try:
     processes.check_call(cmd_args)
-    zip_expected = os.path.join(
-        temp_dir, '%s-%s.zip' % (package_name, version))
-    if os.path.exists(zip_expected):
-      return zip_expected
-    tgz_expected = os.path.join(
-        temp_dir, '%s-%s.tar.gz' % (package_name, version))
-    if os.path.exists(tgz_expected):
-      return tgz_expected
-    raise RuntimeError(
-        'Failed to download a source distribution for the running SDK. '
-        'Expected either %s or %s to be found in the download folder.' % (
-            zip_expected, tgz_expected))
+  except subprocess.CalledProcessError as e:
+    raise RuntimeError(repr(e))
+
+  for sdk_file in expected_files:
+    if os.path.exists(sdk_file):
+      return sdk_file
+
+  raise RuntimeError(
+      'Failed to download a distribution for the running SDK. '
+      'Expected either one of %s to be found in the download folder.' % (
+          expected_files))

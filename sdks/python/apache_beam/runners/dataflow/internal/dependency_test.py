@@ -271,11 +271,11 @@ class SetupTest(unittest.TestCase):
 
           1) Download SDK sources file:
           python pip -m download --dest /tmp/dir apache-beam==2.0.0 \
-              --no-binary :all: --no-deps
+              --no-deps --no-binary :all:
 
           2) Download SDK binary wheel file:
           python pip -m download --dest /tmp/dir apache-beam==2.0.0 \
-              --no-binary :all: --no-deps --python-version 27 \
+              --no-deps --no-binary :all: --python-version 27 \
               --implementation cp --abi cp27mu --platform manylinux1_x86_64
       """
       package_file = None
@@ -285,10 +285,10 @@ class SetupTest(unittest.TestCase):
           distribution_name = args[6][0:args[6].find('==')]
           distribution_version = args[6][args[6].find('==')+2:]
 
-          if args[7] == '--no-binary':
+          if args[8] == '--no-binary':
             package_file = '%s-%s.zip' % (
                 distribution_name, distribution_version)
-          elif args[7] == '--only-binary' and len(args) >= 18:
+          elif args[8] == '--only-binary' and len(args) >= 18:
             if not has_wheels:
               # Imitate the case when desired wheel distribution is not in PyPI.
               raise RuntimeError('No matching distribution.')
@@ -431,7 +431,7 @@ class SetupTest(unittest.TestCase):
         sdk_location,
         cm.exception.args[0])
 
-  def test_sdk_location_gcs(self):
+  def test_sdk_location_gcs_source_file(self):
     staging_dir = self.make_temp_dir()
     sdk_location = 'gs://my-gcs-bucket/tarball.tar.gz'
 
@@ -444,6 +444,22 @@ class SetupTest(unittest.TestCase):
                     'dependency._dependency_file_copy'):
       self.assertEqual(
           [names.DATAFLOW_SDK_TARBALL_FILE],
+          dependency.stage_job_resources(options))
+
+  def test_sdk_location_gcs_wheel_file(self):
+    staging_dir = self.make_temp_dir()
+    sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
+    sdk_location = 'gs://my-gcs-bucket/' + sdk_filename
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).sdk_location = sdk_location
+
+    with mock.patch('apache_beam.runners.dataflow.internal.'
+                    'dependency._dependency_file_copy'):
+      self.assertEqual(
+          [sdk_filename],
           dependency.stage_job_resources(options))
 
   def test_sdk_location_http(self):
