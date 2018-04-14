@@ -32,7 +32,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
 
-/** {@link Coder} for {@link KafkaRecord}. */
+/**
+ * {@link Coder} for {@link KafkaRecord}.
+ */
 public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
 
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
@@ -101,7 +103,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value) {
     return kvCoder.isRegisterByteSizeObserverCheap(value.getKV());
-    // TODO : do we have to implement getEncodedSize()?
+    //TODO : do we have to implement getEncodedSize()?
   }
 
   @SuppressWarnings("unchecked")
