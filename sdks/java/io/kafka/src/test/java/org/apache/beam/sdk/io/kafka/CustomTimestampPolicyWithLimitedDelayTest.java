@@ -39,27 +39,19 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
 
   // Takes offsets of timestamps from now returns the results as offsets from 'now'.
   private static List<Long> getTimestampsForRecords(
-      TimestampPolicy<String, String> policy, Instant now, List<Long> timestampOffsets) {
+    TimestampPolicy<String, String> policy, Instant now, List<Long> timestampOffsets) {
 
     return timestampOffsets
-        .stream()
-        .map(
-            ts -> {
-              Instant result =
-                  policy.getTimestampForRecord(
-                      null,
-                      new KafkaRecord<>(
-                          "topic",
-                          0,
-                          0,
-                          now.getMillis() + ts,
-                          KafkaTimestampType.CREATE_TIME,
-                          new KafkaRecordHeaders(),
-                          "key",
-                          "value"));
-              return result.getMillis() - now.getMillis();
-            })
-        .collect(Collectors.toList());
+      .stream()
+      .map(ts -> {
+        Instant result = policy.getTimestampForRecord(
+          null, new KafkaRecord<>("topic", 0, 0, now.getMillis() + ts,
+                                      KafkaTimestampType.CREATE_TIME,
+                                      new KafkaRecordHeaders(),
+                                      "key", "value"));
+        return result.getMillis() - now.getMillis();
+      })
+      .collect(Collectors.toList());
   }
 
   @Test
@@ -69,8 +61,10 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
     Duration maxDelay = Duration.standardSeconds(60);
 
     CustomTimestampPolicyWithLimitedDelay<String, String> policy =
-        new CustomTimestampPolicyWithLimitedDelay<>(
-            (record -> new Instant(record.getTimestamp())), maxDelay, Optional.empty());
+      new CustomTimestampPolicyWithLimitedDelay<>(
+        (record -> new Instant(record.getTimestamp())),
+        maxDelay,
+        Optional.empty());
 
     Instant now = Instant.now();
 
@@ -82,22 +76,28 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
 
     // (1) Test simple case : watermark == max_timesatmp - max_delay
 
-    List<Long> input =
-        ImmutableList.of(
-            -200_000L, -150_000L, -120_000L, -140_000L, -100_000L, // <<< Max timestamp
-            -110_000L);
+    List<Long> input = ImmutableList.of(-200_000L,
+                                        -150_000L,
+                                        -120_000L,
+                                        -140_000L,
+                                        -100_000L, // <<< Max timestamp
+                                        -110_000L);
     assertThat(getTimestampsForRecords(policy, now, input), is(input));
 
     // Watermark should be max_timestamp - maxDelay
-    assertThat(
-        policy.getWatermark(ctx), is(now.minus(Duration.standardSeconds(100)).minus(maxDelay)));
+    assertThat(policy.getWatermark(ctx), is(now
+                                              .minus(Duration.standardSeconds(100))
+                                              .minus(maxDelay)));
 
     // (2) Verify future timestamps
 
-    input =
-        ImmutableList.of(
-            -200_000L, -150_000L, -120_000L, -140_000L, 100_000L, // <<< timestamp is in future
-            -100_000L, -110_000L);
+    input = ImmutableList.of(-200_000L,
+                             -150_000L,
+                             -120_000L,
+                             -140_000L,
+                             100_000L, // <<< timestamp is in future
+                             -100_000L,
+                             -110_000L);
 
     assertThat(getTimestampsForRecords(policy, now, input), is(input));
 
