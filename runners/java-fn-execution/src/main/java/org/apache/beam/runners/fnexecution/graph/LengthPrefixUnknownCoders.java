@@ -17,7 +17,6 @@
 package org.apache.beam.runners.fnexecution.graph;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.runners.core.construction.ModelCoderRegistrar.WELL_KNOWN_CODER_URNS;
 
 import com.google.common.collect.Sets;
 import java.util.Set;

@@ -18,35 +18,36 @@
 
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.runners.core.construction.UrnUtils.validateCommonUrn;
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
 public class ModelCoders {
   private ModelCoders() {}
 
-  public static final String BYTES_CODER_URN = validateCommonUrn("beam:coder:bytes:v1");
+  public static final String BYTES_CODER_URN = getUrn(StandardCoders.Enum.BYTES);
   // Where is this required explicitly, instead of implicit within WindowedValue and LengthPrefix
   // coders?
-  public static final String INT64_CODER_URN = validateCommonUrn("beam:coder:varint:v1");
+  public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
 
-  public static final String ITERABLE_CODER_URN = validateCommonUrn("beam:coder:iterable:v1");
-  public static final String KV_CODER_URN = validateCommonUrn("beam:coder:kv:v1");
+  public static final String ITERABLE_CODER_URN = getUrn(StandardCoders.Enum.ITERABLE);
+  public static final String KV_CODER_URN = getUrn(StandardCoders.Enum.KV);
   public static final String LENGTH_PREFIX_CODER_URN =
-      validateCommonUrn("beam:coder:length_prefix:v1");
+      getUrn(StandardCoders.Enum.LENGTH_PREFIX);
 
   public static final String GLOBAL_WINDOW_CODER_URN =
-      validateCommonUrn("beam:coder:global_window:v1");
+      getUrn(StandardCoders.Enum.GLOBAL_WINDOW);
   // This isn't strictly required once there's a way to represent an 'unknown window' (i.e. the
   // custom window encoding + the maximum timestamp of the window, this can be used for interval
   // windows.
   public static final String INTERVAL_WINDOW_CODER_URN =
-      validateCommonUrn("beam:coder:interval_window:v1");
+      getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
 
   public static final String WINDOWED_VALUE_CODER_URN =
-      validateCommonUrn("beam:coder:windowed_value:v1");
+      getUrn(StandardCoders.Enum.WINDOWED_VALUE);
 
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
