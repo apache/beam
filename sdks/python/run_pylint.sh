@@ -26,7 +26,7 @@
 set -o errexit
 set -o pipefail
 
-MODULE=$(ls --directory -C apache_beam *.py)
+MODULE=$(ls -d -C apache_beam *.py)
 
 usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
 
