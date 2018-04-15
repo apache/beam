@@ -122,8 +122,9 @@ public class Schema implements Serializable {
       return this;
     }
 
-    public Builder addArrayField(String name, FieldType collectionType) {
-      fields.add(Field.of(name, TypeName.ARRAY.type().withCollectionType(collectionType)));
+    public Builder addArrayField(String name, FieldType collectionElementType) {
+      fields.add(
+          Field.of(name, TypeName.ARRAY.type().withCollectionElementType(collectionElementType)));
       return this;
     }
 
@@ -249,7 +250,7 @@ public class Schema implements Serializable {
     // Returns the type of this field.
     public abstract TypeName getTypeName();
     // For container types (e.g. ARRAY), returns the type of the contained element.
-    @Nullable public abstract FieldType getCollectionType();
+    @Nullable public abstract FieldType getCollectionElementType();
     // For MAP type, returns the type of the key element, it must be a primitive type;
     @Nullable public abstract TypeName getMapKeyType();
     // For MAP type, returns the type of the value element, it can be a nested type;
@@ -264,7 +265,7 @@ public class Schema implements Serializable {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
-      abstract Builder setCollectionType(@Nullable FieldType collectionType);
+      abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
       abstract Builder setMapKeyType(@Nullable TypeName mapKeyType);
       abstract Builder setMapValueType(@Nullable FieldType mapValueType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
@@ -282,11 +283,11 @@ public class Schema implements Serializable {
     /**
      * For container types, adds the type of the component element.
      */
-    public FieldType withCollectionType(@Nullable FieldType collectionType) {
-      if (collectionType != null) {
+    public FieldType withCollectionElementType(@Nullable FieldType collectionElementType) {
+      if (collectionElementType != null) {
         checkArgument(getTypeName().isCollectionType());
       }
-      return toBuilder().setCollectionType(collectionType).build();
+      return toBuilder().setCollectionElementType(collectionElementType).build();
     }
 
     /**
@@ -333,7 +334,7 @@ public class Schema implements Serializable {
       }
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
-          && Objects.equals(getCollectionType(), other.getCollectionType())
+          && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
           && Objects.equals(getMapKeyType(), other.getMapKeyType())
           && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
@@ -343,7 +344,7 @@ public class Schema implements Serializable {
 
     @Override
     public int hashCode() {
-      return Arrays.deepHashCode(new Object[] { getTypeName(), getCollectionType(),
+      return Arrays.deepHashCode(new Object[] { getTypeName(), getCollectionElementType(),
           getMapKeyType(), getMapValueType(), getRowSchema(), getMetadata() });
     }
   }

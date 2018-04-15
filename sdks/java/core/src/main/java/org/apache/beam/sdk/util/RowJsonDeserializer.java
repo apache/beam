@@ -230,7 +230,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
     }
 
     FieldType arrayElementType() {
-      return type().getCollectionType();
+      return type().getCollectionElementType();
     }
 
     boolean isJsonObject() {
