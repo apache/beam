@@ -21,7 +21,6 @@ from __future__ import print_function
 
 import os
 import platform
-import re
 import warnings
 from distutils.version import StrictVersion
 
@@ -144,6 +143,7 @@ def generate_protos_first(original_cmd):
   except ImportError:
     warnings.warn("Could not import gen_protos, skipping proto generation.")
     return original_cmd
+
 
 python_requires = '>=2.7'
 if os.environ.get('BEAM_EXPERIMENTAL_PY3') is None:
