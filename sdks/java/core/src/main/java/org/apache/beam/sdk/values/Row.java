@@ -410,7 +410,7 @@ public abstract class Row implements Serializable {
 
     private Object verify(Object value, FieldType type, String fieldName) {
       if (TypeName.ARRAY.equals(type.getTypeName())) {
-        List<Object> arrayElements = verifyArray(value, type.getCollectionType(), fieldName);
+        List<Object> arrayElements = verifyArray(value, type.getCollectionElementType(), fieldName);
         return arrayElements;
       } else if (TypeName.MAP.equals(type.getTypeName())) {
         Map<Object, Object> mapElements = verifyMap(value, type.getMapKeyType(),
@@ -423,7 +423,7 @@ public abstract class Row implements Serializable {
       }
     }
 
-    private List<Object> verifyArray(Object value, FieldType collectionType,
+    private List<Object> verifyArray(Object value, FieldType collectionElementType,
                                      String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
@@ -433,7 +433,7 @@ public abstract class Row implements Serializable {
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        verifiedList.add(verify(listValue, collectionType, fieldName));
+        verifiedList.add(verify(listValue, collectionElementType, fieldName));
       }
       return verifiedList;
     }

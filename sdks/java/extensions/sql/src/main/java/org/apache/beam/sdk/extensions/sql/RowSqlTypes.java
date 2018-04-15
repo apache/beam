@@ -169,12 +169,12 @@ public class RowSqlTypes {
      * Adds an ARRAY field with elements of {@code rowType}.
      */
     public Builder withArrayField(String fieldName, Schema schema) {
-      FieldType collectionType =
+      FieldType collectionElementType =
           FieldType
               .of(TypeName.ROW)
               .withRowSchema(schema);
       builder.addField(Field.of(fieldName,
-          TypeName.ARRAY.type().withCollectionType(collectionType)));
+          TypeName.ARRAY.type().withCollectionElementType(collectionElementType)));
       return this;
     }
 

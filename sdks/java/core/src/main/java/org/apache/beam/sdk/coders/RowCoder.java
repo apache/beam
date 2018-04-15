@@ -96,7 +96,7 @@ public class RowCoder extends CustomCoder<Row> {
         List list = (List) value;
         long listSizeBytes = 0;
         for (Object elem : list) {
-          listSizeBytes += estimatedSizeBytes(typeDescriptor.getCollectionType(), elem);
+          listSizeBytes += estimatedSizeBytes(typeDescriptor.getCollectionElementType(), elem);
         }
         return 4 + listSizeBytes;
       case MAP:
@@ -131,7 +131,7 @@ public class RowCoder extends CustomCoder<Row> {
 
   Coder getCoder(FieldType fieldType) {
     if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
-      return ListCoder.of(getCoder(fieldType.getCollectionType()));
+      return ListCoder.of(getCoder(fieldType.getCollectionElementType()));
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return MapCoder.of(coderForPrimitiveType(fieldType.getMapKeyType()),
           getCoder(fieldType.getMapValueType()));
