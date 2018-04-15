@@ -245,6 +245,10 @@ message StandardPTransforms {
     COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
     COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
   }
+
+  // This field is needed only as a work-around for a proto compiler bug.
+  // See https://github.com/google/protobuf/issues/4514
+  int32 ignored = 1;
 }
 
 message StandardSideInputTypes {
