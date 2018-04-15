@@ -241,7 +241,7 @@ class DataflowRunner(PipelineRunner):
           new_side_inputs = []
           for ix, side_input in enumerate(transform_node.side_inputs):
             access_pattern = side_input._side_input_data().access_pattern
-            if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+            if access_pattern == common_urns.side_inputs.ITERABLE.urn:
               # Add a map to ('', value) as Dataflow currently only handles
               # keyed side inputs.
               pipeline = side_input.pvalue.pipeline
@@ -260,7 +260,7 @@ class DataflowRunner(PipelineRunner):
               map_to_void_key.add_output(new_side_input.pvalue)
               parent.add_part(map_to_void_key)
               transform_node.update_input_refcounts()
-            elif access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+            elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
               # Ensure the input coder is a KV coder and patch up the
               # access pattern to appease Dataflow.
               side_input.pvalue.element_type = typehints.coerce_to_kv_type(
@@ -959,7 +959,8 @@ class _DataflowIterableSideInput(_DataflowSideInput):
   def __init__(self, iterable_side_input):
     # pylint: disable=protected-access
     side_input_data = iterable_side_input._side_input_data()
-    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT
+    assert (
+        side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
     iterable_view_fn = side_input_data.view_fn
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
@@ -978,7 +979,8 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
     # pylint: disable=protected-access
     self.pvalue = side_input.pvalue
     side_input_data = side_input._side_input_data()
-    assert side_input_data.access_pattern == common_urns.MULTIMAP_SIDE_INPUT
+    assert (
+        side_input_data.access_pattern == common_urns.side_inputs.MULTIMAP.urn)
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
