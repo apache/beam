@@ -48,6 +48,9 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
       common_job_properties.setGradleSwitches(delegate)
+      // Increase parallel worker threads above processor limit sinc most time is
+      // spent waiting on Dataflow jobs.
+      switches("--max-workers=${3*Runtime.runtime.availableProcessors()}")
     }
   }
 }

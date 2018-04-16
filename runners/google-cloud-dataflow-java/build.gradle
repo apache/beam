@@ -112,7 +112,9 @@ task validatesRunnerTest(type: Test) {
           "--tempRoot=${dataflowTempRoot}",
   ])
 
-  maxParallelForks 4
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
