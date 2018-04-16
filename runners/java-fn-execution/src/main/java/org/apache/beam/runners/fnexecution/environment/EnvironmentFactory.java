@@ -26,12 +26,12 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
  * Manages access to {@link Environment environments} which communicate to an {@link
  * SdkHarnessClient}.
  */
-public interface EnvironmentManager {
+public interface EnvironmentFactory {
   /**
    * Retrieve a handle to an active {@link Environment}. This may allocate resources if required.
    *
    * <p>TODO: Determine and document the owner of the returned environment. If the environment is
-   * owned by the manager, make the Manager {@link AutoCloseable}..
+   * owned by the manager, make the Manager {@link AutoCloseable}.
    */
   RemoteEnvironment getEnvironment(RunnerApi.Environment container) throws Exception;
 }
