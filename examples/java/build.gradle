@@ -87,7 +87,7 @@ dependencies {
   flinkRunnerPreCommit project(path: ":beam-runners-flink_2.11", configuration: "shadow")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
-  sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
+  sparkRunnerPreCommit "io.netty:netty-all:4.1.8.Final"
   sparkRunnerPreCommit project(path: ":beam-runners-spark", configuration: "shadow")
   sparkRunnerPreCommit project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
   sparkRunnerPreCommit library.java.spark_streaming
