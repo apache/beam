@@ -46,7 +46,7 @@ func pick(t *testing.T, g *graph.Graph) *graph.MultiEdge {
 		t.Fatal(err)
 	}
 
-	in := g.NewNode(intT(), window.NewGlobalWindows())
+	in := g.NewNode(intT(), window.NewGlobalWindows(), true)
 	in.Coder = intCoder()
 
 	e, err := graph.NewParDo(g, g.Root(), dofn, []*graph.Node{in}, nil)

@@ -33,6 +33,7 @@ var (
 	ZType = reflect.TypeOf((*Z)(nil)).Elem()
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
+	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
 
 	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
 	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
@@ -53,22 +54,20 @@ type Z interface{}
 // EventTime is a time.Time that Beam understands as attached to an element.
 type EventTime time.Time
 
+// Window represents a concrete Window.
+type Window interface {
+	// MaxTimestamp returns the the inclusive upper bound of timestamps for values in this window.
+	MaxTimestamp() EventTime
+
+	// Equals returns true iff the windows are identical.
+	Equals(o Window) bool
+}
+
 // KV, CoGBK, WindowedValue are composite generic types. They are not used
-// directly in user code signatures, but only in FullTypes. The fields below
-// are for documentation only.
+// directly in user code signatures, but only in FullTypes.
 
-type KV struct {
-	Key   T
-	Value U
-}
+type KV struct{}
 
-type CoGBK struct {
-	Key    T
-	Values []interface{}
-}
+type CoGBK struct{}
 
-type WindowedValue struct {
-	Timestamp EventTime
-	// TODO: Window, pane?
-	Value T
-}
+type WindowedValue struct{}

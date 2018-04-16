@@ -65,6 +65,7 @@ golang {
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/minimal_wordcount github.com/apache/beam/sdks/go/examples/minimal_wordcount'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/pingpong github.com/apache/beam/sdks/go/examples/pingpong'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/tornadoes github.com/apache/beam/sdks/go/examples/cookbook/tornadoes'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/windowed_wordcount github.com/apache/beam/sdks/go/examples/windowed_wordcount'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcap github.com/apache/beam/sdks/go/examples/wordcap'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/go/examples/wordcount'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/yatzy github.com/apache/beam/sdks/go/examples/yatzy'

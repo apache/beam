@@ -16,37 +16,65 @@
 // Package window contains window representation, windowing strategies and utilities.
 package window
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// WindowingStrategy defines the types of windowing used in a pipeline and contains
-// the data and code to support executing a windowing strategy.
-type WindowingStrategy struct {
-	k Kind
-	// TODO: pointer to windowing function
-	// TODO: other fields
-}
+// TODO(herohde) 4/15/2018: separate WindowFn from WindowingStrategy.
 
 // Kind is the semantic type of windowing strategy.
 type Kind string
 
 const (
-	// GlobalWindows is the default windowing strategy, which places all elements
-	// into a single window.
-	GlobalWindows Kind = "GLO"
+	GlobalWindows  Kind = "GLO"
+	FixedWindows   Kind = "FIX"
+	SlidingWindows Kind = "SLI"
+	Sessions       Kind = "SES"
 )
 
-// NewGlobalWindows returns the default window to be used for a collection.
+// NewGlobalWindows returns the global windowing strategy, which places all elements
+// into a single window.
 func NewGlobalWindows() *WindowingStrategy {
-	return &WindowingStrategy{k: GlobalWindows}
+	return &WindowingStrategy{Kind: GlobalWindows}
+}
+
+// NewFixedWindows returns the fixed windowing strategy with the given interval.
+func NewFixedWindows(interval time.Duration) *WindowingStrategy {
+	return &WindowingStrategy{Kind: FixedWindows, Size: interval}
+}
+
+// NewSlidingWindows returns the sliding windowing strategy with the given period and duration.
+func NewSlidingWindows(period, duration time.Duration) *WindowingStrategy {
+	return &WindowingStrategy{Kind: SlidingWindows, Period: period, Size: duration}
+}
+
+// NewSessions returns the session windowing strategy with the given gap.
+func NewSessions(gap time.Duration) *WindowingStrategy {
+	return &WindowingStrategy{Kind: Sessions, Gap: gap}
+}
+
+// WindowingStrategy defines the types of windowing used in a pipeline and contains
+// the data to support executing a windowing strategy.
+type WindowingStrategy struct {
+	Kind Kind
+
+	Size   time.Duration // FixedWindows, SlidingWindows
+	Period time.Duration // SlidingWindows
+	Gap    time.Duration // Sessions
 }
 
 func (w *WindowingStrategy) String() string {
-	return string(w.k)
-}
-
-// Kind returns the kind of the windowing strategy.
-func (w *WindowingStrategy) Kind() Kind {
-	return w.k
+	switch w.Kind {
+	case FixedWindows:
+		return fmt.Sprintf("%v[%v]", w.Kind, w.Size)
+	case SlidingWindows:
+		return fmt.Sprintf("%v[%v@%v]", w.Kind, w.Size, w.Period)
+	case Sessions:
+		return fmt.Sprintf("%v[%v]", w.Kind, w.Gap)
+	default:
+		return string(w.Kind)
+	}
 }
 
 // Equals returns true iff the windows have the same kind and underlying behavior.
@@ -54,20 +82,20 @@ func (w *WindowingStrategy) Kind() Kind {
 // instances of the window. A user-defined window that happens to match a
 // built-in will not match on Equals().
 func (w *WindowingStrategy) Equals(o *WindowingStrategy) bool {
-	switch w.Kind() {
+	if w.Kind != o.Kind {
+		return false
+	}
+
+	switch w.Kind {
 	case GlobalWindows:
-		return o.Kind() == w.Kind()
+		return true
+	case FixedWindows:
+		return w.Size == o.Size
+	case SlidingWindows:
+		return w.Period == o.Period && w.Size == o.Size
+	case Sessions:
+		return w.Gap == o.Gap
 	default:
 		panic(fmt.Sprintf("unknown window type: %v", w))
-		// TODO(wcn): implement other window types
 	}
 }
-
-// TODO: Sessions, FixedWindows, etc.
-
-// CustomWindow is the base-case windowing that relies on a user
-// specified function for windowing behavior
-// var CustomWindow WindowKind
-
-// TODO(wcn): establish the other window types when we are
-// ready to support them.

@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -64,7 +63,7 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 		},
 		{
 			"W<bytes>",
-			coder.NewW(coder.NewBytes(), window.NewGlobalWindows()),
+			coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
 		},
 		{
 			"KV<foo,bar>",

@@ -23,7 +23,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -721,10 +720,12 @@ const (
 	WindowedValueType = "kind:windowed_value"
 	BytesType         = "kind:bytes"
 	VarIntType        = "kind:varint"
-	GlobalWindowType  = "kind:global_window"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
 	lengthPrefixType  = "kind:length_prefix"
+
+	GlobalWindowType   = "kind:global_window"
+	IntervalWindowType = "kind:interval_window"
 
 	cogbklistType = "kind:cogbklist" // CoGBK representation. Not a coder.
 )
@@ -807,7 +808,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		w, err := encodeWindow(c.Window)
+		w, err := encodeWindowCoder(c.Window)
 		if err != nil {
 			return nil, err
 		}
@@ -915,7 +916,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		w, err := decodeWindow(c.Components[1])
+		w, err := decodeWindowCoder(c.Components[1])
 		if err != nil {
 			return nil, err
 		}
@@ -942,28 +943,28 @@ func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {
 	return ref2.Components, true
 }
 
-// TODO(wcn): Windowing information isn't currently propagated through
-// our code. These methods will be used by other packages, so exporting
-// them now.
-
 // encodeWindow translates the preprocessed representation of a Beam coder
 // into the wire representation, capturing the underlying types used by
 // the coder.
-func encodeWindow(w *window.WindowingStrategy) (*CoderRef, error) {
-	switch w.Kind() {
-	case window.GlobalWindows:
+func encodeWindowCoder(w *coder.WindowCoder) (*CoderRef, error) {
+	switch w.Kind {
+	case coder.GlobalWindow:
 		return &CoderRef{Type: GlobalWindowType}, nil
+	case coder.IntervalWindow:
+		return &CoderRef{Type: IntervalWindowType}, nil
 	default:
-		return nil, fmt.Errorf("bad window kind: %v", w.Kind())
+		return nil, fmt.Errorf("bad window kind: %v", w.Kind)
 	}
 }
 
 // decodeWindow receives the wire representation of a Beam coder, extracting
 // the preprocessed representation, expanding all types used by the coder.
-func decodeWindow(w *CoderRef) (*window.WindowingStrategy, error) {
+func decodeWindowCoder(w *CoderRef) (*coder.WindowCoder, error) {
 	switch w.Type {
 	case GlobalWindowType:
-		return window.NewGlobalWindows(), nil
+		return coder.NewGlobalWindow(), nil
+	case IntervalWindowType:
+		return coder.NewIntervalWindow(), nil
 	default:
 		return nil, fmt.Errorf("bad window: %v", w.Type)
 	}
