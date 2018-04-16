@@ -31,10 +31,10 @@ import org.apache.beam.sdk.values.PCollectionList;
  * {@link PTransform}.
  */
 class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
-  private final EvaluationContext evaluationContext;
+  private final BundleFactory bundleFactory;
 
-  FlattenEvaluatorFactory(EvaluationContext evaluationContext) {
-    this.evaluationContext = evaluationContext;
+  FlattenEvaluatorFactory(BundleFactory bundleFactory) {
+    this.bundleFactory = bundleFactory;
   }
 
   @Override
@@ -50,11 +50,10 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() throws Exception {}
 
   private <InputT> TransformEvaluator<InputT> createInMemoryEvaluator(
-      final AppliedPTransform<
-              PCollectionList<InputT>, PCollection<InputT>, PCollections<InputT>>
+      final AppliedPTransform<PCollectionList<InputT>, PCollection<InputT>, PCollections<InputT>>
           application) {
     final UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(
+        bundleFactory.createBundle(
             (PCollection<InputT>) Iterables.getOnlyElement(application.getOutputs().values()));
     final TransformResult<InputT> result =
         StepTransformResult.<InputT>withoutHold(application).addOutput(outputBundle).build();

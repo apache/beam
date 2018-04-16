@@ -44,20 +44,17 @@ import org.apache.beam.sdk.values.PCollection;
  * {@link GroupByKeyOnly} {@link PTransform}.
  */
 class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
-  private final EvaluationContext evaluationContext;
+  private final BundleFactory bundleFactory;
 
-  GroupByKeyOnlyEvaluatorFactory(EvaluationContext evaluationContext) {
-    this.evaluationContext = evaluationContext;
+  GroupByKeyOnlyEvaluatorFactory(BundleFactory bundleFactory) {
+    this.bundleFactory = bundleFactory;
   }
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle) {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<InputT> evaluator =
-        createEvaluator(
-            (AppliedPTransform) application);
+    TransformEvaluator<InputT> evaluator = createEvaluator((AppliedPTransform) application);
     return evaluator;
   }
 
@@ -68,7 +65,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       final AppliedPTransform<
               PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
           application) {
-    return new GroupByKeyOnlyEvaluator<>(evaluationContext, application);
+    return new GroupByKeyOnlyEvaluator<>(bundleFactory, application);
   }
 
   /**
@@ -77,9 +74,8 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
    *
    * @see GroupByKeyViaGroupByKeyOnly
    */
-  private static class GroupByKeyOnlyEvaluator<K, V>
-      implements TransformEvaluator<KV<K, V>> {
-    private final EvaluationContext evaluationContext;
+  private static class GroupByKeyOnlyEvaluator<K, V> implements TransformEvaluator<KV<K, V>> {
+    private final BundleFactory bundleFactory;
 
     private final AppliedPTransform<
             PCollection<KV<K, V>>,
@@ -89,12 +85,11 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
     private Map<StructuralKey<K>, List<WindowedValue<V>>> groupingMap;
 
     public GroupByKeyOnlyEvaluator(
-        EvaluationContext evaluationContext,
+        BundleFactory bundleFactory,
         AppliedPTransform<
-            PCollection<KV<K, V>>,
-            PCollection<KeyedWorkItem<K, V>>,
-            DirectGroupByKeyOnly<K, V>> application) {
-      this.evaluationContext = evaluationContext;
+                PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
+            application) {
+      this.bundleFactory = bundleFactory;
       this.application = application;
       this.keyCoder =
           getKeyCoder(
@@ -135,7 +130,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
         KeyedWorkItem<K, V> groupedKv =
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
         UncommittedBundle<KeyedWorkItem<K, V>> bundle =
-            evaluationContext.createKeyedBundle(
+            bundleFactory.createKeyedBundle(
                 StructuralKey.of(key, keyCoder),
                 (PCollection<KeyedWorkItem<K, V>>)
                     Iterables.getOnlyElement(application.getOutputs().values()));
