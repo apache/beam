@@ -21,12 +21,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
@@ -183,6 +186,14 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Get a MAP value by field name, {@link IllegalStateException} is thrown
+   * if schema doesn't match.
+   */
+  public <T1, T2> Map<T1, T2> getMap(String fieldName) {
+    return getMap(getSchema().indexOf(fieldName));
+  }
+
+  /**
    * Get a {@link TypeName#ROW} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
@@ -280,6 +291,14 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Get a MAP value by field index, {@link IllegalStateException} is thrown
+   * if schema doesn't match.
+   */
+  public <T1, T2> Map<T1, T2> getMap(int idx) {
+    return getValue(idx);
+  }
+
+  /**
    * Get a {@link Row} value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
@@ -341,6 +360,11 @@ public abstract class Row implements Serializable {
       this.schema = schema;
     }
 
+    public Builder addValue(Object values) {
+      this.values.add(values);
+      return this;
+    }
+
     public Builder addValues(List<Object> values) {
       this.values.addAll(values);
       return this;
@@ -378,23 +402,28 @@ public abstract class Row implements Serializable {
           }
           verifiedValues.add(null);
         } else {
-          FieldType type = field.getType();
-          if (TypeName.ARRAY.equals(type.getTypeName())) {
-            List<Object> arrayElements = verifyArray(
-                value, type.getComponentType(), field.getName());
-            verifiedValues.add(arrayElements);
-          } else if (TypeName.ROW.equals(type.getTypeName())) {
-            verifiedValues.add(verifyRow(value, field.getName()));
-          } else {
-            verifiedValues.add(verifyPrimitiveType(value, type.getTypeName(),
-                field.getName()));
-          }
+          verifiedValues.add(verify(value, field.getType(), field.getName()));
         }
       }
       return verifiedValues;
     }
 
-    private List<Object> verifyArray(Object value, FieldType componentType,
+    private Object verify(Object value, FieldType type, String fieldName) {
+      if (TypeName.ARRAY.equals(type.getTypeName())) {
+        List<Object> arrayElements = verifyArray(value, type.getCollectionElementType(), fieldName);
+        return arrayElements;
+      } else if (TypeName.MAP.equals(type.getTypeName())) {
+        Map<Object, Object> mapElements = verifyMap(value, type.getMapKeyType(),
+            type.getMapValueType(), fieldName);
+        return mapElements;
+      } else if (TypeName.ROW.equals(type.getTypeName())) {
+        return verifyRow(value, fieldName);
+      } else {
+        return verifyPrimitiveType(value, type.getTypeName(), fieldName);
+      }
+    }
+
+    private List<Object> verifyArray(Object value, FieldType collectionElementType,
                                      String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
@@ -404,17 +433,25 @@ public abstract class Row implements Serializable {
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        if (TypeName.ARRAY.equals(componentType.getTypeName())) {
-          verifiedList.add(verifyArray(listValue, componentType.getComponentType(),
-              fieldName + "nested"));
-        } else if (TypeName.ROW.equals(componentType.getTypeName())) {
-          verifiedList.add(verifyRow(listValue, fieldName));
-        } else {
-          verifiedList.add(verifyPrimitiveType(listValue,
-              componentType.getTypeName(), fieldName));
-        }
+        verifiedList.add(verify(listValue, collectionElementType, fieldName));
       }
       return verifiedList;
+    }
+
+    private Map<Object, Object> verifyMap(Object value, TypeName keyTypeName,
+        FieldType valueType, String fieldName) {
+      if (!(value instanceof Map)) {
+        throw new IllegalArgumentException(String.format(
+            "For field name %s and map type expected Map class. Instead " + "class type was %s.",
+            fieldName, value.getClass()));
+      }
+      Map<Object, Object> valueMap = (Map<Object, Object>) value;
+      Map<Object, Object> verifiedMap = Maps.newHashMapWithExpectedSize(valueMap.size());
+      for (Entry<Object, Object> kv : valueMap.entrySet()) {
+        verifiedMap.put(verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+            verify(kv.getValue(), valueType, fieldName));
+      }
+      return verifiedMap;
     }
 
     private Row verifyRow(Object value, String fieldName) {

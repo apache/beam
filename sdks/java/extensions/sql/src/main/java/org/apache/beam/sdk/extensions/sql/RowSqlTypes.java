@@ -131,7 +131,7 @@ public class RowSqlTypes {
     }
 
     /**
-     * Adds an ARRAY field with elements of the give type.
+     * Adds an ARRAY field with elements of the given type.
      */
     public Builder withArrayField(String fieldName, RelDataType relDataType) {
       builder.addField(Field.of(fieldName, CalciteUtils.toArrayType(relDataType)));
@@ -139,7 +139,7 @@ public class RowSqlTypes {
     }
 
     /**
-     * Adds an ARRAY field with elements of the give type.
+     * Adds an ARRAY field with elements of the given type.
      */
     public Builder withArrayField(String fieldName, SqlTypeName typeName) {
       builder.addField(Field.of(fieldName, CalciteUtils.toArrayType(typeName)));
@@ -147,15 +147,34 @@ public class RowSqlTypes {
     }
 
     /**
+     * Adds a MAP field with elements of the given key/value type.
+     */
+    public Builder withMapField(String fieldName, RelDataType keyRelDataType,
+        RelDataType valueRelDataType) {
+      builder
+          .addField(Field.of(fieldName, CalciteUtils.toMapType(keyRelDataType, valueRelDataType)));
+      return this;
+    }
+
+    /**
+     * Adds a MAP field with elements of the given key/value type.
+     */
+    public Builder withMapField(String fieldName, SqlTypeName keyTypeName,
+        SqlTypeName valueTypeName) {
+      builder.addField(Field.of(fieldName, CalciteUtils.toMapType(keyTypeName, valueTypeName)));
+      return this;
+    }
+
+    /**
      * Adds an ARRAY field with elements of {@code rowType}.
      */
     public Builder withArrayField(String fieldName, Schema schema) {
-      FieldType componentType =
+      FieldType collectionElementType =
           FieldType
               .of(TypeName.ROW)
               .withRowSchema(schema);
       builder.addField(Field.of(fieldName,
-          TypeName.ARRAY.type().withComponentType(componentType)));
+          TypeName.ARRAY.type().withCollectionElementType(collectionElementType)));
       return this;
     }
 

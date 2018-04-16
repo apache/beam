@@ -108,7 +108,7 @@ public class SchemaTest {
   @Test
   public void testArraySchema() {
     FieldType arrayType = TypeName.ARRAY.type()
-        .withComponentType(TypeName.STRING.type());
+        .withCollectionElementType(TypeName.STRING.type());
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
@@ -120,7 +120,7 @@ public class SchemaTest {
     Schema nestedSchema = Schema.of(
         Field.of("f1_str", TypeName.STRING.type()));
     FieldType arrayType = TypeName.ARRAY.type()
-        .withComponentType(TypeName.ROW.type()
+        .withCollectionElementType(TypeName.ROW.type()
             .withRowSchema(nestedSchema));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
@@ -131,8 +131,8 @@ public class SchemaTest {
   @Test
   public void testNestedArraySchema() {
     FieldType arrayType = TypeName.ARRAY.type()
-        .withComponentType(TypeName.ARRAY.type()
-            .withComponentType(TypeName.STRING.type()));
+        .withCollectionElementType(TypeName.ARRAY.type()
+            .withCollectionElementType(TypeName.STRING.type()));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());

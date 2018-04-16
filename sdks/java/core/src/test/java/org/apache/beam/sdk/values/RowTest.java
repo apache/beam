@@ -25,7 +25,10 @@ import static org.junit.Assert.assertNull;
 
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -134,7 +137,7 @@ public class RowTest {
     Schema type = Stream
         .of(Schema.Field.of("array",
             TypeName.ARRAY.type()
-                .withComponentType(TypeName.INT32.type())))
+                .withCollectionElementType(TypeName.INT32.type())))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -153,7 +156,7 @@ public class RowTest {
     Schema type = Stream
         .of(Schema.Field.of("array",
             TypeName.ARRAY.type()
-                .withComponentType(TypeName.ROW.type()
+                .withCollectionElementType(TypeName.ROW.type()
                     .withRowSchema(nestedType))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
@@ -167,11 +170,108 @@ public class RowTest {
     Schema type = Stream
         .of(Schema.Field.of("array",
             TypeName.ARRAY.type()
-                .withComponentType(TypeName.ARRAY.type()
-                    .withComponentType(TypeName.INT32.type()))))
+                .withCollectionElementType(TypeName.ARRAY.type()
+                    .withCollectionElementType(TypeName.INT32.type()))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
+  public void testCreatesArrayOfMap() {
+    List<Map<Integer, String>> data = Lists
+        .<Map<Integer, String>>newArrayList(Lists.newArrayList(new HashMap<Integer, String>() {
+          {
+            put(1, "value1");
+          }
+        }, new HashMap<Integer, String>() {
+          {
+            put(2, "value2");
+          }
+        }));
+    Schema type = Stream
+        .of(Schema.Field.of("array",
+            TypeName.ARRAY.type().withCollectionElementType(
+                TypeName.MAP.type().withMapType(TypeName.INT32, TypeName.STRING.type()))))
+        .collect(toSchema());
+    Row row = Row.withSchema(type).addArray(data).build();
+    assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
+  public void testCreateMapWithPrimitiveValue() {
+    Map<Integer, String> data = new HashMap<Integer, String>() {
+      {
+        put(1, "value1");
+        put(2, "value2");
+        put(3, "value3");
+        put(4, "value4");
+      }
+    };
+    Schema type = Stream
+        .of(Schema.Field.of("map",
+            TypeName.MAP.type().withMapType(TypeName.INT32, TypeName.STRING.type())))
+        .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
+  public void testCreateMapWithArrayValue() {
+    Map<Integer, List<String>> data = new HashMap<Integer, List<String>>() {
+      {
+        put(1, Arrays.asList("value1"));
+        put(2, Arrays.asList("value2"));
+      }
+    };
+    Schema type = Stream
+        .of(Schema.Field.of("map",
+            TypeName.MAP.type().withMapType(TypeName.INT32,
+                TypeName.ARRAY.type().withCollectionElementType(TypeName.STRING.type()))))
+        .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
+  public void testCreateMapWithMapValue() {
+    Map<Integer, Map<Integer, String>> data = new HashMap<Integer, Map<Integer, String>>() {
+      {
+        put(1, new HashMap<Integer, String>() {
+          {
+            put(1, "value1");
+          }
+        });
+        put(2, new HashMap<Integer, String>() {
+          {
+            put(2, "value2");
+          }
+        });
+      }
+    };
+    Schema type = Stream
+        .of(Schema.Field.of("map",
+            TypeName.MAP.type().withMapType(TypeName.INT32,
+                TypeName.MAP.type().withMapType(TypeName.INT32, TypeName.STRING.type()))))
+        .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
+  public void testCreateMapWithRowValue() {
+    Schema nestedType = Stream.of(Schema.Field.of("f1_str", TypeName.STRING.type()))
+        .collect(toSchema());
+    Map<Integer, Row> data = new HashMap<Integer, Row>() {
+      {
+        put(1, Row.withSchema(nestedType).addValues("one").build());
+        put(2, Row.withSchema(nestedType).addValues("two").build());
+      }
+    };
+    Schema type = Stream.of(Schema.Field.of("map", TypeName.MAP.type().withMapType(TypeName.INT32,
+        TypeName.ROW.type().withRowSchema(nestedType)))).collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getMap("map"));
   }
 
   @Test
