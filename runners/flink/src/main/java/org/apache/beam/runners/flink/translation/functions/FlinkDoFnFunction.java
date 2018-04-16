@@ -111,9 +111,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class))
         .getEnableMetrics()) {
-      doFnRunner =
-          new DoFnRunnerWithMetricsUpdate<>(
-              stepName, doFnRunner, getRuntimeContext(), serializedOptions);
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
     doFnRunner.startBundle();

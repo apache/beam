@@ -21,7 +21,6 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -58,15 +57,12 @@ public class FlinkMetricContainer {
   private final Map<String, FlinkDistributionGauge> flinkDistributionGaugeCache;
   private final Map<String, FlinkGauge> flinkGaugeCache;
   private final MetricsAccumulator metricsAccumulator;
-  private final SerializablePipelineOptions serializedOptions;
 
-  public FlinkMetricContainer(
-      RuntimeContext runtimeContext, SerializablePipelineOptions serializedOptions) {
+  public FlinkMetricContainer(RuntimeContext runtimeContext) {
     this.runtimeContext = runtimeContext;
     this.flinkCounterCache = new HashMap<>();
     this.flinkDistributionGaugeCache = new HashMap<>();
     this.flinkGaugeCache = new HashMap<>();
-    this.serializedOptions = serializedOptions;
 
     Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> metricsAccumulator =
         runtimeContext.getAccumulator(ACCUMULATOR_NAME);

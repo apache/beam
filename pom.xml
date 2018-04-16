@@ -185,8 +185,7 @@
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
     <jaxb-api.version>2.2.12</jaxb-api.version>
-    <apache-httpclient.version>4.5.2</apache-httpclient.version>
-    <apache-httpcore.version>4.4.5</apache-httpcore.version>
+    <jackson-datatype-joda-version>2.4.0</jackson-datatype-joda-version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -814,6 +813,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-extensions-java</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1486,26 +1491,17 @@
         <classifier>tests</classifier>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-joda</artifactId>
+        <version>${jackson-datatype-joda-version}</version>
+      </dependency>
 
       <dependency>
         <groupId>javax.xml.bind</groupId>
         <artifactId>jaxb-api</artifactId>
         <version>${jaxb-api.version}</version>
       </dependency>
-
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>${apache-httpclient.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpcore</artifactId>
-        <version>${apache-httpcore.version}</version>
-      </dependency>
-
     </dependencies>
   </dependencyManagement>
 

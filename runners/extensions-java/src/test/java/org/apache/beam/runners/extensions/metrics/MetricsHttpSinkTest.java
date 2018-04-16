@@ -31,12 +31,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/**
- * Test class for MetricsHttpSink.
- */
+/** Test class for MetricsHttpSink. */
 public class MetricsHttpSinkTest {
 
-  @Test public void testSerializer() throws Exception {
+  @Test
+  public void testSerializer() throws Exception {
     MetricQueryResults metricQueryResults =
         new MetricQueryResults() {
 
@@ -236,4 +235,3 @@ public class MetricsHttpSinkTest {
         serializeMetrics);
   }
 }
-

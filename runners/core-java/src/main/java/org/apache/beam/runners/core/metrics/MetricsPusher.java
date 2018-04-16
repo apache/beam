@@ -29,6 +29,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -36,15 +37,13 @@ import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
-/**
- * Component that regularly merges metrics and pushes them to a metrics sink.
- */
+/** Component that regularly merges metrics and pushes them to a metrics sink. */
+@Experimental(Experimental.Kind.METRICS)
 public class MetricsPusher implements Serializable {
 
   private MetricsSink metricsSink;
   private long period;
-  @Nullable
-  private transient ScheduledFuture<?> scheduledFuture;
+  @Nullable private transient ScheduledFuture<?> scheduledFuture;
   private transient PipelineResult pipelineResult;
   private MetricsContainerStepMap metricsContainerStepMap;
 
@@ -72,18 +71,18 @@ public class MetricsPusher implements Serializable {
                   .setDaemon(true)
                   .setNameFormat("MetricsPusher-thread")
                   .build());
-      scheduledFuture =
-          scheduler.scheduleAtFixedRate(() -> run(), 0, period, TimeUnit.SECONDS);
+      scheduledFuture = scheduler.scheduleAtFixedRate(() -> run(), 0, period, TimeUnit.SECONDS);
     }
   }
-  private void tearDown(){
+
+  private void tearDown() {
     pushMetrics();
     if (!scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
     }
   }
 
-  private void run(){
+  private void run() {
     pushMetrics();
     if (pipelineResult != null) {
       PipelineResult.State pipelineState = pipelineResult.getState();
@@ -93,18 +92,18 @@ public class MetricsPusher implements Serializable {
     }
   }
 
-  private void pushMetrics(){
+  private void pushMetrics() {
     if (!(metricsSink instanceof NoOpMetricsSink)) {
       try {
         // merge metrics
-          MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
-          MetricQueryResults metricQueryResults = metricResults
-              .queryMetrics(MetricsFilter.builder().build());
+        MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
+        MetricQueryResults metricQueryResults =
+            metricResults.queryMetrics(MetricsFilter.builder().build());
         if ((Iterables.size(metricQueryResults.getDistributions()) != 0)
             || (Iterables.size(metricQueryResults.getGauges()) != 0)
             || (Iterables.size(metricQueryResults.getCounters()) != 0)) {
-            metricsSink.writeMetrics(metricQueryResults);
-          }
+          metricsSink.writeMetrics(metricQueryResults);
+        }
 
       } catch (Exception e) {
         MetricsPushException metricsPushException = new MetricsPushException(e);
@@ -113,10 +112,8 @@ public class MetricsPusher implements Serializable {
     }
   }
 
-  /**
-   * Exception related to MetricsPusher to wrap technical exceptions.
-   */
-  public static class MetricsPushException extends Exception{
+  /** Exception related to MetricsPusher to wrap technical exceptions. */
+  public static class MetricsPushException extends Exception {
     MetricsPushException(Throwable cause) {
       super(cause);
     }
