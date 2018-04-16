@@ -45,11 +45,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -73,6 +75,7 @@ import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
@@ -457,9 +460,15 @@ public class FileIO {
     public static MatchConfiguration create(EmptyMatchTreatment emptyMatchTreatment) {
       return new AutoValue_FileIO_MatchConfiguration.Builder()
           .setEmptyMatchTreatment(emptyMatchTreatment)
+          .setTimestampFn(fn(ignored -> Instant.now()))
+          .setWatermarkFn(fn(ignored -> Instant.now()))
           .build();
     }
 
+    abstract Contextful<Fn<MatchResult.Metadata, Instant>> getTimestampFn();
+    
+    abstract Contextful<Fn<Void, Instant>> getWatermarkFn();
+    
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
     @Nullable
@@ -472,6 +481,10 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+      abstract Builder setTimestampFn(Contextful<Fn<MatchResult.Metadata, Instant>> timestampFn);
+      
+      abstract Builder setWatermarkFn(Contextful<Fn<Void, Instant>> watermarkFn);
+      
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
 
       abstract Builder setWatchInterval(Duration watchInterval);
@@ -481,6 +494,26 @@ public class FileIO {
       abstract MatchConfiguration build();
     }
 
+    /**
+     * Specifies how timestamps are assigned to each match result. By default, uses the current wall
+     * clock time at the moment the match result is first seen. This should be consistent with
+     * {@link #withWatermarkFn(Contextful)} to prevent excessive late data.
+     */
+    public MatchConfiguration withTimestampFn(
+        Contextful<Fn<MatchResult.Metadata, Instant>> timestampFn) {
+      checkArgument(timestampFn != null, "timestampFn can not be null");
+      return toBuilder().setTimestampFn(timestampFn).build();
+    }
+
+    /**
+     * Specifies how the watermark is calculated for every poll round. By default, uses the current
+     * wall clock time.
+     */
+    public MatchConfiguration withWatermarkFn(Contextful<Fn<Void, Instant>> watermarkFn) {
+      checkArgument(watermarkFn != null, "watermarkFn can not be null");
+      return toBuilder().setWatermarkFn(watermarkFn).build();
+    }
+    
     /** Sets the {@link EmptyMatchTreatment}. */
     public MatchConfiguration withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
       return toBuilder().setEmptyMatchTreatment(treatment).build();
@@ -541,6 +574,16 @@ public class FileIO {
       return toBuilder().setConfiguration(configuration).build();
     }
 
+    /** See {@link MatchConfiguration#withTimestampFn(Contextful)}. */
+    public Match withTimestampFn(Contextful<Fn<MatchResult.Metadata, Instant>> timestampFn) {
+      return withConfiguration(getConfiguration().withTimestampFn(timestampFn));
+    }
+
+    /** See {@link MatchConfiguration#withWatermarkFn(Contextful)}. */
+    public Match withWatermarkFn(Contextful<Fn<Void, Instant>> watermarkFn) {
+      return withConfiguration(getConfiguration().withWatermarkFn(watermarkFn));
+    }
+
     /** See {@link MatchConfiguration#withEmptyMatchTreatment(EmptyMatchTreatment)}. */
     public Match withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
@@ -585,6 +628,16 @@ public class FileIO {
       return toBuilder().setConfiguration(configuration).build();
     }
 
+    /** See {@link MatchConfiguration#withTimestampFn(Contextful)}. */
+    public MatchAll withTimestampFn(Contextful<Fn<MatchResult.Metadata, Instant>> timestampFn) {
+      return withConfiguration(getConfiguration().withTimestampFn(timestampFn));
+    }
+
+    /** See {@link MatchConfiguration#withWatermarkFn(Contextful)}. */
+    public MatchAll withWatermarkFn(Contextful<Fn<Void, Instant>> watermarkFn) {
+      return withConfiguration(getConfiguration().withWatermarkFn(watermarkFn));
+    }
+
     /** Like {@link Match#withEmptyMatchTreatment}. */
     public MatchAll withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
@@ -601,16 +654,23 @@ public class FileIO {
     public PCollection<MatchResult.Metadata> expand(PCollection<String> input) {
       PCollection<MatchResult.Metadata> res;
       if (getConfiguration().getWatchInterval() == null) {
-        res = input.apply(
-            "Match filepatterns",
-            ParDo.of(new MatchFn(getConfiguration().getEmptyMatchTreatment())));
+        res =
+            input.apply(
+                "Match filepatterns",
+                ParDo.of(new MatchFn(getConfiguration()))
+                    .withSideInputs(
+                        getConfiguration().getTimestampFn().getRequirements().getSideInputs()));
       } else {
         res =
             input
                 .apply(
                     "Continuously match filepatterns",
                     Watch.growthOf(
-                            Contextful.of(new MatchPollFn(), Requirements.empty()),
+                            Contextful.of(
+                                new MatchPollFn(getConfiguration()),
+                                Requirements.union(
+                                    getConfiguration().getTimestampFn(),
+                                    getConfiguration().getWatermarkFn())),
                             new ExtractFilenameFn())
                         .withPollInterval(getConfiguration().getWatchInterval())
                         .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
@@ -620,29 +680,43 @@ public class FileIO {
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
-      private final EmptyMatchTreatment emptyMatchTreatment;
+      private final MatchConfiguration config;
 
-      public MatchFn(EmptyMatchTreatment emptyMatchTreatment) {
-        this.emptyMatchTreatment = emptyMatchTreatment;
+      public MatchFn(MatchConfiguration config) {
+        this.config = config;
       }
 
       @ProcessElement
       public void process(ProcessContext c) throws Exception {
         String filepattern = c.element();
-        MatchResult match = FileSystems.match(filepattern, emptyMatchTreatment);
+        MatchResult match = FileSystems.match(filepattern, config.getEmptyMatchTreatment());
         LOG.info("Matched {} files for pattern {}", match.metadata().size(), filepattern);
         for (MatchResult.Metadata metadata : match.metadata()) {
-          c.output(metadata);
+          c.outputWithTimestamp(
+              metadata,
+              config.getTimestampFn().getClosure().apply(metadata, Context.wrapProcessContext(c)));
         }
       }
     }
 
     private static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
+      private final MatchConfiguration config;
+
+      public MatchPollFn(MatchConfiguration config) {
+        this.config = config;
+      }
+
       @Override
       public Watch.Growth.PollResult<MatchResult.Metadata> apply(String element, Context c)
           throws Exception {
-        return Watch.Growth.PollResult.incomplete(
-            Instant.now(), FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata());
+        List<TimestampedValue<Metadata>> outputs = Lists.newArrayList();
+        for (Metadata metadata : FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata()) {
+          outputs.add(
+              TimestampedValue.of(
+                  metadata, config.getTimestampFn().getClosure().apply(metadata, c)));
+        }
+        return Watch.Growth.PollResult.incomplete(outputs)
+            .withWatermark(config.getWatermarkFn().getClosure().apply(null, c));
       }
     }
 
