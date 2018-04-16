@@ -57,6 +57,7 @@ public class CalciteUtils {
 
           .put(TypeName.BOOLEAN.type(), SqlTypeName.BOOLEAN)
 
+          .put(TypeName.MAP.type(), SqlTypeName.MAP)
           .put(TypeName.ARRAY.type(), SqlTypeName.ARRAY)
           .put(TypeName.ROW.type(), SqlTypeName.ROW)
           .put(TypeName.DATETIME.type().withMetadata("DATE"), SqlTypeName.DATE)
@@ -93,7 +94,7 @@ public class CalciteUtils {
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
     SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(
-        type.withComponentType(null).withRowSchema(null));
+        type.withCollectionElementType(null).withRowSchema(null).withMapType(null, null));
     if (typeName != null) {
       return typeName;
     } else {
@@ -110,20 +111,34 @@ public class CalciteUtils {
   public static FieldType toFieldType(RelDataType calciteType) {
     FieldType type = toFieldType((calciteType.getSqlTypeName()));
     if (calciteType.getComponentType() != null) {
-      type = type.withComponentType(toFieldType(calciteType.getComponentType()));
+      type = type.withCollectionElementType(toFieldType(calciteType.getComponentType()));
     }
     if (calciteType.isStruct()) {
       type = type.withRowSchema(toBeamSchema(calciteType));
     }
+    if (calciteType.getKeyType() != null && calciteType.getValueType() != null) {
+      type = type.withMapType(toFieldType(calciteType.getKeyType()).getTypeName(),
+          toFieldType(calciteType.getValueType()));
+    }
     return type;
   }
 
-  public static FieldType toArrayType(SqlTypeName componentType) {
-    return TypeName.ARRAY.type().withComponentType(toFieldType(componentType));
+  public static FieldType toArrayType(SqlTypeName collectionElementType) {
+    return TypeName.ARRAY.type().withCollectionElementType(toFieldType(collectionElementType));
   }
 
-  public static FieldType toArrayType(RelDataType componentType) {
-    return TypeName.ARRAY.type().withComponentType(toFieldType(componentType));
+  public static FieldType toArrayType(RelDataType collectionElementType) {
+    return TypeName.ARRAY.type().withCollectionElementType(toFieldType(collectionElementType));
+  }
+
+  public static FieldType toMapType(SqlTypeName componentKeyType, SqlTypeName componentValueType) {
+    return TypeName.MAP.type().withMapType(toFieldType(componentKeyType).getTypeName(),
+        toFieldType(componentValueType));
+  }
+
+  public static FieldType toMapType(RelDataType componentKeyType, RelDataType componentValueType) {
+    return TypeName.MAP.type().withMapType(toFieldType(componentKeyType).getTypeName(),
+        toFieldType(componentValueType));
   }
 
   public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
@@ -152,9 +167,15 @@ public class CalciteUtils {
       RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     SqlTypeName typeName = toSqlTypeName(fieldType);
     if (SqlTypeName.ARRAY.equals(typeName)) {
-      RelDataType componentType = toRelDataType(
-          dataTypeFactory, fieldType.getComponentType());
-      return dataTypeFactory.createArrayType(componentType, UNLIMITED_ARRAY_SIZE);
+      RelDataType collectionElementType = toRelDataType(
+          dataTypeFactory, fieldType.getCollectionElementType());
+      return dataTypeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
+    } else if (SqlTypeName.MAP.equals(typeName)) {
+      RelDataType componentKeyType = toRelDataType(
+          dataTypeFactory, fieldType.getMapKeyType().type());
+      RelDataType componentValueType = toRelDataType(
+          dataTypeFactory, fieldType.getMapValueType());
+      return dataTypeFactory.createMapType(componentKeyType, componentValueType);
     } else if (SqlTypeName.ROW.equals(typeName)) {
       return toCalciteRowType(fieldType.getRowSchema(), dataTypeFactory);
     } else {

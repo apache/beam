@@ -122,8 +122,9 @@ public class Schema implements Serializable {
       return this;
     }
 
-    public Builder addArrayField(String name, FieldType componentType) {
-      fields.add(Field.of(name, TypeName.ARRAY.type().withComponentType(componentType)));
+    public Builder addArrayField(String name, FieldType collectionElementType) {
+      fields.add(
+          Field.of(name, TypeName.ARRAY.type().withCollectionElementType(collectionElementType)));
       return this;
     }
 
@@ -199,6 +200,7 @@ public class Schema implements Serializable {
     DATETIME, // Date and time.
     BOOLEAN,  // Boolean.
     ARRAY,
+    MAP,
     ROW;    // The field is itself a nested row.
 
     private final FieldType fieldType = FieldType.of(this);
@@ -207,9 +209,13 @@ public class Schema implements Serializable {
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
     public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
-    public static final Set<TypeName> CONTAINER_TYPES = ImmutableSet.of(ARRAY);
+    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
+    public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
+    public boolean isPrimitiveType() {
+      return !isCollectionType() && !isMapType() && !isCompositeType();
+    }
     public boolean isNumericType() {
       return NUMERIC_TYPES.contains(this);
     }
@@ -219,8 +225,11 @@ public class Schema implements Serializable {
     public boolean isDateType() {
       return DATE_TYPES.contains(this);
     }
-    public boolean isContainerType() {
-      return CONTAINER_TYPES.contains(this);
+    public boolean isCollectionType() {
+      return COLLECTION_TYPES.contains(this);
+    }
+    public boolean isMapType() {
+      return MAP_TYPES.contains(this);
     }
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
@@ -241,7 +250,11 @@ public class Schema implements Serializable {
     // Returns the type of this field.
     public abstract TypeName getTypeName();
     // For container types (e.g. ARRAY), returns the type of the contained element.
-    @Nullable public abstract FieldType getComponentType();
+    @Nullable public abstract FieldType getCollectionElementType();
+    // For MAP type, returns the type of the key element, it must be a primitive type;
+    @Nullable public abstract TypeName getMapKeyType();
+    // For MAP type, returns the type of the value element, it can be a nested type;
+    @Nullable public abstract FieldType getMapValueType();
     // For ROW types, returns the schema for the row.
     @Nullable public abstract Schema getRowSchema();
     /**
@@ -252,7 +265,9 @@ public class Schema implements Serializable {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
-      abstract Builder setComponentType(@Nullable FieldType componentType);
+      abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
+      abstract Builder setMapKeyType(@Nullable TypeName mapKeyType);
+      abstract Builder setMapValueType(@Nullable FieldType mapValueType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
       abstract Builder setMetadata(@Nullable byte[] metadata);
       abstract FieldType build();
@@ -268,11 +283,24 @@ public class Schema implements Serializable {
     /**
      * For container types, adds the type of the component element.
      */
-    public FieldType withComponentType(@Nullable FieldType componentType) {
-      if (componentType != null) {
-        checkArgument(getTypeName().isContainerType());
+    public FieldType withCollectionElementType(@Nullable FieldType collectionElementType) {
+      if (collectionElementType != null) {
+        checkArgument(getTypeName().isCollectionType());
       }
-      return toBuilder().setComponentType(componentType).build();
+      return toBuilder().setCollectionElementType(collectionElementType).build();
+    }
+
+    /**
+     * For MAP type, adds the type of the component key/value element.
+     */
+    public FieldType withMapType(@Nullable TypeName mapKeyType,
+        @Nullable FieldType mapValueType) {
+      if (mapKeyType != null && mapValueType != null) {
+        checkArgument(getTypeName().isMapType());
+        checkArgument(mapKeyType.isPrimitiveType());
+      }
+      return toBuilder().setMapKeyType(mapKeyType)
+          .setMapValueType(mapValueType).build();
     }
 
     /**
@@ -306,7 +334,9 @@ public class Schema implements Serializable {
       }
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
-          && Objects.equals(getComponentType(), other.getComponentType())
+          && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
+          && Objects.equals(getMapKeyType(), other.getMapKeyType())
+          && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
           && Arrays.equals(getMetadata(), other.getMetadata());
 
@@ -314,8 +344,8 @@ public class Schema implements Serializable {
 
     @Override
     public int hashCode() {
-      return Arrays.deepHashCode(
-          new Object[] {getTypeName(), getComponentType(), getRowSchema(), getMetadata()});
+      return Arrays.deepHashCode(new Object[] { getTypeName(), getCollectionElementType(),
+          getMapKeyType(), getMapValueType(), getRowSchema(), getMetadata() });
     }
   }
 
