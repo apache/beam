@@ -29,7 +29,11 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.examples.Executors;
 import cz.seznam.euphoria.hadoop.input.SimpleHadoopTextFileSource;
 import cz.seznam.euphoria.hadoop.output.SimpleHadoopTextFileSink;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Demonstrates a very simple word-count supporting batched input
@@ -63,9 +67,11 @@ import java.util.regex.Pattern;
  */
 public class SimpleWordCount {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleWordCount.class);
+
   private static final Pattern SPLIT_RE = Pattern.compile("\\s+");
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     if (args.length < 3) {
       System.err.println("Usage: " + SimpleWordCount.class
           + " <executor-name> <input-path> <output-path>");
@@ -123,18 +129,24 @@ public class SimpleWordCount {
     // Persist final dataset to sink.
     output.persist(sink);
 
-    // Allocate an executor by the specified name.
-    Executor executor = Executors.createExecutor(executorName);
+    try {
+      // Allocate an executor by the specified name.
+      Executor executor = Executors.createExecutor(executorName);
 
-    // Only now we submit the flow and will have the executor execute
-    // the business logic defined by the flow. Only, we data sources
-    // and sinks will be opened.
-    //
-    // As you can see the submission of flow happens in the background,
-    // and we could submit other flows to execute concurrently with the
-    // one just submitted.  To await the termination of a flow, we just
-    // ask for the result of the `Future` object returned by `submit()`.
-    executor.submit(flow).get();
+      // Only now we submit the flow and will have the executor execute
+      // the business logic defined by the flow. Only, we data sources
+      // and sinks will be opened.
+      //
+      // As you can see the submission of flow happens in the background,
+      // and we could submit other flows to execute concurrently with the
+      // one just submitted.  To await the termination of a flow, we just
+      // ask for the result of the `Future` object returned by `submit()`.
+      executor.submit(flow).get();
+    } catch (InterruptedException ex) {
+      LOG.warn("Interrupted while waiting for the flow to finish.", ex);
+    } catch (IOException | ExecutionException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
