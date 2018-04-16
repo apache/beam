@@ -28,6 +28,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -35,6 +36,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
+  /**
+   * Returns a {@link RootProviderRegistry} that supports the Java SDK root transforms.
+   */
   public static RootProviderRegistry javaNativeRegistry(
       EvaluationContext context, PipelineOptions options) {
     return new RootProviderRegistry(
@@ -45,6 +49,16 @@ class RootProviderRegistry {
                 ReadEvaluatorFactory.inputProvider(context, options))
             .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory.InputProvider(context))
             .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider())
+            .build());
+  }
+
+  /**
+   * Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive.
+   */
+  public static RootProviderRegistry impulseRegistry(EvaluationContext context) {
+    return new RootProviderRegistry(
+        ImmutableMap.<String, RootInputProvider<?, ?, ?>>builder()
+            .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory.ImpulseRootProvider(context))
             .build());
   }
 
