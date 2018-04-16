@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
@@ -38,8 +37,8 @@ const (
 	urnIterableCoder      = "beam:coder:iterable:v1"
 	urnWindowedValueCoder = "beam:coder:windowed_value:v1"
 
-	urnGlobalWindow         = "beam:coder:global_window:v1"
-	urnIntervalWindowsCoder = "beam:coder:interval_window:v1"
+	urnGlobalWindow   = "beam:coder:global_window:v1"
+	urnIntervalWindow = "beam:coder:interval_window:v1"
 
 	// SDK constants
 
@@ -75,7 +74,7 @@ type CoderUnmarshaller struct {
 	models map[string]*pb.Coder
 
 	coders  map[string]*coder.Coder
-	windows map[string]*window.WindowingStrategy
+	windows map[string]*coder.WindowCoder
 }
 
 // NewCoderUnmarshaller returns a new CoderUnmarshaller.
@@ -83,7 +82,7 @@ func NewCoderUnmarshaller(m map[string]*pb.Coder) *CoderUnmarshaller {
 	return &CoderUnmarshaller{
 		models:  m,
 		coders:  make(map[string]*coder.Coder),
-		windows: make(map[string]*window.WindowingStrategy),
+		windows: make(map[string]*coder.WindowCoder),
 	}
 }
 
@@ -118,8 +117,8 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 	return ret, nil
 }
 
-// WindowingStrategy unmarshals a window with the given id.
-func (b *CoderUnmarshaller) Window(id string) (*window.WindowingStrategy, error) {
+// WindowCoder unmarshals a window coder with the given id.
+func (b *CoderUnmarshaller) WindowCoder(id string) (*coder.WindowCoder, error) {
 	if w, exists := b.windows[id]; exists {
 		return w, nil
 	}
@@ -129,13 +128,17 @@ func (b *CoderUnmarshaller) Window(id string) (*window.WindowingStrategy, error)
 		return nil, err
 	}
 
-	urn := c.GetSpec().GetSpec().GetUrn()
+	w := urnToWindowCoder(c.GetSpec().GetSpec().GetUrn())
+	b.windows[id] = w
+	return w, nil
+}
+
+func urnToWindowCoder(urn string) *coder.WindowCoder {
 	switch urn {
 	case urnGlobalWindow:
-		w := window.NewGlobalWindows()
-		b.windows[id] = w
-		return w, nil
-
+		return coder.NewGlobalWindow()
+	case urnIntervalWindow:
+		return coder.NewIntervalWindow()
 	default:
 		panic(fmt.Sprintf("Unexpected window coder: %v", urn))
 	}
@@ -235,7 +238,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		w, err := b.Window(components[1])
+		w, err := b.WindowCoder(components[1])
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +353,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 
 	case coder.WindowedValue:
 		comp := b.AddMulti(c.Components)
-		comp = append(comp, b.AddWindow(c.Window))
+		comp = append(comp, b.AddWindowCoder(c.Window))
 		return b.internBuiltInCoder(urnWindowedValueCoder, comp...)
 
 	case coder.Bytes:
@@ -374,14 +377,15 @@ func (b *CoderMarshaller) AddMulti(list []*coder.Coder) []string {
 	return ids
 }
 
-// AddWindow adds a window coder.
-func (b *CoderMarshaller) AddWindow(w *window.WindowingStrategy) string {
-	switch w.Kind() {
-	case window.GlobalWindows:
+// AddWindowCoder adds a window coder.
+func (b *CoderMarshaller) AddWindowCoder(w *coder.WindowCoder) string {
+	switch w.Kind {
+	case coder.GlobalWindow:
 		return b.internBuiltInCoder(urnGlobalWindow)
-
+	case coder.IntervalWindow:
+		return b.internBuiltInCoder(urnIntervalWindow)
 	default:
-		panic(fmt.Sprintf("Unexpected window kind: %v", w.Kind()))
+		panic(fmt.Sprintf("Unexpected window kind: %v", w.Kind))
 	}
 }
 

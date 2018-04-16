@@ -26,13 +26,13 @@ import (
 // spec provided to implement the behavior of the operation. Transform
 // libraries should expose an API that captures the user's intent and serialize
 // the payload as a byte slice that the runner will deserialize.
-func External(s Scope, spec string, payload []byte, in []PCollection, out []FullType) []PCollection {
-	return MustN(TryExternal(s, spec, payload, in, out))
+func External(s Scope, spec string, payload []byte, in []PCollection, out []FullType, bounded bool) []PCollection {
+	return MustN(TryExternal(s, spec, payload, in, out, bounded))
 }
 
 // TryExternal attempts to perform the work of External, returning an error indicating why the operation
 // failed.
-func TryExternal(s Scope, spec string, payload []byte, in []PCollection, out []FullType) ([]PCollection, error) {
+func TryExternal(s Scope, spec string, payload []byte, in []PCollection, out []FullType, bounded bool) ([]PCollection, error) {
 	if !s.IsValid() {
 		return nil, fmt.Errorf("invalid scope")
 	}
@@ -46,7 +46,7 @@ func TryExternal(s Scope, spec string, payload []byte, in []PCollection, out []F
 	for _, col := range in {
 		ins = append(ins, col.n)
 	}
-	edge := graph.NewExternal(s.real, s.scope, &graph.Payload{URN: spec, Data: payload}, ins, out)
+	edge := graph.NewExternal(s.real, s.scope, &graph.Payload{URN: spec, Data: payload}, ins, out, bounded)
 
 	var ret []PCollection
 	for _, out := range edge.Output {

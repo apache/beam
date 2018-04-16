@@ -31,6 +31,7 @@ import (
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 )
 
 const (
@@ -148,7 +149,7 @@ func (b *builder) build() (*Plan, error) {
 	return NewPlan(b.desc.GetId(), b.units)
 }
 
-func (b *builder) makeWindow(id string) (*window.WindowingStrategy, error) {
+func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, error) {
 	if w, exists := b.windowing[id]; exists {
 		return w, nil
 	}
@@ -157,13 +158,59 @@ func (b *builder) makeWindow(id string) (*window.WindowingStrategy, error) {
 	if !ok {
 		return nil, fmt.Errorf("windowing strategy %v not found", id)
 	}
-	if urn := ws.GetWindowFn().GetSpec().GetUrn(); urn != graphx.URNGlobalWindowsWindowFn {
-		return nil, fmt.Errorf("unsupported window type: %v", urn)
+	w, err := unmarshalWindowingStrategy(ws.GetWindowFn().GetSpec())
+	if err != nil {
+		return nil, err
 	}
-
-	w := window.NewGlobalWindows()
 	b.windowing[id] = w
 	return w, nil
+}
+
+func unmarshalWindowingStrategy(wfn *pb.FunctionSpec) (*window.WindowingStrategy, error) {
+	switch urn := wfn.GetUrn(); urn {
+	case graphx.URNGlobalWindowsWindowFn:
+		return window.NewGlobalWindows(), nil
+
+	case graphx.URNFixedWindowsWindowFn:
+		var payload pb.FixedWindowsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewFixedWindows(size), nil
+
+	case graphx.URNSlidingWindowsWindowFn:
+		var payload pb.SlidingWindowsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		period, err := ptypes.Duration(payload.GetPeriod())
+		if err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewSlidingWindows(period, size), nil
+
+	case graphx.URNSessionsWindowFn:
+		var payload pb.SessionsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		gap, err := ptypes.Duration(payload.GetGapSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewSessions(gap), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported window type: %v", urn)
+	}
 }
 
 func (b *builder) makePCollections(out []string) ([]Node, error) {

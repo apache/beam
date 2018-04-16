@@ -61,6 +61,10 @@ func TestClassOf(t *testing.T) {
 		{YType, Universal},
 		{ZType, Universal},
 
+		{EventTimeType, Invalid},                                     // special
+		{WindowType, Invalid},                                        // special
+		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // also special
+
 		{KVType, Composite},
 		{CoGBKType, Composite},
 		{WindowedValueType, Composite},
@@ -79,6 +83,16 @@ func TestClassOf(t *testing.T) {
 			t.Errorf("ClassOf(%v) = %v, want %v", test.t, actual, test.exp)
 		}
 	}
+}
+
+type ConcreteTestWindow int
+
+func (ConcreteTestWindow) MaxTimestamp() EventTime {
+	panic("nop")
+}
+
+func (ConcreteTestWindow) Equals(o Window) bool {
+	panic("nop")
 }
 
 // TestIsConcrete tests that concrete container types, such as []int but not

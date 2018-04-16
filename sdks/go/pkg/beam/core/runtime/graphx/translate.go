@@ -19,10 +19,13 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 )
 
 const (
@@ -35,7 +38,10 @@ const (
 	URNCombine = "beam:transform:combine:v1"
 	URNWindow  = "beam:transform:window:v1"
 
-	URNGlobalWindowsWindowFn = "beam:windowfn:global_windows:v0.1"
+	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
+	URNFixedWindowsWindowFn   = "beam:windowfn:fixed_windows:v0.1"
+	URNSlidingWindowsWindowFn = "beam:windowfn:sliding_windows:v0.1"
+	URNSessionsWindowFn       = "beam:windowfn:session_windows:v0.1"
 
 	// SDK constants
 
@@ -85,6 +91,8 @@ type marshaller struct {
 	environments map[string]*pb.Environment
 
 	coders *CoderMarshaller
+
+	windowing2id map[string]string
 }
 
 func newMarshaller(imageURL string) *marshaller {
@@ -95,6 +103,7 @@ func newMarshaller(imageURL string) *marshaller {
 		windowing:    make(map[string]*pb.WindowingStrategy),
 		environments: make(map[string]*pb.Environment),
 		coders:       NewCoderMarshaller(),
+		windowing2id: make(map[string]string),
 	}
 }
 
@@ -212,7 +221,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		m.addNode(in.From)
 
 		out := fmt.Sprintf("%v_inject%v", nodeID(in.From), i)
-		m.addPCollection(out, kvCoderID)
+		m.makeNode(out, kvCoderID, in.From)
 
 		// Inject(i)
 
@@ -243,10 +252,12 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		inputs[fmt.Sprintf("i%v", i)] = out
 	}
 
+	outNode := edge.Edge.Output[0].To
+
 	// Flatten
 
-	out := fmt.Sprintf("%v_flatten", nodeID(edge.Edge.Output[0].To))
-	m.addPCollection(out, kvCoderID)
+	out := fmt.Sprintf("%v_flatten", nodeID(outNode))
+	m.makeNode(out, kvCoderID, outNode)
 
 	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pb.PTransform{
@@ -259,8 +270,8 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	// CoGBK
 
-	gbkOut := fmt.Sprintf("%v_out", nodeID(edge.Edge.Output[0].To))
-	m.addPCollection(gbkOut, gbkCoderID)
+	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
+	m.makeNode(gbkOut, gbkCoderID, outNode)
 
 	gbk := &pb.PTransform{
 		UniqueName: edge.Name,
@@ -272,7 +283,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	// Expand
 
-	m.addNode(edge.Edge.Output[0].To)
+	m.addNode(outNode)
 
 	expandID := fmt.Sprintf("%v_expand", id)
 	expand := &pb.PTransform{
@@ -282,7 +293,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 			Payload: protox.MustEncode(&v1.TransformPayload{Urn: URNExpand}),
 		},
 		Inputs:  map[string]string{"i0": out},
-		Outputs: map[string]string{"i0": nodeID(edge.Edge.Output[0].To)},
+		Outputs: map[string]string{"i0": nodeID(outNode)},
 	}
 	m.transforms[expandID] = expand
 	return id
@@ -311,6 +322,14 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	case graph.CoGBK:
 		return &pb.FunctionSpec{Urn: URNGBK}
 
+	case graph.WindowInto:
+		payload := &pb.WindowIntoPayload{
+			WindowFn: &pb.SdkFunctionSpec{
+				Spec: makeWindowFn(edge.Windowing),
+			},
+		}
+		return &pb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
+
 	case graph.External:
 		return &pb.FunctionSpec{Urn: edge.Payload.URN, Payload: edge.Payload.Data}
 
@@ -324,19 +343,27 @@ func (m *marshaller) addNode(n *graph.Node) string {
 	if _, exists := m.pcollections[id]; exists {
 		return id
 	}
-	// TODO(herohde) 11/15/2017: expose UniqueName to user. Handle unbounded and windowing.
-	return m.addPCollection(id, m.coders.Add(n.Coder))
+	// TODO(herohde) 11/15/2017: expose UniqueName to user.
+	return m.makeNode(id, m.coders.Add(n.Coder), n)
 }
 
-func (m *marshaller) addPCollection(id, cid string) string {
+func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {
 	col := &pb.PCollection{
 		UniqueName:          id,
 		CoderId:             cid,
-		IsBounded:           pb.IsBounded_BOUNDED,
-		WindowingStrategyId: m.addWindowingStrategy(window.NewGlobalWindows()),
+		IsBounded:           boolToBounded(n.Bounded()),
+		WindowingStrategyId: m.addWindowingStrategy(n.Window()),
 	}
 	m.pcollections[id] = col
 	return id
+}
+
+func boolToBounded(bounded bool) pb.IsBounded_Enum {
+	if bounded {
+		return pb.IsBounded_BOUNDED
+	} else {
+		return pb.IsBounded_UNBOUNDED
+	}
 }
 
 func (m *marshaller) addDefaultEnv() string {
@@ -348,36 +375,96 @@ func (m *marshaller) addDefaultEnv() string {
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
-	if w.Kind() != window.GlobalWindows {
-		panic(fmt.Sprintf("Unsupported window type supplied: %v", w))
+	ws := MarshalWindowingStrategy(m.coders, w)
+	return m.internWindowingStrategy(ws)
+}
+
+func (m *marshaller) internWindowingStrategy(w *pb.WindowingStrategy) string {
+	key := proto.MarshalTextString(w)
+	if id, exists := m.windowing2id[key]; exists {
+		return id
 	}
 
-	const id = "global"
-	if _, exists := m.windowing[id]; !exists {
-		wcid := m.coders.AddWindow(w)
-
-		ws := &pb.WindowingStrategy{
-			WindowFn: &pb.SdkFunctionSpec{
-				Spec: &pb.FunctionSpec{
-					Urn: URNGlobalWindowsWindowFn,
-				},
-			},
-			MergeStatus:      pb.MergeStatus_NON_MERGING,
-			AccumulationMode: pb.AccumulationMode_DISCARDING,
-			WindowCoderId:    wcid,
-			Trigger: &pb.Trigger{
-				Trigger: &pb.Trigger_Default_{
-					Default: &pb.Trigger_Default{},
-				},
-			},
-			OutputTime:      pb.OutputTime_END_OF_WINDOW,
-			ClosingBehavior: pb.ClosingBehavior_EMIT_IF_NONEMPTY,
-			AllowedLateness: 0,
-			OnTimeBehavior:  pb.OnTimeBehavior_FIRE_ALWAYS,
-		}
-		m.windowing[id] = ws
-	}
+	id := fmt.Sprintf("w%v", len(m.windowing2id))
+	m.windowing2id[key] = id
+	m.windowing[id] = w
 	return id
+}
+
+// TODO(herohde) 4/14/2018: make below function private or refactor,
+// once Dataflow doesn't need it anymore.
+
+// MarshalWindowingStrategy marshals the given windowing strategy in
+// the given coder context.
+func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
+	ws := &pb.WindowingStrategy{
+		WindowFn: &pb.SdkFunctionSpec{
+			Spec: makeWindowFn(w),
+		},
+		MergeStatus:      pb.MergeStatus_NON_MERGING,
+		AccumulationMode: pb.AccumulationMode_DISCARDING,
+		WindowCoderId:    c.AddWindowCoder(makeWindowCoder(w)),
+		Trigger: &pb.Trigger{
+			Trigger: &pb.Trigger_Default_{
+				Default: &pb.Trigger_Default{},
+			},
+		},
+		OutputTime:      pb.OutputTime_END_OF_WINDOW,
+		ClosingBehavior: pb.ClosingBehavior_EMIT_IF_NONEMPTY,
+		AllowedLateness: 0,
+		OnTimeBehavior:  pb.OnTimeBehavior_FIRE_ALWAYS,
+	}
+	return ws
+}
+
+func makeWindowFn(w *window.WindowingStrategy) *pb.FunctionSpec {
+	switch w.Kind {
+	case window.GlobalWindows:
+		return &pb.FunctionSpec{
+			Urn: URNGlobalWindowsWindowFn,
+		}
+	case window.FixedWindows:
+		return &pb.FunctionSpec{
+			Urn: URNFixedWindowsWindowFn,
+			Payload: protox.MustEncode(
+				&pb.FixedWindowsPayload{
+					Size: ptypes.DurationProto(w.Size),
+				},
+			),
+		}
+	case window.SlidingWindows:
+		return &pb.FunctionSpec{
+			Urn: URNSlidingWindowsWindowFn,
+			Payload: protox.MustEncode(
+				&pb.SlidingWindowsPayload{
+					Size:   ptypes.DurationProto(w.Size),
+					Period: ptypes.DurationProto(w.Period),
+				},
+			),
+		}
+	case window.Sessions:
+		return &pb.FunctionSpec{
+			Urn: URNSessionsWindowFn,
+			Payload: protox.MustEncode(
+				&pb.SessionsPayload{
+					GapSize: ptypes.DurationProto(w.Gap),
+				},
+			),
+		}
+	default:
+		panic(fmt.Sprintf("Unexpected windowing strategy: %v", w))
+	}
+}
+
+func makeWindowCoder(w *window.WindowingStrategy) *coder.WindowCoder {
+	switch w.Kind {
+	case window.GlobalWindows:
+		return coder.NewGlobalWindow()
+	case window.FixedWindows, window.SlidingWindows, URNSlidingWindowsWindowFn:
+		return coder.NewIntervalWindow()
+	default:
+		panic(fmt.Sprintf("Unexpected windowing strategy: %v", w))
+	}
 }
 
 func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {

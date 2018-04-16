@@ -237,7 +237,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	gbkOut := newOutputReference(gbkID, "out")
 
 	w := edge.Input[0].From.Window()
-	sfn, err := encodeSerializedFn(translateWindow(w))
+	sfn, err := encodeSerializedFn(translateWindowingStrategy(w))
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 
 	case graph.CoGBK:
 		w := edge.Input[0].From.Window()
-		sfn, err := encodeSerializedFn(translateWindow(w))
+		sfn, err := encodeSerializedFn(translateWindowingStrategy(w))
 		if err != nil {
 			return "", properties{}, err
 		}
@@ -426,7 +426,7 @@ func makeSerializedFnPayload(payload *v1.TransformPayload) string {
 
 func encodeCoderRef(c *coder.Coder) (*graphx.CoderRef, error) {
 	// TODO(herohde) 3/16/2018: ensure windowed values for Dataflow
-	return graphx.EncodeCoderRef(coder.NewW(c, window.NewGlobalWindows()))
+	return graphx.EncodeCoderRef(coder.NewW(c, coder.NewGlobalWindow()))
 }
 
 // buildName computes a Dataflow composite name understood by the Dataflow UI,
@@ -454,47 +454,19 @@ func stepID(id int) string {
 	return fmt.Sprintf("s%v", id)
 }
 
-func translateWindow(w *window.WindowingStrategy) proto.Message {
-	// TODO: The only windowing strategy we support is the global window.
-	if w.Kind() != window.GlobalWindows {
-		panic(fmt.Sprintf("Unsupported window type supplied: %v", w))
-	}
-	// We compute the fixed content of this message for use in workflows.
-	msg := rnapi_pb.MessageWithComponents{
+func translateWindowingStrategy(w *window.WindowingStrategy) proto.Message {
+	c := graphx.NewCoderMarshaller()
+	ws := graphx.MarshalWindowingStrategy(c, w)
+
+	msg := &rnapi_pb.MessageWithComponents{
 		Components: &rnapi_pb.Components{
-			Coders: map[string]*rnapi_pb.Coder{
-				"Coder": &rnapi_pb.Coder{
-					Spec: &rnapi_pb.SdkFunctionSpec{
-						Spec: &rnapi_pb.FunctionSpec{
-							Urn: "urn:beam:coders:global_window:0.1",
-						},
-					},
-				},
-			},
+			Coders: c.Build(),
 		},
 		Root: &rnapi_pb.MessageWithComponents_WindowingStrategy{
-			WindowingStrategy: &rnapi_pb.WindowingStrategy{
-				WindowFn: &rnapi_pb.SdkFunctionSpec{
-					Spec: &rnapi_pb.FunctionSpec{
-						Urn: "beam:windowfn:global_windows:v0.1",
-					},
-				},
-				MergeStatus:      rnapi_pb.MergeStatus_NON_MERGING,
-				AccumulationMode: rnapi_pb.AccumulationMode_DISCARDING,
-				WindowCoderId:    "Coder",
-				Trigger: &rnapi_pb.Trigger{
-					Trigger: &rnapi_pb.Trigger_Default_{
-						Default: &rnapi_pb.Trigger_Default{},
-					},
-				},
-				OutputTime:      rnapi_pb.OutputTime_END_OF_WINDOW,
-				ClosingBehavior: rnapi_pb.ClosingBehavior_EMIT_IF_NONEMPTY,
-				AllowedLateness: 0,
-			},
+			WindowingStrategy: ws,
 		},
 	}
-
-	return &msg
+	return msg
 }
 
 func encodeSerializedFn(in proto.Message) (string, error) {

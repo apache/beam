@@ -68,12 +68,12 @@ func (g *Graph) NewEdge(parent *Scope) *MultiEdge {
 }
 
 // NewNode creates a new node in the graph of the supplied fulltype.
-func (g *Graph) NewNode(t typex.FullType, w *window.WindowingStrategy) *Node {
+func (g *Graph) NewNode(t typex.FullType, w *window.WindowingStrategy, bounded bool) *Node {
 	if !typex.IsBound(t) {
 		panic(fmt.Sprintf("Node type not bound: %v", t))
 	}
 	id := len(g.nodes) + 1
-	n := &Node{id: id, t: t, w: w}
+	n := &Node{id: id, t: t, w: w, bounded: bounded}
 	g.nodes = append(g.nodes, n)
 	return n
 }
