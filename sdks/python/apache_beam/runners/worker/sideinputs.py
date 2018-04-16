@@ -74,31 +74,13 @@ class PrefetchingSourceSetIterable(object):
     self.has_errored = False
 
     self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
-    experiments = RuntimeValueProvider.get_value('experiments', list, [])
-    if 'sideinput_io_metrics_v2' in experiments:
-      self._side_input_monitoring_metrics = True
-
-      def fetch_from_queue(element_queue, io_counter):
-        if element_queue.empty():
-          with io_counter:
-            return element_queue.get()
-        else:
-          return element_queue.get()
-    else:
-      self._side_input_monitoring_metrics = False
-
-      def fetch_from_queue(element_queue, io_counter):
-        return element_queue.get()
-
-    self._fetch_data_fn = fetch_from_queue
-
     self.reader_threads = []
     self._start_reader_threads()
 
   def add_byte_counter(self, reader):
     """Adds byte counter observer to a side input reader.
 
-    If the 'sideinput_io_metrics_v2' experiment flag is not passed in, then
+    If the 'sideinput_io_metrics' experiment flag is not passed in, then
     nothing is attached to the reader.
 
     Args:
@@ -142,7 +124,7 @@ class PrefetchingSourceSetIterable(object):
               # The tracking of time spend reading and bytes read from side
               # inputs is kept behind an experiment flag to test performance
               # impact.
-              if 'sideinput_io_metrics_v2' in experiments:
+              if 'sideinput_io_metrics' in experiments:
                 self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
@@ -178,7 +160,7 @@ class PrefetchingSourceSetIterable(object):
     try:
       while True:
         try:
-          element = self._fetch_data_fn(self.element_queue, self.read_counter)
+          element = self.element_queue.get()
           if element is READER_THREAD_IS_DONE_SENTINEL:
             num_readers_finished += 1
             if num_readers_finished == self.num_reader_threads:

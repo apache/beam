@@ -143,12 +143,6 @@ class SideInputReadCounter(TransformIOCounter):
     # step. We check the current state to create the internal counters.
     self.update_current_step()
 
-  def __enter__(self):
-    # This function may be called from a different step. Need to check
-    # every time.
-    self.update_current_step()
-    self.scoped_state.__enter__()
-
   def _update_counters_for_requesting_step(self, step_name):
     side_input_id = counters.side_input_id(step_name, self.input_index)
     self.scoped_state = self._state_sampler.scoped_state(

@@ -313,7 +313,7 @@ class DoOperation(Operation):
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics_v2' in experiments:
+        if 'sideinput_io_metrics' in experiments:
           si_counter = opcounters.SideInputReadCounter(
               self.counter_factory,
               self.state_sampler,

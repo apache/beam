@@ -92,7 +92,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
 
   def test_bytes_read_are_reported(self):
     RuntimeValueProvider.set_runtime_options(
-        {'experiments': ['sideinput_io_metrics_v2', 'other']})
+        {'experiments': ['sideinput_io_metrics', 'other']})
     mock_read_counter = mock.MagicMock()
     source_records = ['a', 'b', 'c', 'd']
     sources = [
