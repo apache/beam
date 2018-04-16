@@ -120,7 +120,6 @@ class Operation(object):
       # sampling.
       self.name_context = name_context
     else:
-      logging.info('Creating namecontext within operation')
       self.name_context = common.NameContext(name_context)
 
     # TODO(BEAM-4028): Remove following two lines. Rely on name context.
@@ -701,13 +700,20 @@ class SimpleMapTaskExecutor(object):
     # operations is a list of operation_specs.Worker* instances.
     # The order of the elements is important because the inputs use
     # list indexes as references.
+    # TODO(BEAM-4028): Remove extra conversion once all map tasks are
+    # transitioned to use name_contexts.
+    def get_name_context(map_task, index):
+      if getattr(map_task, 'name_contexts'):
+        return getattr(map_task, 'name_contexts')[index]
+      else:
+        return common.DataflowNameContext(
+            step_name=map_task.original_names[index],
+            user_name=map_task.step_names[index],
+            system_name=map_task.system_names[index])
 
     for ix, spec in enumerate(self._map_task.operations):
       # This is used for logging and assigning names to counters.
-      name_context = common.DataflowNameContext(
-          step_name=self._map_task.original_names[ix],
-          user_name=self._map_task.step_names[ix],
-          system_name=self._map_task.system_names[ix])
+      name_context = get_name_context(self._map_task, ix)
       op = create_operation(
           name_context, spec, self._counter_factory, None,
           self._state_sampler,
