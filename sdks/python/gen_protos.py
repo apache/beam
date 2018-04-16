@@ -146,7 +146,7 @@ def _install_grpcio_tools_and_generate_proto_files():
         'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
   finally:
     sys.stderr.flush()
-    shutil.rmtree(build_path)
+    shutil.rmtree(build_path, ignore_errors=True)
   sys.path.append(install_path)
   try:
     generate_proto_files()
