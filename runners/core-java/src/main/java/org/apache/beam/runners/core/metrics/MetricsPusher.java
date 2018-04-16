@@ -66,8 +66,12 @@ public class MetricsPusher implements Serializable {
 
   public void start() {
     if (!(metricsSink instanceof NoOpMetricsSink)) {
-      ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder().setDaemon(false).setNameFormat("MetricsPusher-thread").build());
+      ScheduledExecutorService scheduler =
+          Executors.newSingleThreadScheduledExecutor(
+              new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("MetricsPusher-thread")
+                  .build());
       scheduledFuture =
           scheduler.scheduleAtFixedRate(() -> run(), 0, period, TimeUnit.SECONDS);
     }
