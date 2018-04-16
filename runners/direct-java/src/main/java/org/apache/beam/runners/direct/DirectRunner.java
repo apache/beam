@@ -142,13 +142,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     this.enabledEnforcements = Enforcement.enabled(options);
   }
 
-  /**
-   * Returns the {@link PipelineOptions} used to create this {@link DirectRunner}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
-  }
-
   Supplier<Clock> getClockSupplier() {
     return clockSupplier;
   }
@@ -160,7 +153,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @Override
   public DirectPipelineResult run(Pipeline originalPipeline) {
     Pipeline pipeline;
-    if (getPipelineOptions().isProtoTranslation()) {
+    if (options.isProtoTranslation()) {
       try {
         pipeline = PipelineTranslation.fromProto(
             PipelineTranslation.toProto(originalPipeline));
@@ -180,25 +173,25 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(getPipelineOptions());
+    DisplayDataValidator.validateOptions(options);
 
     DirectGraph graph = graphVisitor.getGraph();
     EvaluationContext context =
         EvaluationContext.create(
-            getPipelineOptions(),
             clockSupplier.get(),
             Enforcement.bundleFactoryFor(enabledEnforcements, graph),
             graph,
             keyedPValueVisitor.getKeyedPValues());
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.javaSdkNativeRegistry(context);
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry
+        .javaSdkNativeRegistry(context, options);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             options.getTargetParallelism(),
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),
             context);
-    executor.start(graph, RootProviderRegistry.defaultRegistry(context));
+    executor.start(graph, RootProviderRegistry.defaultRegistry(context, options));
 
     DirectPipelineResult result = new DirectPipelineResult(executor, context);
     if (options.isBlockOnRun()) {
