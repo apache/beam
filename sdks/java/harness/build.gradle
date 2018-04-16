@@ -17,14 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(shadowClosure:
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
   // jars.
   {
     dependencies {
-      include('.*')
+      include('**/*.class')
     }
   })
 
