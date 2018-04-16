@@ -76,6 +76,7 @@ func init() {
 
 type dataflowOptions struct {
 	PipelineURL string `json:"pipelineUrl"`
+	Region      string `json:"region"`
 }
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
