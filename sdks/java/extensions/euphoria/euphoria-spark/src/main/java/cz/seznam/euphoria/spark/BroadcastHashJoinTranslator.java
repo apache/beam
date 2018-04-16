@@ -18,11 +18,12 @@ package cz.seznam.euphoria.spark;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -39,6 +40,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static cz.seznam.euphoria.core.executor.util.OperatorTranslator.hasFitsInMemoryHint;
+import static cz.seznam.euphoria.core.executor.util.OperatorTranslator.wantTranslateBroadcastHashJoin;
+
 /**
  * <p>
  *   Broadcast hash join is a special case of Left or Right join, which does not require shuffle.
@@ -46,16 +50,15 @@ import java.util.Map;
  *   map side join with lookups to in memory hash table on non-optional side.
  * </p>
  * <p>
- *   In order to use this translator, you need to pass {@link JoinHints.BroadcastHashJoin} hint
+ *   In order to use this translator, you need to have on one Dataset {@link SizeHint#FITS_IN_MEMORY} hint
  *   to the {@link Join} operator.
  * </p>
  */
 public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join> {
 
+
   static boolean wantTranslate(Join o) {
-    return o.getHints().contains(JoinHints.broadcastHashJoin())
-        && (o.getType() == Join.Type.LEFT || o.getType() == Join.Type.RIGHT)
-        && !(o.getWindowing() instanceof MergingWindowing);
+    return wantTranslateBroadcastHashJoin(o);
   }
 
   @Override
@@ -64,7 +67,9 @@ public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join
 
     // ~ sanity check
     Preconditions.checkArgument(
-        operator.getHints().contains(JoinHints.broadcastHashJoin()),
+        operator.listInputs()
+            .stream()
+            .anyMatch(input -> hasFitsInMemoryHint(((Dataset) input).getProducer())),
         "Missing broadcastHashJoin hint");
     Preconditions.checkArgument(
         operator.getType() == Join.Type.LEFT || operator.getType() == Join.Type.RIGHT,

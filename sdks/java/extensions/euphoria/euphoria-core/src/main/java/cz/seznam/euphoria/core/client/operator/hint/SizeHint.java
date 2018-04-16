@@ -13,29 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.spark;
+package cz.seznam.euphoria.core.client.operator.hint;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import cz.seznam.euphoria.core.client.operator.JoinHint;
 
+/**
+ * Extra information for runner about Dataset size
+ */
 @Audience(Audience.Type.CLIENT)
-public class JoinHints {
-
-  private static final BroadcastHashJoin BROADCAST_HASH_JOIN = new BroadcastHashJoin();
-
-  public static BroadcastHashJoin broadcastHashJoin() {
-    return BROADCAST_HASH_JOIN;
-  }
-
+public enum SizeHint implements OutputHint {
   /**
-   * Broadcasts optional join side to all executors. See {@link BroadcastHashJoinTranslator}
-   * for more details.
+   * Indicate to runner that dataset can fit in memory and this information
+   * could be used for optimization (e.g. Broadcast hash join)
    */
-  public static class BroadcastHashJoin implements JoinHint {
-
-    private BroadcastHashJoin() {
-
-    }
-  }
-
+  FITS_IN_MEMORY
 }
