@@ -102,7 +102,8 @@ class TestPipeline(Pipeline):
     result = super(TestPipeline, self).run(test_runner_api)
     if self.blocking:
       state = result.wait_until_finish()
-      assert state == PipelineState.DONE, "Pipeline execution failed."
+      assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
+          "Pipeline execution failed."
 
     return result
 
