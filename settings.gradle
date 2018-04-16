@@ -36,6 +36,8 @@ include "beam-runners-core-java"
 project(":beam-runners-core-java").dir = file("runners/core-java")
 include "beam-runners-direct-java"
 project(":beam-runners-direct-java").dir = file("runners/direct-java")
+include "beam-runners-extensions-java"
+project(":beam-runners-extensions-java").dir = file("runners/extensions-java/")
 include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
 include "beam-runners-gcp-gcemd"
