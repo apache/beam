@@ -51,8 +51,9 @@ test {
   forkEvery 1
   maxParallelForks 4
   useJUnit {
-    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
   }
 }
 
