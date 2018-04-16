@@ -217,12 +217,12 @@ message ExecutableStagePayload {
   // PTransform the ExecutableStagePayload is the payload of.
   string input = 2;
 
-  // Side Input PCollection ids. Each must be present as a value in the inputs of
-  // any PTransform the ExecutableStagePayload is the payload of.
-  repeated string side_inputs = 3;
+  // The side inputs required for this executable stage. Each Side Input of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated SideInputId side_inputs = 3;
 
   // PTransform ids contained within this executable stage. This must contain at least one
-  // PTransform ID.
+  // PTransform id.
   repeated string transforms = 4;
 
   // Output PCollection ids. This must be equal to the values of the outputs of any
@@ -232,6 +232,16 @@ message ExecutableStagePayload {
   // (Required) The components for the Executable Stage. This must contain all of the Transforms
   // in transforms, and the closure of all of the components they recognize.
   Components components = 6;
+
+  // A reference to a side input. Side inputs are uniquely identified by PTransform id and
+  // local name.
+  message SideInputId {
+    // (Required) The id of the PTransform that references this side input.
+    string transform_id = 1;
+
+    // (Required) The local name of this side input from the PTransform that references it.
+    string local_name = 2;
+  }
 }
 
 // The payload for the primitive ParDo transform.

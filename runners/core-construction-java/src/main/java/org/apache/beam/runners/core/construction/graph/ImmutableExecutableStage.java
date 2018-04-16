@@ -34,7 +34,7 @@ abstract class ImmutableExecutableStage implements ExecutableStage {
       Components components,
       Environment environment,
       PCollectionNode input,
-      Collection<PCollectionNode> sideInputs,
+      Collection<SideInputReference> sideInputs,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     Components prunedComponents =
@@ -53,7 +53,7 @@ abstract class ImmutableExecutableStage implements ExecutableStage {
       Components components,
       Environment environment,
       PCollectionNode input,
-      Collection<PCollectionNode> sideInputs,
+      Collection<SideInputReference> sideInputs,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     return new AutoValue_ImmutableExecutableStage(
@@ -76,7 +76,7 @@ abstract class ImmutableExecutableStage implements ExecutableStage {
   public abstract PCollectionNode getInputPCollection();
 
   @Override
-  public abstract Collection<PCollectionNode> getSideInputPCollections();
+  public abstract Collection<SideInputReference> getSideInputs();
 
   @Override
   public abstract Collection<PTransformNode> getTransforms();

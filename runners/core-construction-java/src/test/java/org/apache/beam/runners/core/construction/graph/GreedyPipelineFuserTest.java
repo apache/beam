@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -803,6 +804,11 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("leftParDo", "rightParDo"),
             ExecutableStageMatcher.withInput("read.out")
+                .withSideInputs(
+                    RunnerApi.ExecutableStagePayload.SideInputId.newBuilder()
+                        .setTransformId("sideParDo")
+                        .setLocalName("side")
+                        .build())
                 .withNoOutputs()
                 .withTransforms("sideParDo"),
             ExecutableStageMatcher.withInput("sideImpulse.out")
