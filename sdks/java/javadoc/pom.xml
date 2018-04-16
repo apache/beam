@@ -243,6 +243,11 @@
       <artifactId>beam-sdks-java-io-xml</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-extensions-java</artifactId>
+    </dependency>
+
     <!-- provided and optional dependencies.-->
     <dependency>
       <groupId>com.google.auto.service</groupId>

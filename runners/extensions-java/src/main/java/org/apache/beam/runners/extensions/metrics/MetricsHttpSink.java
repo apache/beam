@@ -28,10 +28,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.codehaus.jackson.map.SerializationConfig;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink<String> {
@@ -39,10 +39,12 @@ public class MetricsHttpSink implements MetricsSink<String> {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public MetricsHttpSink(PipelineOptions pipelineOptions) {
-      this.urlString = pipelineOptions.getMetricsHttpSinkUrl();
+    this.urlString = pipelineOptions.getMetricsHttpSinkUrl();
   }
 
-  @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
+  @Experimental(Experimental.Kind.METRICS)
+  @Override
+  public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     URL url = new URL(urlString);
     String metrics = serializeMetrics(metricQueryResults);
     byte[] postData = metrics.getBytes(StandardCharsets.UTF_8);
@@ -59,10 +61,11 @@ public class MetricsHttpSink implements MetricsSink<String> {
       connectionOuputStream.write(postData);
     }
     int responseCode = connection.getResponseCode();
-    if (responseCode != 200){
+    if (responseCode != 200) {
       throw new HTTPException(responseCode);
     }
   }
+
   @VisibleForTesting
   String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     objectMapper.registerModule(new JodaModule());

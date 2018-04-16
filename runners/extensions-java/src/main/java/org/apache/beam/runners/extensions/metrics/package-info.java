@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Provides extensions to be used with the runners such as metrics sinks.
+ *
+ */
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.runners.extensions.metrics;
 
-package org.apache.beam.sdk.metrics;
-
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-
-/** Interface for all metric sinks. */
-@Experimental(Experimental.Kind.METRICS)
-public interface MetricsSink<OutputT> extends Serializable {
-  void writeMetrics(MetricQueryResults metricQueryResults) throws Exception;
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

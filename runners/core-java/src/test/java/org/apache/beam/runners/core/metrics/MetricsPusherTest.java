@@ -37,18 +37,36 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-/**
- * A test that verifies that metrics push system works.
- */
+/** A test that verifies that metrics push system works. */
 public class MetricsPusherTest {
 
   private static final long NUM_ELEMENTS = 1000L;
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  private static class CountingDoFn extends DoFn<Long, Long>{
-    private final Counter counter = Metrics
-        .counter(MetricsPusherTest.class, "counter");
+  @Before
+  public void init() {
+    TestMetricsSink.clear();
+    PipelineOptions options = pipeline.getOptions();
+    options.setMetricsSink(TestMetricsSink.class);
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Test
+  public void test() throws Exception {
+    pipeline
+        .apply(
+            // Use maxReadTime to force unbounded mode.
+            GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
+        .apply(ParDo.of(new CountingDoFn()));
+    pipeline.run();
+    // give metrics pusher time to push
+    Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
+    assertThat(TestMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
+  }
+
+  private static class CountingDoFn extends DoFn<Long, Long> {
+    private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
+
     @ProcessElement
     public void processElement(ProcessContext context) {
       try {
@@ -58,25 +76,5 @@ public class MetricsPusherTest {
         e.printStackTrace();
       }
     }
-  }
-
-  @Before
-  public void init(){
-    TestMetricsSink.clear();
-    PipelineOptions options = pipeline.getOptions();
-    options.setMetricsSink(TestMetricsSink.class);
-  }
-
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
-  @Test
-  public void test() throws Exception {
-    pipeline.apply(
-        // Use maxReadTime to force unbounded mode.
-        GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
-        .apply(ParDo.of(new CountingDoFn()));
-    pipeline.run();
-    // give metrics pusher time to push
-    Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
   }
 }

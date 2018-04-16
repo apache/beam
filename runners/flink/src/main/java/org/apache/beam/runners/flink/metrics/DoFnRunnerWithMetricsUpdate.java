@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -40,16 +39,14 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   private final String stepName;
   private final FlinkMetricContainer container;
   private final DoFnRunner<InputT, OutputT> delegate;
-  private final SerializablePipelineOptions serializedOptions;
 
   public DoFnRunnerWithMetricsUpdate(
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
-      RuntimeContext runtimeContext, SerializablePipelineOptions serializedOptions) {
+      RuntimeContext runtimeContext) {
     this.stepName = stepName;
     this.delegate = delegate;
-    this.serializedOptions = serializedOptions;
-    container = new FlinkMetricContainer(runtimeContext, serializedOptions);
+    container = new FlinkMetricContainer(runtimeContext);
   }
 
   @Override

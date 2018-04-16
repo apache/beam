@@ -39,15 +39,6 @@
           unapproved artifact license.
 	-->
   <Match>
-    <Class name="org.apache.beam.runners.core.metrics.MetricsPusher"/>
-    <Method name="init"/>
-    <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
-    <!--
-    the null check is actually needed because instance field can be null. This findbugs warning
-    is a false positive
-    -->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
     <Field name="schema"/>
     <Bug pattern="SE_BAD_FIELD"/>

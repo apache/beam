@@ -341,9 +341,7 @@ public class DoFnOperator<InputT, OutputT>
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
-      doFnRunner =
-          new DoFnRunnerWithMetricsUpdate<>(
-              stepName, doFnRunner, getRuntimeContext(), serializedOptions);
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
     elementCount = 0L;
