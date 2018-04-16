@@ -30,9 +30,8 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,6 +47,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
+import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -186,11 +186,11 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
   }
 
   private void stageAndCreateRetrievalService(Map<String, byte[]> artifacts) throws Exception {
-    List<File> artifactFiles = new ArrayList<>();
+    List<StagedFile> artifactFiles = new ArrayList<>();
     for (Map.Entry<String, byte[]> artifact : artifacts.entrySet()) {
       File artifactFile = tmp.newFile(artifact.getKey());
-      new FileOutputStream(artifactFile).getChannel().write(ByteBuffer.wrap(artifact.getValue()));
-      artifactFiles.add(artifactFile);
+      Files.write(artifactFile.toPath(), artifact.getValue());
+      artifactFiles.add(StagedFile.of(artifactFile, artifactFile.getName()));
     }
 
     ArtifactServiceStager stager =
