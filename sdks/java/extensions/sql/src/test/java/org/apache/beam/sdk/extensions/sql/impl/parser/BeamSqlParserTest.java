@@ -130,7 +130,7 @@ public class BeamSqlParserTest {
     assertTrue(sqlNode instanceof SqlDropTable);
     SqlDropTable stmt = (SqlDropTable) sqlNode;
     assertNotNull(stmt);
-    assertEquals("person", stmt.getNameSimple());
+    assertEquals("PERSON", stmt.name.getSimple());
   }
 
   private Table parseTable(String sql) throws Exception {

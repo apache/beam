@@ -32,11 +32,15 @@ import org.apache.calcite.schema.Schemas;
 /**
  * Adapter from {@link TableProvider} to {@link Schema}.
  */
-class BeamCalciteSchema implements Schema {
+public class BeamCalciteSchema implements Schema {
   private TableProvider tableProvider;
 
   public BeamCalciteSchema(TableProvider tableProvider) {
     this.tableProvider = tableProvider;
+  }
+
+  public TableProvider getTableProvider() {
+    return tableProvider;
   }
 
   @Override

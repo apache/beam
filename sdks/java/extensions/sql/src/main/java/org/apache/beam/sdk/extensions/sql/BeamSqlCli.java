@@ -21,14 +21,12 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
-import org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable;
-import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.SqlNode;
 
 /**
@@ -69,10 +67,9 @@ public class BeamSqlCli {
     BeamSqlParser parser = new BeamSqlParser(sqlString);
     SqlNode sqlNode = parser.impl().parseSqlStmtEof();
 
-    if (sqlNode instanceof SqlCreateTable) {
-      handleCreateTable((SqlCreateTable) sqlNode);
-    } else if (sqlNode instanceof SqlDropTable) {
-      handleDropTable((SqlDropTable) sqlNode);
+    // DDL nodes are SqlExecutableStatement
+    if (sqlNode instanceof SqlExecutableStatement) {
+      ((SqlExecutableStatement) sqlNode).execute(env.getContext());
     } else {
       PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
           .as(PipelineOptions.class);
@@ -81,19 +78,5 @@ public class BeamSqlCli {
       env.getPlanner().compileBeamPipeline(sqlString, pipeline);
       pipeline.run();
     }
-  }
-
-  private void handleCreateTable(SqlCreateTable stmt) {
-    Table table = stmt.toTable();
-    if (table.getType() == null) {
-      throw new IllegalStateException("Table type is not specified and BeamSqlCli#defaultTableType"
-          + "is not configured!");
-    }
-
-    metaStore.createTable(table);
-  }
-
-  private void handleDropTable(SqlDropTable stmt) {
-    metaStore.dropTable(stmt.getNameSimple());
   }
 }
