@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# cython: profile=True
+# cython: profile=False
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
