@@ -25,7 +25,9 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
+import org.apache.beam.runners.direct.ParDoEvaluator.DoFnRunnerFactory;
 import org.apache.beam.runners.local.StructuralKey;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -43,16 +45,18 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
   private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
   private final EvaluationContext evaluationContext;
+  private final PipelineOptions options;
   private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
 
   ParDoEvaluatorFactory(
       EvaluationContext evaluationContext,
-      ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
-      CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
+      DoFnRunnerFactory<InputT, OutputT> runnerFactory,
+      CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader,
+      PipelineOptions options) {
     this.evaluationContext = evaluationContext;
+    this.options = options;
     this.runnerFactory = runnerFactory;
-    fnClones =
-        CacheBuilder.newBuilder().build(doFnCacheLoader);
+    fnClones = CacheBuilder.newBuilder().build(doFnCacheLoader);
   }
 
   static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader() {
@@ -104,9 +108,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
-        evaluationContext
-            .getExecutionContext(application, inputBundleKey)
-            .getStepContext(stepName);
+        evaluationContext.getExecutionContext(application, inputBundleKey).getStepContext(stepName);
 
     DoFnLifecycleManager fnManager = fnClones.getUnchecked(application);
 
@@ -138,6 +140,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     try {
       return ParDoEvaluator.create(
           evaluationContext,
+          options,
           stepContext,
           application,
           mainInput.getWindowingStrategy(),

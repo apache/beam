@@ -41,6 +41,7 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -59,9 +60,12 @@ import org.joda.time.Instant;
  */
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
+  private final PipelineOptions options;
 
-  GroupAlsoByWindowEvaluatorFactory(EvaluationContext evaluationContext) {
+  GroupAlsoByWindowEvaluatorFactory(
+      EvaluationContext evaluationContext, PipelineOptions options) {
     this.evaluationContext = evaluationContext;
+    this.options = options;
   }
 
   @Override
@@ -86,7 +90,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           application,
       CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
     return new GroupAlsoByWindowEvaluator<>(
-        evaluationContext, inputBundle, application);
+        evaluationContext, options, inputBundle, application);
   }
 
   /**
@@ -99,6 +103,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private static class GroupAlsoByWindowEvaluator<K, V>
       implements TransformEvaluator<KeyedWorkItem<K, V>> {
     private final EvaluationContext evaluationContext;
+    private final PipelineOptions options;
     private final AppliedPTransform<
         PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
         DirectGroupAlsoByWindow<K, V>>
@@ -117,12 +122,15 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
     public GroupAlsoByWindowEvaluator(
         final EvaluationContext evaluationContext,
+        PipelineOptions options,
         CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
         final AppliedPTransform<
                 PCollection<KeyedWorkItem<K, V>>,
                 PCollection<KV<K, Iterable<V>>>,
-                DirectGroupAlsoByWindow<K, V>> application) {
+                DirectGroupAlsoByWindow<K, V>>
+            application) {
       this.evaluationContext = evaluationContext;
+      this.options = options;
       this.application = application;
 
       structuralKey = inputBundle.getKey();
@@ -170,7 +178,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               new OutputWindowedValueToBundle<>(bundle),
               new UnsupportedSideInputReader(DirectGroupAlsoByWindow.class.getSimpleName()),
               reduceFn,
-              evaluationContext.getPipelineOptions());
+              options);
 
       // Drop any elements within expired windows
       reduceFnRunner.processElements(
