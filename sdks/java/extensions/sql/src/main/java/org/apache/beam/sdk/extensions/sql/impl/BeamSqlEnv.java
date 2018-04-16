@@ -26,9 +26,14 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.calcite.DataContext;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
+import org.apache.calcite.tools.RelRunner;
 
 /**
  * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
@@ -79,5 +84,56 @@ public class BeamSqlEnv {
 
   public BeamQueryPlanner getPlanner() {
     return planner;
+  }
+
+  public CalcitePrepare.Context getContext() {
+    return new ContextImpl();
+  }
+
+  private class ContextImpl implements CalcitePrepare.Context {
+    @Override
+    public JavaTypeFactory getTypeFactory() {
+      return planner.TYPE_FACTORY;
+    }
+
+    @Override
+    public CalciteSchema getRootSchema() {
+      return schema;
+    }
+
+    @Override
+    public CalciteSchema getMutableRootSchema() {
+      return getRootSchema();
+    }
+
+    @Override
+    public List<String> getDefaultSchemaPath() {
+      return defaultSchema.path(null);
+    }
+
+    @Override
+    public List<String> getObjectPath() {
+      return null;
+    }
+
+    @Override
+    public CalciteConnectionConfig config() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public DataContext getDataContext() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public RelRunner getRelRunner() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CalcitePrepare.SparkHandler spark() {
+      throw new UnsupportedOperationException();
+    }
   }
 }
