@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.InputStream;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -243,8 +245,8 @@ public class KafkaIO {
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
-        .setTopics(new ArrayList<>())
-        .setTopicPartitions(new ArrayList<>())
+        .setTopics(ValueProvider.StaticValueProvider.of(new ArrayList<>()))
+        .setTopicPartitions(ValueProvider.StaticValueProvider.of(new ArrayList<>()))
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
@@ -277,12 +279,12 @@ public class KafkaIO {
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
-    abstract List<String> getTopics();
-    abstract List<TopicPartition> getTopicPartitions();
+    abstract ValueProvider<List<String>> getTopics();
+    abstract ValueProvider<List<TopicPartition>> getTopicPartitions();
     @Nullable abstract Coder<K> getKeyCoder();
     @Nullable abstract Coder<V> getValueCoder();
-    @Nullable abstract Class<? extends Deserializer<K>> getKeyDeserializer();
-    @Nullable abstract Class<? extends Deserializer<V>> getValueDeserializer();
+    @Nullable abstract ValueProvider<Class<? extends Deserializer<K>>> getKeyDeserializer();
+    @Nullable abstract ValueProvider<Class<? extends Deserializer<V>>> getValueDeserializer();
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
     @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
@@ -300,13 +302,15 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
-      abstract Builder<K, V> setTopics(List<String> topics);
-      abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+      abstract Builder<K, V> setTopics(ValueProvider<List<String>> topics);
+      abstract Builder<K, V> setTopicPartitions(
+          ValueProvider<List<TopicPartition>> topicPartitions);
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
-      abstract Builder<K, V> setKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer);
+      abstract Builder<K, V> setKeyDeserializer(
+          ValueProvider<Class<? extends Deserializer<K>>> keyDeserializer);
       abstract Builder<K, V> setValueDeserializer(
-          Class<? extends Deserializer<V>> valueDeserializer);
+          ValueProvider<Class<? extends Deserializer<V>>> valueDeserializer);
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
@@ -324,8 +328,15 @@ public class KafkaIO {
      * Sets the bootstrap servers for the Kafka consumer.
      */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
+      return withBootstrapServers(ValueProvider.StaticValueProvider.of(bootstrapServers));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Read<K, V> withBootstrapServers(ValueProvider<String> bootstrapServers) {
       return updateConsumerProperties(
-          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.get()));
     }
 
     /**
@@ -335,22 +346,38 @@ public class KafkaIO {
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopic(String topic) {
-      return withTopics(ImmutableList.of(topic));
+      return withTopic(ValueProvider.StaticValueProvider.of(topic));
     }
 
     /**
-     * Sets a list of topics to read from. All the partitions from each
-     * of the topics are read.
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Read<K, V> withTopic(ValueProvider<String> topic) {
+      return withTopics(topic);
+    }
+
+    /**
+     * Sets a list of topics to read from with a {@link List List&lt;String&gt;}.
+     * All the partitions from each of the topics are read.
      *
      * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopics(List<String> topics) {
-      checkState(
-          getTopicPartitions().isEmpty(), "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
+      return withTopics(ValueProvider.StaticValueProvider.of(Joiner.on(',').join(topics)));
     }
 
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     * The format is comma separated String of topics
+     */
+    public Read<K, V> withTopics(ValueProvider<String> topics) {
+      checkState(
+              getTopicPartitions().get().isEmpty(),
+              "Only topics or topicPartitions can be set, not both");
+      return toBuilder()
+          .setTopics(ValueProvider.NestedValueProvider.of(topics, new TopicTranslator())).build();
+    }
     /**
      * Sets a list of partitions to read from. This allows reading only a subset
      * of partitions for one or more topics when (if ever) needed.
@@ -359,12 +386,80 @@ public class KafkaIO {
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
-      checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+      return withTopicPartitions(
+          ValueProvider.StaticValueProvider.of(Joiner.on(',').join(topicPartitions)));
     }
 
     /**
-     * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
+     * Sets a list of partitions to read from. Partitions are provided as a comma separated list of
+     * Strings in the format: topic1-partition1,topic1-partition2...
+     * This allows reading only a subset of partitions for one or more topics when (if ever) needed.
+     *
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description
+     * of how the partitions are distributed among the splits.
+     */
+    public Read<K, V> withTopicPartitions(String topicPartitions) {
+      return withTopicPartitions(ValueProvider.StaticValueProvider.of(topicPartitions));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Read<K, V> withTopicPartitions(ValueProvider<String> topicPartitions) {
+      checkState(getTopics().get().isEmpty(),
+          "Only topics or topicPartitions can be set, not both");
+      return toBuilder().setTopicPartitions(ValueProvider
+              .NestedValueProvider.of(topicPartitions, new TopicPartitionTranslator())).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link List List&lt;String&gt;}.
+     */
+    private static class TopicTranslator implements SerializableFunction<String, List<String>> {
+      @Override
+      public List<String> apply(String topics) {
+        return ImmutableList.copyOf(
+            Splitter.on(',').trimResults().omitEmptyStrings().splitToList(topics));
+      }
+
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link List List&lt;TopicPartition&gt;}.
+     */
+    private static class TopicPartitionTranslator
+        implements SerializableFunction<String, List<TopicPartition>> {
+      @Override
+      public List<TopicPartition> apply(String topicPartitions) {
+        List<TopicPartition> topicPartitionList = new ArrayList<>();
+        for (String topicPartition: Splitter.on(',').trimResults().omitEmptyStrings()
+              .splitToList(topicPartitions)) {
+          topicPartitionList
+              .add(new TopicPartition(Splitter.on('-').splitToList(topicPartition).get(0),
+                  Integer.parseInt(Splitter.on('-').splitToList(topicPartition).get(1))));
+        }
+      return ImmutableList.copyOf(topicPartitionList);
+      }
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer Deserializer&lt;K&gt;} for interpreting key bytes read.
+     * This uses the {@link String} provided to set the Deserializer
+     */
+    public Read<K, V> withKeyDeserializer(String keyDeserializer) {
+      return withKeyDeserializer(ValueProvider.StaticValueProvider.of(keyDeserializer));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Read<K, V> withKeyDeserializer(ValueProvider<String> keyDeserializer) {
+      return toBuilder().setKeyDeserializer(ValueProvider
+              .NestedValueProvider.of(keyDeserializer, new KeyDeserializerTranslator())).build();
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer Deserializer&lt;K&gt;} to interpret key bytes read.
      *
      * <p>In addition, Beam also needs a {@link Coder} to serialize and deserialize key objects at
      * runtime. KafkaIO tries to infer a coder for the key based on the {@link Deserializer} class,
@@ -372,7 +467,48 @@ public class KafkaIO {
      * provide the key coder explicitly.
      */
     public Read<K, V> withKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer) {
-      return toBuilder().setKeyDeserializer(keyDeserializer).build();
+      return toBuilder().setKeyDeserializer(
+          ValueProvider.StaticValueProvider.of(keyDeserializer)).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Deserializer Deserializer&lt;K&gt;}.
+     */
+    private class KeyDeserializerTranslator
+        implements SerializableFunction<String, Class<? extends Deserializer<K>>> {
+      @SuppressWarnings("unchecked")
+      @Override
+      public Class apply(String deserializer) {
+        Class deserializerClass;
+        try {
+          deserializerClass =  Class.forName(deserializer);
+        } catch (ClassNotFoundException e) {
+          LOG.error("Provided class for KeySerializer not found {}", deserializer);
+          throw new RuntimeException("Please check for the existence of the KeySerializer Class",
+              e);
+        }
+        return deserializerClass;
+      }
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Deserializer Deserializer&lt;V&gt;}.
+     */
+    private class ValueDeserializerTranslator
+            implements SerializableFunction<String, Class<? extends Deserializer<V>>> {
+      @SuppressWarnings("unchecked")
+      @Override
+      public Class apply(String deserializer) {
+        Class deserializerClass;
+        try {
+          deserializerClass =  Class.forName(deserializer);
+        } catch (ClassNotFoundException e) {
+          LOG.error("Provided class for KeySerializer not found {}", deserializer);
+          throw new RuntimeException("Please check for the existence of the KeySerializer Class",
+                  e);
+        }
+        return deserializerClass;
+      }
     }
 
     /**
@@ -384,7 +520,8 @@ public class KafkaIO {
      */
     public Read<K, V> withKeyDeserializerAndCoder(
         Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
-      return toBuilder().setKeyDeserializer(keyDeserializer).setKeyCoder(keyCoder).build();
+      return toBuilder().setKeyDeserializer(
+          ValueProvider.StaticValueProvider.of(keyDeserializer)).setKeyCoder(keyCoder).build();
     }
 
     /**
@@ -396,19 +533,38 @@ public class KafkaIO {
      * Coder)} to provide the value coder explicitly.
      */
     public Read<K, V> withValueDeserializer(Class<? extends Deserializer<V>> valueDeserializer) {
-      return toBuilder().setValueDeserializer(valueDeserializer).build();
+      return toBuilder()
+          .setValueDeserializer(ValueProvider.StaticValueProvider.of(valueDeserializer)).build();
     }
 
     /**
-     * Sets a Kafka {@link Deserializer} for interpreting value bytes read from Kafka along with a
-     * {@link Coder} for helping the Beam runner materialize value objects at runtime if necessary.
+     * Sets a Kafka {@link Deserializer} for interpreting value bytes using the provided String.
+     */
+    public Read<K, V> withValueDeserializer(String valueDeserializer) {
+      return withValueDeserializer(ValueProvider.StaticValueProvider.of(valueDeserializer));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Read<K, V> withValueDeserializer(ValueProvider<String> valueDeserializer) {
+      return toBuilder()
+          .setValueDeserializer(ValueProvider.NestedValueProvider
+          .of(valueDeserializer, new ValueDeserializerTranslator())).build();
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} for interpreting value bytes read from Kafka.
+     * This uses {@link Coder Coder&lt;V&gt;} for helping the Beam runner materialize value objects
+     * at runtime if necessary.
      *
-     * <p>Use this method only if your pipeline doesn't work with plain {@link
-     * #withValueDeserializer(Class)}.
+     * <p>Use this method only if your pipeline doesn't work with plain
+     * {@link #withValueDeserializer(Class)}.
      */
     public Read<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
-      return toBuilder().setValueDeserializer(valueDeserializer).setValueCoder(valueCoder).build();
+      return toBuilder().setValueDeserializer(ValueProvider
+              .StaticValueProvider.of(valueDeserializer)).setValueCoder(valueCoder).build();
     }
 
     /**
@@ -426,8 +582,44 @@ public class KafkaIO {
      */
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config = updateKafkaProperties(getConsumerConfig(),
-          IGNORED_CONSUMER_PROPERTIES, configUpdates);
+          IGNORED_CONSUMER_PROPERTIES, ValueProvider.StaticValueProvider.of(configUpdates));
       return toBuilder().setConsumerConfig(config).build();
+    }
+
+    /**
+     * Update consumer configuration with new properties.
+     * {@link String} Value needs to be provided in the format below:
+     * property1:value1,property2:value2,property3:value3
+     */
+    public Read<K, V> updateConsumerProperties(String configUpdates) {
+      return updateConsumerProperties(ValueProvider.StaticValueProvider.of(configUpdates));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+    public Read<K, V> updateConsumerProperties(ValueProvider<String> configUpdates) {
+      Map<String, Object> config = updateKafkaProperties(
+              getConsumerConfig(),
+              IGNORED_CONSUMER_PROPERTIES,
+              ValueProvider.NestedValueProvider.of(configUpdates, new PropertyTranslator()));
+      return toBuilder().setConsumerConfig(config).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for updateConsumerProperties inside {@link Read}.
+     */
+    private static class PropertyTranslator
+        implements SerializableFunction<String, Map<String, Object>> {
+      @Override
+      public Map<String, Object> apply(String properties) {
+        Map<String, String> configUpdates =
+            Splitter.on(",").withKeyValueSeparator(":").split(properties);
+        return configUpdates
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
+      }
     }
 
     /**
@@ -595,10 +787,10 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
+      checkArgument((getTopics().get().size() > 0) || (getTopicPartitions().get().size() > 0),
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
-      checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
-      checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
+      checkArgument(getKeyDeserializer().get() != null, "withKeyDeserializer() is required");
+      checkArgument(getValueDeserializer().get() != null, "withValueDeserializer() is required");
       ConsumerSpEL consumerSpEL = new ConsumerSpEL();
 
       if (!consumerSpEL.hasOffsetsForTimes()) {
@@ -628,14 +820,15 @@ public class KafkaIO {
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
 
       Coder<K> keyCoder =
-          getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer());
+          getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer().get());
       checkArgument(
           keyCoder != null,
           "Key coder could not be inferred from key deserializer. Please provide"
               + "key coder explicitly using withKeyDeserializerAndCoder()");
 
       Coder<V> valueCoder =
-          getValueCoder() != null ? getValueCoder() : inferCoder(registry, getValueDeserializer());
+          getValueCoder()
+              != null ? getValueCoder() : inferCoder(registry, getValueDeserializer().get());
       checkArgument(
           valueCoder != null,
           "Value coder could not be inferred from value deserializer. Please provide"
@@ -721,8 +914,8 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      List<String> topics = getTopics();
-      List<TopicPartition> topicPartitions = getTopicPartitions();
+      List<String> topics = getTopics().get();
+      List<TopicPartition> topicPartitions = getTopicPartitions().get();
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
@@ -786,14 +979,27 @@ public class KafkaIO {
       Map<String, Object> currentConfig,
       Map<String, String> ignoredProperties,
       Map<String, Object> updates) {
+    return updateKafkaProperties(
+        currentConfig,
+        ignoredProperties,
+        ValueProvider.StaticValueProvider.of(updates));
+  }
 
-    for (String key : updates.keySet()) {
+  /**
+   * Like above but with a {@link ValueProvider}.
+   */
+  private static Map<String, Object> updateKafkaProperties(
+          Map<String, Object> currentConfig,
+          Map<String, String> ignoredProperties,
+          ValueProvider<Map<String, Object>> updates) {
+
+    for (String key : updates.get().keySet()) {
       checkArgument(!ignoredProperties.containsKey(key),
-          "No need to configure '%s'. %s", key, ignoredProperties.get(key));
+              "No need to configure '%s'. %s", key, ignoredProperties.get(key));
     }
 
     Map<String, Object> config = new HashMap<>(currentConfig);
-    config.putAll(updates);
+    config.putAll(updates.get());
 
     return config;
   }
@@ -810,13 +1016,13 @@ public class KafkaIO {
    */
   @AutoValue
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-    @Nullable abstract String getTopic();
+    @Nullable abstract ValueProvider<String> getTopic();
     abstract Map<String, Object> getProducerConfig();
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
-    @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
-    @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
+    @Nullable abstract ValueProvider<Class<? extends Serializer<K>>> getKeySerializer();
+    @Nullable abstract ValueProvider<Class<? extends Serializer<V>>> getValueSerializer();
 
     @Nullable abstract KafkaPublishTimestampFunction<KV<K, V>> getPublishTimestampFunction();
 
@@ -831,12 +1037,14 @@ public class KafkaIO {
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
-      abstract Builder<K, V> setTopic(String topic);
+      abstract Builder<K, V> setTopic(ValueProvider<String> topic);
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
-      abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
-      abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+      abstract Builder<K, V> setKeySerializer(
+          ValueProvider<Class<? extends Serializer<K>>> keySerializer);
+      abstract Builder<K, V> setValueSerializer(
+          ValueProvider<Class<? extends Serializer<V>>> valueSerializer);
       abstract Builder<K, V> setPublishTimestampFunction(
         KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
@@ -852,14 +1060,28 @@ public class KafkaIO {
      * {@code bootstrapServers}.
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
+      return withBootstrapServers(ValueProvider.StaticValueProvider.of(bootstrapServers));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Write<K, V> withBootstrapServers(ValueProvider<String> bootstrapServers) {
       return updateProducerProperties(
-          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+              ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
      * Sets the Kafka topic to write to.
      */
     public Write<K, V> withTopic(String topic) {
+      return withTopic(ValueProvider.StaticValueProvider.of(topic));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Write<K, V> withTopic(ValueProvider<String> topic) {
       return toBuilder().setTopic(topic).build();
     }
 
@@ -870,14 +1092,86 @@ public class KafkaIO {
      * determine partition in Kafka (see {@link ProducerRecord} for more details).
      */
     public Write<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
-      return toBuilder().setKeySerializer(keySerializer).build();
+      return toBuilder()
+          .setKeySerializer(ValueProvider.StaticValueProvider.of(keySerializer)).build();
     }
 
     /**
-     * Sets a {@link Serializer} for serializing value to bytes.
+     * Sets a {@link Serializer} for serializing key (if any) to bytes using a String.
+     */
+    public Write<K, V> withKeySerializer(String keySerializer) {
+      return withKeySerializer(ValueProvider.StaticValueProvider.of(keySerializer));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Write<K, V> withKeySerializer(ValueProvider<String> keySerializer) {
+      return toBuilder().setKeySerializer(ValueProvider.
+              NestedValueProvider.of(keySerializer, new SerializerKeyTranslator())).build();
+    }
+
+    /**
+     * Sets a {@link Serializer Serializer&lt;V&gt;} for serializing value to bytes.
      */
     public Write<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
-      return toBuilder().setValueSerializer(valueSerializer).build();
+      return toBuilder().setValueSerializer(
+          ValueProvider.StaticValueProvider.of(valueSerializer)).build();
+    }
+
+    /**
+     * Like above but with a class name provided as a {@link String}.
+     */
+    public Write<K, V> withValueSerializer(String valueSerializer) {
+      return withValueSerializer(ValueProvider.StaticValueProvider.of(valueSerializer));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
+     */
+    public Write<K, V> withValueSerializer(ValueProvider<String> valueSerializer) {
+      return toBuilder().setValueSerializer(ValueProvider
+              .NestedValueProvider.of(valueSerializer, new SerializerValueTranslator())).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Serializer Serializer&lt;K&gt;}.
+     */
+    private class SerializerKeyTranslator
+        implements SerializableFunction<String, Class<? extends Serializer<K>>> {
+      @SuppressWarnings("unchecked")
+      @Override
+      public Class apply(String serializer) {
+        Class serializerClass;
+        try {
+          serializerClass =  Class.forName(serializer);
+        } catch (ClassNotFoundException e) {
+          LOG.error("Provided class for KeySerializer not found {}", serializer);
+          throw new RuntimeException("Please check for the existence of the KeySerializer Class",
+              e);
+        }
+        return serializerClass;
+      }
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Serializer Serializer&lt;V&gt;}.
+     */
+    private class SerializerValueTranslator
+            implements SerializableFunction<String, Class<? extends Serializer<V>>> {
+      @SuppressWarnings("unchecked")
+      @Override
+      public Class apply(String serializer) {
+        Class serializerClass;
+        try {
+          serializerClass =  Class.forName(serializer);
+        } catch (ClassNotFoundException e) {
+          LOG.error("Provided class for KeySerializer not found {}", serializer);
+          throw new RuntimeException("Please check for the existence of the KeySerializer Class",
+                  e);
+        }
+        return serializerClass;
+      }
     }
 
     /**
@@ -885,8 +1179,44 @@ public class KafkaIO {
      */
     public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config = updateKafkaProperties(getProducerConfig(),
-          IGNORED_PRODUCER_PROPERTIES, configUpdates);
+          IGNORED_PRODUCER_PROPERTIES, ValueProvider.StaticValueProvider.of(configUpdates));
       return toBuilder().setProducerConfig(config).build();
+    }
+
+    /**
+     * Like above but accepts a String in the below format.
+     * property1:value1,property2:value2,property3:value3....
+     *
+     */
+    public Write<K, V> updateProducerProperties(String configUpdates) {
+      return updateProducerProperties(ValueProvider.StaticValueProvider.of(configUpdates));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+    public Write<K, V> updateProducerProperties(ValueProvider<String> configUpdates) {
+      Map<String, Object> config = updateKafkaProperties(
+              getProducerConfig(),
+              IGNORED_PRODUCER_PROPERTIES,
+              ValueProvider.NestedValueProvider.of(configUpdates, new PropertyTranslator()));
+      return toBuilder().setProducerConfig(config).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link Map Map&lt;String,Object&gt;}.
+     */
+    private static class PropertyTranslator
+        implements SerializableFunction<String, Map<String, Object>> {
+      @Override
+      public Map<String, Object> apply(String properties) {
+        Map<String, String> configUpdates =
+            Splitter.on(",").withKeyValueSeparator(":").split(properties);
+        return configUpdates
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> (Object) e.getValue()));
+      }
     }
 
     /**
@@ -989,7 +1319,7 @@ public class KafkaIO {
     public PTransform<PCollection<V>, PDone> values() {
       return new KafkaValueWrite<>(
           toBuilder()
-          .setKeySerializer((Class) StringSerializer.class)
+          .setKeySerializer(ValueProvider.StaticValueProvider.of((Class) StringSerializer.class))
           .build()
       );
     }
@@ -999,9 +1329,9 @@ public class KafkaIO {
       checkArgument(
         getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
         "withBootstrapServers() is required");
-      checkArgument(getTopic() != null, "withTopic() is required");
-      checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
-      checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
+      checkArgument(getTopic().get() != null, "withTopic() is required");
+      checkArgument(getKeySerializer().get() != null, "withKeySerializer() is required");
+      checkArgument(getValueSerializer().get() != null, "withValueSerializer() is required");
 
       if (isEOS()) {
         KafkaExactlyOnceSink.ensureEOSSupport();
@@ -1050,7 +1380,7 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("topic", getTopic()).withLabel("Topic"));
+      builder.addIfNotNull(DisplayData.item("topic", getTopic().get()).withLabel("Topic"));
       Set<String> ignoredProducerPropertiesKeys = IGNORED_PRODUCER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getProducerConfig().entrySet()) {
         String key = conf.getKey();

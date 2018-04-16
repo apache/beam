@@ -82,11 +82,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     Read<K, V> spec = source.getSpec();
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-    consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
+    consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions().get());
 
     try {
-      keyDeserializerInstance = spec.getKeyDeserializer().newInstance();
-      valueDeserializerInstance = spec.getValueDeserializer().newInstance();
+      keyDeserializerInstance = spec.getKeyDeserializer().get().newInstance();
+      valueDeserializerInstance = spec.getValueDeserializer().get().newInstance();
     } catch (InstantiationException | IllegalAccessException e) {
       throw new IOException("Could not instantiate deserializers", e);
     }
@@ -151,7 +151,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-    consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
+    consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions().get());
 
     // Fetch offsets once before running periodically.
     updateLatestOffsets();
@@ -494,7 +494,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     this.source = source;
     this.name = "Reader-" + source.getId();
 
-    List<TopicPartition> partitions = source.getSpec().getTopicPartitions();
+    List<TopicPartition> partitions = source.getSpec().getTopicPartitions().get();
     List<PartitionState<K, V>> states = new ArrayList<>(partitions.size());
 
     if (checkpointMark != null) {
