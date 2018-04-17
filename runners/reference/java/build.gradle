@@ -28,7 +28,8 @@ dependencies {
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.slf4j_api
-  testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
 }
