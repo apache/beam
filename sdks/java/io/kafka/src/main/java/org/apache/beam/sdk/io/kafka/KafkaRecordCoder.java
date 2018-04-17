@@ -31,6 +31,10 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 
 /**
  * {@link Coder} for {@link KafkaRecord}.
@@ -76,15 +80,15 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
         kvCoder.decode(inStream));
   }
 
-  private KafkaHeaders getHeaders(Iterable<KV<String, byte[]>> records) {
-    KafkaHeaders headers = new KafkaRecordHeaders();
-    records.forEach(kv -> headers.add(new KafkaRecordHeader(kv.getKey(), kv.getValue())));
+  private Headers getHeaders(Iterable<KV<String, byte[]>> records) {
+    Headers headers = new RecordHeaders();
+    records.forEach(kv -> headers.add(new RecordHeader(kv.getKey(), kv.getValue())));
     return headers;
   }
 
-  private Iterable<KV<String, byte[]>> getIterable(KafkaHeaders headers) {
+  private Iterable<KV<String, byte[]>> getIterable(Headers headers) {
     List<KV<String, byte[]>> vals = new ArrayList<>();
-    for (KafkaHeader header : headers) {
+    for (Header header : headers) {
       vals.add(KV.of(header.key(), header.value()));
     }
     return vals;
