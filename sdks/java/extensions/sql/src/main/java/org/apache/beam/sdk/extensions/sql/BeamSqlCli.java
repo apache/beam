@@ -29,8 +29,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.sql.SqlNode;
 
@@ -87,7 +85,7 @@ public class BeamSqlCli {
           .as(PipelineOptions.class);
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
-      compilePipeline(sqlString, pipeline, env);
+      env.getPlanner().compileBeamPipeline(sqlString, pipeline);
       pipeline.run();
     }
   }
@@ -108,15 +106,5 @@ public class BeamSqlCli {
   private void handleDropTable(SqlDropTable stmt) {
     metaStore.dropTable(stmt.getNameSimple());
     env.deregisterTable(stmt.getNameSimple());
-  }
-
-  /**
-   * compile SQL, and return a {@link Pipeline}.
-   */
-  private static PCollection<Row> compilePipeline(String sqlStatement, Pipeline basePipeline,
-                                                  BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<Row> resultStream =
-        sqlEnv.getPlanner().compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
-    return resultStream;
   }
 }
