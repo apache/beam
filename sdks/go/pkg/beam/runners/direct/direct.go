@@ -45,6 +45,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return fmt.Errorf("translation failed: %v", err)
 	}
+	log.Info(ctx, plan)
 
 	if err = plan.Execute(ctx, "", nil); err != nil {
 		plan.Down(ctx) // ignore any teardown errors
@@ -238,10 +239,9 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		return b.links[id], nil
 
 	case graph.Combine:
-		isPerKey := typex.IsCoGBK(edge.Input[0].From.Type())
 		usesKey := typex.IsKV(edge.Input[0].Type)
 
-		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, IsPerKey: isPerKey, UsesKey: usesKey, Out: out[0]}
+		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, UsesKey: usesKey, Out: out[0]}
 
 	case graph.CoGBK:
 		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}

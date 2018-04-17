@@ -26,9 +26,9 @@ func TestFlatten(t *testing.T) {
 
 	out := &CaptureNode{UID: 1}
 	flatten := &Flatten{UID: 2, N: 3, Out: out}
-	a := &FixedRoot{UID: 3, Elements: makeValues(1, 2), Out: flatten}
-	b := &FixedRoot{UID: 4, Elements: makeValues(3, 4), Out: flatten}
-	c := &FixedRoot{UID: 5, Elements: makeValues(5, 6), Out: flatten}
+	a := &FixedRoot{UID: 3, Elements: makeInput(1, 2), Out: flatten}
+	b := &FixedRoot{UID: 4, Elements: makeInput(3, 4), Out: flatten}
+	c := &FixedRoot{UID: 5, Elements: makeInput(5, 6), Out: flatten}
 
 	p, err := NewPlan("a", []Unit{a, b, c, flatten, out}) // order matters in this test
 	if err != nil {

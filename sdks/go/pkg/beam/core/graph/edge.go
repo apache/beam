@@ -320,6 +320,14 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
 // input.
 func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) {
+	inT := in.Type()
+	if !typex.IsCoGBK(inT) {
+		return nil, fmt.Errorf("combine requires CoGBK type: %v", inT)
+	}
+	if len(inT.Components()) > 2 {
+		return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", inT)
+	}
+
 	// Create a synthetic function for binding purposes. It takes main input
 	// and returns the output type -- but hides the accumulator.
 	//
@@ -344,34 +352,25 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 		synth.Ret = u.MergeAccumulatorsFn().Ret
 	}
 
-	inT := in.Type()
+	// The shape of the inbound type and the type of the inbound node
+	// are different: a node type of CoGBK<A,B> will become B
+	// or KV<A,B>, depending on whether the combineFn is keyed or not.
+	// Combines may omit the key in the signature. In such a case,
+	// it is ignored for the purpose of binding. The runtime will later look at
+	// these types to decide whether to add the key or not.
+	//
+	// However, the outbound type will be KV<A,O> (where O is the output
+	// type) regardless of whether the combineFn is keyed or not.
 
-	isPerKey := typex.IsCoGBK(inT)
-	if isPerKey {
-		// For per-key combine, the shape of the inbound type and the type of the
-		// inbound node are different: a node type of CoGBK<A,B> will become B
-		// or KV<A,B>, depending on whether the combineFn is keyed or not.
-		// Per-key combines may omit the key in the signature. In such a case,
-		// it is ignored for the purpose of binding. The runtime will later look at
-		// these types to decide whether to add the key or not.
-		//
-		// However, the outbound type will be KV<A,O> (where O is the output
-		// type) regardless of whether the combineFn is keyed or not.
-
-		if len(inT.Components()) > 2 {
-			return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", inT)
-		}
-
-		if len(synth.Param) == 1 {
-			inT = inT.Components()[1] // Drop implicit key for binding purposes
-		} else {
-			inT = typex.NewKV(inT.Components()...)
-		}
-
-		// The runtime always adds the key for the output of per-key combiners.
-		key := in.Type().Components()[0]
-		synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
+	if len(synth.Param) == 1 {
+		inT = inT.Components()[1] // Drop implicit key for binding purposes
+	} else {
+		inT = typex.NewKV(inT.Components()...)
 	}
+
+	// The runtime always adds the key for the output of combiners.
+	key := in.Type().Components()[0]
+	synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 
 	inbound, kinds, outbound, out, err := Bind(synth, nil, inT)
 	if err != nil {

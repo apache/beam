@@ -377,16 +377,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				if err != nil {
 					return nil, err
 				}
-
-				// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
-				// instead of inferring it here?
-
-				c, _, err := b.makeCoderForPCollection(from)
-				if err != nil {
-					return nil, err
-				}
-
-				n.IsPerKey = coder.IsCoGBK(c)
 				n.UsesKey = typex.IsKV(in[0].Type)
 
 				u = n
