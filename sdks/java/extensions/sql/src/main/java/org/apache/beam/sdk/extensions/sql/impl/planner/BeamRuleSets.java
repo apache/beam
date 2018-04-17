@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.planner;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamFilterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
@@ -49,7 +50,8 @@ public class BeamRuleSets {
           BeamIntersectRule.INSTANCE,
           BeamMinusRule.INSTANCE,
           BeamUnionRule.INSTANCE,
-          BeamJoinRule.INSTANCE)
+          BeamJoinRule.INSTANCE,
+          BeamEnumerableConverterRule.INSTANCE)
     };
   }
 }
