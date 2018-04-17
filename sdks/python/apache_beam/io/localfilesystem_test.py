@@ -173,7 +173,7 @@ class LocalFileSystemTest(unittest.TestCase):
 
     result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertEqual(files, [path1, path2])
+    self.assertItemsEqual(files, [path1, path2])
 
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')
