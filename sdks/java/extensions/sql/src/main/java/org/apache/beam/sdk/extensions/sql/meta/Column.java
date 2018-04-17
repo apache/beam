@@ -28,13 +28,12 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
  */
 @AutoValue
 public abstract class Column implements Serializable {
-  // TODO: Add Nullable types.
   public abstract String getName();
   public abstract FieldType getFieldType();
+  public abstract Boolean getNullable();
 
   @Nullable
   public abstract String getComment();
-  public abstract boolean isPrimaryKey();
 
   public static Builder builder() {
     return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Column.Builder();
@@ -47,8 +46,8 @@ public abstract class Column implements Serializable {
   public abstract static class Builder {
     public abstract Builder name(String name);
     public abstract Builder fieldType(FieldType fieldType);
+    public abstract Builder nullable(Boolean nullable);
     public abstract Builder comment(String comment);
-    public abstract Builder primaryKey(boolean isPrimaryKey);
     public abstract Column build();
   }
 }

@@ -9,98 +9,148 @@
   OF ANY KIND, either express or implied. See the License for the specific
   language governing permissions and limitations under the License. -->
 
-
-private void ColumnDef(List<ColumnDefinition> list) :
+boolean IfNotExistsOpt() :
 {
-    SqlParserPos pos;
-    SqlIdentifier name;
-    SqlDataTypeSpec type;
-    ColumnConstraint constraint = null;
-    SqlNode comment = null;
 }
 {
-    name = SimpleIdentifier() { pos = getPos(); }
-    type = DataType()
+    <IF> <NOT> <EXISTS> { return true; }
+|
+    { return false; }
+}
+
+boolean IfExistsOpt() :
+{
+}
+{
+    <IF> <EXISTS> { return true; }
+|
+    { return false; }
+}
+
+SqlNodeList Options() :
+{
+    final Span s;
+    final List<SqlNode> list = Lists.newArrayList();
+}
+{
+    <OPTIONS> { s = span(); } <LPAREN>
     [
-      <PRIMARY> <KEY>
-      { constraint = new ColumnConstraint.PrimaryKey(getPos()); }
+        Option(list)
+        (
+            <COMMA>
+            Option(list)
+        )*
     ]
-    [
-      <COMMENT> comment = StringLiteral()
-    ]
-    {
-        list.add(new ColumnDefinition(name, type, constraint, comment, pos));
+    <RPAREN> {
+        return new SqlNodeList(list, s.end(this));
     }
 }
 
-SqlNodeList ColumnDefinitionList() :
+void Option(List<SqlNode> list) :
 {
-    SqlParserPos pos;
-    List<ColumnDefinition> list = Lists.newArrayList();
+    final SqlIdentifier id;
+    final SqlNode value;
 }
 {
-    <LPAREN> { pos = getPos(); }
-    ColumnDef(list)
-    ( <COMMA> ColumnDef(list) )*
+    id = SimpleIdentifier()
+    value = Literal() {
+        list.add(id);
+        list.add(value);
+    }
+}
+
+SqlNodeList TableElementList() :
+{
+    final Span s;
+    final List<SqlNode> list = Lists.newArrayList();
+}
+{
+    <LPAREN> { s = span(); }
+    TableElement(list)
+    (
+        <COMMA> TableElement(list)
+    )*
     <RPAREN> {
-        return new SqlNodeList(list, pos.plus(getPos()));
+        return new SqlNodeList(list, s.end(this));
+    }
+}
+
+void TableElement(List<SqlNode> list) :
+{
+    final SqlIdentifier id;
+    final SqlDataTypeSpec type;
+    final boolean nullable;
+    SqlNode comment = null;
+    final Span s = Span.of();
+}
+{
+    id = SimpleIdentifier()
+    (
+        type = DataType()
+        (
+            <NULL> { nullable = true; }
+        |
+            <NOT> <NULL> { nullable = false; }
+        |
+            { nullable = true; }
+        )
+        [ <COMMENT> comment = StringLiteral() ]
+        {
+            list.add(
+                SqlDdlNodes.column(s.add(id).end(this), id,
+                    type.withNullable(nullable), comment));
+        }
+    |
+        { list.add(id); }
+    )
+|
+    id = SimpleIdentifier() {
+        list.add(id);
     }
 }
 
 /**
+ * Note: This example is probably out of sync with the code.
+ *
  * CREATE TABLE ( IF NOT EXISTS )?
- *   ( database_name '.' )? table_name ( '(' column_def ( ',' column_def )* ')'
- *   ( STORED AS INPUTFORMAT input_format_classname OUTPUTFORMAT output_format_classname )?
- *   LOCATION location_uri
+ *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
+ *   TYPE type_name
+ *   ( COMMENT comment_string )?
+ *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
- *   ( AS select_stmt )
  */
-SqlNode SqlCreateTable() :
+SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
-    SqlParserPos pos;
-    SqlIdentifier tblName;
-    SqlNodeList fieldList;
+    final boolean ifNotExists;
+    final SqlIdentifier id;
+    SqlNodeList tableElementList = null;
     SqlNode type = null;
     SqlNode comment = null;
     SqlNode location = null;
-    SqlNode tbl_properties = null;
-    SqlNode select = null;
+    SqlNode tblProperties = null;
 }
 {
-    <CREATE> { pos = getPos(); }
-    <TABLE>
-    tblName = CompoundIdentifier()
-    fieldList = ColumnDefinitionList()
-    <TYPE>
-    type = StringLiteral()
-    [
-    <COMMENT>
-    comment = StringLiteral()
-    ]
-    [
-    <LOCATION>
-    location = StringLiteral()
-    ]
-    [ <TBLPROPERTIES> tbl_properties = StringLiteral() ]
-    [ <AS> select = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) ] {
-        return new SqlCreateTable(pos, tblName, fieldList, type, comment,
-        location, tbl_properties, select);
+    <TABLE> ifNotExists = IfNotExistsOpt() id = CompoundIdentifier()
+    tableElementList = TableElementList()
+    <TYPE> type = StringLiteral()
+    [ <COMMENT> comment = StringLiteral() ]
+    [ <LOCATION> location = StringLiteral() ]
+    [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
+    {
+        return SqlDdlNodes.createTable(s.end(this), replace, ifNotExists, id,
+            tableElementList, type, comment, location, tblProperties);
     }
 }
 
-/**
- * DROP TABLE table_name
- */
-SqlNode SqlDropTable() :
+SqlDrop SqlDropTable(Span s, boolean replace) :
 {
-    SqlParserPos pos;
-    SqlIdentifier tblName;
+    final boolean ifExists;
+    final SqlIdentifier id;
 }
 {
-    <DROP> { pos = getPos(); }
-    <TABLE>
-    tblName = SimpleIdentifier() {
-        return new SqlDropTable(pos, tblName);
+    <TABLE> ifExists = IfExistsOpt() id = CompoundIdentifier() {
+        return SqlDdlNodes.dropTable(s.end(this), ifExists, id);
     }
 }
 
+// End parserImpls.ftl

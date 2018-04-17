@@ -41,6 +41,6 @@ public class MetaUtils {
     String description = column.getComment() != null ? column.getComment() : "";
     return Schema.Field.of(column.getName(), column.getFieldType())
         .withDescription(description)
-        .withNullable(true);
+        .withNullable(column.getNullable());
   }
 }
