@@ -57,13 +57,16 @@ import org.postgresql.ds.PGSimpleDataSource;
  * <p>This test requires a running instance of Postgres. Pass in connection information using
  * PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/input-format/ -DintegrationTestPipelineOptions='[
- *  "--postgresServerName=1.2.3.4",
- *  "--postgresUsername=postgres",
- *  "--postgresDatabaseName=myfancydb",
- *  "--postgresPassword=mypass",
- *  "--postgresSsl=false",
- *  "--numberOfRecords=1000" ]'
+ *  ./gradlew integrationTest -p sdks/java/io/hadoop/input-format/
+ *   -DintegrationTestPipelineOptions='[
+ *     "--postgresServerName=1.2.3.4",
+ *     "--postgresUsername=postgres",
+ *     "--postgresDatabaseName=myfancydb",
+ *     "--postgresPassword=mypass",
+ *     "--postgresSsl=false",
+ *     "--numberOfRecords=1000" ]'
+ *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  */
 public class HadoopInputFormatIOIT {

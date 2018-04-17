@@ -18,6 +18,8 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
@@ -33,7 +35,6 @@ evaluationDependsOn(":beam-sdks-java-io-common")
 
 dependencies {
   shadowTest project(":beam-sdks-java-core")
-  shadowTest project(":beam-runners-direct-java").sourceSets.test.output
   shadowTest project(":beam-sdks-java-io-common")
   shadowTest project(":beam-sdks-java-io-common").sourceSets.test.output
   shadowTest project(":beam-sdks-java-io-xml")

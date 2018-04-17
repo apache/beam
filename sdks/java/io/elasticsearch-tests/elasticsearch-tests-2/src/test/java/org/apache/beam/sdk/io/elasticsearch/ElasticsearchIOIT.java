@@ -45,10 +45,11 @@ import org.junit.Test;
  * correct server IP:
  *
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/elasticsearch-tests/elasticsearch-tests-2 \
- *    -DintegrationTestPipelineOptions='[
- *      "--elasticsearchServer=127.0.0.1",
- *      "--elasticsearchHttpPort=9200"]'
+ *  ./gradlew integrationTest -p sdks/java/io/elasticsearch -DintegrationTestPipelineOptions='[
+ *  "--elasticsearchServer=1.2.3.4",
+ *  "--elasticsearchHttpPort=9200"]'
+ *  --tests org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
  * <p>It is likely that you will need to configure <code>thread_pool.bulk.queue_size: 250</code> (or

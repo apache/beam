@@ -51,13 +51,14 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
+ *  --tests org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
  * <p>Please {@see 'sdks/java/io/file-based-io-tests/pom.xml'} for instructions regarding
