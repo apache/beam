@@ -122,7 +122,7 @@ instructions]({{ site.baseurl }}/contribute/website-contributions/).
 
 #### Register to PyPI
 
-Release manager needs to have an account with PyPI. If you need one, [register](https://pypi.python.org/pypi?%3Aaction=register_form) at PyPI. You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release. Ask on the mailing list for assistance.
+Release manager needs to have an account with PyPI. If you need one, [register at PyPI](https://pypi.python.org/account/register/). You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release. Ask on the mailing list for assistance.
 
 ### Create a new version in JIRA
 
