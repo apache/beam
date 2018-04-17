@@ -73,11 +73,8 @@ docker images | grep $TAG
 # Push the container
 gcloud docker -- push $CONTAINER
 
-# INFRA does not install virtualenv
-pip install virtualenv --user
-
 # Virtualenv for the rest of the script to run setup & e2e test
-${LOCAL_PATH}/virtualenv sdks/python/container
+virtualenv sdks/python/container
 . sdks/python/container/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
