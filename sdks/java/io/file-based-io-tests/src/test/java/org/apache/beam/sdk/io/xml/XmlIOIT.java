@@ -54,15 +54,19 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run those tests using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.xml.XmlIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path",
  *  "--charset=UTF-8",
  *  ]'
+ *  --tests org.apache.beam.sdk.io.xml.XmlIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
 public class XmlIOIT {

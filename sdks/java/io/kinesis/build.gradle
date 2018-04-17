@@ -18,6 +18,8 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
 ext.summary = "Library to read Kinesis streams."

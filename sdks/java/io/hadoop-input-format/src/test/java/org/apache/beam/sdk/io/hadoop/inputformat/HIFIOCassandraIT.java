@@ -46,13 +46,15 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format
+ *  ./gradlew integrationTest -p sdks/java/io/hadoop-input-format
  *  -Dit.test=org.apache.beam.sdk.io.hadoop.inputformat.HIFIOCassandraIT
  *  -DintegrationTestPipelineOptions='[
  *  "--cassandraServerIp=1.2.3.4",
  *  "--cassandraServerPort=port",
  *  "--cassandraUserName=user",
  *  "--cassandraPassword=mypass" ]'
+ *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HIFIOCassandraIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
