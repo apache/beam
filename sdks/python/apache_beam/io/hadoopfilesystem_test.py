@@ -258,18 +258,14 @@ class HadoopFileSystemTest(unittest.TestCase):
   def test_match_file_with_limits(self):
     expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
-    result = self.fs.match([self.tmpdir], [1])[0]
+    result = self.fs.match([self.tmpdir + '/'], [1])[0]
     files = [f.path for f in result.metadata_list]
     self.assertEquals(len(files), 1)
     self.assertIn(files[0], expected_files)
 
   def test_match_file_with_zero_limit(self):
-    result = self.fs.match([self.tmpdir], [0])[0]
+    result = self.fs.match([self.tmpdir + '/'], [0])[0]
     self.assertEquals(len(result.metadata_list), 0)
-
-  def test_match_file_with_bad_limit(self):
-    with self.assertRaisesRegexp(BeamIOError, r'TypeError'):
-      _ = self.fs.match([self.tmpdir], ['a'])[0]
 
   def test_match_file_empty(self):
     url = self.fs.join(self.tmpdir, 'nonexistent_file')
@@ -290,7 +286,10 @@ class HadoopFileSystemTest(unittest.TestCase):
     expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
 
-    result = self.fs.match([self.tmpdir])[0]
+    # Listing without a trailing '/' should return the directory itself and not
+    # its contents. The fake HDFS client here has a "sparse" directory
+    # structure, so listing without a '/' will return no results.
+    result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
     self.assertItemsEqual(files, expected_files)
 
@@ -466,6 +465,12 @@ class HadoopFileSystemTest(unittest.TestCase):
     url2 = self.fs.join(self.tmpdir, 'nonexistent')
     self.assertTrue(self.fs.exists(url1))
     self.assertFalse(self.fs.exists(url2))
+
+  def test_size(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write('Hello')
+    self.assertEqual(5, self.fs.size(url))
 
   def test_checksum(self):
     url = self.fs.join(self.tmpdir, 'f1')

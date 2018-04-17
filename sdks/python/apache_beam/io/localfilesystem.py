@@ -18,7 +18,6 @@
 
 from __future__ import absolute_import
 
-import glob
 import os
 import shutil
 
@@ -27,7 +26,6 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-from apache_beam.io.filesystem import MatchResult
 
 __all__ = ['LocalFileSystem']
 
@@ -79,42 +77,34 @@ class LocalFileSystem(FileSystem):
     except OSError as err:
       raise IOError(err)
 
-  def match(self, patterns, limits=None):
-    """Find all matching paths to the pattern provided.
+  def has_dirs(self):
+    """Whether this FileSystem supports directories."""
+    return True
+
+  def _list(self, dir_or_prefix):
+    """List files in a location.
+
+    Listing is non-recursive, for filesystems that support directories.
 
     Args:
-      patterns: list of string for the file path pattern to match against
-      limits: list of maximum number of responses that need to be fetched
+      dir_or_prefix: (string) A directory or location prefix (for filesystems
+        that don't have directories).
 
-    Returns: list of ``MatchResult`` objects.
+    Returns:
+      Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if any of the pattern match operations fail
+      ``BeamIOError`` if listing fails, but not if no files were found.
     """
-    if limits is None:
-      limits = [None] * len(patterns)
-    else:
-      err_msg = "Patterns and limits should be equal in length"
-      assert len(patterns) == len(limits), err_msg
+    if not self.exists(dir_or_prefix):
+      return
 
-    def _match(pattern, limit):
-      """Find all matching paths to the pattern provided.
-      """
-      files = glob.glob(pattern)
-      metadata = [FileMetadata(f, os.path.getsize(f)) for f in files[:limit]]
-      return MatchResult(pattern, metadata)
-
-    exceptions = {}
-    result = []
-    for pattern, limit in zip(patterns, limits):
-      try:
-        result.append(_match(pattern, limit))
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[pattern] = e
-
-    if exceptions:
-      raise BeamIOError("Match operation failed", exceptions)
-    return result
+    try:
+      for f in os.listdir(dir_or_prefix):
+        f = self.join(dir_or_prefix, f)
+        yield FileMetadata(f, os.path.getsize(f))
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
   def _path_open(self, path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
@@ -234,6 +224,22 @@ class LocalFileSystem(FileSystem):
     Returns: boolean flag indicating if path exists
     """
     return os.path.exists(path)
+
+  def size(self, path):
+    """Get size of path on the FileSystem.
+
+    Args:
+      path: string path in question.
+
+    Returns: int size of path according to the FileSystem.
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    try:
+      return os.path.getsize(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Size operation failed", {path: e})
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
