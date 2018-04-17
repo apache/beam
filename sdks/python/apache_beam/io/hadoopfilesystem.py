@@ -33,7 +33,6 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-from apache_beam.io.filesystem import MatchResult
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -181,42 +180,17 @@ class HadoopFileSystem(FileSystem):
   def _mkdirs(self, path):
     self._hdfs_client.makedirs(path)
 
-  def match(self, url_patterns, limits=None):
-    if limits is None:
-      limits = [None] * len(url_patterns)
+  def has_dirs(self):
+    return True
 
-    if len(url_patterns) != len(limits):
-      raise BeamIOError(
-          'Patterns and limits should be equal in length: %d != %d' % (
-              len(url_patterns), len(limits)))
-
-    def _match(path_pattern, limit):
-      """Find all matching paths to the pattern provided."""
-      fs = self._hdfs_client.status(path_pattern, strict=False)
-      if fs and fs[_FILE_STATUS_TYPE] == _FILE_STATUS_TYPE_FILE:
-        file_statuses = [(path_pattern, fs)][:limit]
-      else:
-        file_statuses = [(self._join(path_pattern, fs[0]), fs[1])
-                         for fs in self._hdfs_client.list(path_pattern,
-                                                          status=True)[:limit]]
-      metadata_list = [
-          FileMetadata(_HDFS_PREFIX + file_status[0],
-                       file_status[1][_FILE_STATUS_LENGTH])
-          for file_status in file_statuses]
-      return MatchResult(path_pattern, metadata_list)
-
-    exceptions = {}
-    result = []
-    for url_pattern, limit in zip(url_patterns, limits):
-      try:
-        path_pattern = self._parse_url(url_pattern)
-        result.append(_match(path_pattern, limit))
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[url_pattern] = e
-
-    if exceptions:
-      raise BeamIOError('Match operation failed', exceptions)
-    return result
+  def _list(self, url):
+    try:
+      path = self._parse_url(url)
+      for res in self._hdfs_client.list(path, status=True):
+        yield FileMetadata(_HDFS_PREFIX + self._join(path, res[0]),
+                           res[1][_FILE_STATUS_LENGTH])
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError('Match operation failed', {url: e})
 
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):
@@ -357,6 +331,13 @@ class HadoopFileSystem(FileSystem):
       path: String in the form /...
     """
     return self._hdfs_client.status(path, strict=False) is not None
+
+  def size(self, url):
+    path = self._parse_url(url)
+    status = self._hdfs_client.status(path, strict=False)
+    if status is None:
+      raise BeamIOError('File not found: %s' % url)
+    return status[_FILE_STATUS_LENGTH]
 
   def checksum(self, url):
     """Fetches a checksum description for a URL.
