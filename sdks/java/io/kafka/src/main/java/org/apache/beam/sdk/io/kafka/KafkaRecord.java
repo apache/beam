@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import com.google.common.base.Objects;
 import java.io.Serializable;
 import java.util.Arrays;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.common.header.Headers;
 
@@ -45,7 +47,7 @@ public class KafkaRecord<K, V> implements Serializable {
       long offset,
       long timestamp,
       KafkaTimestampType timestampType,
-      Headers headers,
+      @Nullable Headers headers,
       K key,
       V value) {
     this(topic, partition, offset, timestamp, timestampType, headers, KV.of(key, value));
@@ -57,7 +59,7 @@ public class KafkaRecord<K, V> implements Serializable {
       long offset,
       long timestamp,
       KafkaTimestampType timestampType,
-      Headers headers,
+      @Nullable Headers headers,
       KV<K, V> kv) {
     this.topic = topic;
     this.partition = partition;
@@ -110,7 +112,7 @@ public class KafkaRecord<K, V> implements Serializable {
           && partition == other.partition
           && offset == other.offset
           && timestamp == other.timestamp
-          && headers == other.headers
+          && Objects.equal(headers, other.headers)
           && kv.equals(other.kv);
     } else {
       return false;

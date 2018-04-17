@@ -81,7 +81,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
                                         -150_000L,
                                         -120_000L,
                                         -140_000L,
-                                        -100_000L, // <<< Max timestamp
+                                        -100_000L,  // <<< Max timestamp
                                         -110_000L);
     assertThat(getTimestampsForRecords(policy, now, input), is(input));
 
@@ -96,7 +96,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
                              -150_000L,
                              -120_000L,
                              -140_000L,
-                             100_000L, // <<< timestamp is in future
+                              100_000L,  // <<< timestamp is in future
                              -100_000L,
                              -110_000L);
 
