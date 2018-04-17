@@ -72,7 +72,7 @@ func TestParDo(t *testing.T) {
 		&FixedReStream{Buf: makeValues(5, 6)},    // c
 		&FixedReStream{Buf: makeValues(7, 8, 9)}, // d
 	}}
-	n := &FixedRoot{UID: 4, Elements: makeValues(10, 20, 30), Out: pardo}
+	n := &FixedRoot{UID: 4, Elements: makeInput(10, 20, 30), Out: pardo}
 
 	p, err := NewPlan("a", []Unit{n, pardo, out, sum})
 	if err != nil {

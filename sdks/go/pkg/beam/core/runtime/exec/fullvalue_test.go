@@ -22,18 +22,59 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 )
 
+func makeInput(vs ...interface{}) []MainInput {
+	var ret []MainInput
+	for _, v := range makeValues(vs...) {
+		ret = append(ret, MainInput{Key: v})
+	}
+	return ret
+}
+
 func makeValues(vs ...interface{}) []FullValue {
 	var ret []FullValue
 	for _, v := range vs {
-		ret = append(ret, FullValue{Windows: window.SingleGlobalWindow, Timestamp: mtime.ZeroTimestamp, Elm: v})
+		ret = append(ret, FullValue{
+			Windows:   window.SingleGlobalWindow,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       v,
+		})
 	}
 	return ret
+}
+
+func makeKeyedInput(key interface{}, vs ...interface{}) []MainInput {
+	k := FullValue{
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.ZeroTimestamp,
+		Elm:       key,
+	}
+	return []MainInput{{
+		Key:    k,
+		Values: []ReStream{&FixedReStream{Buf: makeValues(vs...)}},
+	}}
+}
+
+func makeKV(k, v interface{}) []FullValue {
+	return []FullValue{{
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.ZeroTimestamp,
+		Elm:       k,
+		Elm2:      v,
+	}}
 }
 
 func extractValues(vs ...FullValue) []interface{} {
 	var ret []interface{}
 	for _, v := range vs {
 		ret = append(ret, v.Elm)
+	}
+	return ret
+}
+
+func extractKeyedValues(vs ...FullValue) []interface{} {
+	var ret []interface{}
+	for _, v := range vs {
+		ret = append(ret, v.Elm2)
 	}
 	return ret
 }

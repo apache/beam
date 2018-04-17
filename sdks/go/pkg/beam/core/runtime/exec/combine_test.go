@@ -37,7 +37,8 @@ func TestCombine(t *testing.T) {
 	}
 
 	g := graph.New()
-	in := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	inT := typex.NewCoGBK(typex.New(reflectx.Int), typex.New(reflectx.Int))
+	in := g.NewNode(inT, window.DefaultWindowingStrategy(), true)
 
 	edge, err := graph.NewCombine(g, g.Root(), fn, in)
 	if err != nil {
@@ -46,7 +47,7 @@ func TestCombine(t *testing.T) {
 
 	out := &CaptureNode{UID: 1}
 	combine := &Combine{UID: 2, Fn: edge.CombineFn, Out: out}
-	n := &FixedRoot{UID: 3, Elements: makeValues(1, 2, 3, 4, 5, 6), Out: combine}
+	n := &FixedRoot{UID: 3, Elements: makeKeyedInput(42, 1, 2, 3, 4, 5, 6), Out: combine}
 
 	p, err := NewPlan("a", []Unit{n, combine, out})
 	if err != nil {
@@ -60,8 +61,8 @@ func TestCombine(t *testing.T) {
 		t.Fatalf("down failed: %v", err)
 	}
 
-	expected := makeValues(21)
+	expected := makeKV(42, 21)
 	if !equalList(out.Elements, expected) {
-		t.Errorf("pardo(sumFn) = %v, want %v", extractValues(out.Elements...), extractValues(expected...))
+		t.Errorf("pardo(sumFn) = %v, want %v", extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 	}
 }
