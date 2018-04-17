@@ -18,6 +18,8 @@ package window
 import (
 	"fmt"
 	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 )
 
 // Kind is the semantic type of a window fn.
@@ -58,6 +60,18 @@ type Fn struct {
 	Size   time.Duration // FixedWindows, SlidingWindows
 	Period time.Duration // SlidingWindows
 	Gap    time.Duration // Sessions
+}
+
+// TODO(herohde) 4/17/2018: do we need to expose the window type as well?
+
+// Coder returns the WindowCoder for the WindowFn.
+func (w *Fn) Coder() *coder.WindowCoder {
+	switch w.Kind {
+	case GlobalWindows:
+		return coder.NewGlobalWindow()
+	default:
+		return coder.NewIntervalWindow()
+	}
 }
 
 func (w *Fn) String() string {

@@ -55,7 +55,7 @@ func (n *Node) Type() typex.FullType {
 }
 
 // WindowingStrategy returns the window applied to the data.
-func (n *Node) Window() *window.WindowingStrategy {
+func (n *Node) WindowingStrategy() *window.WindowingStrategy {
 	return n.w
 }
 

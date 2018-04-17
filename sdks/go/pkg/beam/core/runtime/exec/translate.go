@@ -418,6 +418,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, fmt.Errorf("unexpected payload: %v", tp)
 		}
 
+	case graphx.URNWindow:
+		var wp pb.WindowIntoPayload
+		if err := proto.Unmarshal(payload, &wp); err != nil {
+			return nil, fmt.Errorf("invalid WindowInto payload for %v: %v", transform, err)
+		}
+		wfn, err := unmarshalWindowFn(wp.GetWindowFn().GetSpec())
+		if err != nil {
+			return nil, err
+		}
+		u = &WindowInto{UID: b.idgen.New(), Fn: wfn, Out: out[0]}
+
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
 		if err != nil {

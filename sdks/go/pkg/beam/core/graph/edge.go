@@ -209,8 +209,8 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 		if !n.Coder.Components[0].Equals(c) {
 			return nil, fmt.Errorf("key coder for %v is %v, want %v", n, n.Coder.Components[0], c)
 		}
-		if !w.Equals(n.Window()) {
-			return nil, fmt.Errorf("mismatched cogbk windowing strategies: %v, want %v", n.Window(), w)
+		if !w.Equals(n.WindowingStrategy()) {
+			return nil, fmt.Errorf("mismatched cogbk windowing strategies: %v, want %v", n.WindowingStrategy(), w)
 		}
 		if bounded != n.Bounded() {
 			return nil, fmt.Errorf("unmatched cogbk boundedness: %v, want %v", n.Bounded(), bounded)
@@ -255,8 +255,8 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 		if !typex.IsEqual(t, n.Type()) {
 			return nil, fmt.Errorf("mismatched flatten input types: %v, want %v", n.Type(), t)
 		}
-		if !w.Equals(n.Window()) {
-			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.Window(), w)
+		if !w.Equals(n.WindowingStrategy()) {
+			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.WindowingStrategy(), w)
 		}
 	}
 	if typex.IsCoGBK(t) {
@@ -382,7 +382,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 	edge.CombineFn = u
 	edge.Input = []*Inbound{{Kind: kinds[0], From: in, Type: inbound[0]}}
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i], in.Window(), in.Bounded())
+		n := g.NewNode(out[i], in.WindowingStrategy(), in.Bounded())
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 	return edge, nil
@@ -419,7 +419,7 @@ func inputWindow(in []*Node) *window.WindowingStrategy {
 	if len(in) == 0 {
 		return window.DefaultWindowingStrategy()
 	}
-	return in[0].Window()
+	return in[0].WindowingStrategy()
 }
 
 func inputBounded(in []*Node) bool {
