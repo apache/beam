@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -29,8 +28,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,7 +146,6 @@ class ConsumerSpEL {
         .offsetsForTimes(ImmutableMap.of(topicPartition, time.getMillis()))
         .values());
 
-
     if (offsetAndTimestamp == null) {
       throw new RuntimeException("There are no messages has a timestamp that is greater than or "
           + "equals to the target time or the message format version in this partition is "
@@ -160,12 +156,9 @@ class ConsumerSpEL {
   }
 
   public Headers getHeaders(ConsumerRecord<byte[], byte[]> rawRecord) {
-    Headers recordHeaders = new RecordHeaders();
     if (hasHeaders) {
-      Arrays.stream(rawRecord.headers().toArray())
-          .forEach(
-              header -> recordHeaders.add(new RecordHeader(header.key(), header.value())));
+      return rawRecord.headers();
     }
-    return recordHeaders;
+    return null;
   }
 }

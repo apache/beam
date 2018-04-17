@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -81,12 +82,20 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   private Headers getHeaders(Iterable<KV<String, byte[]>> records) {
+    if (!records.iterator().hasNext()){
+      return null;
+    }
+
     Headers headers = new RecordHeaders();
     records.forEach(kv -> headers.add(new RecordHeader(kv.getKey(), kv.getValue())));
     return headers;
   }
 
   private Iterable<KV<String, byte[]>> getIterable(Headers headers) {
+    if (headers == null){
+      return Collections.emptyList();
+    }
+
     List<KV<String, byte[]>> vals = new ArrayList<>();
     for (Header header : headers) {
       vals.add(KV.of(header.key(), header.value()));
