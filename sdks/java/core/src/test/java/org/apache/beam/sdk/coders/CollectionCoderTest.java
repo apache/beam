@@ -93,6 +93,7 @@ public class CollectionCoderTest {
     CoderProperties.coderSerializable(CollectionCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
+  @Test
   public void testEncodedTypeDescriptor() throws Exception {
     TypeDescriptor<Collection<Integer>> expectedTypeDescriptor =
         new TypeDescriptor<Collection<Integer>>() {};
