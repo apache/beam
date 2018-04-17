@@ -130,7 +130,7 @@ public class BeamSqlParserTest {
     assertTrue(sqlNode instanceof SqlDropTable);
     SqlDropTable stmt = (SqlDropTable) sqlNode;
     assertNotNull(stmt);
-    assertEquals("person", stmt.tableName());
+    assertEquals("person", stmt.getNameSimple());
   }
 
   private Table parseTable(String sql) throws Exception {
@@ -140,7 +140,7 @@ public class BeamSqlParserTest {
     assertNotNull(sqlNode);
     assertTrue(sqlNode instanceof SqlCreateTable);
     SqlCreateTable stmt = (SqlCreateTable) sqlNode;
-    return ParserUtils.convertCreateTableStmtToTable(stmt);
+    return stmt.toTable();
   }
 
   private static Table mockTable(String name, String type, String comment, JSONObject properties) {
@@ -159,13 +159,13 @@ public class BeamSqlParserTest {
             Column.builder()
                 .name("id")
                 .fieldType(TypeName.INT32.type())
-                .primaryKey(false)
+                .nullable(true)
                 .comment("id")
                 .build(),
             Column.builder()
                 .name("name")
                 .fieldType(RowSqlTypes.VARCHAR)
-                .primaryKey(false)
+                .nullable(true)
                 .comment("name")
                 .build()
         ))
