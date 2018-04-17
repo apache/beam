@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -64,13 +61,13 @@ import org.apache.calcite.schema.impl.ScalarFunctionImpl;
  * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
  * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class BeamSqlEnv implements Serializable {
-  transient CalciteSchema schema;
-  transient BeamQueryPlanner planner;
+public class BeamSqlEnv {
+  final CalciteSchema schema;
+  final BeamQueryPlanner planner;
 
   public BeamSqlEnv() {
     schema = CalciteSchema.createRootSchema(true);
-    planner = new BeamQueryPlanner(this, schema.plus());
+    planner = new BeamQueryPlanner(schema.plus());
   }
 
   /**
@@ -196,12 +193,5 @@ public class BeamSqlEnv implements Serializable {
 
   public BeamQueryPlanner getPlanner() {
     return planner;
-  }
-
-  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-
-    schema = CalciteSchema.createRootSchema(true);
-    planner = new BeamQueryPlanner(this, schema.plus());
   }
 }

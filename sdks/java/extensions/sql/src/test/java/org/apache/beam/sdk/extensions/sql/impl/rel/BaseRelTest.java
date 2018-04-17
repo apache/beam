@@ -29,6 +29,6 @@ import org.apache.beam.sdk.values.Row;
 public class BaseRelTest {
   public PCollection<Row> compilePipeline (
       String sql, Pipeline pipeline, BeamSqlEnv sqlEnv) throws Exception {
-    return sqlEnv.getPlanner().compileBeamPipeline(sql, pipeline, sqlEnv);
+    return sqlEnv.getPlanner().compileBeamPipeline(sql, pipeline);
   }
 }
