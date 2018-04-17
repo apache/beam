@@ -28,9 +28,9 @@ dependencies {
 }
 
 task runQuickstartsJava {
-  dependsOn ":beam-runners-direct-java:runQuickstartJavaDirect"
-  dependsOn ":beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow"
-  dependsOn ":beam-runners-apex:runQuickstartJavaApex"
+//  dependsOn ":beam-runners-direct-java:runQuickstartJavaDirect"
+//  dependsOn ":beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow"
+//  dependsOn ":beam-runners-apex:runQuickstartJavaApex"
   dependsOn ":beam-runners-spark:runQuickstartJavaSpark"
-  dependsOn ":beam-runners-flink_2.11:runQuickstartJavaFlinkLocal"
+//  dependsOn ":beam-runners-flink_2.11:runQuickstartJavaFlinkLocal"
 }

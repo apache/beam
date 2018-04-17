@@ -999,7 +999,7 @@ ext.createJavaQuickstartValidationTask = {
   def taskName = "runQuickstartJava${config.name}"
   println "Generating :${taskName}"
   def releaseVersion = project.findProperty('ver') ?: version
-  def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+  def releaseRepo = project.findProperty('repourl') ?: 'https://github.com/yifanzou/beam/tree/fix_Java_PostRelease'
   def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"]
   if (config.gcpProject) {
     argsNeeded.add("--gcpProject=${config.gcpProject}")
