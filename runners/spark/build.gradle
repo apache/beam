@@ -53,7 +53,6 @@ test {
   useJUnit {
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
     excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
   }
 }
 
@@ -132,6 +131,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
   }
 }
 
