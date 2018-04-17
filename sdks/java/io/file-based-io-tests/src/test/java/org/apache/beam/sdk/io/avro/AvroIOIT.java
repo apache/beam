@@ -60,7 +60,8 @@ import org.junit.runners.JUnit4;
  *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
- * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)

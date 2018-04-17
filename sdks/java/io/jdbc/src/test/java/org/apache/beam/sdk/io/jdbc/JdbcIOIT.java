@@ -58,6 +58,8 @@ import org.postgresql.ds.PGSimpleDataSource;
  *  -DintegrationTestRunner=direct
  * </pre>
  *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
