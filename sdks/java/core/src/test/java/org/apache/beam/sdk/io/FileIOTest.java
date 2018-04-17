@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
+import static java.lang.Integer.parseInt;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
+import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.sdk.transforms.Watch.Growth.afterTotalOf;
 import static org.hamcrest.Matchers.isA;
+import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -37,16 +41,21 @@ import java.util.List;
 import java.util.zip.GZIPOutputStream;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Reify;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -134,6 +143,36 @@ public class FileIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testMatchWithTimestamp() throws IOException {
+    Path firstPath = tmpFolder.newFile("1").toPath();
+    Path secondPath = tmpFolder.newFile("2").toPath();
+    int firstSize = 37;
+    int secondSize = 42;
+    Files.write(firstPath, new byte[firstSize]);
+    Files.write(secondPath, new byte[secondSize]);
+
+    Instant now = Instant.now();
+
+    SerializableFunction<Metadata, Instant> timestampFn =
+        m -> now.plus(standardSeconds(parseInt(m.resourceId().getFilename())));
+    PAssert.that(
+            p.apply(
+                    "Match existing",
+                    FileIO.match()
+                        .filepattern(tmpFolder.getRoot().getAbsolutePath() + "/*")
+                        .continuously(standardSeconds(1), afterTotalOf(standardSeconds(1)))
+                        .withTimestampFn(fn(timestampFn))
+                        .withWatermarkFn(fn(ignored -> now.plus(standardSeconds(10)))))
+                .apply(Reify.timestamps()))
+        .containsInAnyOrder(
+            TimestampedValue.of(metadata(firstPath, firstSize), now.plus(standardSeconds(1))),
+            TimestampedValue.of(metadata(secondPath, secondSize), now.plus(standardSeconds(2))));
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testMatchDisallowEmptyDefault() throws IOException {
     p.apply("Match", FileIO.match().filepattern(tmpFolder.getRoot().getAbsolutePath() + "/*"));
 
@@ -194,14 +233,14 @@ public class FileIOTest implements Serializable {
                 .filepattern(basePath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                    Watch.Growth.afterTimeSinceNewOutput(standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply(Create.of(basePath.resolve("*").toString()))
             .apply(
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                        Watch.Growth.afterTimeSinceNewOutput(standardSeconds(3))));
 
     Thread writer =
         new Thread(
