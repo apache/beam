@@ -121,7 +121,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 benchmarks               : 'beam_integration_benchmark',
                 beam_it_timeout          : '1200',
                 beam_it_profile          : 'io-it',
-                beam_prebuilt            : 'true',
+                beam_prebuilt            : 'false',
                 beam_sdk                 : 'java',
                 beam_it_module           : 'sdks/java/io/file-based-io-tests',
                 beam_it_class            : testConfiguration.itClass,
