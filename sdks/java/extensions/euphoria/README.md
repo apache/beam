@@ -73,8 +73,14 @@ MapElements.named("FORMAT")
     .persist(dataSink);
 
 // Initialize an executor and run the flow (using Apache Flink)
-Executor executor = new FlinkExecutor();
-executor.submit(flow).get();
+try {
+  Executor executor = new FlinkExecutor();
+  executor.submit(flow).get();
+} catch (InterruptedException ex) {
+  LOG.warn("Interrupted while waiting for the flow to finish.", ex);
+} catch (IOException | ExecutionException ex) {
+  throw new RuntimeException(ex);
+}
 ```
 
 ## Supported Engines
