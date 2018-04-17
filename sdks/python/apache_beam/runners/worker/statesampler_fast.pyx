@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# cython: profile=True
+# cython: profile=False
 
 """State sampler for tracking time spent in execution steps.
 

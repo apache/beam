@@ -25,7 +25,7 @@ This module is experimental. No backwards-compatibility guarantees.
 # editing this file as WindowedValues are created for every element for
 # every step in a Beam pipeline.
 
-#cython: profile=True
+#cython: profile=False
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
