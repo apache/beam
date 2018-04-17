@@ -50,7 +50,7 @@ job('beam_PerformanceTests_MongoDBIO_IT') {
             beam_it_timeout         : '1800',
             benchmarks              : 'beam_integration_benchmark',
             beam_it_profile         : 'io-it',
-            beam_prebuilt           : 'true',
+            beam_prebuilt           : 'false',
             beam_sdk                : 'java',
             beam_it_module          : 'sdks/java/io/mongodb',
             beam_it_class           : 'org.apache.beam.sdk.io.mongodb.MongoDBIOIT',
