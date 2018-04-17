@@ -66,8 +66,8 @@ func (n *Inject) ProcessElement(ctx context.Context, elm FullValue, values ...Re
 			Elm2: buf.Bytes(),
 		},
 		Timestamp: elm.Timestamp,
+		Windows:   elm.Windows,
 	}
-
 	return n.Out.ProcessElement(ctx, v, values...)
 }
 
@@ -166,6 +166,7 @@ func (f *filterStream) Read() (FullValue, error) {
 			return FullValue{}, fmt.Errorf("failed to decode union value '%v' for key %v: %v", value, key, err)
 		}
 		v.Timestamp = elm.Timestamp
+		v.Windows = elm.Windows
 		return v, nil
 	}
 }

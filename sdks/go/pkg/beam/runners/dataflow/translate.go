@@ -235,7 +235,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	gbkID := fmt.Sprintf("%v_expand", edge.ID())
 	gbkOut := newOutputReference(gbkID, "out")
 
-	w := edge.Input[0].From.Window()
+	w := edge.Input[0].From.WindowingStrategy()
 	sfn, err := encodeSerializedFn(translateWindowingStrategy(w))
 	if err != nil {
 		return nil, err
@@ -346,7 +346,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		}, nil
 
 	case graph.CoGBK:
-		w := edge.Input[0].From.Window()
+		w := edge.Input[0].From.WindowingStrategy()
 		sfn, err := encodeSerializedFn(translateWindowingStrategy(w))
 		if err != nil {
 			return "", properties{}, err

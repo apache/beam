@@ -132,7 +132,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 // mustExplodeWindows returns true iif we need to call the function
 // for each window.
 func mustExplodeWindows(fn *funcx.Fn, elm FullValue) bool {
-	if len(elm.Windows) == 1 {
+	if len(elm.Windows) < 2 {
 		return false
 	}
 	_, explode := fn.Window()

@@ -271,6 +271,9 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 			b.links[linkID{edge.ID(), i}] = u
 		}
 
+	case graph.WindowInto:
+		u = &exec.WindowInto{UID: b.idgen.New(), Fn: edge.WindowFn, Out: out[0]}
+
 	default:
 		return nil, fmt.Errorf("unexpected edge: %v", edge)
 	}

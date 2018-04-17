@@ -22,12 +22,12 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/examples/windowed_wordcount/wordcount"
 	"time"
 	"math/rand"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/examples/windowed_wordcount/wordcount"
 )
 
 var (
@@ -57,7 +57,8 @@ func (f *addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
 
 // formatFn is a DoFn that formats a windowed word and its count as a string.
 func formatFn(iw beam.Window, et beam.EventTime, w string, c int) string {
-	return fmt.Sprintf("%v@%v %s: %v", et, iw, w, c)
+	s:= fmt.Sprintf("%v@%v %s: %v", et, iw, w, c)
+	return s
 }
 
 func main() {
@@ -67,7 +68,7 @@ func main() {
 	ctx := context.Background()
 
 	if *output == "" {
-		log.Fatal(ctx, "No output provided")
+		log.Exit(ctx, "No output provided")
 	}
 
 	p := beam.NewPipeline()
@@ -78,9 +79,9 @@ func main() {
 	lines := textio.Read(s, *input)
 
 	// Concept #2: Add an element timestamp, using an artificial time just to show windowing.
-	timestampedLines := beam.ParDo(s, addTimestampFn{Min: mtime.Now()}, lines)
+	timestampedLines := beam.ParDo(s, &addTimestampFn{Min: mtime.Now()}, lines)
 
-	// Concept #3: Window into fixed windows. The fixed window size for this example is 1
+	// Concept #3: WindowingStrategy into fixed windows. The fixed window size for this example is 1
 	// minute. See the documentation for more information on how fixed windows work, and
 	// for information on the other types of windowing available (e.g., sliding windows).
 	windowedLines := beam.WindowInto(s, window.NewFixedWindows(time.Minute), timestampedLines)
@@ -98,6 +99,6 @@ func main() {
 	textio.Write(s, *output, merged)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf(ctx, "Failed to execute job: %v", err)
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

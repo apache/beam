@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 )
 
@@ -42,9 +44,11 @@ func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataMana
 }
 
 func (n *Impulse) Process(ctx context.Context) error {
-	value := exec.FullValue{Elm: n.Value}
-	// TODO(herohde) 6/23/2017: set value.Timestamp
-
+	value := exec.FullValue{
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.Now(),
+		Elm:       n.Value,
+	}
 	return n.Out.ProcessElement(ctx, value)
 }
 

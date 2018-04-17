@@ -352,7 +352,7 @@ func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {
 		UniqueName:          id,
 		CoderId:             cid,
 		IsBounded:           boolToBounded(n.Bounded()),
-		WindowingStrategyId: m.addWindowingStrategy(n.Window()),
+		WindowingStrategyId: m.addWindowingStrategy(n.WindowingStrategy()),
 	}
 	m.pcollections[id] = col
 	return id
