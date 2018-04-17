@@ -15,7 +15,7 @@ When you run your pipeline locally, the packages that your pipeline depends on a
 
 ## PyPI Dependencies {#pypi-dependencies}
 
-If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/pypi), make these packages available remotely by performing the following steps:
+If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/), make these packages available remotely by performing the following steps:
 
 **Note:** If your PyPI package depends on a non-Python package (e.g. a package that requires installation on Linux using the `apt-get install` command), see the [PyPI Dependencies with Non-Python Dependencies](#nonpython) section instead.
 
