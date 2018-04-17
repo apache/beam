@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -47,7 +48,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
         Instant result = policy.getTimestampForRecord(
           null, new KafkaRecord<>("topic", 0, 0, now.getMillis() + ts,
                                       KafkaTimestampType.CREATE_TIME,
-                                      new KafkaRecordHeaders(),
+                                      new RecordHeaders(),
                                       "key", "value"));
         return result.getMillis() - now.getMillis();
       })

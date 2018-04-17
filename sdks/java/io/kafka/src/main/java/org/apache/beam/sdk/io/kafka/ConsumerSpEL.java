@@ -28,6 +28,9 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -156,14 +159,13 @@ class ConsumerSpEL {
     }
   }
 
-  public KafkaHeaders getHeaders(ConsumerRecord<byte[], byte[]> rawRecord) {
-    KafkaHeaders recordHeaders = new KafkaRecordHeaders();
+  public Headers getHeaders(ConsumerRecord<byte[], byte[]> rawRecord) {
+    Headers recordHeaders = new RecordHeaders();
     if (hasHeaders) {
       Arrays.stream(rawRecord.headers().toArray())
           .forEach(
-              header -> recordHeaders.add(new KafkaRecordHeader(header.key(), header.value())));
+              header -> recordHeaders.add(new RecordHeader(header.key(), header.value())));
     }
-    // Return an empty array of records for older messages without headers
     return recordHeaders;
   }
 }

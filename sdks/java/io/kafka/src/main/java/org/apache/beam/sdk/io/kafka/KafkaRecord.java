@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.sdk.values.KV;
+import org.apache.kafka.common.header.Headers;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,
@@ -33,7 +34,7 @@ public class KafkaRecord<K, V> implements Serializable {
   private final String topic;
   private final int partition;
   private final long offset;
-  private final KafkaHeaders headers;
+  private final Headers headers;
   private final KV<K, V> kv;
   private final long timestamp;
   private final KafkaTimestampType timestampType;
@@ -44,7 +45,7 @@ public class KafkaRecord<K, V> implements Serializable {
       long offset,
       long timestamp,
       KafkaTimestampType timestampType,
-      KafkaHeaders headers,
+      Headers headers,
       K key,
       V value) {
     this(topic, partition, offset, timestamp, timestampType, headers, KV.of(key, value));
@@ -56,7 +57,7 @@ public class KafkaRecord<K, V> implements Serializable {
       long offset,
       long timestamp,
       KafkaTimestampType timestampType,
-      KafkaHeaders headers,
+      Headers headers,
       KV<K, V> kv) {
     this.topic = topic;
     this.partition = partition;
@@ -79,7 +80,7 @@ public class KafkaRecord<K, V> implements Serializable {
     return offset;
   }
 
-  public KafkaHeaders getHeaders() {
+  public Headers getHeaders() {
     return headers;
   }
 
