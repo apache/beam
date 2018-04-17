@@ -24,6 +24,8 @@ applyJavaNature(
   shadowClosure: {
     dependencies {
       exclude(".*")
+      // Exclude netty due to conflict with spark runner, see [BEAM-3519].
+      exclude("io/netty/**")
     }
   })
 
