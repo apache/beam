@@ -38,7 +38,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -111,7 +110,6 @@ public class XmlIOIT {
           .withPrefix("birds")
           .withSuffix(".xml"))
       .getPerDestinationOutputFilenames()
-      .apply("Prevent fusion", Reshuffle.viaRandomKey())
       .apply("Get file names", Values.create());
 
     PCollection<Bird> birds = testFileNames
