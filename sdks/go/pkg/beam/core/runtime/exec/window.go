@@ -13,26 +13,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package window contains window representation, windowing strategies and utilities.
-package window
-
-// WindowingStrategy defines the types of windowing used in a pipeline and contains
-// the data to support executing a windowing strategy.
-type WindowingStrategy struct {
-	Fn *Fn
-
-	// TODO(BEAM-3304): trigger support
-}
-
-func (ws *WindowingStrategy) Equals(o *WindowingStrategy) bool {
-	return ws.Fn.Equals(o.Fn)
-}
-
-func (ws *WindowingStrategy) String() string {
-	return ws.Fn.String()
-}
-
-// DefaultWindowingStrategy returns the default windowing strategy.
-func DefaultWindowingStrategy() *WindowingStrategy {
-	return &WindowingStrategy{Fn: NewGlobalWindows()}
-}
+package exec

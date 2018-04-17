@@ -20,9 +20,10 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -276,42 +277,135 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 
 }
 
-// TODO(herohde) 4/7/2017: actually handle windows.
+// WindowEncoder handles Window serialization to a byte stream. The encoder
+// can be reused, even if an error is encountered.
+type WindowEncoder interface {
+	// Encode serializes the given value to the writer.
+	Encode([]typex.Window, io.Writer) error
+}
+
+// WindowDecoder handles Window deserialization from a byte stream. The decoder
+// can be reused, even if an error is encountered.
+type WindowDecoder interface {
+	// Decode deserializes a value from the given reader.
+	Decode(io.Reader) ([]typex.Window, error)
+}
+
+// MakeWindowEncoder returns a WindowEncoder for the given window coder.
+func MakeWindowEncoder(c *coder.WindowCoder) WindowEncoder {
+	switch c.Kind {
+	case coder.GlobalWindow:
+		return &globalWindowEncoder{}
+
+	case coder.IntervalWindow:
+		return &intervalWindowEncoder{}
+
+	default:
+		panic(fmt.Sprintf("Unexpected window coder: %v", c))
+	}
+}
+
+// MakeWindowDecoder returns a WindowDecoder for the given window coder.
+func MakeWindowDecoder(c *coder.WindowCoder) WindowDecoder {
+	switch c.Kind {
+	case coder.GlobalWindow:
+		return &globalWindowDecoder{}
+
+	case coder.IntervalWindow:
+		return &intervalWindowDecoder{}
+
+	default:
+		panic(fmt.Sprintf("Unexpected window coder: %v", c))
+	}
+}
+
+type globalWindowEncoder struct{}
+
+func (*globalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
+	// GlobalWindow encodes into the empty string.
+	return coder.EncodeInt32(1, w) // #windows
+}
+
+type globalWindowDecoder struct{}
+
+func (*globalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
+	_, err := coder.DecodeInt32(r) // #windows
+	return window.SingleGlobalWindow, err
+}
+
+type intervalWindowEncoder struct{}
+
+func (*intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
+	// Encoding: upper bound and duration
+
+	if err := coder.EncodeInt32(int32(len(ws)), w); err != nil { // #windows
+		return err
+	}
+	for _, elm := range ws {
+		iw := elm.(window.InternalWindow)
+		if err := coder.EncodeEventTime(iw.End, w); err != nil {
+			return err
+		}
+		duration := iw.End.Milliseconds() - iw.Start.Milliseconds()
+		if err := coder.EncodeVarUint64(uint64(duration), w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type intervalWindowDecoder struct{}
+
+func (*intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
+	// Encoding: upper bound and duration
+
+	n, err := coder.DecodeInt32(r) // #windows
+
+	ret := make([]typex.Window, n, n)
+	for i := int32(0); i < n; i++ {
+		end, err := coder.DecodeEventTime(r)
+		if err != nil {
+			return nil, err
+		}
+		duration, err := coder.DecodeVarUint64(r)
+		if err != nil {
+			return nil, err
+		}
+		ret[i] = window.InternalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}
+	}
+	return ret, err
+}
 
 // EncodeWindowedValueHeader serializes a windowed value header.
-func EncodeWindowedValueHeader(t typex.EventTime, w io.Writer) error {
+func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.EventTime, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
-	if (time.Time)(t).IsZero() {
-		t = typex.EventTime(time.Now())
-	}
 	if err := coder.EncodeEventTime(t, w); err != nil {
 		return err
 	}
-	if err := coder.EncodeInt32(1, w); err != nil { // #windows
+	if err := enc.Encode(ws, w); err != nil {
 		return err
 	}
-	// Ignore GlobalWindow, for now. It encoded into the empty string.
-
 	_, err := w.Write([]byte{0xf}) // NO_FIRING pane
 	return err
 }
 
 // DecodeWindowedValueHeader deserializes a windowed value header.
-func DecodeWindowedValueHeader(r io.Reader) (typex.EventTime, error) {
+func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, typex.EventTime, error) {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
 	t, err := coder.DecodeEventTime(r)
 	if err != nil {
-		return typex.EventTime(time.Time{}), err
+		return nil, mtime.ZeroTimestamp, err
 	}
-	if _, err := coder.DecodeInt32(r); err != nil { // #windows
-		return typex.EventTime(time.Time{}), err
+	ws, err := dec.Decode(r)
+	if err != nil {
+		return nil, mtime.ZeroTimestamp, err
 	}
 	if _, err := ioutilx.ReadN(r, 1); err != nil { // NO_FIRING pane
-		return typex.EventTime(time.Time{}), err
+		return nil, mtime.ZeroTimestamp, err
 	}
-	return t, nil
+	return ws, t, nil
 }
 
 func convertIfNeeded(v interface{}) FullValue {

@@ -146,11 +146,11 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op        Opcode
-	DoFn      *DoFn                     // ParDo
-	CombineFn *CombineFn                // Combine
-	Value     []byte                    // Impulse
-	Payload   *Payload                  // External
-	Windowing *window.WindowingStrategy // WindowInto
+	DoFn      *DoFn      // ParDo
+	CombineFn *CombineFn // Combine
+	Value     []byte     // Impulse
+	Payload   *Payload   // External
+	WindowFn  *window.Fn // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -210,7 +210,7 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 			return nil, fmt.Errorf("key coder for %v is %v, want %v", n, n.Coder.Components[0], c)
 		}
 		if !w.Equals(n.Window()) {
-			return nil, fmt.Errorf("mismatched cogbk window types: %v, want %v", n.Window(), w)
+			return nil, fmt.Errorf("mismatched cogbk windowing strategies: %v, want %v", n.Window(), w)
 		}
 		if bounded != n.Bounded() {
 			return nil, fmt.Errorf("unmatched cogbk boundedness: %v, want %v", n.Bounded(), bounded)
@@ -393,8 +393,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 // built-in bytes coder.
 func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	ft := typex.New(reflectx.ByteSlice)
-	w := window.NewGlobalWindows()
-	n := g.NewNode(ft, w, true)
+	n := g.NewNode(ft, window.DefaultWindowingStrategy(), true)
 	n.Coder = coder.NewBytes()
 
 	edge := g.NewEdge(s)
@@ -405,13 +404,13 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 }
 
 // NewWindowInto inserts a new WindowInto edge into the graph.
-func NewWindowInto(g *Graph, s *Scope, w *window.WindowingStrategy, in *Node) *MultiEdge {
-	n := g.NewNode(in.Type(), w, in.Bounded())
+func NewWindowInto(g *Graph, s *Scope, wfn *window.Fn, in *Node) *MultiEdge {
+	n := g.NewNode(in.Type(), &window.WindowingStrategy{Fn: wfn}, in.Bounded())
 	n.Coder = in.Coder
 
 	edge := g.NewEdge(s)
 	edge.Op = WindowInto
-	edge.Windowing = w
+	edge.WindowFn = wfn
 	edge.Input = []*Inbound{{Kind: Main, From: in, Type: in.Type()}}
 	edge.Output = []*Outbound{{To: n, Type: in.Type()}}
 	return edge
@@ -419,7 +418,7 @@ func NewWindowInto(g *Graph, s *Scope, w *window.WindowingStrategy, in *Node) *M
 
 func inputWindow(in []*Node) *window.WindowingStrategy {
 	if len(in) == 0 {
-		return window.NewGlobalWindows()
+		return window.DefaultWindowingStrategy()
 	}
 	return in[0].Window()
 }

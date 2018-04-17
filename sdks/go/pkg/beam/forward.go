@@ -82,6 +82,7 @@ type Y = typex.Y
 type Z = typex.Z
 
 type EventTime = typex.EventTime
+type Window = typex.Window
 
 var TType = typex.TType
 var UType = typex.UType

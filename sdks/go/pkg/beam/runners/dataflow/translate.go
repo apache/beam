@@ -20,11 +20,10 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
@@ -320,7 +319,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		// URL Query-escaped windowed _unnested_ value. It is read back in
 		// a nested context at runtime.
 		var buf bytes.Buffer
-		if err := exec.EncodeWindowedValueHeader(beam.EventTime(time.Now()), &buf); err != nil {
+		if err := exec.EncodeWindowedValueHeader(exec.MakeWindowEncoder(coder.NewGlobalWindow()), window.SingleGlobalWindow, mtime.ZeroTimestamp, &buf); err != nil {
 			return "", properties{}, err
 		}
 		value := string(append(buf.Bytes(), edge.Value...))

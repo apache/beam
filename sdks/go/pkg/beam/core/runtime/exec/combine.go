@@ -24,10 +24,14 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
+
+// TODO(herohde) 4/16/2018: all combines are per-key. Simplify code below.
 
 // Combine is a Combine executor. Combiners do not have side inputs (or output).
 type Combine struct {
@@ -55,7 +59,7 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := Invoke(ctx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -126,12 +130,12 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 		if err != nil {
 			return n.fail(err)
 		}
-		return n.Out.ProcessElement(ctx, FullValue{Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
+		return n.Out.ProcessElement(ctx, FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
 	}
 
 	// Accumulate globally
 
-	a, err := n.addInput(ctx, n.accum, reflect.Value{}, value.Elm, value.Timestamp, n.first)
+	a, err := n.addInput(ctx, n.accum, nil, value.Elm, value.Timestamp, n.first)
 	if err != nil {
 		return n.fail(err)
 	}
@@ -151,8 +155,8 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 		if err != nil {
 			return n.fail(err)
 		}
-		// TODO(herohde) 6/1/2017: populate FullValue.Timestamp
-		if err := n.Out.ProcessElement(ctx, FullValue{Elm: out}); err != nil {
+		// TODO(herohde) 6/1/2017: populate Windows and timestamp
+		if err := n.Out.ProcessElement(ctx, FullValue{Windows: window.SingleGlobalWindow, Timestamp: mtime.ZeroTimestamp, Elm: out}); err != nil {
 			return n.fail(err)
 		}
 	}
@@ -169,7 +173,7 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := Invoke(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -186,7 +190,7 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
-	val, err := Invoke(ctx, fn, opt)
+	val, err := InvokeWithoutEventTime(ctx, fn, opt)
 	if err != nil {
 		return nil, fmt.Errorf("CreateAccumulator failed: %v", err)
 	}
@@ -225,7 +229,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	}
 	v := Convert(value, fn.Param[i].T)
 
-	val, err := Invoke(ctx, n.Fn.AddInputFn(), opt, v)
+	val, err := InvokeWithoutEventTime(ctx, n.Fn.AddInputFn(), opt, v)
 	if err != nil {
 		return nil, n.fail(fmt.Errorf("AddInput failed: %v", err))
 	}
@@ -239,7 +243,7 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 		return accum, nil
 	}
 
-	val, err := Invoke(ctx, n.Fn.ExtractOutputFn(), nil, accum)
+	val, err := InvokeWithoutEventTime(ctx, n.Fn.ExtractOutputFn(), nil, accum)
 	if err != nil {
 		return nil, n.fail(fmt.Errorf("ExtractOutput failed: %v", err))
 	}

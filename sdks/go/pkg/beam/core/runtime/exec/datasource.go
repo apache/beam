@@ -64,13 +64,15 @@ func (n *DataSource) Process(ctx context.Context) error {
 	defer r.Close()
 
 	c := coder.SkipW(n.Coder)
+	wc := MakeWindowDecoder(n.Coder.Window)
+
 	switch {
 	case coder.IsCoGBK(c):
 		ck := MakeElementDecoder(c.Components[0])
 		cv := MakeElementDecoder(c.Components[1])
 
 		for {
-			t, err := DecodeWindowedValueHeader(r)
+			ws, t, err := DecodeWindowedValueHeader(wc, r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -85,6 +87,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
 			key.Timestamp = t
+			key.Windows = ws
 
 			// TODO(herohde) 4/30/2017: the State API will be handle re-iterations
 			// and only "small" value streams would be inline. Presumably, that
@@ -147,7 +150,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 		for {
 			atomic.AddInt64(&n.count, 1)
-			t, err := DecodeWindowedValueHeader(r)
+			ws, t, err := DecodeWindowedValueHeader(wc, r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -160,6 +163,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
 			elm.Timestamp = t
+			elm.Windows = ws
 
 			// log.Printf("READ: %v %v", elm.Key.Type(), elm.Key.Interface())
 

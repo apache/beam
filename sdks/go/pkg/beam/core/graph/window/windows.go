@@ -17,28 +17,21 @@ package window
 
 import (
 	"fmt"
-	"math"
-	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 var (
-	// TODO(herohde) 4/13/2018: make these limits align with the Beam spec.
-	// Consider making EventTime a int64 micros and provide helpers to convert
-	// from/to time.Time.
-
-	MinEventTime = typex.EventTime(time.Unix(0, math.MaxInt64))
-	MaxEventTime = typex.EventTime(time.Unix(0, math.MaxInt64))
-
-	dayBeforeMax = typex.EventTime(time.Time(MaxEventTime).Add(-24 * time.Hour))
+	// SingleGlobalWindow is a slice of a single global window. Convenience value.
+	SingleGlobalWindow = []typex.Window{GlobalWindow{}}
 )
 
 // GlobalWindow represents the singleton, global window.
 type GlobalWindow struct{}
 
 func (GlobalWindow) MaxTimestamp() typex.EventTime {
-	return dayBeforeMax
+	return mtime.EndOfGlobalWindowTime
 }
 
 func (GlobalWindow) Equals(o typex.Window) bool {
@@ -56,7 +49,7 @@ type InternalWindow struct {
 }
 
 func (w InternalWindow) MaxTimestamp() typex.EventTime {
-	return w.End // TODO: -1 micro
+	return typex.EventTime(mtime.Time(w.End).Milliseconds() - 1)
 }
 
 func (w InternalWindow) Equals(o typex.Window) bool {

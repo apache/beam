@@ -69,14 +69,18 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			}
 
 			if cid == "" {
-				u.Coder, err = b.makeCoderForPCollection(pid)
+				c, wc, err := b.makeCoderForPCollection(pid)
 				if err != nil {
 					return nil, err
 				}
+				u.Coder = coder.NewW(c, wc)
 			} else {
 				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
 				if err != nil {
 					return nil, err
+				}
+				if !coder.IsW(u.Coder) {
+					return nil, fmt.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
 				}
 			}
 		}
@@ -158,15 +162,16 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	if !ok {
 		return nil, fmt.Errorf("windowing strategy %v not found", id)
 	}
-	w, err := unmarshalWindowingStrategy(ws.GetWindowFn().GetSpec())
+	wfn, err := unmarshalWindowFn(ws.GetWindowFn().GetSpec())
 	if err != nil {
 		return nil, err
 	}
+	w := &window.WindowingStrategy{Fn: wfn}
 	b.windowing[id] = w
 	return w, nil
 }
 
-func unmarshalWindowingStrategy(wfn *pb.FunctionSpec) (*window.WindowingStrategy, error) {
+func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 	switch urn := wfn.GetUrn(); urn {
 	case graphx.URNGlobalWindowsWindowFn:
 		return window.NewGlobalWindows(), nil
@@ -225,17 +230,26 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 	return ret, nil
 }
 
-func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, error) {
+func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.WindowCoder, error) {
 	col, ok := b.desc.GetPcollections()[id]
 	if !ok {
-		return nil, fmt.Errorf("pcollection %v not found", id)
+		return nil, nil, fmt.Errorf("pcollection %v not found", id)
 	}
 	c, err := b.coders.Coder(col.CoderId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	ws, ok := b.desc.GetWindowingStrategies()[col.GetWindowingStrategyId()]
+	if !ok {
+		return nil, nil, fmt.Errorf("windowing strategy %v not found", id)
+	}
+	wc, err := b.coders.WindowCoder(ws.GetWindowCoderId())
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
-	return coder.SkipW(c), nil
+	return coder.SkipW(c), wc, nil
 }
 
 func (b *builder) makePCollection(id string) (Node, error) {
@@ -367,7 +381,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
 				// instead of inferring it here?
 
-				c, err := b.makeCoderForPCollection(from)
+				c, _, err := b.makeCoderForPCollection(from)
 				if err != nil {
 					return nil, err
 				}
@@ -382,7 +396,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 
 		case graphx.URNInject:
-			c, err := b.makeCoderForPCollection(from)
+			c, _, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
@@ -396,7 +410,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, id := range transform.GetOutputs() {
 				pid = id
 			}
-			c, err := b.makeCoderForPCollection(pid)
+			c, _, err := b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
@@ -426,14 +440,18 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			sink.Target = Target{ID: id.to, Name: key}
 
 			if cid == "" {
-				sink.Coder, err = b.makeCoderForPCollection(pid)
+				c, wc, err := b.makeCoderForPCollection(pid)
 				if err != nil {
 					return nil, err
 				}
+				sink.Coder = coder.NewW(c, wc)
 			} else {
 				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
 				if err != nil {
 					return nil, err
+				}
+				if !coder.IsW(sink.Coder) {
+					return nil, fmt.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 				}
 			}
 		}

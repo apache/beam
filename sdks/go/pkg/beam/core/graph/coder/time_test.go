@@ -18,32 +18,25 @@ package coder
 import (
 	"bytes"
 	"testing"
-	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 )
 
 func TestEncodeDecodeEventTime(t *testing.T) {
 	tests := []struct {
-		time        time.Time
-		errExpected bool
+		time mtime.Time
 	}{
-		{time: time.Unix(0, 0)},
-		{time: time.Unix(10, 0)},
-		{time: time.Unix(1257894000, 0)},
-		{time: time.Unix(0, 1257894000000000000)},
-		{time: time.Time{}, errExpected: true},
+		{time: mtime.ZeroTimestamp},
+		{time: mtime.MinTimestamp},
+		{time: mtime.MaxTimestamp},
+		{time: mtime.Now()},
+		{time: mtime.Time(1257894000000)},
+		{time: mtime.Time(1257894000000000)},
 	}
 
 	for _, test := range tests {
 		var buf bytes.Buffer
-		err := EncodeEventTime(typex.EventTime(test.time), &buf)
-		if test.errExpected {
-			if err != nil {
-				continue
-			}
-			t.Fatalf("EncodeEventTime(%v) failed: got nil error", test.time)
-		}
+		err := EncodeEventTime(test.time, &buf)
 		if err != nil {
 			t.Fatalf("EncodeEventTime(%v) failed: %v", test.time, err)
 		}
@@ -57,7 +50,7 @@ func TestEncodeDecodeEventTime(t *testing.T) {
 		if err != nil {
 			t.Fatalf("DecodeEventTime(<%v>) failed: %v", test.time, err)
 		}
-		if (time.Time)(actual) != test.time {
+		if (mtime.Time)(actual) != test.time {
 			t.Errorf("DecodeEventTime(<%v>) = %v, want %v", test.time, actual, test.time)
 		}
 	}
