@@ -35,6 +35,7 @@ type DataSink struct {
 	Coder  *coder.Coder
 
 	enc   ElementEncoder
+	wEnc  WindowEncoder
 	w     io.WriteCloser
 	count int64
 	start time.Time
@@ -46,6 +47,7 @@ func (n *DataSink) ID() UnitID {
 
 func (n *DataSink) Up(ctx context.Context) error {
 	n.enc = MakeElementEncoder(coder.SkipW(n.Coder))
+	n.wEnc = MakeWindowEncoder(n.Coder.Window)
 	return nil
 }
 
@@ -68,14 +70,12 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 	var b bytes.Buffer
 
 	atomic.AddInt64(&n.count, 1)
-	if err := EncodeWindowedValueHeader(value.Timestamp, &b); err != nil {
+	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, &b); err != nil {
 		return err
 	}
-
 	if err := n.enc.Encode(value, &b); err != nil {
 		return fmt.Errorf("failed to encode element %v with coder %v: %v", value, n.enc, err)
 	}
-
 	if _, err := n.w.Write(b.Bytes()); err != nil {
 		return err
 	}

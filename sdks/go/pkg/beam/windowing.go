@@ -23,12 +23,12 @@ import (
 )
 
 // WindowInto applies the windowing strategy to each element.
-func WindowInto(s Scope, ws *window.WindowingStrategy, col PCollection) PCollection {
+func WindowInto(s Scope, ws *window.Fn, col PCollection) PCollection {
 	return Must(TryWindowInto(s, ws, col))
 }
 
 // TryWindowInto attempts to insert a WindowInto transform.
-func TryWindowInto(s Scope, ws *window.WindowingStrategy, col PCollection) (PCollection, error) {
+func TryWindowInto(s Scope, ws *window.Fn, col PCollection) (PCollection, error) {
 	if !s.IsValid() {
 		return PCollection{}, fmt.Errorf("invalid scope")
 	}

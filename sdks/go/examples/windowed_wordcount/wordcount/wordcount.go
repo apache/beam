@@ -24,7 +24,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"fmt"
 )
 
 var (
@@ -42,11 +41,6 @@ func extractFn(ctx context.Context, line string, emit func(string)) {
 	for _, word := range wordRE.FindAllString(line, -1) {
 		emit(word)
 	}
-}
-
-// FormatFn is a DoFn that formats a word and its count as a string.
-func FormatFn(w string, c int) string {
-	return fmt.Sprintf("%s: %v", w, c)
 }
 
 // CountWords is a composite transform that counts the words of a PCollection

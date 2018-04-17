@@ -325,7 +325,7 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	case graph.WindowInto:
 		payload := &pb.WindowIntoPayload{
 			WindowFn: &pb.SdkFunctionSpec{
-				Spec: makeWindowFn(edge.Windowing),
+				Spec: makeWindowFn(edge.WindowFn),
 			},
 		}
 		return &pb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
@@ -399,11 +399,11 @@ func (m *marshaller) internWindowingStrategy(w *pb.WindowingStrategy) string {
 func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
 	ws := &pb.WindowingStrategy{
 		WindowFn: &pb.SdkFunctionSpec{
-			Spec: makeWindowFn(w),
+			Spec: makeWindowFn(w.Fn),
 		},
 		MergeStatus:      pb.MergeStatus_NON_MERGING,
 		AccumulationMode: pb.AccumulationMode_DISCARDING,
-		WindowCoderId:    c.AddWindowCoder(makeWindowCoder(w)),
+		WindowCoderId:    c.AddWindowCoder(makeWindowCoder(w.Fn)),
 		Trigger: &pb.Trigger{
 			Trigger: &pb.Trigger_Default_{
 				Default: &pb.Trigger_Default{},
@@ -417,7 +417,7 @@ func MarshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *
 	return ws
 }
 
-func makeWindowFn(w *window.WindowingStrategy) *pb.FunctionSpec {
+func makeWindowFn(w *window.Fn) *pb.FunctionSpec {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return &pb.FunctionSpec{
@@ -456,7 +456,7 @@ func makeWindowFn(w *window.WindowingStrategy) *pb.FunctionSpec {
 	}
 }
 
-func makeWindowCoder(w *window.WindowingStrategy) *coder.WindowCoder {
+func makeWindowCoder(w *window.Fn) *coder.WindowCoder {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return coder.NewGlobalWindow()

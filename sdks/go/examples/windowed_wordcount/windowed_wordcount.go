@@ -26,6 +26,8 @@ import (
 	"time"
 	"math/rand"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 )
 
 var (
@@ -33,8 +35,8 @@ var (
 	// King Lear. Set this option to choose a different input file or glob.
 	input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
 
-	// Set this required option to specify where to write the output files.
-	output = flag.String("output", "", "Output prefix (required).")
+	// Set this required option to specify where to write the output file.
+	output = flag.String("output", "", "Output (required).")
 )
 
 // Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
@@ -45,12 +47,17 @@ var (
 // 2-hour period.
 
 type addTimestampFn struct {
-	Min time.Time `json:"min"`
+	Min beam.EventTime `json:"min"`
 }
 
 func (f *addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
 	timestamp := f.Min.Add(time.Duration(rand.Int63n(2 * time.Hour.Nanoseconds())))
-	return beam.EventTime(timestamp), x
+	return timestamp, x
+}
+
+// formatFn is a DoFn that formats a windowed word and its count as a string.
+func formatFn(iw beam.Window, et beam.EventTime, w string, c int) string {
+	return fmt.Sprintf("%v@%v %s: %v", et, iw, w, c)
 }
 
 func main() {
@@ -71,7 +78,7 @@ func main() {
 	lines := textio.Read(s, *input)
 
 	// Concept #2: Add an element timestamp, using an artificial time just to show windowing.
-	timestampedLines := beam.ParDo(s, addTimestampFn{Min: time.Now()}, lines)
+	timestampedLines := beam.ParDo(s, addTimestampFn{Min: mtime.Now()}, lines)
 
 	// Concept #3: Window into fixed windows. The fixed window size for this example is 1
 	// minute. See the documentation for more information on how fixed windows work, and
@@ -81,8 +88,14 @@ func main() {
 	// Concept #4: Re-use our existing CountWords transform that does not have knowledge of
 	// windows over a PCollection containing windowed values.
 	counted := wordcount.CountWords(s, windowedLines)
-	formatted := beam.ParDo(s, wordcount.FormatFn, counted)
-	textio.Write(s, *output, formatted)
+
+	// TODO(herohde) 4/16/2018: textio.Write does not support windowed writes, so we
+	// simply include the window in the output and re-window back into the global window
+	// before the write.
+
+	formatted := beam.ParDo(s, formatFn, counted)
+	merged := beam.WindowInto(s, window.NewGlobalWindows(), formatted)
+	textio.Write(s, *output, merged)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf(ctx, "Failed to execute job: %v", err)

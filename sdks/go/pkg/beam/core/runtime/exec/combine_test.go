@@ -37,7 +37,7 @@ func TestCombine(t *testing.T) {
 	}
 
 	g := graph.New()
-	in := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindows(), true)
+	in := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
 
 	edge, err := graph.NewCombine(g, g.Root(), fn, in)
 	if err != nil {

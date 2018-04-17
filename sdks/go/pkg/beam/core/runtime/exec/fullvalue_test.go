@@ -17,12 +17,15 @@ package exec
 
 import (
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 )
 
 func makeValues(vs ...interface{}) []FullValue {
 	var ret []FullValue
 	for _, v := range vs {
-		ret = append(ret, FullValue{Elm: v})
+		ret = append(ret, FullValue{Windows: window.SingleGlobalWindow, Timestamp: mtime.ZeroTimestamp, Elm: v})
 	}
 	return ret
 }
@@ -65,6 +68,14 @@ func equal(a, b FullValue) bool {
 	}
 	if a.Elm2 != nil {
 		if !reflect.DeepEqual(a.Elm2, b.Elm2) {
+			return false
+		}
+	}
+	if len(a.Windows) != len(b.Windows) {
+		return false
+	}
+	for i, w := range a.Windows {
+		if !w.Equals(b.Windows[i]) {
 			return false
 		}
 	}

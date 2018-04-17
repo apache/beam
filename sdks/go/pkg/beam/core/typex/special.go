@@ -17,7 +17,7 @@ package typex
 
 import (
 	"reflect"
-	"time"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 )
 
 // This file defines data types that programs use to indicate a
@@ -51,8 +51,8 @@ type X interface{}
 type Y interface{}
 type Z interface{}
 
-// EventTime is a time.Time that Beam understands as attached to an element.
-type EventTime time.Time
+// EventTime is a timestamp that Beam understands as attached to an element.
+type EventTime = mtime.Time
 
 // Window represents a concrete Window.
 type Window interface {
@@ -63,7 +63,7 @@ type Window interface {
 	Equals(o Window) bool
 }
 
-// KV, CoGBK, WindowedValue are composite generic types. They are not used
+// KV, CoGBK, WindowedValue represent composite generic types. They are not used
 // directly in user code signatures, but only in FullTypes.
 
 type KV struct{}

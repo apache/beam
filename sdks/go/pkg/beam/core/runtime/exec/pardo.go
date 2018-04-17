@@ -20,9 +20,10 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
@@ -56,7 +57,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := Invoke(ctx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -83,7 +84,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataManager) er
 
 	// TODO(BEAM-3303): what to set for StartBundle/FinishBundle emitter timestamp?
 
-	if _, err := n.invokeDataFn(ctx, beam.EventTime{}, n.Fn.StartBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -95,17 +96,47 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 	}
 
 	ctx = metrics.SetPTransformID(ctx, n.PID)
+	fn := n.Fn.ProcessElementFn()
 
-	val, err := n.invokeDataFn(ctx, elm.Timestamp, n.Fn.ProcessElementFn(), &MainInput{Key: elm, Values: values})
-	if err != nil {
-		return n.fail(err)
-	}
+	// If the function observes windows, we must pass invoke the it for each window. The expected fast path
+	// is that either there is a single window or the function doesn't observes windows.
 
-	// Forward direct output, if any. It is always a main output.
-	if val != nil {
-		return n.Out[0].ProcessElement(ctx, *val, values...)
+	if !mustExplodeWindows(fn, elm) {
+		val, err := n.invokeDataFn(ctx, elm.Windows, elm.Timestamp, fn, &MainInput{Key: elm, Values: values})
+		if err != nil {
+			return n.fail(err)
+		}
+
+		// Forward direct output, if any. It is always a main output.
+		if val != nil {
+			return n.Out[0].ProcessElement(ctx, *val, values...)
+		}
+	} else {
+		for _, w := range elm.Windows {
+			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}}
+
+			val, err := n.invokeDataFn(ctx, wElm.Windows, wElm.Timestamp, fn, &MainInput{Key: wElm, Values: values})
+			if err != nil {
+				return n.fail(err)
+			}
+
+			// Forward direct output, if any. It is always a main output.
+			if val != nil {
+				return n.Out[0].ProcessElement(ctx, *val, values...)
+			}
+		}
 	}
 	return nil
+}
+
+// mustExplodeWindows returns true iif we need to call the function
+// for each window.
+func mustExplodeWindows(fn *funcx.Fn, elm FullValue) bool {
+	if len(elm.Windows) == 1 {
+		return false
+	}
+	_, explode := fn.Window()
+	return explode
 }
 
 func (n *ParDo) FinishBundle(ctx context.Context) error {
@@ -114,7 +145,7 @@ func (n *ParDo) FinishBundle(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := n.invokeDataFn(ctx, beam.EventTime{}, n.Fn.FinishBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	if err := MultiFinishBundle(ctx, n.Out...); err != nil {
@@ -129,7 +160,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := Invoke(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -162,13 +193,13 @@ func (n *ParDo) initIfNeeded() error {
 	return err
 }
 
-func (n *ParDo) invokeDataFn(ctx context.Context, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil
 	}
 
 	for _, e := range n.emitters {
-		if err := e.Init(ctx, ts); err != nil {
+		if err := e.Init(ctx, ws, ts); err != nil {
 			return nil, err
 		}
 	}
@@ -177,7 +208,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, ts typex.EventTime, fn *funcx.
 			return nil, err
 		}
 	}
-	val, err := Invoke(ctx, fn, opt, n.extra...)
+	val, err := Invoke(ctx, ws, ts, fn, opt, n.extra...)
 	for _, s := range n.sideinput {
 		if err := s.Reset(); err != nil {
 			return nil, err

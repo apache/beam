@@ -92,8 +92,6 @@ func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
 		in = append(in, s.n)
 	}
 
-	fmt.Println(in)
-
 	edge, err := graph.NewCoGBK(s.real, s.scope, in)
 	if err != nil {
 		return PCollection{}, err
