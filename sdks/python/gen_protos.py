@@ -67,7 +67,8 @@ def generate_proto_files(force=False):
   elif not out_files and not proto_files:
     if not os.path.exists(common):
       raise RuntimeError(
-          'Not in apache git tree; unable to find proto definitions.')
+          'Not in apache git tree; '
+          'unable to find proto definitions in %s.' % common)
     else:
       raise RuntimeError(
           'No proto files found in %s.' % proto_dirs)

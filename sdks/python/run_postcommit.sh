@@ -45,6 +45,18 @@ ${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
 ${LOCAL_PATH}/virtualenv sdks/python
 . sdks/python/bin/activate
 cd sdks/python
+
+# TODO(pabloem): Move PostCommit to full Gradle, and avoid these workarounds.
+# Running setup.py install before pip install because pip installs within a tmp
+# directory, and makes gen_protos fail (as gen_protos relies on the code
+# structure of the git repo of Beam).
+python setup.py install
+
+# Workaround for protobuf, which has a known import issue, see:
+# https://github.com/tensorflow/tensorflow/issues/890
+pip uninstall -y protobuf
+pip install protobuf
+
 pip install -e .[gcp,test]
 
 # Run wordcount in the Direct Runner and validate output.

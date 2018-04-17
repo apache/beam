@@ -50,6 +50,10 @@ job('beam_PostCommit_Python_Verify') {
 
   // Execute shell command to test Python SDK.
   steps {
-    shell('cd ' + common_job_properties.checkoutDir + ' && bash sdks/python/run_postcommit.sh')
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':pythonPostCommit')
+      common_job_properties.setGradleSwitches(delegate)
+    }
   }
 }
