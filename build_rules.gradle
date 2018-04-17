@@ -837,6 +837,76 @@ ext.applyJavaNature = {
   }
 }
 
+// Reads and contains all necessary performance test parameters
+class JavaPerformanceTestConfiguration {
+
+  /* Optional properties (set only if needed in your case): */
+
+  // Runner which will be used for running the tests. Possible values: dataflow/direct.
+  // PerfKitBenchmarker will have trouble reading 'null' value. It expects empty string if no config file is expected.
+  String runner = System.getProperty('integrationTestRunner', '')
+
+  // Filesystem which will be used for running the tests. Possible values: hdfs.
+  // if not specified runner's local filesystem will be used.
+  String filesystem = System.getProperty('filesystem')
+
+  /* Always required properties: */
+
+  // Pipeline options to be used by the tested pipeline.
+  String integrationTestPipelineOptions = System.getProperty('integrationTestPipelineOptions')
+}
+
+// When applied in a module's build.gradle file, this closure provides task for running
+// IO integration tests (manually, without PerfKitBenchmarker).
+ext.enableJavaPerformanceTesting = {
+  println "enableJavaPerformanceTesting with ${it ? "$it" : "default configuration"} for project ${project.name}"
+
+  // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+  // See: http://groovy-lang.org/closures.html#implicit-it
+  JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
+
+  // Task for running integration tests
+  task integrationTest(type: Test) {
+    include "**/*IT.class"
+    systemProperties.beamTestPipelineOptions = configuration.integrationTestPipelineOptions
+  }
+}
+
+// When applied in a module's build.gradle file, this closure adds task providing
+// additional dependencies that might be needed while running integration tests.
+ext.provideIntegrationTestingDependencies = {
+  println "provideIntegrationTestingDependencies with ${it ? "$it" : "default configuration"} for project ${project.name}"
+
+  // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+  // See: http://groovy-lang.org/closures.html#implicit-it
+  JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
+
+  // Add runners needed to run integration tests on
+  task packageIntegrationTests(type: Jar) {
+    def runner = configuration.runner
+    def filesystem = configuration.filesystem
+
+    dependencies {
+
+      /* include dependencies required by runners */
+      //if (runner?.contains('dataflow')) {
+      if (runner?.equalsIgnoreCase('dataflow')) {
+        testCompile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
+      }
+
+      if (runner?.equalsIgnoreCase('direct')) {
+        testCompile project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+      }
+
+      /* include dependencies required by filesystems */
+      if (filesystem?.equalsIgnoreCase('hdfs')) {
+        testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
+        shadowTest library.java.hadoop_client
+      }
+    }
+  }
+}
+
 /*************************************************************************************************/
 
 ext.applyGoNature = {

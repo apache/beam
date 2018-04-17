@@ -18,6 +18,8 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 5.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 5.x"

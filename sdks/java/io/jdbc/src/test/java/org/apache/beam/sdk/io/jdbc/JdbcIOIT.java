@@ -47,18 +47,17 @@ import org.postgresql.ds.PGSimpleDataSource;
  * <p>This test requires a running instance of Postgres. Pass in connection information using
  * PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions='[
+ *  ./gradlew integrationTest -p sdks/java/io/jdbc -DintegrationTestPipelineOptions='[
  *  "--postgresServerName=1.2.3.4",
  *  "--postgresUsername=postgres",
  *  "--postgresDatabaseName=myfancydb",
  *  "--postgresPassword=mypass",
  *  "--postgresSsl=false",
  *  "--numberOfRecords=1000" ]'
+ *  --tests org.apache.beam.sdk.io.jdbc.JdbcIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
- * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
- * and spark in the jdbc pom. You'll want to activate those in addition to the normal test runner
- * invocation pipeline options.
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
