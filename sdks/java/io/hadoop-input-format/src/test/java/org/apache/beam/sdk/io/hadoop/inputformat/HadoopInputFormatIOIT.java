@@ -68,6 +68,9 @@ import org.postgresql.ds.PGSimpleDataSource;
  *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  */
 public class HadoopInputFormatIOIT {
 
