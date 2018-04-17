@@ -18,6 +18,8 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format"
 ext.summary = "IO to read data from sources that implement Hadoop Input Format."
