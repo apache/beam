@@ -58,6 +58,7 @@ var (
 	network         = flag.String("network", "", "GCP network (optional)")
 	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
 	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	streaming       = flag.Bool("streaming", false, "Streaming job")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -152,17 +153,24 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return err
 	}
 
+	jobType := "JOB_TYPE_BATCH"
+	apiJobType := "FNAPI_BATCH"
+	if *streaming {
+		jobType = "JOB_TYPE_STREAMING"
+		apiJobType = "FNAPI_STREAMING"
+	}
+
 	job := &df.Job{
 		ProjectId: project,
 		Name:      jobName,
-		Type:      "JOB_TYPE_BATCH",
+		Type:      jobType,
 		Environment: &df.Environment{
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
 				Version: "0.3.0",
 			}),
 			Version: newMsg(version{
-				JobType: "FNAPI_BATCH",
+				JobType: apiJobType,
 				Major:   "6",
 			}),
 			SdkPipelineOptions: newMsg(pipelineOptions{
@@ -199,6 +207,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *tempLocation != "" {
 		job.Environment.TempStoragePrefix = *tempLocation
+	}
+	if *streaming {
+		// Add separate data disk for streaming jobs
+		job.Environment.WorkerPools[0].DataDisks = []*df.Disk{{}}
 	}
 	printJob(ctx, job)
 
@@ -239,6 +251,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		switch j.CurrentState {
 		case "JOB_STATE_DONE":
 			log.Info(ctx, "Job succeeded!")
+			return nil
+
+		case "JOB_STATE_CANCELLED":
+			log.Info(ctx, "Job cancelled")
 			return nil
 
 		case "JOB_STATE_FAILED":
