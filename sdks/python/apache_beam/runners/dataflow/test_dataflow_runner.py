@@ -44,7 +44,6 @@ class TestDataflowRunner(DataflowRunner):
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
     options.on_success_matcher = None
-    options.wait_until_finish_duration = None
 
     self.result = super(TestDataflowRunner, self).run_pipeline(pipeline)
     if self.result.has_job:
