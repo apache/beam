@@ -110,6 +110,7 @@ public class HadoopInputFormatIOIT {
     );
     conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
     conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
+    conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
     conf.setClass(DBConfiguration.INPUT_CLASS_PROPERTY, TestRowDBWritable.class, DBWritable.class);
 
     conf.setClass("key.class", LongWritable.class, Object.class);
