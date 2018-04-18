@@ -22,14 +22,12 @@ import logging
 import multiprocessing
 import os
 import platform
-import pprint
 import shutil
 import subprocess
 import sys
 import time
 import warnings
 
-import pip
 import pkg_resources
 
 GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
@@ -137,7 +135,6 @@ def _install_grpcio_tools_and_generate_proto_files():
   logging.warning('Installing grpcio-tools into %s', install_path)
   try:
     start = time.time()
-    pprint.pprint(pip.pep425tags.get_supported())
     subprocess.check_call(
         [sys.executable, '-m', 'pip', 'install',
          '--target', install_path, '--build', build_path,
