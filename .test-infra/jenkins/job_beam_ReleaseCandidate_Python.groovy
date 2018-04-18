@@ -35,6 +35,6 @@ job('beam_PostRelease_Python_Candidate') {
 
     // Execute shell command to test Python SDK.
     steps {
-        shell('ls -l /root/ && docker -v')
+        shell('ls -al /root/ && pip install --upgrade pip')
     }
 }
