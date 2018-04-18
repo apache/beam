@@ -91,12 +91,9 @@ task aggregateJavadoc(type: Javadoc) {
   exclude "org/apache/beam/sdk/util/*"
 
   options.with {
-    // TODO: Re-enable title after validating diff against maven-produced javadoc
-    title ""
     failOnError false
-    // title "Apache Beam 2.5.0"
+    title "Apache Beam 2.5.0"
     overview 'overview.html'
-    // TODO: Double check doclint is working
     addStringOption('Xdoclint:all', '-quiet')
     addStringOption('Xdoclint:-missing', '-quiet')
     linksOffline 'http://avro.apache.org/docs/1.7.7/api/java/', 'avro-docs'
