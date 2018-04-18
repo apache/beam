@@ -93,7 +93,7 @@ func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k
 		return keyLessThan(splits[i], splits[j])
 	})
 
-	splitKeys := getSplits(splits, s.Shards)
+	splitKeys := getSplits(splits, s.Shards-1)
 
 	queries := make([]*BoundedQuery, len(splitKeys))
 	var lastKey *datastore.Key
