@@ -221,7 +221,7 @@ public class TfIdf {
                   String line = c.element().getValue();
                   for (String word : line.split("\\W+")) {
                     // Log INFO messages when the word “love” is found.
-                    if ("love".equals(word.toLowerCase())) {
+                    if ("love".equalsIgnoreCase(word)) {
                       LOG.info("Found {}", word.toLowerCase());
                     }
 
