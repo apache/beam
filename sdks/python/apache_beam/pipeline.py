@@ -893,6 +893,13 @@ class PTransformOverride(object):
   def matches(self, applied_ptransform):
     """Determines whether the given AppliedPTransform matches.
 
+    Note that the matching will happen *after* Runner API proto translation.
+    If matching is done via type checks, to/from_runner_api[_parameter] methods
+    must be implemented to preserve the type (and other data) through proto
+    serialization.
+
+    Consider URN-based translation instead.
+
     Args:
       applied_ptransform: AppliedPTransform to be matched.
 
