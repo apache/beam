@@ -572,7 +572,7 @@ class Pipeline(object):
       ok = True  # Really a nonlocal.
 
       def enter_composite_transform(self, transform_node):
-        self.visit_transform(transform_node)
+        pass
 
       def visit_transform(self, transform_node):
         try:
@@ -822,7 +822,7 @@ class AppliedPTransform(object):
       if transform is None:
         return None
       else:
-        return transform.to_runner_api(context)
+        return transform.to_runner_api(context, has_parts=bool(self.parts))
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
         spec=transform_to_runner_api(self.transform, context),
