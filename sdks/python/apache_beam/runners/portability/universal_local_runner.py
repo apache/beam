@@ -37,6 +37,7 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.portability import fn_api_runner
 
@@ -61,7 +62,8 @@ class UniversalLocalRunner(runner.PipelineRunner):
       self,
       use_grpc=True,
       use_subprocesses=False,
-      runner_api_address=None):
+      runner_api_address=None,
+      docker_image=None):
     if use_subprocesses and not use_grpc:
       raise ValueError("GRPC must be used with subprocesses")
     super(UniversalLocalRunner, self).__init__()
@@ -72,6 +74,9 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._job_service_lock = threading.Lock()
     self._subprocess = None
     self._runner_api_address = runner_api_address
+    self._docker_image = (
+      docker_image
+      or os.environ['USER'] + '-docker.apache.bintray.io/beam/python:latest')
 
   def __del__(self):
     # Best effort to not leave any dangling processes around.
@@ -151,7 +156,9 @@ class UniversalLocalRunner(runner.PipelineRunner):
     # (windowed in Fn API, but *un*windowed in runner API), whereas the
     # FnApiRunner treats them consistently, so we must guard this.
     # See also BEAM-2717.
-    proto_pipeline, proto_context = pipeline.to_runner_api(return_context=True)
+    proto_context = pipeline_context.PipelineContext(
+        default_environment_url=self._docker_image)
+    proto_pipeline = pipeline.to_runner_api(context=proto_context)
     if self._runner_api_address:
       for pcoll in proto_pipeline.components.pcollections.values():
         if pcoll.coder_id not in proto_context.coders:
