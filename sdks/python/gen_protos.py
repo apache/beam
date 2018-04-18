@@ -28,7 +28,6 @@ import sys
 import time
 import warnings
 
-import pip
 import pkg_resources
 
 GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
