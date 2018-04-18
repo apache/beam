@@ -183,26 +183,6 @@ class common_job_properties {
     }
   }
 
-  // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
-    context.mavenInstallation(mavenInstallation)
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
-    // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
-    // tiered compilation to make the JVM startup times faster during the tests.
-    context.mavenOpts('-XX:+TieredCompilation')
-    context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM(checkoutDir + '/pom.xml')
-    // Use a repository local to the workspace for better isolation of jobs.
-    context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
-    // Disable archiving the built artifacts by default, as this is slow and flaky.
-    // We can usually recreate them easily, and we can also opt-in individual jobs
-    // to artifact archiving.
-    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
-      context.archivingDisabled(true)
-    }
-  }
-
   // Sets common config for PreCommit jobs.
   static void setPreCommit(context,
                            String commitStatusName,
