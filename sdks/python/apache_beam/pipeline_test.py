@@ -88,6 +88,9 @@ class DoubleParDo(beam.PTransform):
   def expand(self, input):
     return input | 'Inner' >> beam.Map(lambda a: a * 2)
 
+  def to_runner_api_parameter(self, context):
+    return self.to_runner_api_pickled(context)
+
 
 class TripleParDo(beam.PTransform):
   def expand(self, input):
@@ -523,36 +526,6 @@ class PipelineOptionsTest(unittest.TestCase):
 
 
 class RunnerApiTest(unittest.TestCase):
-
-  def test_simple(self):
-    """Tests serializing, deserializing, and running a simple pipeline.
-
-    More extensive tests are done at pipeline.run for each suitable test.
-    """
-    p = beam.Pipeline()
-    p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
-    proto = p.to_runner_api()
-
-    p2 = Pipeline.from_runner_api(proto, p.runner, p._options)
-    p2.run()
-
-  def test_pickling(self):
-    class MyPTransform(beam.PTransform):
-      pickle_count = [0]
-
-      def expand(self, p):
-        self.p = p
-        return p | beam.Create([None])
-
-      def __reduce__(self):
-        self.pickle_count[0] += 1
-        return str, ()
-
-    p = beam.Pipeline()
-    for k in range(20):
-      p | 'Iter%s' % k >> MyPTransform()  # pylint: disable=expression-not-assigned
-    p.to_runner_api()
-    self.assertEqual(MyPTransform.pickle_count[0], 20)
 
   def test_parent_pointer(self):
     class MyPTransform(beam.PTransform):
