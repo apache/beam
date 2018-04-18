@@ -75,12 +75,11 @@ job(testConfiguration.jobName) {
         // Install job requirements for analysis script
         shell('.env/bin/pip install requests google.cloud.bigquery')
         // Launch performance tests analysis.
-        shell(".env/bin/python " + common_job_properties.checkoutDir +
-                '.test-infra/jenkins/verify_performance_test_results.py '
-                + '--bqtables=\'['+ testConfiguration.bqTables + ']\' ' +
-                + '--metric=\'run_time\''
-                + '--mode=report '
-                + '--notification=false '
+        shell('.env/bin/python ' + common_job_properties.checkoutDir +
+                '.test-infra/jenkins/verify_performance_test_results.py ' +
+                '--bqtables=\'['+ testConfiguration.bqTables + ']\' ' +
+                '--metric=\'run_time\' ' +
+                '--mode=report '
         )
     }
 }
