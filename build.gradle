@@ -160,3 +160,11 @@ task pythonPreCommit() {
   dependsOn ":beam-sdks-python:check"
 }
 
+task pythonPostCommit() {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "./sdks/python/run_postcommit.sh"
+    }
+  }
+}
