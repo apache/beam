@@ -147,6 +147,7 @@
 <ul class="nav">
   <li><a href="#eclipse-version">Eclipse version</a></li>
   <li><a href="#initial-setup">Initial setup</a></li>
+  <li><a href="#building">Building</a></li>
   <li><a href="#checkstyle">Checkstyle</a></li>
   <li><a href="#code-style">Code Style</a></li>
 </ul>
@@ -171,48 +172,62 @@
 
 <h2 id="eclipse-version">Eclipse version</h2>
 
-<p>Use a recent Eclipse version that includes m2e. Currently we recommend Eclipse
-Neon. Start Eclipse with a fresh workspace in a separate directory from your
-checkout.</p>
+<p>Use a recent Eclipse version that includes
+<a href="https://projects.eclipse.org/projects/tools.buildship">Buildship</a> for Gradle
+integration. Currently we recommend Eclipse Oxygen. Start Eclipse with a fresh
+workspace in a separate directory from your checkout.</p>
 
 <h2 id="initial-setup">Initial setup</h2>
 
+<p>Before setting up Eclipse integration, verify that you can successfully build
+from the commandline by building a sample package:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-examples-java:build
+</code></pre>
+</div>
+
+<p>If you receive any errors, first verify your environment setup based on the
+<a href="/contribute/contribution-guide#one-time-setup">Contribution guide</a>.</p>
+
 <ol>
   <li>
-    <p>Install m2e-apt: Beam uses apt annotation processing to provide auto
-generated code. One example is the usage of <a href="https://github.com/google/auto/tree/master/value">Google
-AutoValue</a>. By default m2e
-does not support this and you will see compile errors.</p>
-
-    <p>Help
- -&gt; Eclipse Marketplace
- -&gt; Search for “m2 apt”
- -&gt; Install m2e-apt 1.2 or higher</p>
+    <p>If running on Mac or Linux, launch Eclipse from a terminal. This is necessary
+to ensure that Eclipse has proper environment setup from user profile
+scripts, i.e. .bashrc.</p>
   </li>
   <li>
-    <p>Activate the apt processing</p>
-
-    <p>Window
- -&gt; Preferences
- -&gt; Maven
- -&gt; Annotation processing
- -&gt; Switch to Experimental: Delegate annotation processing …
- -&gt; Ok</p>
+    <p>Install <a href="https://marketplace.eclipse.org/content/buildship-gradle-integration">Buildship Gradle
+Integration</a>.
+This will allow importing and interacting with the Gradle build.</p>
   </li>
   <li>
-    <p>Import the beam projects</p>
-
-    <p>File
- -&gt; Import…
- -&gt; Existing Maven Projects
- -&gt; Browse to the directory you cloned into and select “beam”
- -&gt; make sure all beam projects are selected
- -&gt; Finalize</p>
+    <p>Open the project import wizard in Eclipse via “File” &gt; “Import”.</p>
+  </li>
+  <li>
+    <p>From the “Import” screen, select “Gradle” &gt; “Existing Gradle Project”, and click
+Next.</p>
+  </li>
+  <li>
+    <p>From the “Import Gradle Project” screen, fill in the Project root directory
+with your local git path, and click Finish.</p>
   </li>
 </ol>
 
-<p>You now should have all the beam projects imported into Eclipse and should see
-no compile errors.</p>
+<p>Eclipse will scan the project tree and import each as a separate
+Package.</p>
+
+<p>Verify that your workspace is correctly configured by invoking
+‘beam-runners-direct-java:build’ from the “Gradle Tasks” pane. The build should
+succeed with no errors.</p>
+
+<h2 id="building">Building</h2>
+
+<p>After your Eclipse workspace is properly setup, you will have a “Gradle
+Tasks” window with a set of operations. If you don’t see the pane, open it
+from “Window” &gt; “Show View” &gt; Other.. &gt; “Gradle” &gt; “Gradle Tasks”.</p>
+
+<p>From the “Gradle Tasks” window, you can build any task registered with Gradle.
+For example, if you are working on Kinesis IO, select ‘beam-sdks-java-io-kinesis:build’.</p>
 
 <h2 id="checkstyle">Checkstyle</h2>
 
