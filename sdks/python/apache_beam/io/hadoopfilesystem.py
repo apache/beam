@@ -190,7 +190,7 @@ class HadoopFileSystem(FileSystem):
         yield FileMetadata(_HDFS_PREFIX + self._join(path, res[0]),
                            res[1][_FILE_STATUS_LENGTH])
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError('Match operation failed', {url: e})
+      raise BeamIOError('List operation failed', {url: e})
 
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):

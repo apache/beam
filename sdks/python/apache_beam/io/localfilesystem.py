@@ -102,7 +102,11 @@ class LocalFileSystem(FileSystem):
     try:
       for f in os.listdir(dir_or_prefix):
         f = self.join(dir_or_prefix, f)
-        yield FileMetadata(f, os.path.getsize(f))
+        try:
+          yield FileMetadata(f, os.path.getsize(f))
+        except OSError:
+          # Files may disappear, such as when listing /tmp.
+          pass
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
