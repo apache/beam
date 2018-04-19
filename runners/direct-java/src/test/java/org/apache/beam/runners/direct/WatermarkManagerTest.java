@@ -28,20 +28,16 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.WatermarkManager.AppliedPTransformInputWatermark;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -145,8 +141,7 @@ public class WatermarkManagerTest implements Serializable {
    */
   @Test
   public void getWatermarkForUntouchedTransform() {
-    TransformWatermarks watermarks =
-        manager.getWatermarks(graph.getProducer(createdInts));
+    TransformWatermarks watermarks = manager.getWatermarks(graph.getProducer(createdInts));
 
     assertThat(watermarks.getInputWatermark(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
     assertThat(watermarks.getOutputWatermark(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
@@ -159,11 +154,12 @@ public class WatermarkManagerTest implements Serializable {
   @Test
   public void getWatermarkForUpdatedSourceTransform() {
     CommittedBundle<Integer> output = multiWindowedBundle(createdInts, 1);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(output)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.singleton(output),
         new Instant(8000L));
     manager.refreshAll();
     TransformWatermarks updatedSourceWatermark =
@@ -180,11 +176,12 @@ public class WatermarkManagerTest implements Serializable {
   public void getWatermarkForMultiInputTransform() {
     CommittedBundle<Integer> secondPcollectionBundle = multiWindowedBundle(intsToFlatten, -1);
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(intsToFlatten),
-            null,
-            Collections.<CommittedBundle<?>>singleton(secondPcollectionBundle)),
+        graph.getProducer(intsToFlatten),
+        null,
+        Collections.<CommittedBundle<?>>singleton(secondPcollectionBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
@@ -217,20 +214,18 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         secondPcollectionBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(flattened),
-            secondPcollectionBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(flattenedBundleSecondCreate)),
+        graph.getProducer(flattened),
+        secondPcollectionBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(flattenedBundleSecondCreate),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks transformAfterProcessing =
         manager.getWatermarks(graph.getProducer(flattened));
     manager.updateWatermarks(
         secondPcollectionBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(flattened),
-            secondPcollectionBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(flattenedBundleSecondCreate)),
+        graph.getProducer(flattened),
+        secondPcollectionBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(flattenedBundleSecondCreate),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     assertThat(
@@ -245,11 +240,12 @@ public class WatermarkManagerTest implements Serializable {
         timestampedBundle(createdInts, TimestampedValue.of(5, firstCollectionTimestamp));
     // the source is done, but elements are still buffered. The source output watermark should be
     // past the end of the global window
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(firstPcollectionBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(firstPcollectionBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks firstSourceWatermarks =
@@ -280,10 +276,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         firstPcollectionBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(flattened),
-            firstPcollectionBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(completedFlattenBundle)),
+        graph.getProducer(flattened),
+        firstPcollectionBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(completedFlattenBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks afterConsumingAllInput =
@@ -332,11 +327,9 @@ public class WatermarkManagerTest implements Serializable {
     tstMgr.updateWatermarks(
         root,
         TimerUpdate.empty(),
-        CommittedResult.create(
-            StepTransformResult.withoutHold(graph.getProducer(created)).build(),
-            Optional.absent(),
-            Collections.singleton(createBundle),
-            EnumSet.allOf(OutputType.class)),
+        graph.getProducer(created),
+        null,
+        Collections.singleton(createBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     tstMgr.refreshAll();
@@ -346,11 +339,9 @@ public class WatermarkManagerTest implements Serializable {
     tstMgr.updateWatermarks(
         createBundle,
         TimerUpdate.empty(),
-        CommittedResult.create(
-            StepTransformResult.withoutHold(theFlatten).build(),
-            Optional.absent(),
-            Collections.emptyList(),
-            EnumSet.allOf(OutputType.class)),
+        theFlatten,
+        null,
+        Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     tstMgr.refreshAll();
@@ -359,11 +350,9 @@ public class WatermarkManagerTest implements Serializable {
     tstMgr.updateWatermarks(
         createBundle,
         TimerUpdate.empty(),
-        CommittedResult.create(
-            StepTransformResult.withoutHold(theFlatten).build(),
-            Optional.absent(),
-            Collections.emptyList(),
-            EnumSet.allOf(OutputType.class)),
+        theFlatten,
+        null,
+        Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     tstMgr.refreshAll();
     assertThat(flattenWms.getInputWatermark(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
@@ -378,11 +367,12 @@ public class WatermarkManagerTest implements Serializable {
     CommittedBundle<Integer> createdBundle = timestampedBundle(createdInts,
         TimestampedValue.of(1, new Instant(1_000_000L)), TimestampedValue.of(2, new Instant(1234L)),
         TimestampedValue.of(3, new Instant(-1000L)));
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createdBundle),
         new Instant(Long.MAX_VALUE));
     manager.refreshAll();
     TransformWatermarks createdAfterProducing =
@@ -398,10 +388,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(keyed),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(keyBundle)),
+        graph.getProducer(keyed),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(keyBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks keyedWatermarks =
@@ -421,10 +410,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(filteredBundle)),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(filteredBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks filteredProcessedWatermarks =
@@ -447,11 +435,12 @@ public class WatermarkManagerTest implements Serializable {
         TimestampedValue.of(1, new Instant(1_000_000L)),
         TimestampedValue.of(2, new Instant(1234L)),
         TimestampedValue.of(3, new Instant(-1000L)));
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createdBundle),
         new Instant(Long.MAX_VALUE));
 
     CommittedBundle<KV<String, Integer>> keyBundle = timestampedBundle(keyed,
@@ -461,10 +450,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(keyed),
             createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(keyBundle)),
+            Collections.<CommittedBundle<?>>singleton(keyBundle),
         new Instant(500L));
     manager.refreshAll();
     TransformWatermarks keyedWatermarks =
@@ -493,28 +481,27 @@ public class WatermarkManagerTest implements Serializable {
         .add(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1234L)))
         .commit(clock.now());
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            ImmutableList.of(firstKeyBundle, secondKeyBundle)),
+        graph.getProducer(createdInts),
+        null,
+        ImmutableList.of(firstKeyBundle, secondKeyBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     manager.updateWatermarks(
         firstKeyBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(filtered),
             firstKeyBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+            Collections.emptyList(),
         new Instant(-1000L));
     manager.updateWatermarks(
         secondKeyBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(filtered),
             secondKeyBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+            Collections.emptyList(),
         new Instant(1234L));
     manager.refreshAll();
 
@@ -530,10 +517,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         fauxFirstKeyTimerBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(filtered),
             fauxFirstKeyTimerBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+            Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
@@ -545,10 +531,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         fauxSecondKeyTimerBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(filtered),
             fauxSecondKeyTimerBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+            Collections.emptyList(),
         new Instant(5678L));
     manager.refreshAll();
     assertThat(filteredWatermarks.getOutputWatermark(), equalTo(new Instant(5678L)));
@@ -556,10 +541,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         fauxSecondKeyTimerBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(filtered),
             fauxSecondKeyTimerBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+            Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     assertThat(filteredWatermarks.getOutputWatermark(),
@@ -574,10 +558,12 @@ public class WatermarkManagerTest implements Serializable {
   public void updateOutputWatermarkShouldBeMonotonic() {
     CommittedBundle<?> firstInput =
         bundleFactory.createBundle(createdInts).commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    manager.updateWatermarks(null,  TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(firstInput)),
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.empty(),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(firstInput),
         new Instant(0L));
     manager.refreshAll();
     TransformWatermarks firstWatermarks =
@@ -588,9 +574,9 @@ public class WatermarkManagerTest implements Serializable {
         bundleFactory.createBundle(createdInts).commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.updateWatermarks(null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
+        graph.getProducer(createdInts),
             null,
-            Collections.<CommittedBundle<?>>singleton(secondInput)),
+            Collections.<CommittedBundle<?>>singleton(secondInput),
         new Instant(-250L));
     manager.refreshAll();
     TransformWatermarks secondWatermarks =
@@ -610,9 +596,9 @@ public class WatermarkManagerTest implements Serializable {
         TimestampedValue.of(3, new Instant(-1000L)));
     manager.updateWatermarks(null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
+        graph.getProducer(createdInts),
             null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+            Collections.<CommittedBundle<?>>singleton(createdBundle),
         new Instant(Long.MAX_VALUE));
 
     CommittedBundle<KV<String, Integer>> keyBundle =
@@ -622,10 +608,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(keyed),
             createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(keyBundle)),
+            Collections.<CommittedBundle<?>>singleton(keyBundle),
         new Instant(500L));
     manager.refreshAll();
     TransformWatermarks keyedWatermarks =
@@ -657,20 +642,22 @@ public class WatermarkManagerTest implements Serializable {
         .add(third)
         .commit(clock.now());
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createdBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     CommittedBundle<KV<String, Integer>> keyBundle = timestampedBundle(keyed,
         TimestampedValue.of(KV.of("MyKey", 1), BoundedWindow.TIMESTAMP_MIN_VALUE));
-    manager.updateWatermarks(createdBundle,
+    manager.updateWatermarks(
+        createdBundle,
         TimerUpdate.empty(),
-        result(graph.getProducer(keyed),
-            createdBundle.withElements(ImmutableList.of(second, third)),
-            Collections.<CommittedBundle<?>>singleton(keyBundle)),
+        graph.getProducer(keyed),
+        createdBundle.withElements(ImmutableList.of(second, third)),
+        Collections.<CommittedBundle<?>>singleton(keyBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks keyedWatermarks =
         manager.getWatermarks(graph.getProducer(keyed));
@@ -692,20 +679,20 @@ public class WatermarkManagerTest implements Serializable {
         .add(second)
         .commit(clock.now());
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createdBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     manager.updateWatermarks(
         neverCreatedBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(filtered),
             neverCreatedBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+            Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     manager.refreshAll();
@@ -723,11 +710,12 @@ public class WatermarkManagerTest implements Serializable {
     CommittedBundle<Integer> createdBundle = timestampedBundle(createdInts,
         TimestampedValue.of(1, sourceWatermark), TimestampedValue.of(2, new Instant(1234L)));
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createdBundle),
         sourceWatermark);
 
     CommittedBundle<KV<String, Integer>> keyBundle =
@@ -738,10 +726,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(keyed),
             createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(keyBundle)),
+            Collections.<CommittedBundle<?>>singleton(keyBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks onTimeWatermarks =
@@ -756,10 +743,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
-        result(
             graph.getProducer(createdInts),
             createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(lateDataBundle)),
+            Collections.<CommittedBundle<?>>singleton(lateDataBundle),
         new Instant(2_000_000L));
     manager.refreshAll();
     TransformWatermarks bufferedLateWm =
@@ -778,10 +764,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         lateDataBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(keyed),
-            lateDataBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(lateKeyedBundle)),
+        graph.getProducer(keyed),
+        lateDataBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(lateKeyedBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
   }
@@ -789,12 +774,14 @@ public class WatermarkManagerTest implements Serializable {
   public void updateWatermarkWithDifferentWindowedValueInstances() {
     manager.updateWatermarks(
         null,
-        TimerUpdate.empty(), result(graph.getProducer(createdInts), null,
+        TimerUpdate.empty(),
+        graph.getProducer(createdInts),
+        null,
         Collections.<CommittedBundle<?>>singleton(
             bundleFactory
                 .createBundle(createdInts)
                 .add(WindowedValue.valueInGlobalWindow(1))
-                .commit(Instant.now()))),
+                .commit(Instant.now())),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     CommittedBundle<Integer> createdBundle = bundleFactory.createBundle(createdInts)
@@ -803,10 +790,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(keyed),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+        graph.getProducer(keyed),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.emptyList(),
         null);
     manager.refreshAll();
     TransformWatermarks onTimeWatermarks =
@@ -821,11 +807,12 @@ public class WatermarkManagerTest implements Serializable {
   @Test
   public void getWatermarksAfterOnlyEmptyOutput() {
     CommittedBundle<Integer> emptyCreateOutput = multiWindowedBundle(createdInts);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(emptyCreateOutput)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(emptyCreateOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks updatedSourceWatermarks =
@@ -852,21 +839,21 @@ public class WatermarkManagerTest implements Serializable {
   @Test
   public void getWatermarksAfterHoldAndEmptyOutput() {
     CommittedBundle<Integer> firstCreateOutput = multiWindowedBundle(createdInts, 1, 2);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(firstCreateOutput)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(firstCreateOutput),
         new Instant(12_000L));
 
     CommittedBundle<Integer> firstFilterOutput = multiWindowedBundle(filtered);
     manager.updateWatermarks(
         firstCreateOutput,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(filtered),
-            firstCreateOutput.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(firstFilterOutput)),
+        graph.getProducer(filtered),
+        firstCreateOutput.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(firstFilterOutput),
         new Instant(10_000L));
     manager.refreshAll();
     TransformWatermarks firstFilterWatermarks =
@@ -875,11 +862,12 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(firstFilterWatermarks.getOutputWatermark(), not(laterThan(new Instant(10_000L))));
 
     CommittedBundle<Integer> emptyCreateOutput = multiWindowedBundle(createdInts);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(emptyCreateOutput)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(emptyCreateOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks updatedSourceWatermarks =
@@ -919,11 +907,12 @@ public class WatermarkManagerTest implements Serializable {
     CommittedBundle<Integer> createOutput =
         bundleFactory.createBundle(createdInts).commit(new Instant(1250L));
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createOutput)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks createAfterUpdate =
@@ -953,10 +942,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createOutput,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(filtered),
-            createOutput.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(filterOutputBundle)),
+        graph.getProducer(filtered),
+        createOutput.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(filterOutputBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     TransformWatermarks filterAfterConsumed =
@@ -978,11 +966,12 @@ public class WatermarkManagerTest implements Serializable {
   //  @Test
   public void getSynchronizedProcessingTimeOutputHeldToPendingTimers() {
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(createdInts, 1, 2, 4, 8);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createdBundle),
         new Instant(1248L));
     manager.refreshAll();
 
@@ -1004,10 +993,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         timers,
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(filteredBundle)),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(filteredBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     Instant startTime = clock.now();
@@ -1041,10 +1029,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         filteredTimerBundle,
         TimerUpdate.builder(key).withCompletedTimers(Collections.singleton(pastTimer)).build(),
-        result(
-            graph.getProducer(filtered),
-            filteredTimerBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(filteredTimerResult)),
+        graph.getProducer(filtered),
+        filteredTimerBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(filteredTimerResult),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
@@ -1058,10 +1045,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         filteredTimerResult,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(filteredTimesTwo),
-            filteredTimerResult.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+        graph.getProducer(filteredTimesTwo),
+        filteredTimerResult.withElements(Collections.emptyList()),
+        Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     assertThat(filteredDoubledWms.getSynchronizedProcessingOutputTime(), equalTo(clock.now()));
@@ -1096,26 +1082,27 @@ public class WatermarkManagerTest implements Serializable {
     CommittedBundle<Integer> createOutput =
         bundleFactory.createBundle(createdInts).commit(new Instant(1250L));
 
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createOutput)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
-    TransformWatermarks createAfterUpdate =
-        manager.getWatermarks(graph.getProducer(createdInts));
+    TransformWatermarks createAfterUpdate = manager.getWatermarks(graph.getProducer(createdInts));
     assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), not(laterThan(clock.now())));
-    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(),
-        not(laterThan(clock.now())));
+    assertThat(
+        createAfterUpdate.getSynchronizedProcessingOutputTime(), not(laterThan(clock.now())));
 
     CommittedBundle<Integer> createSecondOutput =
         bundleFactory.createBundle(createdInts).commit(new Instant(750L));
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(createSecondOutput)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(createSecondOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
@@ -1125,11 +1112,12 @@ public class WatermarkManagerTest implements Serializable {
   @Test
   public void synchronizedProcessingInputTimeIsHeldToUpstreamProcessingTimeTimers() {
     CommittedBundle<Integer> created = multiWindowedBundle(createdInts, 1, 2, 3);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(created)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(created),
         new Instant(40_900L));
     manager.refreshAll();
 
@@ -1142,15 +1130,13 @@ public class WatermarkManagerTest implements Serializable {
         TimerUpdate.builder(StructuralKey.of("key", StringUtf8Coder.of()))
             .setTimer(upstreamProcessingTimer)
             .build(),
-        result(
-            graph.getProducer(filtered),
-            created.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(filteredBundle)),
+        graph.getProducer(filtered),
+        created.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(filteredBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
-    TransformWatermarks downstreamWms =
-        manager.getWatermarks(graph.getProducer(filteredTimesTwo));
+    TransformWatermarks downstreamWms = manager.getWatermarks(graph.getProducer(filteredTimesTwo));
     assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
 
     clock.set(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -1167,10 +1153,9 @@ public class WatermarkManagerTest implements Serializable {
         TimerUpdate.builder(StructuralKey.of("key", StringUtf8Coder.of()))
             .withCompletedTimers(Collections.singleton(upstreamProcessingTimer))
             .build(),
-        result(
-            graph.getProducer(filtered),
-            otherCreated.withElements(Collections.emptyList()),
-            Collections.emptyList()),
+        graph.getProducer(filtered),
+        otherCreated.withElements(Collections.emptyList()),
+        Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
@@ -1183,9 +1168,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.<CommittedBundle<?>>singleton(created)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.<CommittedBundle<?>>singleton(created),
         new Instant(29_919_235L));
 
     Instant upstreamHold = new Instant(2048L);
@@ -1195,15 +1180,13 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         created,
         TimerUpdate.empty(),
-        result(
-            graph.getProducer(filtered),
-            created.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(filteredBundle)),
+        graph.getProducer(filtered),
+        created.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(filteredBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
-    TransformWatermarks downstreamWms =
-        manager.getWatermarks(graph.getProducer(filteredTimesTwo));
+    TransformWatermarks downstreamWms = manager.getWatermarks(graph.getProducer(filteredTimesTwo));
     assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
 
     clock.set(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -1219,11 +1202,12 @@ public class WatermarkManagerTest implements Serializable {
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.singleton(createdBundle),
         new Instant(1500L));
     manager.refreshAll();
 
@@ -1244,10 +1228,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         update,
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten)),
         new Instant(1000L));
     manager.refreshAll();
 
@@ -1260,7 +1243,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts), null, Collections.emptyList()),
+        graph.getProducer(createdInts),
+        null,
+        Collections.emptyList(),
         new Instant(50_000L));
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
@@ -1281,11 +1266,12 @@ public class WatermarkManagerTest implements Serializable {
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.singleton(createdBundle),
         new Instant(1500L));
 
     TimerData earliestTimer =
@@ -1305,10 +1291,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         update,
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten)),
         new Instant(1000L));
     manager.refreshAll();
 
@@ -1322,7 +1307,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts), null, Collections.emptyList()),
+        graph.getProducer(createdInts),
+        null,
+        Collections.emptyList(),
         new Instant(50_000L));
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
@@ -1343,11 +1330,12 @@ public class WatermarkManagerTest implements Serializable {
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.singleton(createdBundle),
         new Instant(1500L));
 
     TimerData earliestTimer = TimerData.of(
@@ -1367,10 +1355,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         update,
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten)),
         new Instant(1000L));
     manager.refreshAll();
 
@@ -1384,7 +1371,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts), null, Collections.emptyList()),
+        graph.getProducer(createdInts),
+        null,
+        Collections.emptyList(),
         new Instant(50_000L));
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
@@ -1419,7 +1408,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         initialUpdate,
-        result(graph.getProducer(createdInts), null, Collections.emptyList()),
+        graph.getProducer(createdInts),
+        null,
+        Collections.emptyList(),
         new Instant(5000L));
     manager.refreshAll();
 
@@ -1427,7 +1418,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         null,
         overridingUpdate,
-        result(graph.getProducer(createdInts), null, Collections.emptyList()),
+        graph.getProducer(createdInts),
+        null,
+        Collections.emptyList(),
         new Instant(10000L));
 
     // Set clock past the timers.
@@ -1462,10 +1455,9 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         initialUpdate,
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten)),
         new Instant(1000L));
     manager.refreshAll();
 
@@ -1473,19 +1465,19 @@ public class WatermarkManagerTest implements Serializable {
     manager.updateWatermarks(
         createdBundle,
         overridingUpdate,
-        result(
-            graph.getProducer(filtered),
-            createdBundle.withElements(Collections.emptyList()),
-            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        graph.getProducer(filtered),
+        createdBundle.withElements(Collections.emptyList()),
+        Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten)),
         new Instant(1000L));
     manager.refreshAll();
 
     // Set WM past the timers.
-    manager.updateWatermarks(null,
+    manager.updateWatermarks(
+        null,
         TimerUpdate.empty(),
-        result(graph.getProducer(createdInts),
-            null,
-            Collections.singleton(createdBundle)),
+        graph.getProducer(createdInts),
+        null,
+        Collections.singleton(createdBundle),
         new Instant(3000L));
     manager.refreshAll();
 
@@ -1708,24 +1700,5 @@ public class WatermarkManagerTest implements Serializable {
           WindowedValue.of(value, BoundedWindow.TIMESTAMP_MIN_VALUE, windows, PaneInfo.NO_FIRING));
     }
     return bundle.commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-  }
-
-  private CommittedResult<AppliedPTransform<?, ?, ?>> result(
-      AppliedPTransform<?, ?, ?> transform,
-      @Nullable CommittedBundle<?> unprocessedBundle,
-      Iterable<? extends CommittedBundle<?>> bundles) {
-    Optional<? extends CommittedBundle<?>> unprocessedElements;
-    if (unprocessedBundle == null || Iterables.isEmpty(unprocessedBundle.getElements())) {
-      unprocessedElements = Optional.absent();
-    } else {
-      unprocessedElements = Optional.of(unprocessedBundle);
-    }
-    return CommittedResult.create(
-        StepTransformResult.withoutHold(transform).build(),
-        unprocessedElements,
-        bundles,
-        Iterables.isEmpty(bundles)
-            ? EnumSet.noneOf(OutputType.class)
-            : EnumSet.of(OutputType.BUNDLE));
   }
 }
