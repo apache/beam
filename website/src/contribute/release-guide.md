@@ -189,30 +189,35 @@ Check out the version of the codebase from which you start the release. For a ne
 
 Set up a few environment variables to simplify Maven commands that follow. (We use `bash` Unix syntax in this guide.)
 
-    VERSION="1.2.3"
-    NEXT_VERSION="1.2.4"
-    BRANCH_NAME="release-${VERSION}"
-    DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
+    RELEASE_VERSION=2.5.0
+    NEXT_VERSION_IN_BASE_BRANCH=2.6.0
+    BRANCH=release-${RELEASE}
 
 Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch. Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.
 
-Use Maven release plugin to create the release branch and update the current branch to use the new development version. This command applies for the new major or minor version. (Warning: this command automatically pushes changes to the code repository.)
+**NOTE**: Only if you are doing an incremental/hotfix releasei (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:
 
-    mvn release:branch \
-        -DbranchName=${BRANCH_NAME} \
-        -DdevelopmentVersion=${DEVELOPMENT_VERSION}
+    BASE_RELEASE=2.5.0
+    RELEASE=2.5.1
+    NEXT_VERSION_IN_BASE_BRANCH=2.5.0
+    git checkout tags/${BASE_RELEASE}
 
-However, if you are doing an incremental/hotfix release, please run the following command after checking out the release tag of the release being patched.
+Create a new branch, and update version files in the master branch.
 
-    mvn release:branch \
-        -DbranchName=${BRANCH_NAME} \
-        -DupdateWorkingCopyVersions=false \
-        -DupdateBranchVersions=true \
-        -DreleaseVersion="${VERSION}-SNAPSHOT"
+    git branch ${BRANCH}
+
+    # Now change the version in existing gradle files, and Python files
+    sed -i 's/'$RELEASE'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g' build_rules.gradle
+    sed -i 's/'$RELEASE'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g' gradle.properties
+    sed -i 's/'$RELEASE'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g' sdks/python/apache_beam/version.py
+
+    # Save changes in master branch
+    git add gradle.properties build_rules.gradle
+    git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
 
 Check out the release branch.
 
-    git checkout ${BRANCH_NAME}
+    git checkout ${BRANCH}
 
 The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH_NAME}` with the above environment variables set.
 
@@ -258,22 +263,20 @@ The core of the release process is the build-vote-fix cycle. Each cycle produces
 
 ### Build and stage Java artifacts with Maven
 
-Set up a few environment variables to simplify Maven commands that follow. This identifies the release candidate being built. Start with `RC_NUM` equal to `1` and increment it for each candidate.
+Set up a few environment variables to simplify the commands that follow. These identify the release candidate being built, and the branch where you will stage files. Start with `RC_NUM` equal to `1` and increment it for each candidate.
 
-    RC_NUM="1"
-    RC_TAG="v${VERSION}-RC${RC_NUM}"
+    RC_NUM=1
 
-Use Maven release plugin to build the release artifacts, as follows:
 
-    mvn release:prepare \
-        -Dresume=false \
-        -DreleaseVersion=${VERSION} \
-        -Dtag=${RC_TAG} \
-        -DupdateWorkingCopyVersions=false
+Use Gradle release plugin to build the release artifacts, as follows:
 
-Use Maven release plugin to stage these artifacts on the Apache Nexus repository, as follows:
+    ./gradlew release -Prelease.newVersion=${RELEASE_VERSION}-SNAPSHOT \
+                  -Prelease.releaseVersion=${RELEASE_VERSION}-RC${RC_NUM} \
+                  -Prelease.useAutomaticVersion=true --info --no-daemon
 
-    mvn release:perform
+Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:
+
+    ./gradlew publish -Prelease
 
 Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, source, test source, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
 
