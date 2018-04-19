@@ -149,7 +149,7 @@ public class SdkHarnessClientTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("containing a state");
-    BundleProcessor<?> processor = sdkHarnessClient.getProcessor(descriptor, remoteInputs);
+    sdkHarnessClient.getProcessor(descriptor, remoteInputs);
   }
 
   @Test
