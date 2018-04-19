@@ -163,6 +163,8 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // By default, the Coders for the elements of each output PCollections is
 // inferred from the concrete type.
 //
+// No Global Shared State
+//
 // There are three main ways to initialize the state of a DoFn instance
 // processing a bundle:
 //
@@ -184,8 +186,6 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //    operations, but is the same for all instances of this DoFn for all
 //    program executions, say setting up empty caches or initializing constant
 //    data.
-//
-// No Global Shared State
 //
 // ParDo operations are intended to be able to run in parallel across multiple
 // worker machines. This precludes easy sharing and updating mutable state
