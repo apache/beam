@@ -64,6 +64,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -440,6 +441,7 @@ public class SplittableParDoProcessFnTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4144")
   public void testResumeCarriesOverState() throws Exception {
     DoFn<Integer, String> fn = new CounterFn(1);
     Instant base = Instant.now();
