@@ -342,7 +342,7 @@ func (*intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 		return err
 	}
 	for _, elm := range ws {
-		iw := elm.(window.InternalWindow)
+		iw := elm.(window.IntervalWindow)
 		if err := coder.EncodeEventTime(iw.End, w); err != nil {
 			return err
 		}
@@ -371,7 +371,7 @@ func (*intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret[i] = window.InternalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}
+		ret[i] = window.IntervalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}
 	}
 	return ret, err
 }

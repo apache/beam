@@ -78,9 +78,9 @@ type properties struct {
 	Format                  string                      `json:"format,omitempty"`                    // Source
 	Inputs                  []*outputReference          `json:"inputs,omitempty"`                    // Flatten.
 	NonParallelInputs       map[string]*outputReference `json:"non_parallel_inputs,omitempty"`       // ParDo
-	OutputInfo              []output                    `json:"output_info,omitempty"`               // Source, ParDo, GBK, Flatten, Combine
-	ParallelInput           *outputReference            `json:"parallel_input,omitempty"`            // ParDo, GBK, Flatten, Combine
-	SerializedFn            string                      `json:"serialized_fn,omitempty"`             // ParDo, Combine
+	OutputInfo              []output                    `json:"output_info,omitempty"`               // Source, ParDo, GBK, Flatten, Combine, WindowInto
+	ParallelInput           *outputReference            `json:"parallel_input,omitempty"`            // ParDo, GBK, Flatten, Combine, WindowInto
+	SerializedFn            string                      `json:"serialized_fn,omitempty"`             // ParDo, Combine, WindowInto
 
 	PubSubTopic          string `json:"pubsub_topic,omitempty"`           // Read,Write
 	PubSubSubscription   string `json:"pubsub_subscription,omitempty"`    // Read,Write

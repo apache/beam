@@ -239,6 +239,14 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	if err != nil {
 		return nil, nil, err
 	}
+	if coder.IsW(c) {
+		// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
+		// However, windowing strategies are not yet passed through, so the main
+		// path always gives us GlobalWindows.
+
+		return coder.SkipW(c), c.Window, nil
+	}
+
 	ws, ok := b.desc.GetWindowingStrategies()[col.GetWindowingStrategyId()]
 	if !ok {
 		return nil, nil, fmt.Errorf("windowing strategy %v not found", id)
@@ -247,9 +255,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
-	return coder.SkipW(c), wc, nil
+	return c, wc, nil
 }
 
 func (b *builder) makePCollection(id string) (Node, error) {
@@ -350,7 +356,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 		switch tp.GetUrn() {
 		case graphx.URNDoFn:
-			op, fn, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
+			op, fn, _, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
 			if err != nil {
 				return nil, err
 			}

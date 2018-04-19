@@ -52,9 +52,14 @@ func Now() Time {
 	return FromTime(time.Now())
 }
 
-// New returns a timestamp from a raw milliseconds-since-epoch value.
+// FromMilliseconds returns a timestamp from a raw milliseconds-since-epoch value.
 func FromMilliseconds(unixMilliseconds int64) Time {
 	return Normalize(Time(unixMilliseconds))
+}
+
+// FromDuration returns a timestamp from a time.Duration-since-epoch value.
+func FromDuration(d time.Duration) Time {
+	return ZeroTimestamp.Add(d)
 }
 
 // FromTime returns a milli-second precision timestamp from a time.Time.
@@ -70,6 +75,11 @@ func (t Time) Milliseconds() int64 {
 // Add returns the time plus the duration.
 func (t Time) Add(d time.Duration) Time {
 	return Normalize(Time(int64(t) + n2m(d.Nanoseconds())))
+}
+
+// Subtract returns the time minus the duration.
+func (t Time) Subtract(d time.Duration) Time {
+	return Normalize(Time(int64(t) - n2m(d.Nanoseconds())))
 }
 
 func (t Time) String() string {

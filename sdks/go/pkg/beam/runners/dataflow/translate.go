@@ -36,10 +36,11 @@ import (
 )
 
 const (
-	impulseKind = "CreateCollection"
-	parDoKind   = "ParallelDo"
-	flattenKind = "Flatten"
-	gbkKind     = "GroupByKey"
+	impulseKind    = "CreateCollection"
+	parDoKind      = "ParallelDo"
+	flattenKind    = "Flatten"
+	gbkKind        = "GroupByKey"
+	windowIntoKind = "Bucket"
 
 	sideInputKind = "CollectionToSingleton"
 
@@ -95,7 +96,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 				// be before the present one.
 
 				ref := nodes[edge.Input[i].From.ID()]
-				c, err := encodeCoderRef(edge.Input[i].From.Coder)
+				c, err := encodeCoderRef(edge.Input[i].From.Coder, edge.Input[i].From.WindowingStrategy().Fn.Coder())
 				if err != nil {
 					return nil, err
 				}
@@ -121,7 +122,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 		for _, out := range edge.Output {
 			ref := nodes[out.To.ID()]
-			coder, err := encodeCoderRef(out.To.Coder)
+			coder, err := encodeCoderRef(out.To.Coder, out.To.WindowingStrategy().Fn.Coder())
 			if err != nil {
 				return nil, err
 			}
@@ -136,7 +137,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			// Dataflow seems to require at least one output. We insert
 			// a bogus one (named "bogus") and remove it in the harness.
 
-			coder, err := encodeCoderRef(edge.Input[0].From.Coder)
+			coder, err := encodeCoderRef(edge.Input[0].From.Coder, edge.Input[0].From.WindowingStrategy().Fn.Coder())
 			if err != nil {
 				return nil, err
 			}
@@ -170,11 +171,13 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in graphx/cogbk.go.
 
-	kvCoder, err := encodeCoderRef(graphx.MakeKVUnionCoder(edge))
+	id := graphx.StableMultiEdgeID(edge)
+	wc := edge.Output[0].To.WindowingStrategy().Fn.Coder()
+	kvCoder, err := encodeCoderRef(graphx.MakeKVUnionCoder(edge), wc)
 	if err != nil {
 		return nil, err
 	}
-	gbkCoder, err := encodeCoderRef(graphx.MakeGBKUnionCoder(edge))
+	gbkCoder, err := encodeCoderRef(graphx.MakeGBKUnionCoder(edge), wc)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +188,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	for i, in := range edge.Input {
 		// Inject(i)
 
-		injectID := fmt.Sprintf("%v_inject%v", edge.ID(), i)
+		injectID := graphx.StableCoGBKInjectID(id, i)
 		out := newOutputReference(injectID, "out")
 
 		inject := &df.Step{
@@ -212,7 +215,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 
 	// Flatten
 
-	flattenID := fmt.Sprintf("%v_flatten", edge.ID())
+	flattenID := graphx.StableCoGBKFlattenID(id)
 	out := newOutputReference(flattenID, "out")
 
 	flatten := &df.Step{
@@ -232,7 +235,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 
 	// GBK
 
-	gbkID := fmt.Sprintf("%v_expand", edge.ID())
+	gbkID := graphx.StableCoGBKGBKID(id)
 	gbkOut := newOutputReference(gbkID, "out")
 
 	w := edge.Input[0].From.WindowingStrategy()
@@ -261,7 +264,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	// Expand
 
 	ref := nodes[edge.Output[0].To.ID()]
-	coder, err := encodeCoderRef(edge.Output[0].To.Coder)
+	coder, err := encodeCoderRef(edge.Output[0].To.Coder, wc)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +337,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	case graph.ParDo:
 		return parDoKind, properties{
 			UserName:     buildName(edge.Scope(), edge.DoFn.Name()),
-			SerializedFn: serializeFn(edge),
+			SerializedFn: graphx.StableMultiEdgeID(edge),
 		}, nil
 
 	case graph.Combine:
@@ -342,7 +345,18 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		// "CombineValues", encode accumulator coder and pass it as a property "Encoding".
 		return parDoKind, properties{
 			UserName:     buildName(edge.Scope(), edge.CombineFn.Name()),
-			SerializedFn: serializeFn(edge),
+			SerializedFn: graphx.StableMultiEdgeID(edge),
+		}, nil
+
+	case graph.WindowInto:
+		w := edge.Output[0].To.WindowingStrategy()
+		sfn, err := encodeSerializedFn(translateWindowingStrategy(w))
+		if err != nil {
+			return "", properties{}, err
+		}
+		return windowIntoKind, properties{
+			UserName:     buildName(edge.Scope(), "window"), // TODO: user-defined
+			SerializedFn: sfn,
 		}, nil
 
 	case graph.CoGBK:
@@ -389,7 +403,10 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 				return readKind, prop, nil
 
 			case pubsub_v1.PubSubPayload_WRITE:
-				c, _ := encodeCoderRef(coder.NewBytes())
+				c, err := encodeCoderRef(coder.NewBytes(), edge.Input[0].From.WindowingStrategy().Fn.Coder())
+				if err != nil {
+					return "", properties{}, fmt.Errorf("bad window coder: %v", err)
+				}
 				prop.Encoding = c
 				return writeKind, prop, nil
 
@@ -406,26 +423,13 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	}
 }
 
-// serializeFn encodes and then base64-encodes a MultiEdge. Dataflow requires
-// serialized functions to be base64 encoded.
-func serializeFn(edge *graph.MultiEdge) string {
-	ref, err := graphx.EncodeMultiEdge(edge)
-	if err != nil {
-		panic(fmt.Errorf("failed to serialize %v: %v", edge, err))
-	}
-	return makeSerializedFnPayload(&v1.TransformPayload{
-		Urn:  graphx.URNDoFn,
-		Edge: ref,
-	})
-}
-
 func makeSerializedFnPayload(payload *v1.TransformPayload) string {
 	return protox.MustEncodeBase64(payload)
 }
 
-func encodeCoderRef(c *coder.Coder) (*graphx.CoderRef, error) {
+func encodeCoderRef(c *coder.Coder, wc *coder.WindowCoder) (*graphx.CoderRef, error) {
 	// TODO(herohde) 3/16/2018: ensure windowed values for Dataflow
-	return graphx.EncodeCoderRef(coder.NewW(c, coder.NewGlobalWindow()))
+	return graphx.EncodeCoderRef(coder.NewW(c, wc))
 }
 
 // buildName computes a Dataflow composite name understood by the Dataflow UI,
@@ -469,6 +473,36 @@ func translateWindowingStrategy(w *window.WindowingStrategy) proto.Message {
 }
 
 func encodeSerializedFn(in proto.Message) (string, error) {
-	// The Beam Runner API uses URL query escaping for serialized fn messages.
-	return protox.EncodeQueryEscaped(in)
+	// The Beam Runner API uses special escaping for serialized fn messages.
+
+	data, err := proto.Marshal(in)
+	if err != nil {
+		return "", err
+	}
+	return encodeString(data), nil
+}
+
+// encodeString is a custom encoding used in some cases by Dataflow.
+//
+// Uses a simple strategy of converting each byte to a single char,
+// except for non-printable chars, non-ASCII chars, and '%', '\',
+// and '"', which are encoded as three chars in '%xx' format, where
+//'xx' is the hexadecimal encoding of the byte.
+//
+// Matches the Java function StringUtils.byteArrayToJsonString.
+func encodeString(bytes []byte) string {
+	var ret []byte
+	for _, b := range bytes {
+		if b >= 32 && b < 127 {
+			if b != '%' && b != '\\' && b != '"' {
+				// Not an escape prefix or special character, either.
+				// Send through unchanged.
+				ret = append(ret, b)
+				continue
+			}
+		}
+		// Send through escaped.  Use '%xx' format.
+		ret = append(ret, []byte(fmt.Sprintf("%%%02x", b))...)
+	}
+	return string(ret)
 }

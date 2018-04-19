@@ -20,9 +20,12 @@ import (
 	"fmt"
 	"reflect"
 
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -45,13 +48,15 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 		}
 		ret.Fn = ref
 	}
-
 	if edge.CombineFn != nil {
 		ref, err := encodeFn((*graph.Fn)(edge.CombineFn))
 		if err != nil {
 			return nil, fmt.Errorf("encode: bad combinefn: %v", err)
 		}
 		ret.Fn = ref
+	}
+	if edge.WindowFn != nil {
+		ret.WindowFn = encodeWindowFn(edge.WindowFn)
 	}
 
 	for _, in := range edge.Input {
@@ -75,8 +80,9 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 // DecodeMultiEdge converts the wire representation into the preprocessed
 // components representing that edge. We deserialize to components to avoid
 // inserting the edge into a graph or creating a detached edge.
-func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, []*graph.Inbound, []*graph.Outbound, error) {
+func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, *window.Fn, []*graph.Inbound, []*graph.Outbound, error) {
 	var u *graph.Fn
+	var wfn *window.Fn
 	var inbound []*graph.Inbound
 	var outbound []*graph.Outbound
 
@@ -86,29 +92,32 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, []*graph.Inbo
 		var err error
 		u, err = decodeFn(edge.Fn)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
 		}
+	}
+	if edge.WindowFn != nil {
+		wfn = decodeWindowFn(edge.WindowFn)
 	}
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
 		}
 		t, err := decodeFullType(in.Type)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
 		}
 		inbound = append(inbound, &graph.Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Outbound {
 		t, err := decodeFullType(out.Type)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
 		}
 		outbound = append(outbound, &graph.Outbound{Type: t})
 	}
 
-	return opcode, u, inbound, outbound, nil
+	return opcode, u, wfn, inbound, outbound, nil
 }
 
 func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
@@ -155,6 +164,32 @@ func decodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 		Dec:  dec,
 	}
 	return ret, nil
+}
+
+func encodeWindowFn(w *window.Fn) *v1.WindowFn {
+	return &v1.WindowFn{
+		Kind:     string(w.Kind),
+		SizeMs:   duration2ms(w.Size),
+		PeriodMs: duration2ms(w.Period),
+		GapMs:    duration2ms(w.Gap),
+	}
+}
+
+func decodeWindowFn(w *v1.WindowFn) *window.Fn {
+	return &window.Fn{
+		Kind:   window.Kind(w.Kind),
+		Size:   ms2duration(w.SizeMs),
+		Period: ms2duration(w.PeriodMs),
+		Gap:    ms2duration(w.GapMs),
+	}
+}
+
+func duration2ms(d time.Duration) int64 {
+	return d.Nanoseconds() / 1e6
+}
+
+func ms2duration(d int64) time.Duration {
+	return time.Duration(d) * time.Millisecond
 }
 
 func encodeFn(u *graph.Fn) (*v1.Fn, error) {
@@ -433,6 +468,8 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 
 	case typex.EventTimeType:
 		return v1.Type_EVENTTIME, true
+	case typex.WindowType:
+		return v1.Type_WINDOW, true
 	case typex.KVType:
 		return v1.Type_KV, true
 	case typex.CoGBKType:
@@ -582,6 +619,8 @@ func decodeSpecial(s v1.Type_Special) (reflect.Type, error) {
 
 	case v1.Type_EVENTTIME:
 		return typex.EventTimeType, nil
+	case v1.Type_WINDOW:
+		return typex.WindowType, nil
 	case v1.Type_KV:
 		return typex.KVType, nil
 	case v1.Type_COGBK:
@@ -733,7 +772,7 @@ const (
 // WrapExtraWindowedValue adds an additional WV needed for side input, which
 // expects the coder to have exactly one component with the element.
 func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
-	return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{c}}
+	return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{c, c.Components[1]}}
 }
 
 // EncodeCoderRefs returns the encoded forms understood by the runner.

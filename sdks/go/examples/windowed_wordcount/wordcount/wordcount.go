@@ -19,10 +19,11 @@
 package wordcount
 
 import (
-	"strings"
-	"regexp"
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"context"
+	"regexp"
+	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 

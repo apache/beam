@@ -189,7 +189,7 @@ func (n *DataSource) Down(ctx context.Context) error {
 
 func (n *DataSource) String() string {
 	sid := StreamID{Port: n.Port, Target: n.Target}
-	return fmt.Sprintf("DataSource[%v] Out:%v", sid, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v] Coder:%v Out:%v", sid, n.Coder, n.Out.ID())
 }
 
 // ProgressReportSnapshot captures the progress reading an input source.
