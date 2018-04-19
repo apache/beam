@@ -422,7 +422,8 @@ public class JdbcIO {
     }
 
     /**
-     * This method used to set the size of the data that is going to be fetched from the database.
+     * This method is used to set the size of the data that is going to be fetched and loaded in memory
+     * per every database call. Please refer to: {@link java.sql.Statement#setFetchSize(int)}
      * It should ONLY be used if the default value throws memory errors.
      */
     public Read<T> withFetchSize(int fetchSize) {
@@ -528,7 +529,8 @@ public class JdbcIO {
     }
 
     /**
-     * This method used to set the size of the data that is going to be fetched from the database.
+     * This method is used to set the size of the data that is going to be fetched and loaded in memory
+     * per every database call. Please refer to: {@link java.sql.Statement#setFetchSize(int)}
      * It should ONLY be used if the default value throws memory errors.
      */
     public ReadAll<ParameterT, OutputT> withFetchSize(int fetchSize) {
