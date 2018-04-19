@@ -191,7 +191,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),
             context);
-    executor.start(graph, RootProviderRegistry.defaultRegistry(context, options));
+    executor.start(graph, RootProviderRegistry.javaNativeRegistry(context, options));
 
     DirectPipelineResult result = new DirectPipelineResult(executor, context);
     if (options.isBlockOnRun()) {
