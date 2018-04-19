@@ -54,6 +54,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -61,7 +62,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Instant;
 
 /**
@@ -211,7 +211,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    */
   @VisibleForTesting static class AppliedPTransformInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWatermarks;
-    private final SortedMultiset<CommittedBundle<?>> pendingElements;
+    private final SortedMultiset<Bundle<?, ?>> pendingElements;
 
     // This tracks only the quantity of timers at each timestamp, for quickly getting the cross-key
     // minimum
@@ -233,7 +233,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       // be consumed without modifications.
       //
       // The same logic is applied for pending timers
-      Ordering<CommittedBundle<?>> pendingBundleComparator =
+      Ordering<Bundle<?, ?>> pendingBundleComparator =
           new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements =
           TreeMultiset.create(pendingBundleComparator);
@@ -280,11 +280,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
     }
 
-    private synchronized void addPending(CommittedBundle<?> newPending) {
+    private synchronized void addPending(Bundle<?, ?> newPending) {
       pendingElements.add(newPending);
     }
 
-    private synchronized void removePending(CommittedBundle<?> completed) {
+    private synchronized void removePending(Bundle<?, ?> completed) {
       pendingElements.remove(completed);
     }
 
@@ -446,7 +446,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    */
   private static class SynchronizedProcessingTimeInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWms;
-    private final Collection<CommittedBundle<?>> pendingBundles;
+    private final Collection<Bundle<?, ?>> pendingBundles;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> processingTimers;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> synchronizedProcessingTimers;
     private final Map<StructuralKey<?>, Table<StateNamespace, String, TimerData>> existingTimers;
@@ -494,7 +494,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       for (Watermark input : inputWms) {
         minTime = INSTANT_ORDERING.min(minTime, input.get());
       }
-      for (CommittedBundle<?> bundle : pendingBundles) {
+      for (Bundle<?, ?> bundle : pendingBundles) {
         // TODO: Track elements in the bundle by the processing time they were output instead of
         // entire bundles. Requried to support arbitrarily splitting and merging bundles between
         // steps
@@ -504,11 +504,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
       return WatermarkUpdate.fromTimestamps(oldHold, minTime);
     }
 
-    public synchronized void addPending(CommittedBundle<?> bundle) {
+    public synchronized void addPending(Bundle<?, ?> bundle) {
       pendingBundles.add(bundle);
     }
 
-    public synchronized void removePending(CommittedBundle<?> bundle) {
+    public synchronized void removePending(Bundle<?, ?> bundle) {
       pendingBundles.remove(bundle);
     }
 
@@ -785,7 +785,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * @param clock the clock to use to determine processing time
    * @param graph the graph representing this pipeline
    */
-  public static WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> create(
+  public static WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> create(
       Clock clock, DirectGraph graph) {
     return new WatermarkManager<>(clock, graph);
   }
@@ -879,13 +879,14 @@ class WatermarkManager<ExecutableT, CollectionT> {
     return transformToWatermarks.get(executable);
   }
 
-  public void initialize(Map<ExecutableT, ? extends Iterable<CommittedBundle<?>>> initialBundles) {
+  public void initialize(
+      Map<ExecutableT, ? extends Iterable<Bundle<?,  CollectionT>>> initialBundles) {
     refreshLock.lock();
     try {
-      for (Map.Entry<ExecutableT, ? extends Iterable<CommittedBundle<?>>> rootEntry :
+      for (Map.Entry<ExecutableT, ? extends Iterable<Bundle<?, CollectionT>>> rootEntry :
           initialBundles.entrySet()) {
         TransformWatermarks rootWms = transformToWatermarks.get(rootEntry.getKey());
-        for (CommittedBundle<?> initialBundle : rootEntry.getValue()) {
+        for (Bundle<?, ? extends CollectionT> initialBundle : rootEntry.getValue()) {
           rootWms.addPending(initialBundle);
         }
         pendingRefreshes.add(rootEntry.getKey());
@@ -920,11 +921,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * @param earliestHold the earliest watermark hold in the executable's state.
    */
   public void updateWatermarks(
-      @Nullable CommittedBundle<?> completed,
+      @Nullable Bundle<?, ? extends CollectionT> completed,
       TimerUpdate timerUpdate,
       ExecutableT executable,
-      @Nullable CommittedBundle<?> unprocessedInputs,
-      Iterable<? extends CommittedBundle<?>> outputs,
+      @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+      Iterable<? extends Bundle<?, ? extends CollectionT>> outputs,
       Instant earliestHold) {
     pendingUpdates.offer(
         PendingWatermarkUpdate.create(
@@ -961,16 +962,16 @@ class WatermarkManager<ExecutableT, CollectionT> {
   @GuardedBy("refreshLock")
   private void applyNUpdates(int numUpdates) {
     for (int i = 0; !pendingUpdates.isEmpty() && (i < numUpdates || numUpdates <= 0); i++) {
-      PendingWatermarkUpdate<ExecutableT> pending = pendingUpdates.poll();
+      PendingWatermarkUpdate<ExecutableT, CollectionT> pending = pendingUpdates.poll();
       applyPendingUpdate(pending);
       pendingRefreshes.add(pending.getExecutable());
     }
   }
 
   /** Apply a {@link PendingWatermarkUpdate} to the {@link WatermarkManager}. */
-  private void applyPendingUpdate(PendingWatermarkUpdate<ExecutableT> pending) {
+  private void applyPendingUpdate(PendingWatermarkUpdate<ExecutableT, CollectionT> pending) {
     ExecutableT executable = pending.getExecutable();
-    CommittedBundle<?> inputBundle = pending.getInputBundle();
+    Bundle<?, ? extends CollectionT> inputBundle = pending.getInputBundle();
 
     updatePending(
         inputBundle,
@@ -996,19 +997,19 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * watermark but the element it produced is not yet pending. This can cause the watermark to
    * erroneously advance.
    *
-   * <p>See {@link #updateWatermarks(CommittedBundle, TimerUpdate, Object, CommittedBundle,
+   * <p>See {@link #updateWatermarks(Bundle, TimerUpdate, Object, Bundle,
    * Iterable, Instant)} for information about the parameters of this method.
    */
   private void updatePending(
-      CommittedBundle<?> input,
+      Bundle<?, ? extends CollectionT> input,
       TimerUpdate timerUpdate,
       ExecutableT executable,
-      @Nullable CommittedBundle<?> unprocessedInputs,
-      Iterable<? extends CommittedBundle<?>> outputs) {
+      @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+      Iterable<? extends Bundle<?, ? extends CollectionT>> outputs) {
     // Newly pending elements must be added before completed elements are removed, as the two
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
-    for (CommittedBundle<?> bundle : outputs) {
+    for (Bundle<?, ? extends CollectionT> bundle : outputs) {
       for (ExecutableT consumer :
           // TODO: Remove this cast once CommittedBundle returns a CollectionT
           graph.getPerElementConsumers((CollectionT) bundle.getPCollection())) {
@@ -1271,12 +1272,12 @@ class WatermarkManager<ExecutableT, CollectionT> {
       outputWatermark.updateHold(key, newHold);
     }
 
-    private void removePending(CommittedBundle<?> bundle) {
+    private void removePending(Bundle<?, ?> bundle) {
       inputWatermark.removePending(bundle);
       synchronizedProcessingInputWatermark.removePending(bundle);
     }
 
-    private void addPending(CommittedBundle<?> bundle) {
+    private void addPending(Bundle<?, ?> bundle) {
       inputWatermark.addPending(bundle);
       synchronizedProcessingInputWatermark.addPending(bundle);
     }
@@ -1525,10 +1526,10 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
-  private static class BundleByElementTimestampComparator extends Ordering<CommittedBundle<?>>
+  private static class BundleByElementTimestampComparator extends Ordering<Bundle<?, ?>>
       implements Serializable {
     @Override
-    public int compare(CommittedBundle<?> o1, CommittedBundle<?> o2) {
+    public int compare(Bundle<?, ?> o1, Bundle<?, ?> o2) {
       return ComparisonChain.start()
           .compare(o1.getMinimumTimestamp(), o2.getMinimumTimestamp())
           .result();
@@ -1536,28 +1537,29 @@ class WatermarkManager<ExecutableT, CollectionT> {
   }
 
   @AutoValue
-  abstract static class PendingWatermarkUpdate<ExecutableT> {
+  abstract static class PendingWatermarkUpdate<ExecutableT, CollectionT> {
     abstract ExecutableT getExecutable();
 
     @Nullable
-    abstract CommittedBundle<?> getInputBundle();
+    abstract Bundle<?, ? extends CollectionT> getInputBundle();
 
     abstract TimerUpdate getTimerUpdate();
 
     @Nullable
-    abstract CommittedBundle<?> getUnprocessedInputs();
+    abstract Bundle<?, ? extends CollectionT> getUnprocessedInputs();
 
-    abstract Iterable<? extends CommittedBundle<?>> getOutputs();
+    abstract Iterable<? extends Bundle<?, ? extends CollectionT>> getOutputs();
 
     abstract Instant getEarliestHold();
 
-    public static <ExecutableT> PendingWatermarkUpdate<ExecutableT> create(
-        ExecutableT executable,
-        @Nullable CommittedBundle<?> inputBundle,
-        TimerUpdate timerUpdate,
-        @Nullable CommittedBundle<?> unprocessedInputs,
-        Iterable<? extends CommittedBundle<?>> outputs,
-        Instant earliestHold) {
+    public static <ExecutableT, CollectionT>
+        PendingWatermarkUpdate<ExecutableT, CollectionT> create(
+            ExecutableT executable,
+            @Nullable Bundle<?, ? extends CollectionT> inputBundle,
+            TimerUpdate timerUpdate,
+            @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+            Iterable<? extends Bundle<?, ? extends CollectionT>> outputs,
+            Instant earliestHold) {
       return new AutoValue_WatermarkManager_PendingWatermarkUpdate<>(
           executable, inputBundle, timerUpdate, unprocessedInputs, outputs, earliestHold);
     }

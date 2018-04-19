@@ -65,7 +65,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -101,7 +100,7 @@ public class WatermarkManagerTest implements Serializable {
   private transient PCollection<Integer> intsToFlatten;
   private transient PCollection<Integer> flattened;
 
-  private transient WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> manager;
+  private transient WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> manager;
   private transient BundleFactory bundleFactory;
   private DirectGraph graph;
 
@@ -306,7 +305,7 @@ public class WatermarkManagerTest implements Serializable {
 
     AppliedPTransform<?, ?, ?> theFlatten = graph.getProducer(multiConsumer);
 
-    WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> tstMgr =
+    WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> tstMgr =
         WatermarkManager.create(clock, graph);
     CommittedBundle<Void> root =
         bundleFactory
@@ -323,7 +322,7 @@ public class WatermarkManagerTest implements Serializable {
         ImmutableMap.<AppliedPTransform<?, ?, ?>, Collection<CommittedBundle<?>>>builder()
             .put(graph.getProducer(created), Collections.singleton(root))
             .build();
-    tstMgr.initialize(initialInputs);
+    tstMgr.initialize((Map) initialInputs);
     tstMgr.updateWatermarks(
         root,
         TimerUpdate.empty(),
