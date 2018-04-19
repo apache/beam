@@ -162,4 +162,4 @@ task validatesRunner {
 }
 
 // Generates :beam-runners-spark:runQuickstartJavaSpark
-createJavaQuickstartValidationTask(name: 'Spark')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')

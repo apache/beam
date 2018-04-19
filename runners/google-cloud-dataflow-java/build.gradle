@@ -138,11 +138,6 @@ task validatesRunner {
   dependsOn validatesRunnerTest
 }
 
-// Generates :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow
-def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
-createJavaQuickstartValidationTask(name: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)
-
 task googleCloudPlatformIntegrationTest(type: Test) {
   group = "Verification"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
@@ -187,3 +182,22 @@ task postCommit {
   dependsOn googleCloudPlatformIntegrationTest
   dependsOn examplesJavaIntegrationTest
 }
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
+def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
+def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+
+// Generates :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
+  runner: 'Dataflow',
+  gcpProject: gcpProject,
+  gcsBucket: gcsBucket)
+
+// Generates :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+  runner: 'Dataflow',
+  gcpProject: gcpProject,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)
