@@ -1151,26 +1151,35 @@ ext.applyAvroNature = {
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
 
-// A class defining the set of configurable properties for createJavaQuickstartValidationTask
-class JavaQuickstartConfiguration {
-  // Name for the quickstart is required.
-  // Used both for the test name runQuickstartJava${name}
-  // and also for the script name, quickstart-java-${name}.toLowerCase().
-  String name
+// A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
+class JavaExamplesArchetypeValidationConfiguration {
+  // Type [Quickstart, MobileGaming] for the postrelease validation is required.
+  // Used both for the test name run${type}Java${runner}
+  // and also for the script name, ${type}-java-${runner}.toLowerCase().
+  String type
 
-  // gcpProject sets the gcpProject argument when executing the quickstart.
+  // runner [Direct, Dataflow, Spark, Flink, FlinkLocal, Apex]
+  String runner
+
+  // gcpProject sets the gcpProject argument when executing examples.
   String gcpProject
 
-  // gcsBucket sets the gcsProject argument when executing the quickstart.
+  // gcsBucket sets the gcsProject argument when executing examples.
   String gcsBucket
+
+  // bqDataset sets the BigQuery Dataset when executing mobile-gaming examples
+  String bqDataset
+
+  // pubsubTopic sets topics when executing streaming pipelines
+  String pubsubTopic
 }
 
 // Creates a task to run the quickstart for a runner.
 // Releases version and URL, can be overriden for a RC release with
-// ./gradlew :release:runQuickstartJava -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
-ext.createJavaQuickstartValidationTask = {
-  JavaQuickstartConfiguration config = it as JavaQuickstartConfiguration
-  def taskName = "runQuickstartJava${config.name}"
+// ./gradlew :release:runJavaExamplesValidationTask -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
+ext.createJavaExamplesArchetypeValidationTask = {
+  JavaExamplesArchetypeValidationConfiguration config = it as JavaExamplesArchetypeValidationConfiguration
+  def taskName = "run${config.type}Java${config.runner}"
   println "Generating :${taskName}"
   def releaseVersion = project.findProperty('ver') ?: version
   def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
@@ -1181,9 +1190,15 @@ ext.createJavaQuickstartValidationTask = {
   if (config.gcsBucket) {
     argsNeeded.add("--gcsBucket=${config.gcsBucket}")
   }
+  if (config.bqDataset) {
+      argsNeeded.add("--bqDataset=${config.bqDataset}")
+  }
+  if (config.pubsubTopic) {
+      argsNeeded.add("--pubsubTopic=${config.pubsubTopic}")
+  }
   project.evaluationDependsOn(':release')
   task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
-    main = "quickstart-java-${config.name}".toLowerCase()
+    main = "${config.type}-java-${config.runner}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
   }
