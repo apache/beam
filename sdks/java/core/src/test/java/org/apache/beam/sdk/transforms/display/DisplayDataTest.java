@@ -846,7 +846,7 @@ public class DisplayDataTest implements Serializable {
                 builder
                     .add(DisplayData.item("string", "foobar"))
                     .add(DisplayData.item("integer", 123))
-                    .add(DisplayData.item("float", 3.14))
+                    .add(DisplayData.item("float", 2.34))
                     .add(DisplayData.item("boolean", true))
                     .add(DisplayData.item("java_class", DisplayDataTest.class))
                     .add(DisplayData.item("timestamp", Instant.now()))
@@ -977,7 +977,7 @@ public class DisplayDataTest implements Serializable {
         builder
           .add(DisplayData.item("string", "foobar"))
           .add(DisplayData.item("integer", 123))
-          .add(DisplayData.item("float", 3.14))
+          .add(DisplayData.item("float", 2.34))
           .add(DisplayData.item("boolean", true))
           .add(DisplayData.item("java_class", DisplayDataTest.class))
           .add(DisplayData.item("timestamp", now))
@@ -988,7 +988,7 @@ public class DisplayDataTest implements Serializable {
 
     assertThat(data, hasDisplayItem("string", "foobar"));
     assertThat(data, hasDisplayItem("integer", 123));
-    assertThat(data, hasDisplayItem("float", 3.14));
+    assertThat(data, hasDisplayItem("float", 2.34));
     assertThat(data, hasDisplayItem("boolean", true));
     assertThat(data, hasDisplayItem("java_class", DisplayDataTest.class));
     assertThat(data, hasDisplayItem("timestamp", now));
