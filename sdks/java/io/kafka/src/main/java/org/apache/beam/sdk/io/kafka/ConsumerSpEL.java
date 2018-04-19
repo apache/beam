@@ -27,7 +27,6 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.header.Headers;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +56,21 @@ class ConsumerSpEL {
 
   private boolean hasRecordTimestamp = false;
   private boolean hasOffsetsForTimes = false;
-  private boolean hasHeaders = false;
+  static boolean hasHeaders = false;
+
+  static {
+    try {
+      // It is supported by Kafka Client 0.11.0.0 onwards.
+      hasHeaders = ConsumerRecord
+          .class
+          .getMethod("headers", (Class<?>[]) null)
+          .getReturnType()
+          .getName()
+          .equals("org.apache.kafka.common.header.Headers");
+    } catch (NoSuchMethodException | SecurityException e) {
+      LOG.debug("Headers is not available");
+    }
+  }
 
   public ConsumerSpEL() {
     try {
@@ -80,18 +93,6 @@ class ConsumerSpEL {
         .equals(Map.class);
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("OffsetsForTimes is not available.");
-    }
-
-    try {
-      // It is supported by Kafka Client 0.11.0.0 onwards.
-      hasHeaders = ConsumerRecord
-        .class
-        .getMethod("headers", (Class<?>[]) null)
-        .getReturnType()
-        .getName()
-        .equals("org.apache.kafka.common.header.Headers");
-    } catch (NoSuchMethodException | SecurityException e) {
-      LOG.debug("Headers is not available");
     }
   }
 
@@ -153,12 +154,5 @@ class ConsumerSpEL {
     } else {
       return offsetAndTimestamp.offset();
     }
-  }
-
-  public Headers getHeaders(ConsumerRecord<byte[], byte[]> rawRecord) {
-    if (hasHeaders) {
-      return rawRecord.headers();
-    }
-    return null;
   }
 }
