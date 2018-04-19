@@ -52,7 +52,8 @@ class QuiescenceDriver implements ExecutionDriver {
   public static ExecutionDriver create(
       EvaluationContext context,
       DirectGraph graph,
-      BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleProcessor,
+      BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
+          bundleProcessor,
       PipelineMessageReceiver messageReceiver,
       Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>> initialBundles) {
     return new QuiescenceDriver(context, graph, bundleProcessor, messageReceiver, initialBundles);
@@ -60,7 +61,8 @@ class QuiescenceDriver implements ExecutionDriver {
 
   private final EvaluationContext evaluationContext;
   private final DirectGraph graph;
-  private final BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleProcessor;
+  private final BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
+      bundleProcessor;
   private final PipelineMessageReceiver pipelineMessageReceiver;
 
   private final CompletionCallback defaultCompletionCallback =
@@ -78,7 +80,8 @@ class QuiescenceDriver implements ExecutionDriver {
   private QuiescenceDriver(
       EvaluationContext evaluationContext,
       DirectGraph graph,
-      BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleProcessor,
+      BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
+          bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
       Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
           pendingRootBundles) {
