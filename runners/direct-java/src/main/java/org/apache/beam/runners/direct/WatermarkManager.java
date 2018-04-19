@@ -1522,17 +1522,6 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
-  public Set<ExecutableT> getCompletedTransforms() {
-    Set<ExecutableT> result = new HashSet<>();
-    for (Map.Entry<ExecutableT, TransformWatermarks> wms :
-        transformToWatermarks.entrySet()) {
-      if (wms.getValue().getOutputWatermark().equals(THE_END_OF_TIME.get())) {
-        result.add(wms.getKey());
-      }
-    }
-    return result;
-  }
-
   @AutoValue
   abstract static class PendingWatermarkUpdate<ExecutableT> {
     abstract ExecutableT getExecutable();
