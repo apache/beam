@@ -439,6 +439,7 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
+  @Test
   public void testResumeCarriesOverState() throws Exception {
     DoFn<Integer, String> fn = new CounterFn(1);
     Instant base = Instant.now();
