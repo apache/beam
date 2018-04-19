@@ -40,14 +40,6 @@ import (
 // By default, input and output PCollections share a key Coder and iterable
 // values in the input and output PCollection share an element Coder.
 //
-// Example of use:
-//
-//    urlDocPairs := ...
-//    urlToDocs := beam.GroupByKey(s, urlDocPairs)
-//    results := beam.ParDo(s, func (key string, values func(*Doc) bool) {
-//          // ... process all docs having that url ...
-//    }, urlToDocs)
-//
 // GroupByKey is a key primitive in data-parallel processing, since it is the
 // main way to efficiently bring associated data together into one location.
 // It is also a key determiner of the performance of a data-parallel pipeline.

@@ -31,10 +31,6 @@ func init() {
 
 // Create inserts a fixed set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type A.
-// For example:
-//
-//    foo := beam.Create(s, "a", "b", "c")  // foo : string
-//    bar := beam.Create(s, 1, 2, 3)        // bar : int
 //
 // The returned PCollections can be used as any other PCollections. The values
 // are JSON-coded. Each runner may place limits on the sizes of the values and
@@ -44,10 +40,7 @@ func Create(s Scope, values ...interface{}) PCollection {
 }
 
 // CreateList inserts a fixed set of values into the pipeline from a slice or
-// array. It is a convenience wrapper over Create. For example:
-//
-//    list := []string{"a", "b", "c"}
-//    foo := beam.CreateList(s, list)  // foo : string
+// array. It is a convenience wrapper over Create.
 func CreateList(s Scope, list interface{}) PCollection {
 	var ret []interface{}
 	val := reflect.ValueOf(list)
