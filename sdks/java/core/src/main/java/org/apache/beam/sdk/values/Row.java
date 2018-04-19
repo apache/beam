@@ -515,6 +515,10 @@ public abstract class Row implements Serializable {
               return value;
             }
             break;
+          default:
+            // Shouldn't actually get here, but we need this case to satisfy linters.
+            throw new IllegalArgumentException(
+                String.format("Not a primitive type for field name %s: %s", fieldName, type));
         }
         throw new IllegalArgumentException(
             String.format("For field name %s and type %s found incorrect class type %s",
