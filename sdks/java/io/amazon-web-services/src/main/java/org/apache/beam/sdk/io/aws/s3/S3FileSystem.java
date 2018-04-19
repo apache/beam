@@ -87,9 +87,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
           ? MINIMUM_UPLOAD_BUFFER_SIZE_BYTES
           : 64 * 1024 * 1024;
+
   // Amazon S3 API: You can create a copy of your object up to 5 GB in a single atomic operation
   // Ref. https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html
-  private static final int MAX_COPY_OBJECT_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
+  private static final long MAX_COPY_OBJECT_SIZE_BYTES = 5L * 1024L * 1024L * 1024L;
 
   // S3 API, delete-objects: "You may specify up to 1000 keys."
   private static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
