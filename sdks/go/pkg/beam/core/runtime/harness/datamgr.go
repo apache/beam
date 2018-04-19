@@ -28,7 +28,18 @@ import (
 	"google.golang.org/grpc"
 )
 
-const chunkSize = int(4e6) // Bytes to put in a single gRPC message. Max is slightly higher.
+const (
+	chunkSize   = int(4e6) // Bytes to put in a single gRPC message. Max is slightly higher.
+	bufElements = 20       // Number of chunks buffered per reader.
+)
+
+// This is a reduced version of the full gRPC interface to help with testing.
+// TODO(wcn): need a compile-time assertion to make sure this stays synced with what's
+// in pb.BeamFnData_DataClient
+type dataClient interface {
+	Send(*pb.Elements) error
+	Recv() (*pb.Elements, error)
+}
 
 // DataManager manages data channels to the FnHarness. A fixed number of channels
 // are generally used, each managing multiple logical byte streams.
@@ -75,7 +86,7 @@ func (m *DataManager) open(ctx context.Context, port exec.Port) (*DataChannel, e
 // DataChannel manages a single grpc connection to the FnHarness.
 type DataChannel struct {
 	cc     *grpc.ClientConn
-	client pb.BeamFnData_DataClient
+	client dataClient
 	port   exec.Port
 
 	writers map[string]*dataWriter
@@ -95,7 +106,10 @@ func NewDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 		cc.Close()
 		return nil, fmt.Errorf("failed to connect to data service: %v", err)
 	}
+	return makeDataChannel(ctx, cc, client, port)
+}
 
+func makeDataChannel(ctx context.Context, cc *grpc.ClientConn, client dataClient, port exec.Port) (*DataChannel, error) {
 	ret := &DataChannel{
 		cc:      cc,
 		client:  client,
@@ -108,25 +122,25 @@ func NewDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	return ret, nil
 }
 
-func (m *DataChannel) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
-	return m.makeReader(ctx, id), nil
+func (c *DataChannel) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
+	return c.makeReader(ctx, id), nil
 }
 
-func (m *DataChannel) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
-	return m.makeWriter(ctx, id), nil
+func (c *DataChannel) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
+	return c.makeWriter(ctx, id), nil
 }
 
-func (m *DataChannel) read(ctx context.Context) {
+func (c *DataChannel) read(ctx context.Context) {
 	cache := make(map[string]*dataReader)
 	for {
-		msg, err := m.client.Recv()
+		msg, err := c.client.Recv()
 		if err != nil {
 			if err == io.EOF {
 				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
-				log.Warnf(ctx, "DataChannel %v closed", m.port)
+				log.Warnf(ctx, "DataChannel %v closed", c.port)
 				return
 			}
-			panic(fmt.Errorf("channel %v bad: %v", m.port, err))
+			panic(fmt.Errorf("channel %v bad: %v", c.port, err))
 		}
 
 		recordStreamReceive(msg)
@@ -136,19 +150,26 @@ func (m *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := exec.StreamID{Port: m.port, Target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
+			id := exec.StreamID{Port: c.port, Target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
 			sid := id.String()
 
-			// log.Printf("Chan read (%v): %v", sid, elm.GetData())
+			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
 			var r *dataReader
 			if local, ok := cache[sid]; ok {
 				r = local
 			} else {
-				r = m.makeReader(ctx, id)
+				r = c.makeReader(ctx, id)
 				cache[sid] = r
 			}
 
+			if r.completed {
+				// The local reader has closed but the remote is still sending data.
+				// Just ignore it. We keep the reader config in the cache so we don't
+				// treat it as a new reader. Eventually the stream will finish and go
+				// through normal teardown.
+				continue
+			}
 			if len(elm.GetData()) == 0 {
 				// Sentinel EOF segment for stream. Close buffer to signal EOF.
 				close(r.buf)
@@ -163,48 +184,61 @@ func (m *DataChannel) read(ctx context.Context) {
 
 			// This send is deliberately blocking, if we exceed the buffering for
 			// a reader. We can't buffer the entire main input, if some user code
-			// is slow (or gets stuck).
-			r.buf <- elm.GetData()
+			// is slow (or gets stuck). If the local side closes, the reader
+			// will be marked as completed and further remote data will be ingored.
+			select {
+			case r.buf <- elm.GetData():
+			case <-r.done:
+				r.completed = true
+			}
 		}
 	}
 }
 
-func (m *DataChannel) makeReader(ctx context.Context, id exec.StreamID) *dataReader {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (c *DataChannel) makeReader(ctx context.Context, id exec.StreamID) *dataReader {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sid := id.String()
-	if r, ok := m.readers[sid]; ok {
+	if r, ok := c.readers[sid]; ok {
 		return r
 	}
 
-	r := &dataReader{buf: make(chan []byte, 20)}
-	m.readers[sid] = r
+	r := &dataReader{id: sid, buf: make(chan []byte, bufElements), done: make(chan bool, 1), channel: c}
+	c.readers[sid] = r
 	return r
 }
 
-func (m *DataChannel) makeWriter(ctx context.Context, id exec.StreamID) *dataWriter {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (c *DataChannel) removeReader(id string) {
+	delete(c.readers, id)
+}
+
+func (c *DataChannel) makeWriter(ctx context.Context, id exec.StreamID) *dataWriter {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sid := id.String()
-	if w, ok := m.writers[sid]; ok {
+	if w, ok := c.writers[sid]; ok {
 		return w
 	}
 
-	w := &dataWriter{ch: m, id: id}
-	m.writers[sid] = w
+	w := &dataWriter{ch: c, id: id}
+	c.writers[sid] = w
 	return w
 }
 
 type dataReader struct {
-	buf chan []byte
-	cur []byte
+	id        string
+	buf       chan []byte
+	done      chan bool
+	cur       []byte
+	channel   *DataChannel
+	completed bool
 }
 
 func (r *dataReader) Close() error {
-	// TODO(herohde) 6/27/2017: allow early close to throw away data async. We also need
-	// to garbage collect readers.
+	r.done <- true
+	r.channel.removeReader(r.id)
 	return nil
 }
 
@@ -301,8 +335,4 @@ func (w *dataWriter) Write(p []byte) (n int, err error) {
 	// At this point there's room in the buffer one way or another.
 	w.buf = append(w.buf, p...)
 	return len(p), nil
-}
-
-type DataConnectionContext struct {
-	InstID string `beam:"opt"`
 }
