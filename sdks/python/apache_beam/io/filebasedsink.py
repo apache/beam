@@ -193,9 +193,9 @@ class FileBasedSink(iobase.Sink):
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def _get_final_name_glob(self, num_shards):
     return ''.join([
-      self.file_path_prefix.get(),
-      self.shard_name_glob_format % dict(num_shards=num_shards),
-      self.file_name_suffix.get()
+        self.file_path_prefix.get(),
+        self.shard_name_glob_format % dict(num_shards=num_shards),
+        self.file_name_suffix.get()
     ])
 
   def pre_finalize(self, init_result, writer_results):
@@ -206,11 +206,21 @@ class FileBasedSink(iobase.Sink):
                       for file_metadata in mr.metadata_list]
 
     if dst_glob_files:
-      logging.info('Deleting existing files in target path: %d',
-                   len(dst_glob_files))
+      logging.warn('Deleting %d existing files in target path matching: %s',
+                   len(dst_glob_files), self.shard_name_glob_format)
       FileSystems.delete(dst_glob_files)
 
   def _check_state_for_finalize_write(self, writer_results, num_shards):
+    """Checks writer output files' states.
+
+    Returns:
+      src_files, dst_files: Lists of files to rename. For each i, finalize_write
+        should rename(src_files[i], dst_files[i]).
+      delete_files: Src files to delete. These could be leftovers from an
+        incomplete (non-atomic) rename operation.
+      num_skipped: Tally of writer results files already renamed, such as from
+        a previous run of finalize_write().
+    """
     if not writer_results:
       return [], [], [], 0
 
@@ -234,7 +244,7 @@ class FileBasedSink(iobase.Sink):
       dst_exists = dst in dst_glob_files
       if not src_exists and not dst_exists:
         raise BeamIOError('src and dst files do not exist. src: %s, dst: %s' % (
-          src, dst))
+            src, dst))
       if not src_exists and dst_exists:
         logging.debug('src: %s -> dst: %s already renamed, skipping', src, dst)
         num_skipped += 1
@@ -256,7 +266,7 @@ class FileBasedSink(iobase.Sink):
     num_shards = len(writer_results)
 
     src_files, dst_files, delete_files, num_skipped = (
-      self._check_state_for_finalize_write(writer_results, num_shards))
+        self._check_state_for_finalize_write(writer_results, num_shards))
     num_skipped += len(delete_files)
     FileSystems.delete(delete_files)
     num_shards_to_finalize = len(src_files)
@@ -325,33 +335,35 @@ class FileBasedSink(iobase.Sink):
 
   @staticmethod
   def _template_replace_num_shards(shard_name_template):
-    m = re.search('N+', shard_name_template)
-    if m:
+    match = re.search('N+', shard_name_template)
+    if match:
       shard_name_template = shard_name_template.replace(
-          m.group(0), '%%(num_shards)0%dd' % len(m.group(0)))
+          match.group(0), '%%(num_shards)0%dd' % len(match.group(0)))
     return shard_name_template
 
   @staticmethod
   def _template_to_format(shard_name_template):
     if not shard_name_template:
       return ''
-    m = re.search('S+', shard_name_template)
-    if m is None:
-      raise ValueError("Shard number pattern S+ not found in template '%s'" %
-                       shard_name_template)
+    match = re.search('S+', shard_name_template)
+    if match is None:
+      raise ValueError(
+          "Shard number pattern S+ not found in shard_name_template: %s" %
+          shard_name_template)
     shard_name_format = shard_name_template.replace(
-        m.group(0), '%%(shard_num)0%dd' % len(m.group(0)))
+        match.group(0), '%%(shard_num)0%dd' % len(match.group(0)))
     return FileBasedSink._template_replace_num_shards(shard_name_format)
 
   @staticmethod
   def _template_to_glob_format(shard_name_template):
     if not shard_name_template:
       return ''
-    m = re.search('S+', shard_name_template)
-    if m is None:
-      raise ValueError("Shard number pattern S+ not found in template '%s'" %
-                       shard_name_template)
-    shard_name_format = shard_name_template.replace(m.group(0), '*')
+    match = re.search('S+', shard_name_template)
+    if match is None:
+      raise ValueError(
+          "Shard number pattern S+ not found in shard_name_template: %s" %
+          shard_name_template)
+    shard_name_format = shard_name_template.replace(match.group(0), '*')
     return FileBasedSink._template_replace_num_shards(shard_name_format)
 
   def __eq__(self, other):
