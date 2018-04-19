@@ -672,13 +672,13 @@ public class AvroIOTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWriteWindowed() throws Throwable {
     testWindowedAvroIOWriteUsingMethod(WriteMethod.AVROIO_WRITE);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWindowedAvroIOWriteViaSink() throws Throwable {
     testWindowedAvroIOWriteUsingMethod(WriteMethod.AVROIO_SINK);
   }

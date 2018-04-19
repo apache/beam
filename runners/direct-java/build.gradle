@@ -99,6 +99,9 @@ task needsRunnerTests(type: Test) {
   }
 }
 
+// NOTE: This will also run 'NeedsRunner' tests, which are run in the :needsRunnerTests task as well.
+// The intention of this task is to mirror the :validatesRunner configuration for other runners,
+// such that the test suite can be validated on the in-process DirectRunner.
 task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
