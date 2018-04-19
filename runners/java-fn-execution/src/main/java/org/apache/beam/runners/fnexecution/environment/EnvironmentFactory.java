@@ -22,16 +22,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 
-/**
- * Manages access to {@link Environment environments} which communicate to an {@link
- * SdkHarnessClient}.
- */
+/** Creates {@link Environment environments} which communicate to an {@link SdkHarnessClient}. */
 public interface EnvironmentFactory {
-  /**
-   * Retrieve a handle to an active {@link Environment}. This may allocate resources if required.
-   *
-   * <p>TODO: Determine and document the owner of the returned environment. If the environment is
-   * owned by the manager, make the Manager {@link AutoCloseable}.
-   */
-  RemoteEnvironment getEnvironment(RunnerApi.Environment container) throws Exception;
+  /** Creates an active {@link Environment} and returns a handle to it. */
+  RemoteEnvironment createEnvironment(RunnerApi.Environment container) throws Exception;
 }
