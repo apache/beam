@@ -47,6 +47,7 @@ evaluationDependsOn(":beam-sdks-java-core")
 
 configurations {
   needsRunner
+  validatesRunner
 }
 
 dependencies {
@@ -75,6 +76,8 @@ dependencies {
   needsRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   needsRunner project(path: project.path, configuration: "shadow")
   needsRunner project(path: project.path, configuration: "shadowTest")
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
 }
 
 task needsRunnerTests(type: Test) {
@@ -92,6 +95,19 @@ task needsRunnerTests(type: Test) {
   testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+    excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+  }
+}
+
+task validatesRunner(type: Test) {
+  group = "Verification"
+  description "Validates Direct runner"
+
+  // Run in parallel up to configured --max-workers
+  maxParallelForks Integer.MAX_VALUE
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
   }
 }
