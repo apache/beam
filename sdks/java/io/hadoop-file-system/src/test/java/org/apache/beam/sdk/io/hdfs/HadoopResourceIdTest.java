@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -62,6 +63,7 @@ public class HadoopResourceIdTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4142")
   public void testResourceIdTester() throws Exception {
     ResourceId baseDirectory =
         FileSystems.matchNewResource(
