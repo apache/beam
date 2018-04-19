@@ -16,18 +16,20 @@
 package main
 
 import (
-	"flag"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"context"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"time"
-	"math/rand"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"flag"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"math/rand"
+	"reflect"
+	"time"
+
 	"github.com/apache/beam/sdks/go/examples/windowed_wordcount/wordcount"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
 
 var (
@@ -38,6 +40,10 @@ var (
 	// Set this required option to specify where to write the output file.
 	output = flag.String("output", "", "Output (required).")
 )
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*addTimestampFn)(nil)).Elem())
+}
 
 // Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
 // this example, for the bounded data case.
@@ -57,7 +63,7 @@ func (f *addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
 
 // formatFn is a DoFn that formats a windowed word and its count as a string.
 func formatFn(iw beam.Window, et beam.EventTime, w string, c int) string {
-	s:= fmt.Sprintf("%v@%v %s: %v", et, iw, w, c)
+	s := fmt.Sprintf("%v@%v %s: %v", et, iw, w, c)
 	return s
 }
 

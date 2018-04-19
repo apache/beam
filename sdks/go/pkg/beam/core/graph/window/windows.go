@@ -44,19 +44,33 @@ func (GlobalWindow) String() string {
 }
 
 // IntervalWindow represents a half-open bounded window [start,end).
-type InternalWindow struct {
+type IntervalWindow struct {
 	Start, End typex.EventTime
 }
 
-func (w InternalWindow) MaxTimestamp() typex.EventTime {
+func (w IntervalWindow) MaxTimestamp() typex.EventTime {
 	return typex.EventTime(mtime.Time(w.End).Milliseconds() - 1)
 }
 
-func (w InternalWindow) Equals(o typex.Window) bool {
-	ow, ok := o.(InternalWindow)
+func (w IntervalWindow) Equals(o typex.Window) bool {
+	ow, ok := o.(IntervalWindow)
 	return ok && w.Start == ow.Start && w.End == ow.End
 }
 
-func (w InternalWindow) String() string {
+func (w IntervalWindow) String() string {
 	return fmt.Sprintf("[%v:%v)", w.Start, w.End)
+}
+
+// IsEqualList returns true iff the lists of windows are equal.
+// Note that ordering matters and that this is not set equality.
+func IsEqualList(from, to []typex.Window) bool {
+	if len(from) != len(to) {
+		return false
+	}
+	for i, w := range from {
+		if !w.Equals(to[i]) {
+			return false
+		}
+	}
+	return true
 }

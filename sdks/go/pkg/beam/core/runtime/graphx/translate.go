@@ -65,7 +65,7 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pb.Pipeline, error) {
 	tree := NewScopeTree(edges)
 	EnsureUniqueNames(tree)
 
-	m := newMarshaller(opt.ContainerImageURL)
+	m := newMarshaller(opt)
 
 	var roots []string
 	for _, edge := range tree.Edges {
@@ -83,7 +83,7 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pb.Pipeline, error) {
 }
 
 type marshaller struct {
-	imageURL string
+	opt *Options
 
 	transforms   map[string]*pb.PTransform
 	pcollections map[string]*pb.PCollection
@@ -95,9 +95,9 @@ type marshaller struct {
 	windowing2id map[string]string
 }
 
-func newMarshaller(imageURL string) *marshaller {
+func newMarshaller(opt *Options) *marshaller {
 	return &marshaller{
-		imageURL:     imageURL,
+		opt:          opt,
 		transforms:   make(map[string]*pb.PTransform),
 		pcollections: make(map[string]*pb.PCollection),
 		windowing:    make(map[string]*pb.WindowingStrategy),
@@ -174,7 +174,7 @@ func inout(transform *pb.PTransform, in, out map[string]bool) {
 }
 
 func (m *marshaller) addMultiEdge(edge NamedEdge) string {
-	id := edgeID(edge.Edge)
+	id := StableMultiEdgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
 		return id
 	}
@@ -212,7 +212,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// TODO(herohde) 1/26/2018: we should make the expanded GBK a composite if we care
 	// about correctly computing input/output in the enclosing Scope.
 
-	id := edgeID(edge.Edge)
+	id := StableMultiEdgeID(edge.Edge)
 	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
 	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
 
@@ -225,7 +225,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 		// Inject(i)
 
-		injectID := fmt.Sprintf("%v_inject%v", id, i)
+		injectID := StableCoGBKInjectID(id, i)
 		payload := &pb.ParDoPayload{
 			DoFn: &pb.SdkFunctionSpec{
 				Spec: &pb.FunctionSpec{
@@ -259,7 +259,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	out := fmt.Sprintf("%v_flatten", nodeID(outNode))
 	m.makeNode(out, kvCoderID, outNode)
 
-	flattenID := fmt.Sprintf("%v_flatten", id)
+	flattenID := StableCoGBKFlattenID(id)
 	flatten := &pb.PTransform{
 		UniqueName: flattenID,
 		Spec:       &pb.FunctionSpec{Urn: URNFlatten},
@@ -273,21 +273,21 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
 	m.makeNode(gbkOut, gbkCoderID, outNode)
 
+	gbkID := StableCoGBKGBKID(id)
 	gbk := &pb.PTransform{
 		UniqueName: edge.Name,
 		Spec:       m.makePayload(edge.Edge),
 		Inputs:     map[string]string{"i0": out},
 		Outputs:    map[string]string{"i0": gbkOut},
 	}
-	m.transforms[id] = gbk
+	m.transforms[gbkID] = gbk
 
 	// Expand
 
 	m.addNode(outNode)
 
-	expandID := fmt.Sprintf("%v_expand", id)
 	expand := &pb.PTransform{
-		UniqueName: expandID,
+		UniqueName: id,
 		Spec: &pb.FunctionSpec{
 			Urn:     URNExpand,
 			Payload: protox.MustEncode(&v1.TransformPayload{Urn: URNExpand}),
@@ -295,7 +295,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		Inputs:  map[string]string{"i0": out},
 		Outputs: map[string]string{"i0": nodeID(outNode)},
 	}
-	m.transforms[expandID] = expand
+	m.transforms[id] = expand
 	return id
 }
 
@@ -369,7 +369,7 @@ func boolToBounded(bounded bool) pb.IsBounded_Enum {
 func (m *marshaller) addDefaultEnv() string {
 	const id = "go"
 	if _, exists := m.environments[id]; !exists {
-		m.environments[id] = &pb.Environment{Url: m.imageURL}
+		m.environments[id] = &pb.Environment{Url: m.opt.ContainerImageURL}
 	}
 	return id
 }
@@ -486,6 +486,23 @@ func scopeID(s *graph.Scope) string {
 	return fmt.Sprintf("s%v", s.ID())
 }
 
-func edgeID(e *graph.MultiEdge) string {
-	return fmt.Sprintf("e%v", e.ID())
+// TODO(herohde) 4/17/2018: StableXXXID returns deterministic transform ids
+// for reference in the Dataflow runner. A better solution is to translate
+// the proto pipeline to the Dataflow representation (or for Dataflow to
+// support proto pipelines directly).
+
+func StableMultiEdgeID(edge *graph.MultiEdge) string {
+	return fmt.Sprintf("e%v", edge.ID())
+}
+
+func StableCoGBKInjectID(id string, i int) string {
+	return fmt.Sprintf("%v_inject%v", id, i)
+}
+
+func StableCoGBKFlattenID(id string) string {
+	return fmt.Sprintf("%v_flatten", id)
+}
+
+func StableCoGBKGBKID(id string) string {
+	return fmt.Sprintf("%v_gbk", id)
 }

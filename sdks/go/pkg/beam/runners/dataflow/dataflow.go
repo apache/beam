@@ -131,20 +131,25 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		log.Infof(ctx, "Using specified worker binary: '%v'", *jobopts.WorkerBinary)
 	}
 
+	log.Infof(ctx, "Staging worker binary: %v", *jobopts.WorkerBinary)
+
 	binary, err := stageWorker(ctx, project, *stagingLocation, *jobopts.WorkerBinary)
 	if err != nil {
 		return err
 	}
+	log.Infof(ctx, "Staged worker binary: %v", binary)
 
 	model, err := graphx.Marshal(edges, &graphx.Options{ContainerImageURL: *image})
 	if err != nil {
 		return fmt.Errorf("failed to generate model pipeline: %v", err)
 	}
+	log.Info(ctx, proto.MarshalTextString(model))
+
 	modelURL, err := stageModel(ctx, project, *stagingLocation, protox.MustEncode(model))
 	if err != nil {
 		return err
 	}
-	log.Info(ctx, proto.MarshalTextString(model))
+	log.Infof(ctx, "Staged model pipeline: %v", modelURL)
 
 	// (2) Translate pipeline to v1b3 speak.
 
@@ -194,7 +199,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				Zone:                        *zone,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
-			Experiments:       jobopts.GetExperiments(),
+			Experiments:       append(jobopts.GetExperiments(), "beam_fn_api"),
 		},
 		Steps: steps,
 	}

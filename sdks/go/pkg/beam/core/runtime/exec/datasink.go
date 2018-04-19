@@ -93,5 +93,5 @@ func (n *DataSink) Down(ctx context.Context) error {
 
 func (n *DataSink) String() string {
 	sid := StreamID{Port: n.Port, Target: n.Target}
-	return fmt.Sprintf("DataSink[%v]", sid)
+	return fmt.Sprintf("DataSink[%v] Coder:%v", sid, n.Coder)
 }

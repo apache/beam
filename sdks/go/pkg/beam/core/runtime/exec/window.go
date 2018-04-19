@@ -58,13 +58,21 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 	switch wfn.Kind {
 	case window.GlobalWindows:
 		return window.SingleGlobalWindow
-	case window.FixedWindows:
-		// start : ts - (ts % size)
-		// end   : min(start + size, glo+1)
 
-		start := mtime.FromMilliseconds(ts.Milliseconds() - (ts.Add(wfn.Size).Milliseconds() % mtime.ZeroTimestamp.Add(wfn.Size).Milliseconds()))
+	case window.FixedWindows:
+		start := ts - (ts.Add(wfn.Size) % mtime.FromDuration(wfn.Size))
 		end := mtime.Min(start.Add(wfn.Size), mtime.EndOfGlobalWindowTime.Add(time.Millisecond))
-		return []typex.Window{window.InternalWindow{Start: start, End: end}}
+		return []typex.Window{window.IntervalWindow{Start: start, End: end}}
+
+	case window.SlidingWindows:
+		var ret []typex.Window
+
+		period := mtime.FromDuration(wfn.Period)
+		lastStart := ts - (ts.Add(wfn.Size) % period)
+		for start := lastStart; start > ts.Subtract(wfn.Size); start -= period {
+			ret = append(ret, window.IntervalWindow{Start: start, End: start.Add(wfn.Size)})
+		}
+		return ret
 
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))
