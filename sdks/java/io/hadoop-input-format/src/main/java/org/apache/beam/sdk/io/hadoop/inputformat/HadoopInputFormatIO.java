@@ -62,6 +62,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,6 +162,21 @@ import org.slf4j.LoggerFactory;
  *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read()
  *              .withConfiguration(myHadoopConfiguration)
  *              .withValueTranslation(myOutputValueType);
+ * }
+ * </pre>
+ *
+ * <p>IMPORTANT! In case of using {@code DBInputFormat} to read data from RDBMS, Beam parallelizes
+ * the process by using LIMIT and OFFSET clauses of SQL query to fetch different ranges of records
+ * (as a split) by different workers. To guarantee the same order and proper split of results you
+ * need to order them by one or more keys (either PRIMARY or UNIQUE). It can be done during
+ * configuration step, for example:
+ *
+ * <pre>
+ * {@code
+ * Configuration conf = new Configuration();
+ * conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
+ * conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
+ * conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
  * }
  * </pre>
  */
@@ -283,7 +299,9 @@ public class HadoopInputFormatIO {
 
     /**
      * Validates that the mandatory configuration properties such as InputFormat class, InputFormat
-     * key and value classes are provided in the Hadoop configuration.
+     * key and value classes are provided in the Hadoop configuration. In case of using {@code
+     * DBInputFormat} you need to order results by one or more keys. It can be done by setting
+     * configuration option "mapreduce.jdbc.input.orderby".
      */
     private void validateConfiguration(Configuration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
@@ -294,6 +312,13 @@ public class HadoopInputFormatIO {
           configuration.get("key.class") != null, "configuration must contain \"key.class\"");
       checkArgument(
           configuration.get("value.class") != null, "configuration must contain \"value.class\"");
+      if (configuration.get("mapreduce.job.inputformat.class").endsWith("DBInputFormat")) {
+        checkArgument(
+            configuration.get(DBConfiguration.INPUT_ORDER_BY_PROPERTY) != null,
+            "Configuration must contain \""
+                + DBConfiguration.INPUT_ORDER_BY_PROPERTY
+                + "\" when using DBInputFormat");
+      }
     }
 
     /**
