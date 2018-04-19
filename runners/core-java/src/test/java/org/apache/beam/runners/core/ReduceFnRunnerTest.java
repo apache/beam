@@ -255,7 +255,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(
             Sessions.withGapDuration(Duration.millis(10)),
-            DefaultTriggerStateMachine.<IntervalWindow>of(),
+            DefaultTriggerStateMachine.of(),
             AccumulationMode.ACCUMULATING_FIRED_PANES,
             Duration.millis(50),
             ClosingBehavior.FIRE_ALWAYS);
@@ -282,7 +282,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(
             FixedWindows.of(Duration.millis(10)),
-            DefaultTriggerStateMachine.<IntervalWindow>of(),
+            DefaultTriggerStateMachine.of(),
             AccumulationMode.ACCUMULATING_FIRED_PANES,
             Duration.millis(50),
             ClosingBehavior.FIRE_ALWAYS);
@@ -309,7 +309,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(
             FixedWindows.of(Duration.millis(10)),
-            DefaultTriggerStateMachine.<IntervalWindow>of(),
+            DefaultTriggerStateMachine.of(),
             AccumulationMode.ACCUMULATING_FIRED_PANES,
             Duration.millis(50),
             ClosingBehavior.FIRE_IF_NON_EMPTY);
@@ -1022,7 +1022,7 @@ public class ReduceFnRunnerTest {
   public void noEmptyPanesFinalIfNonEmpty() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
+            .withTrigger(Repeatedly.forever(AfterFirst.of(
                 AfterPane.elementCountAtLeast(2),
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
@@ -1049,7 +1049,7 @@ public class ReduceFnRunnerTest {
   public void noEmptyPanesFinalAlways() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
+            .withTrigger(Repeatedly.forever(AfterFirst.of(
                 AfterPane.elementCountAtLeast(2),
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
@@ -1650,7 +1650,7 @@ public class ReduceFnRunnerTest {
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(
-                AfterEach.<IntervalWindow>inOrder(
+                AfterEach.inOrder(
                     Repeatedly.forever(
                             AfterProcessingTime.pastFirstElementInPane()
                                 .plusDelayOf(new Duration(5)))
@@ -1703,7 +1703,7 @@ public class ReduceFnRunnerTest {
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(
-                AfterEach.<IntervalWindow>inOrder(
+                AfterEach.inOrder(
                     Repeatedly.forever(
                         AfterProcessingTime.pastFirstElementInPane()
                             .plusDelayOf(new Duration(5)))
@@ -1803,7 +1803,7 @@ public class ReduceFnRunnerTest {
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(
-                AfterEach.<IntervalWindow>inOrder(
+                AfterEach.inOrder(
                     Repeatedly.forever(
                         AfterProcessingTime.pastFirstElementInPane()
                             .plusDelayOf(new Duration(5)))
@@ -1865,7 +1865,7 @@ public class ReduceFnRunnerTest {
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(
-                AfterEach.<IntervalWindow>inOrder(
+                AfterEach.inOrder(
                     Repeatedly.forever(
                             AfterProcessingTime.pastFirstElementInPane()
                                 .plusDelayOf(new Duration(5)))
@@ -1948,7 +1948,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
         ReduceFnTester.nonCombining(
             WindowingStrategy.of(new GlobalWindows())
-                             .withTrigger(Repeatedly.<GlobalWindow>forever(
+                             .withTrigger(Repeatedly.forever(
                                  AfterPane.elementCountAtLeast(3)))
                              .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
 
@@ -1985,7 +1985,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
         ReduceFnTester.nonCombining(
             WindowingStrategy.of(new GlobalWindows())
-                             .withTrigger(Repeatedly.<GlobalWindow>forever(
+                             .withTrigger(Repeatedly.forever(
                                  AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
                                      new Duration(3))))
                              .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
