@@ -59,16 +59,17 @@ PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
         SortValues.<String, String, Integer>create(BufferedExternalSorter.options()));
 ```
 
-## Parsing Apache HTTPD and NGINX Access log files.
+## Parsing HTTPD/NGINX access logs.
 
 The Apache HTTPD webserver creates logfiles that contain valuable information about the requests that have been done to
-thie webserver. The format of these config files is a configuration option in the Apache HTTPD server so parsing this
+the webserver. The format of these config files is a configuration option in the Apache HTTPD server so parsing this
 into useful data elements is normally very hard to do.
 
-To solve this problem in an easy way a library was created that works in combination with Apache Beam.
+To solve this problem in an easy way a library was created that works in combination with Apache Beam
+and is capable of doing this for both the Apache HTTPD and NGINX.
 
-The basic idea is that you should be able to have a parser that you can construct by simply
-telling it with what configuration options the line was written.
+The basic idea is that the logformat specification is the schema used to create the line. 
+THis parser is simply initialized with this schema and the list of fields you want to extract.
 
 ### Basic usage
 Full documentation can be found here [https://github.com/nielsbasjes/logparser](https://github.com/nielsbasjes/logparser) 
@@ -76,9 +77,9 @@ Full documentation can be found here [https://github.com/nielsbasjes/logparser](
 First you put something like this in your pom.xml file:
 
     <dependency>
-        <groupId>nl.basjes.parse.httpdlog</groupId>
-        <artifactId>httpdlog-parser</artifactId>
-        <version>5.0</version>
+      <groupId>nl.basjes.parse.httpdlog</groupId>
+      <artifactId>httpdlog-parser</artifactId>
+      <version>5.0</version>
     </dependency>
 
 Check [https://github.com/nielsbasjes/logparser](https://github.com/nielsbasjes/logparser) for the latest version.
@@ -95,7 +96,7 @@ that does not have ANY @Field annotations or setters. The "Object" class will do
     Parser<Object> dummyParser = new HttpdLoglineParser<Object>(Object.class, logformat);
     List<String> possiblePaths = dummyParser.getPossiblePaths();
     for (String path: possiblePaths) {
-        System.out.println(path);
+      System.out.println(path);
     }
 
 You will get a list that looks something like this:
@@ -140,21 +141,21 @@ So we can now add to this class a setter that simply receives a single value as 
 
     @Field("IP:connection.client.host")
     public void setIP(final String value) {
-        ip = value;
+      ip = value;
     }
 
 If we really want the name of the field we can also do this
 
     @Field("STRING:request.firstline.uri.query.img")
     public void setQueryImg(final String name, final String value) {
-        results.put(name, value);
+      results.put(name, value);
     }
 
 This latter form is very handy because this way we can obtain all values for a wildcard field
 
     @Field("STRING:request.firstline.uri.query.*")
     public void setQueryStringValues(final String name, final String value) {
-        results.put(name, value);
+      results.put(name, value);
     }
 
 Instead of using the annotations on the setters we can also simply tell the parser the name of th setter that must be 
@@ -164,39 +165,37 @@ called when an element is found.
     parser.addParseTarget("setQueryImg",            "STRING:request.firstline.uri.query.img");
     parser.addParseTarget("setQueryStringValues",   "STRING:request.firstline.uri.query.*");
 
-### Using this in Apache Beam
+### Example
 
 Assuming we have a String (being the full log line) comming in and an instance of the WebEvent class comming out
 (where the WebEvent already the has the needed setters) the final code when using this in an Apache Beam project 
 will end up looking something like this
-```
-        PCollection<WebEvent> filledWebEvents = input
-            .apply("Extract Elements from logline",
-                ParDo.of(new DoFn<String, WebEvent>() {
-                    private Parser<WebEvent> parser;
 
-                    @Setup
-                    public void setup() throws NoSuchMethodException {
-                        parser = new HttpdLoglineParser<>(WebEvent.class, getLogFormat());
-                        parser.addParseTarget("setIP",                  "IP:connection.client.host");
-                        parser.addParseTarget("setQueryImg",            "STRING:request.firstline.uri.query.img");
-                        parser.addParseTarget("setQueryStringValues",   "STRING:request.firstline.uri.query.*");
-                    }
-
-                    @ProcessElement
-                    public void processElement(ProcessContext c) throws InvalidDissectorException, MissingDissectorsException, DissectionFailure {
-                        c.output(parser.parse(c.element()));
-                    }
-                }));
-
-```
-
+    PCollection<WebEvent> filledWebEvents = input
+      .apply("Extract Elements from logline",
+        ParDo.of(new DoFn<String, WebEvent>() {
+          private Parser<WebEvent> parser;
+    
+          @Setup
+          public void setup() throws NoSuchMethodException {
+            parser = new HttpdLoglineParser<>(WebEvent.class, getLogFormat());
+            parser.addParseTarget("setIP",                  "IP:connection.client.host");
+            parser.addParseTarget("setQueryImg",            "STRING:request.firstline.uri.query.img");
+            parser.addParseTarget("setQueryStringValues",   "STRING:request.firstline.uri.query.*");
+          }
+    
+          @ProcessElement
+          public void processElement(ProcessContext c) throws InvalidDissectorException, MissingDissectorsException, DissectionFailure {
+            c.output(parser.parse(c.element()));
+          }
+        })
+      );
 
 ## Analyzing the Useragent string
 
 This is a java library that tries to parse and analyze the useragent string and extract as many relevant attributes as possible.
 
-### Getting the Beam UDF
+### Basic usage
 You can get the prebuilt UDF from maven central.
 If you use a maven based project simply add this dependency to your Apache Beam application.
 
@@ -208,35 +207,52 @@ If you use a maven based project simply add this dependency to your Apache Beam 
 
 Check https://github.com/nielsbasjes/yauaa for the latest version.
 
-### Example usage
+### Example
 Assume you have a PCollection with your records.
 In most cases I see (clickstream data) these records (in this example this class is called "WebEvent") 
 contain the useragent string in a field and the parsed results must be added to these fields.
 
 Now you must do two things:
 
-  1) Determine the names of the fields you need.
+  1) Determine the names of the fields you need. Simply call getAllPossibleFieldNamesSorted() to get the list of possible fieldnames you can ask for.
+
+    UserAgentAnalyzer.newBuilder().build()
+      .getAllPossibleFieldNamesSorted()
+        .forEach(field -> System.out.println(field));
+
+and you get something like this:
+
+    DeviceClass
+    DeviceName
+    DeviceBrand
+    DeviceCpu
+    DeviceCpuBits
+    DeviceFirmwareVersion
+    DeviceVersion
+    OperatingSystemClass
+    OperatingSystemName
+    OperatingSystemVersion
+    ...
+
   2) Add an instance of the (abstract) UserAgentAnalysisDoFn function and implement the functions as shown in the example below. Use the YauaaField annotation to get the setter for the requested fields.
 
 Note that the name of the two setters is not important, the system looks at the annotation.
 
     .apply("Extract Elements from Useragent",
-        ParDo.of(new UserAgentAnalysisDoFn<WebEvent>() {
-            @Override
-            public String getUserAgentString(WebEvent record) {
-                return record.useragent;
-            }
+      ParDo.of(new UserAgentAnalysisDoFn<WebEvent>() {
+        @Override
+        public String getUserAgentString(WebEvent record) {
+          return record.useragent;
+        }
 
-            @SuppressWarnings("unused")
-            @YauaaField("DeviceClass")
-            public void setDC(WebEvent record, String value) {
-                record.deviceClass = value;
-            }
+        @YauaaField("DeviceClass")
+        public void setDC(WebEvent record, String value) {
+          record.deviceClass = value;
+        }
 
-            @SuppressWarnings("unused")
-            @YauaaField("AgentNameVersion")
-            public void setANV(WebEvent record, String value) {
-                record.agentNameVersion = value;
-            }
-        }));
+        @YauaaField("AgentNameVersion")
+        public void setANV(WebEvent record, String value) {
+          record.agentNameVersion = value;
+        }
+    }));
 
