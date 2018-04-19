@@ -23,9 +23,9 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -49,7 +49,7 @@ public class CountTest {
   public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testCountPerElementBasic() {
     PCollection<String> input = p.apply(Create.of(WORDS));
@@ -68,7 +68,7 @@ public class CountTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testCountPerElementEmpty() {
     PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
@@ -80,7 +80,7 @@ public class CountTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCountGloballyBasic() {
     PCollection<String> input = p.apply(Create.of(WORDS));
 
@@ -92,7 +92,7 @@ public class CountTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCountGloballyEmpty() {
     PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
 
