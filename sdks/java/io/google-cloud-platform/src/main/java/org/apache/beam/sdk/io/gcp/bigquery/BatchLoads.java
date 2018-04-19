@@ -73,6 +73,8 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads<DestinationT>
     extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
@@ -127,12 +129,14 @@ class BatchLoads<DestinationT>
   private int numFileShards;
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
+  private final String loadJobProjectId;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations,
              Coder<DestinationT> destinationCoder,
-             ValueProvider<String> customGcsTempLocation) {
+             ValueProvider<String> customGcsTempLocation,
+             @Nullable String loadJobProjectId) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -144,6 +148,7 @@ class BatchLoads<DestinationT>
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
+    this.loadJobProjectId = loadJobProjectId;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -507,7 +512,8 @@ class BatchLoads<DestinationT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations));
+                dynamicDestinations,
+                loadJobProjectId));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -536,7 +542,8 @@ class BatchLoads<DestinationT>
                 writeDisposition,
                 createDisposition,
                 sideInputs,
-                dynamicDestinations));
+                dynamicDestinations,
+                loadJobProjectId));
   }
 
   private WriteResult writeResult(Pipeline p) {

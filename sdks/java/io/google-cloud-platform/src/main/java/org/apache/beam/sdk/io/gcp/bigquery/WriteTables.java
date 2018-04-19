@@ -90,6 +90,7 @@ class WriteTables<DestinationT>
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
+  private final String loadJobProjectId;
 
 
   private class WriteTablesDoFn
@@ -187,7 +188,8 @@ class WriteTables<DestinationT>
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      @Nullable String loadJobProjectId) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -197,6 +199,7 @@ class WriteTables<DestinationT>
     this.dynamicDestinations = dynamicDestinations;
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
+    this.loadJobProjectId = loadJobProjectId;
   }
 
   @Override
@@ -251,7 +254,7 @@ class WriteTables<DestinationT>
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
-    String projectId = ref.getProjectId();
+    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId;
     Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
