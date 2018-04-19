@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -26,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -109,5 +111,30 @@ public class LengthPrefixCoderTest {
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+  }
+
+  @Test
+  public void testMultiCoderCycle() throws Exception {
+    LengthPrefixCoder<Long> lengthPrefixedValueCoder =
+        LengthPrefixCoder.of(BigEndianLongCoder.of());
+
+    LengthPrefixCoder<byte[]> lengthPrefixedBytesCoder = LengthPrefixCoder.of(ByteArrayCoder.of());
+
+    // [0x08, 0, 0, 0, 0, 0, 0, 0, 0x16]
+    byte[] userEncoded = CoderUtils.encodeToByteArray(lengthPrefixedValueCoder, 22L);
+
+    // [0, 0, 0, 0, 0, 0, 0, 0x16]
+    byte[] decodedToBytes = CoderUtils.decodeFromByteArray(lengthPrefixedBytesCoder, userEncoded);
+
+    // [0x08, 0, 0, 0, 0, 0, 0, 0, 0x16]
+    byte[] reencodedBytes = CoderUtils.encodeToByteArray(lengthPrefixedBytesCoder, decodedToBytes);
+
+    long userDecoded = CoderUtils.decodeFromByteArray(lengthPrefixedValueCoder, reencodedBytes);
+
+    assertFalse(
+        "Length-prefix decoding to bytes should drop the length",
+        Arrays.equals(userEncoded, decodedToBytes));
+    assertArrayEquals(userEncoded, reencodedBytes);
+    assertEquals(22L, userDecoded);
   }
 }
