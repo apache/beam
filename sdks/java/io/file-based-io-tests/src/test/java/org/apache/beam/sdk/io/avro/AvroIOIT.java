@@ -36,7 +36,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -109,8 +108,7 @@ public class AvroIOIT {
                     .withOutputFilenames()
                     .withSuffix(".avro"))
             .getPerDestinationOutputFilenames()
-            .apply(Values.create())
-            .apply(Reshuffle.viaRandomKey());
+            .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
