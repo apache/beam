@@ -159,7 +159,9 @@ public class JdbcIO {
    * @param <T> Type of the data to be read.
    */
   public static <T> Read<T> read() {
-    return new AutoValue_JdbcIO_Read.Builder<T>().build();
+    return new AutoValue_JdbcIO_Read.Builder<T>()
+            .setFetchSize(DEFAULT_FETCH_SIZE)
+            .build();
   }
 
   /**
@@ -170,10 +172,13 @@ public class JdbcIO {
    * @param <OutputT> Type of the data to be read.
    */
   public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
-    return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>().build();
+    return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>()
+            .setFetchSize(DEFAULT_FETCH_SIZE)
+            .build();
   }
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
+  private static final int DEFAULT_FETCH_SIZE = 50_000;
 
   /**
    * Write data to a JDBC datasource.
@@ -372,6 +377,7 @@ public class JdbcIO {
     @Nullable abstract StatementPreparator getStatementPreparator();
     @Nullable abstract RowMapper<T> getRowMapper();
     @Nullable abstract Coder<T> getCoder();
+    abstract int getFetchSize();
 
     abstract Builder<T> toBuilder();
 
@@ -382,6 +388,7 @@ public class JdbcIO {
       abstract Builder<T> setStatementPreparator(StatementPreparator statementPreparator);
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
       abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Builder<T> setFetchSize(int fetchSize);
       abstract Read<T> build();
     }
 
@@ -414,6 +421,16 @@ public class JdbcIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    /**
+     * This method is used to set the size of the data that is going to be fetched and loaded in
+     * memory per every database call. Please refer to: {@link java.sql.Statement#setFetchSize(int)}
+     * It should ONLY be used if the default value throws memory errors.
+     */
+    public Read<T> withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetch size must be > 0");
+      return toBuilder().setFetchSize(fetchSize).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getQuery() != null, "withQuery() is required");
@@ -430,6 +447,7 @@ public class JdbcIO {
                   .withQuery(getQuery())
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
+                  .withFetchSize(getFetchSize())
                   .withParameterSetter(
                       (element, preparedStatement) -> {
                         if (getStatementPreparator() != null) {
@@ -459,6 +477,7 @@ public class JdbcIO {
     @Nullable abstract PreparedStatementSetter<ParameterT> getParameterSetter();
     @Nullable abstract RowMapper<OutputT> getRowMapper();
     @Nullable abstract Coder<OutputT> getCoder();
+    abstract int getFetchSize();
 
     abstract Builder<ParameterT, OutputT> toBuilder();
 
@@ -471,6 +490,7 @@ public class JdbcIO {
               PreparedStatementSetter<ParameterT> parameterSetter);
       abstract Builder<ParameterT, OutputT> setRowMapper(RowMapper<OutputT> rowMapper);
       abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
+      abstract Builder<ParameterT, OutputT> setFetchSize(int fetchSize);
       abstract ReadAll<ParameterT, OutputT> build();
     }
 
@@ -508,6 +528,16 @@ public class JdbcIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    /**
+     * This method is used to set the size of the data that is going to be fetched and loaded in
+     * memory per every database call. Please refer to: {@link java.sql.Statement#setFetchSize(int)}
+     * It should ONLY be used if the default value throws memory errors.
+     */
+    public ReadAll<ParameterT, OutputT> withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetch size must be >0");
+      return toBuilder().setFetchSize(fetchSize).build();
+    }
+
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
       return input
@@ -517,7 +547,8 @@ public class JdbcIO {
                       getDataSourceConfiguration(),
                       getQuery(),
                       getParameterSetter(),
-                      getRowMapper())))
+                      getRowMapper(),
+                      getFetchSize())))
           .setCoder(getCoder())
           .apply(new Reparallelize<>());
     }
@@ -538,6 +569,7 @@ public class JdbcIO {
     private final ValueProvider<String> query;
     private final PreparedStatementSetter<ParameterT> parameterSetter;
     private final RowMapper<OutputT> rowMapper;
+    private final int fetchSize;
 
     private DataSource dataSource;
     private Connection connection;
@@ -546,11 +578,12 @@ public class JdbcIO {
         DataSourceConfiguration dataSourceConfiguration,
         ValueProvider<String> query,
         PreparedStatementSetter<ParameterT> parameterSetter,
-        RowMapper<OutputT> rowMapper) {
+        RowMapper<OutputT> rowMapper, int fetchSize) {
       this.dataSourceConfiguration = dataSourceConfiguration;
       this.query = query;
       this.parameterSetter = parameterSetter;
       this.rowMapper = rowMapper;
+      this.fetchSize = fetchSize;
     }
 
     @Setup
@@ -561,7 +594,9 @@ public class JdbcIO {
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
-      try (PreparedStatement statement = connection.prepareStatement(query.get())) {
+      try (PreparedStatement statement = connection.prepareStatement(query.get(),
+              ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+        statement.setFetchSize(fetchSize);
         parameterSetter.setParameters(context.element(), statement);
         try (ResultSet resultSet = statement.executeQuery()) {
           while (resultSet.next()) {
