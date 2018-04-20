@@ -18,6 +18,7 @@
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
 from __future__ import print_function
 
+import logging
 import time
 
 from apache_beam.internal import pickler
@@ -37,6 +38,8 @@ class TestDataflowRunner(DataflowRunner):
     """Execute test pipeline and verify test matcher"""
     options = pipeline._options.view_as(TestOptions)
     on_success_matcher = options.on_success_matcher
+    wait_duration = options.wait_until_finish_duration
+    is_streaming = options.view_as(StandardOptions).streaming
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
@@ -49,10 +52,11 @@ class TestDataflowRunner(DataflowRunner):
       print('Found: %s.' % self.build_console_url(pipeline.options))
 
     try:
-      if not options.view_as(StandardOptions).streaming:
-        self.result.wait_until_finish()
-      else:
-        self.wait_until_in_state(PipelineState.RUNNING)
+      self.wait_until_in_state(PipelineState.RUNNING)
+
+      if is_streaming and not wait_duration:
+        logging.warning('Waiting indefinitely for streaming job.')
+      self.result.wait_until_finish(duration=wait_duration)
 
       if on_success_matcher:
         from hamcrest import assert_that as hc_assert_that
@@ -60,7 +64,6 @@ class TestDataflowRunner(DataflowRunner):
     finally:
       if not self.result.is_in_terminal_state():
         self.result.cancel()
-      if options.view_as(StandardOptions).streaming:
         self.wait_until_in_state(PipelineState.CANCELLED, timeout=300)
 
     return self.result
