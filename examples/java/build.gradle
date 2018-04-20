@@ -100,11 +100,14 @@ def preCommitRunnerClass = [
 def preCommitAdditionalFlags = [
   dataflowStreamingRunner: [ "--streaming=true" ],
 ]
+def gcsProject = project.findProperty('gcsProject') ?: 'apache-beam-testing'
+def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
     def preCommitBeamTestPipelineOptions = [
-       "--project=apache-beam-testing",
-       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+       "--project=${gcsProject}",
+       "--tempRoot=${gcsTempRoot}",
        "--runner=" + preCommitRunnerClass[runner],
     ] + preCommitAdditionalFlags[runner]
     classpath = configurations."${runner}PreCommit"
