@@ -24,16 +24,6 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 5.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 5.x"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-java-io-elasticsearch-tests-common")
-evaluationDependsOn(":beam-sdks-java-io-common")
-
 test {
   // needed for ESIntegTestCase
   systemProperty "tests.security.manager", "false"
@@ -53,7 +43,7 @@ configurations.all {
 }
 
 dependencies {
-  testCompile project(":beam-sdks-java-io-elasticsearch-tests-common").sourceSets.test.output
+  testCompile project(path: ":beam-sdks-java-io-elasticsearch-tests-common", configuration: "shadowTest")
   testCompile "org.elasticsearch.test:framework:$elastic_search_version"
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.5.0"
@@ -61,7 +51,7 @@ dependencies {
 
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(":beam-sdks-java-io-common").sourceSets.test.output
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"

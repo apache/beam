@@ -96,7 +96,7 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Options supported by {@link LeaderBoard}.
    */
-  interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
+  public interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required

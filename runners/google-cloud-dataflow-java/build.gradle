@@ -27,12 +27,8 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
 evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
-evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
-evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":beam-sdks-java-core")
 evaluationDependsOn(":beam-examples-java")
 
@@ -81,9 +77,9 @@ dependencies {
   shadow library.java.slf4j_api
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
-  shadowTest project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
+  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core

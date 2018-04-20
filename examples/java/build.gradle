@@ -26,15 +26,6 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes all Apache Beam Java SDK examples."""
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
-
 /** Define the list of runners which execute a precommit test. */
 // https://issues.apache.org/jira/browse/BEAM-3583
 def preCommitRunners = ["dataflowRunner", "dataflowStreamingRunner", "directRunner", "flinkRunner", "sparkRunner"]
@@ -68,7 +59,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
-  shadowTest project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
