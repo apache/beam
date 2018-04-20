@@ -30,6 +30,10 @@ from apache_beam.transforms import core
 
 
 class Environment(object):
+  """A wrapper around the environment proto.
+
+  Provides consistency with how the other componentes are accessed.
+  """
   def __init__(self, proto):
     self._proto = proto
 

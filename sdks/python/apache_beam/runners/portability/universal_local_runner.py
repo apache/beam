@@ -74,9 +74,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._job_service_lock = threading.Lock()
     self._subprocess = None
     self._runner_api_address = runner_api_address
-    self._docker_image = (
-      docker_image
-      or os.environ['USER'] + '-docker.apache.bintray.io/beam/python:latest')
+    self._docker_image = docker_image or self.default_docker_image()
 
   def __del__(self):
     # Best effort to not leave any dangling processes around.
@@ -87,6 +85,16 @@ class UniversalLocalRunner(runner.PipelineRunner):
       self._subprocess.kill()
       time.sleep(0.1)
     self._subprocess = None
+
+  @staticmethod
+  def default_docker_image():
+    if 'USER' in os.environ:
+      # Perhaps also test if this was built?
+      logging.info('Using latest locally built Python SDK docker image.')
+      return os.environ['USER'] + '-docker.apache.bintray.io/beam/python:latest'
+    else:
+      logging.warning('Could not find a Python SDK docker image.')
+      return 'unknown'
 
   def _get_job_service(self):
     with self._job_service_lock:
