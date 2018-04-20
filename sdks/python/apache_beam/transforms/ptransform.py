@@ -45,7 +45,7 @@ import sys
 import threading
 from functools import reduce
 
-from google.protobuf import wrappers_pb2
+from google.protobuf import message
 
 from apache_beam import error
 from apache_beam import pvalue
@@ -537,13 +537,17 @@ class PTransform(WithTypeHints, HasDisplayData):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context):
+  def to_runner_api(self, context, has_parts=False):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
+    if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
+      # TODO(BEAM-3812): Remove this fallback.
+      urn, typed_param = self.to_runner_api_pickled(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
         payload=typed_param.SerializeToString()
-        if typed_param is not None else None)
+        if isinstance(typed_param, message.Message)
+        else typed_param)
 
   @classmethod
   def from_runner_api(cls, proto, context):
@@ -554,19 +558,26 @@ class PTransform(WithTypeHints, HasDisplayData):
         proto_utils.parse_Bytes(proto.payload, parameter_type),
         context)
 
-  def to_runner_api_parameter(self, context):
+  def to_runner_api_parameter(self, unused_context):
+    # The payload here is just to ease debugging.
+    return (python_urns.GENERIC_COMPOSITE_TRANSFORM,
+            getattr(self, '_fn_api_payload', str(self)))
+
+  def to_runner_api_pickled(self, unused_context):
     return (python_urns.PICKLED_TRANSFORM,
-            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
-
-  @staticmethod
-  def from_runner_api_parameter(spec_parameter, unused_context):
-    return pickler.loads(spec_parameter.value)
+            pickler.dumps(self))
 
 
-PTransform.register_urn(
-    python_urns.PICKLED_TRANSFORM,
-    wrappers_pb2.BytesValue,
-    PTransform.from_runner_api_parameter)
+@PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
+def _create_transform(payload, unused_context):
+  empty_transform = PTransform()
+  empty_transform._fn_api_payload = payload
+  return empty_transform
+
+
+@PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
+def _unpickle_transform(pickled_bytes, unused_context):
+  return pickler.loads(pickled_bytes)
 
 
 class _ChainedPTransform(PTransform):

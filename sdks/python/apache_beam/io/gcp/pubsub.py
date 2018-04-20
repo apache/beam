@@ -152,6 +152,11 @@ class ReadFromPubSub(PTransform):
       pcoll.element_type = bytes
     return pcoll
 
+  def to_runner_api_parameter(self, context):
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
+
 
 class ReadStringsFromPubSub(PTransform):
   """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub.
@@ -192,6 +197,11 @@ class WriteStringsToPubSub(PTransform):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
+
+  def to_runner_api_parameter(self, context):
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
 
 
 PROJECT_ID_REGEXP = '[a-z][-a-z0-9:.]{4,61}[a-z0-9]'
