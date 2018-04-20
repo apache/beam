@@ -162,12 +162,12 @@ class QuiescenceDriver implements ExecutionDriver {
                     transformTimers.getKey(),
                     (PCollection)
                         Iterables.getOnlyElement(
-                            transformTimers.getTransform().getInputs().values()))
+                            transformTimers.getExecutable().getInputs().values()))
                 .add(WindowedValue.valueInGlobalWindow(work))
                 .commit(evaluationContext.now());
         outstandingWork.incrementAndGet();
         bundleProcessor.process(
-            bundle, transformTimers.getTransform(), new TimerIterableCompletionCallback(delivery));
+            bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
         state.set(ExecutorState.ACTIVE);
       }
     } catch (Exception e) {
