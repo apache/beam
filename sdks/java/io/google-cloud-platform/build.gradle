@@ -32,15 +32,6 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
-
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
@@ -80,7 +71,7 @@ dependencies {
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
+  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core

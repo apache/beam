@@ -24,19 +24,10 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-java-io-common")
-
 dependencies {
   shadowTest project(":beam-sdks-java-core")
   shadowTest project(":beam-sdks-java-io-common")
-  shadowTest project(":beam-sdks-java-io-common").sourceSets.test.output
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   shadowTest project(":beam-sdks-java-io-xml")
   shadowTest library.java.guava
   shadowTest library.java.junit

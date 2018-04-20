@@ -41,7 +41,6 @@ description = "Apache Beam :: Runners :: Direct Java"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":beam-runners-core-construction-java")
 evaluationDependsOn(":beam-runners-core-java")
 evaluationDependsOn(":beam-sdks-java-core")

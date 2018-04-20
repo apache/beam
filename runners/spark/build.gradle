@@ -27,11 +27,7 @@ description = "Apache Beam :: Runners :: Spark"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
-evaluationDependsOn(":beam-model-fn-execution")
-evaluationDependsOn(":beam-runners-core-java")
 evaluationDependsOn(":beam-sdks-java-core")
 
 configurations {
@@ -83,7 +79,7 @@ dependencies {
   shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(":beam-runners-core-java").sourceSets.test.output
+  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.avro
   shadowTest library.java.kafka_clients
   shadowTest library.java.junit
