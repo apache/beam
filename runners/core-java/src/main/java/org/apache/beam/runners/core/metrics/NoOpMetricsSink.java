@@ -25,7 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * This is the default metrics sink that does nothing. When it is set, MetricsPusher does not start
  * pushing thread.
  */
-public class NoOpMetricsSink implements MetricsSink<Void> {
+public class NoOpMetricsSink implements MetricsSink {
 
   public NoOpMetricsSink(PipelineOptions pipelineOptions) {}
 
