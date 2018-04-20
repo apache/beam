@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package datastoreio provides transformations and utilities to interact with
+// Google Datastore. See also: https://cloud.google.com/datastore/docs.
 package datastoreio
 
 import (
