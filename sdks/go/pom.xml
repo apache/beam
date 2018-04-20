@@ -122,6 +122,7 @@
                 <package>google.golang.org/api/storage/v1</package>
                 <package>github.com/spf13/cobra</package>
                 <package>cloud.google.com/go/bigquery</package>
+                <package>cloud.google.com/go/pubsub</package>
                 <package>google.golang.org/api/googleapi</package>
                 <package>google.golang.org/api/dataflow/v1b3</package>
               </packages>
