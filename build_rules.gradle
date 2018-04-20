@@ -1025,7 +1025,7 @@ ext.applyGoNature = {
   println "applyGoNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.github.blindpirate.gogradle"
   golang {
-    goVersion = '1.9'
+    goVersion = '1.10'
   }
 
   repositories {
