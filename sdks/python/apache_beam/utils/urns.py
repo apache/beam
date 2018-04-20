@@ -20,6 +20,7 @@
 import abc
 import inspect
 
+from google.protobuf import message
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
@@ -96,7 +97,8 @@ class RunnerApiFn(object):
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
             payload=typed_param.SerializeToString()
-            if typed_param is not None else None))
+            if isinstance(typed_param, message.Message)
+            else typed_param))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
