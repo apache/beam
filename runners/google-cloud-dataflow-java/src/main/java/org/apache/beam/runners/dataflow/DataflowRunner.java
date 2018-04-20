@@ -29,7 +29,7 @@ import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.services.clouddebugger.v2.Clouddebugger;
+import com.google.api.services.clouddebugger.v2.CloudDebugger;
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeRequest;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
@@ -617,14 +617,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new RuntimeException("Should not specify the debuggee");
     }
 
-    Clouddebugger debuggerClient = DataflowTransport.newClouddebuggerClient(options).build();
+    CloudDebugger debuggerClient = DataflowTransport.newClouddebuggerClient(options).build();
     Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
     options.setDebuggee(debuggee);
 
     System.out.println(debuggerMessage(options.getProject(), debuggee.getUniquifier()));
   }
 
-  private Debuggee registerDebuggee(Clouddebugger debuggerClient, String uniquifier) {
+  private Debuggee registerDebuggee(CloudDebugger debuggerClient, String uniquifier) {
     RegisterDebuggeeRequest registerReq = new RegisterDebuggeeRequest();
     registerReq.setDebuggee(new Debuggee()
         .setProject(options.getProject())
