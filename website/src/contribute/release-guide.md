@@ -190,7 +190,7 @@ Check out the version of the codebase from which you start the release. For a ne
 
 Set up a few environment variables to simplify Maven commands that follow. (We use `bash` Unix syntax in this guide.)
 
-    RELEASE_VERSION=2.5.0
+    RELEASE=2.5.0
     NEXT_VERSION_IN_BASE_BRANCH=2.6.0
     BRANCH=release-${RELEASE}
 
@@ -271,8 +271,8 @@ Set up a few environment variables to simplify the commands that follow. These i
 
 Use Gradle release plugin to build the release artifacts, as follows:
 
-    ./gradlew release -Prelease.newVersion=${RELEASE_VERSION}-SNAPSHOT \
-                  -Prelease.releaseVersion=${RELEASE_VERSION}-RC${RC_NUM} \
+    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
+                  -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
                   -Prelease.useAutomaticVersion=true --info --no-daemon
 
 Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:
