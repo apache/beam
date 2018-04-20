@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.TimerProvider.FiredTimers;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
 import org.apache.beam.sdk.runners.AppliedPTransform;
