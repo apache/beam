@@ -23,6 +23,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 
 /** Interface for all metric sinks. */
 @Experimental(Experimental.Kind.METRICS)
-public interface MetricsSink<OutputT> extends Serializable {
+public interface MetricsSink extends Serializable {
   void writeMetrics(MetricQueryResults metricQueryResults) throws Exception;
 }

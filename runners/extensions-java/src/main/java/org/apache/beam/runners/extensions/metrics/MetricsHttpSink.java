@@ -34,7 +34,7 @@ import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
-public class MetricsHttpSink implements MetricsSink<String> {
+public class MetricsHttpSink implements MetricsSink {
   private final String urlString;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
