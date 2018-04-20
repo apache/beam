@@ -110,6 +110,14 @@ apply plugin: "idea"
 // Provide code coverage
 // TODO: Should this only apply to Java projects?
 apply plugin: "jacoco"
+gradle.taskGraph.whenReady { graph ->
+  // Disable jacoco unless report requested such that task outputs can be properly cached.
+  // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
+  def enabled = graph.allTasks.any { it instanceof JacocoReport }
+  tasks.withType(Test) {
+    jacoco.enabled = enabled
+  }
+}
 
 // Apply a plugin which provides tasks for dependency / property / task reports.
 // See https://docs.gradle.org/current/userguide/project_reports_plugin.html
