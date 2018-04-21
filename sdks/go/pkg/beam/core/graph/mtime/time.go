@@ -32,7 +32,7 @@ const (
 	MinTimestamp Time = math.MinInt64 / 1000
 
 	// MaxTimestamp is the maximum value for any Beam timestamp. Often referred to
-	// as "-infinity".
+	// as "+infinity".
 	MaxTimestamp Time = math.MaxInt64 / 1000
 
 	// EndOfGlobalWindowTime is the timestamp at the end of the global window. It
@@ -118,6 +118,7 @@ func Normalize(t Time) Time {
 	return Min(Max(t, MinTimestamp), MaxTimestamp)
 }
 
+// n2m converts nanoseconds to milliseconds.
 func n2m(v int64) int64 {
 	return v / 1e6
 }

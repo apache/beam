@@ -89,6 +89,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 	first := true
 
 	stream := values[0].Open()
+	defer stream.Close()
 	for {
 		v, err := stream.Read()
 		if err != nil {
@@ -104,7 +105,6 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 		}
 		first = false
 	}
-	stream.Close()
 
 	out, err := n.extract(ctx, a)
 	if err != nil {

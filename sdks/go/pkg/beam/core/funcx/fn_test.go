@@ -118,7 +118,7 @@ func TestNew(t *testing.T) {
 			Err:  errContextParam,
 		},
 		{
-			Name: "errWindowParamPrecedence: after EventType",
+			Name: "errWindowParamPrecedence: after EventTime",
 			Fn: func(typex.EventTime, typex.Window, int) {
 			},
 			Err: errWindowParamPrecedence,
