@@ -8,14 +8,31 @@ redirect_from: /contribution-guide/
 
 # Apache Beam Contribution Guide
 
-The Apache Beam community welcomes contributions from anyone with a passion for
-data processing! Beam has many different opportunities for contributions --
-write new examples, add new user-facing libraries (new statistical libraries,
-new IO connectors, etc), work on the core programming model, build specific
-runners (Apache Apex, Apache Flink, Apache Spark, Google Cloud Dataflow, etc),
-or participate on the documentation effort.
+The Apache Beam community welcomes contributions from anyone!
 
-We use a review-then-commit workflow in Beam for all contributions.
+There are lots of opportunities:
+
+ - write new examples
+ - improve the documentation
+ - add new user-facing libraries (new statistical libraries, new IO connectors,
+   etc)
+ - improve your favorite language SDK (Java, Python, Go, etc)
+ - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
+   Cloud Dataflow, etc)
+ - work on the core programming model (what is a Beam pipeline and how does it
+   run?)
+
+Most importantly, if you have an idea of how to contribute, then do it! 
+
+For a list of open starter tasks, check
+[https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
+
+What follows is a more comprehensive document covering details of things that
+may come up.
+
+## Review-then-commit workflow
+
+We use a review-then-commit workflow in Beam.
 
 ![The Beam contribution workflow has 5 steps: engage, design, code, review, and commit.](
   {{ "/images/contribution-guide-1.png" | prepend: site.baseurl }})
