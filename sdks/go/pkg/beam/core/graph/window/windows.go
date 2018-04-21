@@ -30,6 +30,7 @@ var (
 // GlobalWindow represents the singleton, global window.
 type GlobalWindow struct{}
 
+// MaxTimestamp returns the maximum timestamp in the window.
 func (GlobalWindow) MaxTimestamp() typex.EventTime {
 	return mtime.EndOfGlobalWindowTime
 }
@@ -48,6 +49,7 @@ type IntervalWindow struct {
 	Start, End typex.EventTime
 }
 
+// MaxTimestamp returns the maximum timestamp in the window.
 func (w IntervalWindow) MaxTimestamp() typex.EventTime {
 	return typex.EventTime(mtime.Time(w.End).Milliseconds() - 1)
 }

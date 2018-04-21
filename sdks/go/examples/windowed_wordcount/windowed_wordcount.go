@@ -13,6 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// windowed_wordcount counts words in text, and can run over either unbounded
+// or bounded input collections.
+//
+// This example is the last in a series of four successively more
+// detailed 'word count' examples. First take a look at minimal_wordcount,
+// wordcount, and debugging_wordcount.
+//
+// Basic concepts, also in the preceeding examples: Reading text files;
+// counting a PCollection; writing to GCS; executing a Pipeline both locally
+// and using a selected runner; defining DoFns; user-defined PTransforms;
+// defining pipeline options.
+//
+// New Concepts:
+//
+//  1. Unbounded and bounded pipeline input modes
+//  2. Adding timestamps to data
+//  3. Windowing
+//  4. Re-using PTransforms over windowed PCollections
+//  5. Accessing the window of an element
 package main
 
 import (
@@ -60,6 +79,8 @@ func (f *addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
 	timestamp := f.Min.Add(time.Duration(rand.Int63n(2 * time.Hour.Nanoseconds())))
 	return timestamp, x
 }
+
+// Concept #5: formatFn accesses the window of each element.
 
 // formatFn is a DoFn that formats a windowed word and its count as a string.
 func formatFn(iw beam.Window, et beam.EventTime, w string, c int) string {
