@@ -26,22 +26,67 @@ import com.google.common.collect.ImmutableList;
  * type need to be accessed for processing.
  */
 public class FieldAccessDescriptor {
+  public static class FieldDescriptor {
+
+  }
   // Return a descriptor that accesses all fields in a row.
   public static FieldAccessDescriptor allFields() {
     return new FieldAccessDescriptor();
   }
 
-  // Return a descriptor that accesses only the given set of fields in a row.
-  public static FieldAccessDescriptor fromIterable(Iterable<String> fieldNames) {
+  /**
+   * Return a descriptor that access the specified fields.
+   */
+  public static FieldAccessDescriptor fieldNames(String... names) {
+    return new FieldAccessDescriptor();
+  }
+
+  /**
+   * Return a descriptor that access the specified fields.
+   */  public static FieldAccessDescriptor fieldNames(Iterable<String> fieldNames) {
     return new FieldAccessDescriptor();
 
   }
 
-  public Iterable<String> getFieldsAccessed() {
+  /**
+   * Return a descriptor that access the specified fields.
+   */
+  public static FieldAccessDescriptor fieldIds(int... ids) {
+    return new FieldAccessDescriptor();
+  }
+
+  /**
+   * Return a descriptor that access the specified fields.
+   */
+  public static FieldAccessDescriptor fieldIds(Iterable<Integer> ids) {
+    return new FieldAccessDescriptor();
+  }
+
+  /**
+   * Return a descriptor that access the specified nested field. The nested field must be of type
+   * {@link Schema.TypeName#ROW}, and the fieldAccess argument specifies what fields of the nested
+   * type will be accessed.
+   */
+  public static FieldAccessDescriptor withNestedField(
+      String nestedFieldName, FieldAccessDescriptor fieldAccess) {
+    return new FieldAccessDescriptor();
+  }
+
+  /**
+   * Return a descriptor that access the specified nested field. The nested field must be of type
+   * {@link Schema.TypeName#ROW}, and the fieldAccess argument specifies what fields of the nested
+   * type will be accessed.
+   */
+  public static FieldAccessDescriptor withNestedField(
+      int nestedFieldId, FieldAccessDescriptor fieldAccess) {
+    return new FieldAccessDescriptor();
+  }
+
+  public Iterable<String> getFieldNamesAccessed() {
     return ImmutableList.of();
   }
 
-  // TODO: FieldAccessDescriptor currently assumes all fields are top level. Once we have native
-  // support for nested schemas, we will need to boost this API to support addressing nested
-  // fields (possibly using nested FieldAccessDescriptor objects).
+  public Iterable<Integer> getFieldIdsAccessed() {
+    return ImmutableList.of();
+  }
 }
