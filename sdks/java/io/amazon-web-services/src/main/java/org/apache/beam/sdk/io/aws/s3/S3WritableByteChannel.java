@@ -39,9 +39,7 @@ import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.aws.options.S3Options.S3UploadBufferSizeBytesFactory;
 
-/**
- * A writable S3 object, as a {@link WritableByteChannel}.
- */
+/** A writable S3 object, as a {@link WritableByteChannel}. */
 class S3WritableByteChannel implements WritableByteChannel {
   private final AmazonS3 amazonS3;
   private final S3Options options;
@@ -55,8 +53,8 @@ class S3WritableByteChannel implements WritableByteChannel {
   private int partNumber = 1;
   private boolean open = true;
 
-  S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType,
-      S3Options options) throws IOException {
+  S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType, S3Options options)
+      throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     this.options = checkNotNull(options);
     this.path = checkNotNull(path, "path");
@@ -75,6 +73,7 @@ class S3WritableByteChannel implements WritableByteChannel {
         new InitiateMultipartUploadRequest(path.getBucket(), path.getKey())
             .withStorageClass(options.getS3StorageClass())
             .withObjectMetadata(objectMetadata);
+    request.setSSECustomerKey(options.getSSECustomerKey());
     InitiateMultipartUploadResult result;
     try {
       result = amazonS3.initiateMultipartUpload(request);
@@ -119,6 +118,8 @@ class S3WritableByteChannel implements WritableByteChannel {
             .withPartNumber(partNumber++)
             .withPartSize(uploadBuffer.remaining())
             .withInputStream(inputStream);
+    request.setSSECustomerKey(options.getSSECustomerKey());
+
     UploadPartResult result;
     try {
       result = amazonS3.uploadPart(request);
