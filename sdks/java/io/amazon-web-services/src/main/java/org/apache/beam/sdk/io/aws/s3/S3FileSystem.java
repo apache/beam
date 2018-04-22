@@ -27,11 +27,14 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
 import com.amazonaws.services.s3.model.CopyObjectRequest;
+import com.amazonaws.services.s3.model.CopyObjectResult;
 import com.amazonaws.services.s3.model.CopyPartRequest;
 import com.amazonaws.services.s3.model.CopyPartResult;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest.KeyVersion;
+import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
@@ -93,18 +96,27 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   // Non-final for testing.
   private AmazonS3 amazonS3;
-  private S3Options options;
+  private final S3Options options;
   private final ListeningExecutorService executorService;
 
   S3FileSystem(S3Options options) {
     this.options = checkNotNull(options, "options");
-
     if (Strings.isNullOrEmpty(options.getAwsRegion())) {
       LOG.info(
           "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
               + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
+    this.amazonS3 = buildAmazonS3Client(options);
 
+    checkNotNull(options.getS3StorageClass(), "storageClass");
+    checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
+    executorService =
+        MoreExecutors.listeningDecorator(
+            Executors.newFixedThreadPool(
+                options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+  }
+
+  private static AmazonS3 buildAmazonS3Client(S3Options options) {
     AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard().withCredentials(options.getAwsCredentialsProvider());
     if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
@@ -114,14 +126,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           builder.withEndpointConfiguration(
               new EndpointConfiguration(options.getAwsServiceEndpoint(), options.getAwsRegion()));
     }
-    amazonS3 = builder.build();
-
-    checkNotNull(options.getS3StorageClass(), "storageClass");
-    checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
-    executorService =
-        MoreExecutors.listeningDecorator(
-            Executors.newFixedThreadPool(
-                options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+    return builder.build();
   }
 
   @Override
@@ -335,7 +340,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private PathWithEncoding getPathContentEncoding(S3ResourceId path) {
     ObjectMetadata s3Metadata;
     try {
-      s3Metadata = amazonS3.getObjectMetadata(path.getBucket(), path.getKey());
+      s3Metadata = getObjectMetadata(path);
     } catch (AmazonClientException e) {
       if (e instanceof AmazonS3Exception && ((AmazonS3Exception) e).getStatusCode() == 404) {
         return PathWithEncoding.create(path, new FileNotFoundException());
@@ -355,10 +360,18 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   }
 
   @VisibleForTesting
+  ObjectMetadata getObjectMetadata(S3ResourceId s3ResourceId) throws AmazonClientException {
+    GetObjectMetadataRequest request =
+        new GetObjectMetadataRequest(s3ResourceId.getBucket(), s3ResourceId.getKey());
+    request.setSSECustomerKey(options.getSSECustomerKey());
+    return amazonS3.getObjectMetadata(request);
+  }
+
+  @VisibleForTesting
   MatchResult matchNonGlobPath(S3ResourceId path) {
     ObjectMetadata s3Metadata;
     try {
-      s3Metadata = amazonS3.getObjectMetadata(path.getBucket(), path.getKey());
+      s3Metadata = getObjectMetadata(path);
     } catch (AmazonClientException e) {
       if (e instanceof AmazonS3Exception && ((AmazonS3Exception) e).getStatusCode() == 404) {
         return MatchResult.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException());
@@ -451,13 +464,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected WritableByteChannel create(S3ResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return new S3WritableByteChannel(
-        amazonS3, resourceId, createOptions.mimeType(), options);
+    return new S3WritableByteChannel(amazonS3, resourceId, createOptions.mimeType(), options);
   }
 
   @Override
   protected ReadableByteChannel open(S3ResourceId resourceId) throws IOException {
-    return new S3ReadableSeekableByteChannel(amazonS3, resourceId);
+    return new S3ReadableSeekableByteChannel(amazonS3, resourceId, options);
   }
 
   @Override
@@ -488,12 +500,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @VisibleForTesting
   void copy(S3ResourceId sourcePath, S3ResourceId destinationPath) throws IOException {
     try {
-      ObjectMetadata objectMetadata =
-          amazonS3.getObjectMetadata(sourcePath.getBucket(), sourcePath.getKey());
-      if (objectMetadata.getContentLength() < MAX_COPY_OBJECT_SIZE_BYTES) {
-        atomicCopy(sourcePath, destinationPath);
+      ObjectMetadata sourceObjectMetadata = getObjectMetadata(sourcePath);
+      if (sourceObjectMetadata.getContentLength() < MAX_COPY_OBJECT_SIZE_BYTES) {
+        atomicCopy(sourcePath, destinationPath, sourceObjectMetadata);
       } else {
-        multipartCopy(sourcePath, destinationPath, objectMetadata);
+        multipartCopy(sourcePath, destinationPath, sourceObjectMetadata);
       }
     } catch (AmazonClientException e) {
       throw new IOException(e);
@@ -501,7 +512,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   }
 
   @VisibleForTesting
-  void atomicCopy(S3ResourceId sourcePath, S3ResourceId destinationPath)
+  CopyObjectResult atomicCopy(
+      S3ResourceId sourcePath, S3ResourceId destinationPath, ObjectMetadata sourceObjectMetadata)
       throws AmazonClientException {
     CopyObjectRequest copyObjectRequest =
         new CopyObjectRequest(
@@ -509,18 +521,22 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             sourcePath.getKey(),
             destinationPath.getBucket(),
             destinationPath.getKey());
+    copyObjectRequest.setNewObjectMetadata(sourceObjectMetadata);
     copyObjectRequest.setStorageClass(options.getS3StorageClass());
-    amazonS3.copyObject(copyObjectRequest);
+    copyObjectRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
+    copyObjectRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
+    return amazonS3.copyObject(copyObjectRequest);
   }
 
   @VisibleForTesting
-  void multipartCopy(
-      S3ResourceId sourcePath, S3ResourceId destinationPath, ObjectMetadata objectMetadata)
+  CompleteMultipartUploadResult multipartCopy(
+      S3ResourceId sourcePath, S3ResourceId destinationPath, ObjectMetadata sourceObjectMetadata)
       throws AmazonClientException {
     InitiateMultipartUploadRequest initiateUploadRequest =
         new InitiateMultipartUploadRequest(destinationPath.getBucket(), destinationPath.getKey())
             .withStorageClass(options.getS3StorageClass())
-            .withObjectMetadata(objectMetadata);
+            .withObjectMetadata(sourceObjectMetadata);
+    initiateUploadRequest.setSSECustomerKey(options.getSSECustomerKey());
 
     InitiateMultipartUploadResult initiateUploadResult =
         amazonS3.initiateMultipartUpload(initiateUploadRequest);
@@ -528,7 +544,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     List<PartETag> eTags = new ArrayList<>();
 
-    final long objectSize = objectMetadata.getContentLength();
+    final long objectSize = sourceObjectMetadata.getContentLength();
     // extra validation in case a caller calls directly S3FileSystem.multipartCopy
     // without using S3FileSystem.copy in the future
     if (objectSize == 0) {
@@ -540,6 +556,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
               .withDestinationKey(destinationPath.getKey())
               .withUploadId(uploadId)
               .withPartNumber(1);
+      copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
+      copyPartRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
 
       CopyPartResult copyPartResult = amazonS3.copyPart(copyPartRequest);
       eTags.add(copyPartResult.getPartETag());
@@ -558,6 +576,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 .withPartNumber(partNumber)
                 .withFirstByte(bytePosition)
                 .withLastByte(Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1));
+        copyPartRequest.setSourceSSECustomerKey(options.getSSECustomerKey());
+        copyPartRequest.setDestinationSSECustomerKey(options.getSSECustomerKey());
 
         CopyPartResult copyPartResult = amazonS3.copyPart(copyPartRequest);
         eTags.add(copyPartResult.getPartETag());
@@ -572,7 +592,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             .withKey(destinationPath.getKey())
             .withUploadId(uploadId)
             .withPartETags(eTags);
-    amazonS3.completeMultipartUpload(completeUploadRequest);
+    return amazonS3.completeMultipartUpload(completeUploadRequest);
   }
 
   @Override

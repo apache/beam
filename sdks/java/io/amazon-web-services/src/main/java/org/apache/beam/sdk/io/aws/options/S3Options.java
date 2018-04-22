@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
+import com.amazonaws.services.s3.model.SSECustomerKey;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -44,6 +46,11 @@ public interface S3Options extends AwsOptions {
   @Default.Integer(50)
   int getS3ThreadPoolSize();
   void setS3ThreadPoolSize(int value);
+
+  @Description("SSE key for SSE-C encryption.")
+  @Nullable
+  SSECustomerKey getSSECustomerKey();
+  void setSSECustomerKey(SSECustomerKey value);
 
   /**
    * Provide the default s3 upload buffer size in bytes: 64MB if more than 512MB in RAM are
