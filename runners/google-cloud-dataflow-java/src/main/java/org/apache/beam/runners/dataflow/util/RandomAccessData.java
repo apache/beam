@@ -117,7 +117,7 @@ public class RandomAccessData {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
-      return VarInt.getLength(value.size) + value.size;
+      return (long) VarInt.getLength(value.size) + value.size;
     }
   }
 
@@ -206,7 +206,7 @@ public class RandomAccessData {
     RandomAccessData copy = copy();
     for (int i = copy.size - 1; i >= 0; --i) {
       if (copy.buffer[i] != UnsignedBytes.MAX_VALUE) {
-        copy.buffer[i] = UnsignedBytes.checkedCast(UnsignedBytes.toInt(copy.buffer[i]) + 1);
+        copy.buffer[i] = UnsignedBytes.checkedCast(UnsignedBytes.toInt(copy.buffer[i]) + 1L);
         return copy;
       }
     }

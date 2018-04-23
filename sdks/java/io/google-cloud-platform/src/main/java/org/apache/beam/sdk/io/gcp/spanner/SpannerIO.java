@@ -179,7 +179,7 @@ import org.joda.time.Duration;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
 
-  private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
+  private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
   // Max number of mutations to batch together.
   private static final int MAX_NUM_MUTATIONS = 10000;
   // The maximum number of keys to fit in memory when computing approximate quantiles.
