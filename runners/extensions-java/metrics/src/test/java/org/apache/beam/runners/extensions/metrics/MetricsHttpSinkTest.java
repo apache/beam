@@ -35,191 +35,8 @@ import org.junit.Test;
 public class MetricsHttpSinkTest {
 
   @Test
-  public void testSerializer() throws Exception {
-    MetricQueryResults metricQueryResults =
-        new MetricQueryResults() {
-
-          @Override
-          public List<MetricResult<Long>> getCounters() {
-            return Collections.singletonList(
-                (MetricResult<Long>)
-                    new MetricResult<Long>() {
-
-                      @Override
-                      public MetricName getName() {
-                        return new MetricName() {
-
-                          @Override
-                          public String getNamespace() {
-                            return "ns1";
-                          }
-
-                          @Override
-                          public String getName() {
-                            return "n1";
-                          }
-                        };
-                      }
-
-                      @Override
-                      public String getStep() {
-                        return "s1";
-                      }
-
-                      @Override
-                      public Long getCommitted() {
-                        return 10L;
-                      }
-
-                      @Override
-                      public Long getAttempted() {
-                        return 20L;
-                      }
-                    });
-          }
-
-          @Override
-          public List<MetricResult<DistributionResult>> getDistributions() {
-            return Collections.singletonList(
-                (MetricResult<DistributionResult>)
-                    new MetricResult<DistributionResult>() {
-
-                      @Override
-                      public MetricName getName() {
-                        return new MetricName() {
-
-                          @Override
-                          public String getNamespace() {
-                            return "ns1";
-                          }
-
-                          @Override
-                          public String getName() {
-                            return "n2";
-                          }
-                        };
-                      }
-
-                      @Override
-                      public String getStep() {
-                        return "s2";
-                      }
-
-                      @Override
-                      public DistributionResult getCommitted() {
-                        return new DistributionResult() {
-
-                          @Override
-                          public long getSum() {
-                            return 10L;
-                          }
-
-                          @Override
-                          public long getCount() {
-                            return 2L;
-                          }
-
-                          @Override
-                          public long getMin() {
-                            return 5L;
-                          }
-
-                          @Override
-                          public long getMax() {
-                            return 8L;
-                          }
-                        };
-                      }
-
-                      @Override
-                      public DistributionResult getAttempted() {
-                        return new DistributionResult() {
-
-                          @Override
-                          public long getSum() {
-                            return 25L;
-                          }
-
-                          @Override
-                          public long getCount() {
-                            return 4L;
-                          }
-
-                          @Override
-                          public long getMin() {
-                            return 3L;
-                          }
-
-                          @Override
-                          public long getMax() {
-                            return 9L;
-                          }
-                        };
-                      }
-                    });
-          }
-
-          @Override
-          public List<MetricResult<GaugeResult>> getGauges() {
-            return Collections.singletonList(
-                (MetricResult<GaugeResult>)
-                    new MetricResult<GaugeResult>() {
-
-                      @Override
-                      public MetricName getName() {
-                        return new MetricName() {
-
-                          @Override
-                          public String getNamespace() {
-                            return "ns1";
-                          }
-
-                          @Override
-                          public String getName() {
-                            return "n3";
-                          }
-                        };
-                      }
-
-                      @Override
-                      public String getStep() {
-                        return "s3";
-                      }
-
-                      @Override
-                      public GaugeResult getCommitted() {
-                        return new GaugeResult() {
-
-                          @Override
-                          public long getValue() {
-                            return 100L;
-                          }
-
-                          @Override
-                          public Instant getTimestamp() {
-                            return new Instant(0L);
-                          }
-                        };
-                      }
-
-                      @Override
-                      public GaugeResult getAttempted() {
-                        return new GaugeResult() {
-
-                          @Override
-                          public long getValue() {
-                            return 120L;
-                          }
-
-                          @Override
-                          public Instant getTimestamp() {
-                            return new Instant(0L);
-                          }
-                        };
-                      }
-                    });
-          }
-        };
+  public void testSerializerWithCommittedSupported() throws Exception {
+    MetricQueryResults metricQueryResults = new CustomMetricQueryResults(true);
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
     String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
     assertEquals(
@@ -233,5 +50,232 @@ public class MetricsHttpSinkTest {
             + "\"1970-01-01T00:00:00.000Z\",\"value\":100},\"name\":{\"name\":\"n3\",\"namespace\":"
             + "\"ns1\"},\"step\":\"s3\"}]}",
         serializeMetrics);
+  }
+
+  @Test
+  public void testSerializerWithCommittedUnSupported() throws Exception {
+    MetricQueryResults metricQueryResults = new CustomMetricQueryResults(false);
+    MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
+    String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
+    assertEquals(
+        "Errror in serialization",
+        "{\"counters\":[{\"attempted\":20,\"name\":{\"name\":\"n1\","
+            + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
+            + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"name\":{\"name\":\"n2\""
+            + ",\"namespace\":\"ns1\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
+            + "\"1970-01-01T00:00:00.000Z\",\"value\":120},\"name\":{\"name\":\"n3\",\"namespace\":"
+            + "\"ns1\"},\"step\":\"s3\"}]}",
+        serializeMetrics);
+  }
+
+  private static class CustomMetricQueryResults implements MetricQueryResults {
+
+    private boolean isCommittedSupported;
+
+    private CustomMetricQueryResults(boolean isCommittedSupported) {
+      this.isCommittedSupported = isCommittedSupported;
+    }
+
+    @Override
+    public List<MetricResult<Long>> getCounters() {
+      return Collections.singletonList(
+          (MetricResult<Long>)
+              new MetricResult<Long>() {
+
+                @Override
+                public MetricName getName() {
+                  return new MetricName() {
+
+                    @Override
+                    public String getNamespace() {
+                      return "ns1";
+                    }
+
+                    @Override
+                    public String getName() {
+                      return "n1";
+                    }
+                  };
+                }
+
+                @Override
+                public String getStep() {
+                  return "s1";
+                }
+
+                @Override
+                public Long getCommitted() {
+                  if (!isCommittedSupported) {
+                    // This is what getCommitted code is like for AccumulatedMetricResult on runners
+                    // that do not support committed metrics
+                    throw new UnsupportedOperationException(
+                        "This runner does not currently support committed"
+                            + " metrics results. Please use 'attempted' instead.");
+                  }
+                  return 10L;
+                }
+
+                @Override
+                public Long getAttempted() {
+                  return 20L;
+                }
+              });
+    }
+
+    @Override
+    public List<MetricResult<DistributionResult>> getDistributions() {
+      return Collections.singletonList(
+          (MetricResult<DistributionResult>)
+              new MetricResult<DistributionResult>() {
+
+                @Override
+                public MetricName getName() {
+                  return new MetricName() {
+
+                    @Override
+                    public String getNamespace() {
+                      return "ns1";
+                    }
+
+                    @Override
+                    public String getName() {
+                      return "n2";
+                    }
+                  };
+                }
+
+                @Override
+                public String getStep() {
+                  return "s2";
+                }
+
+                @Override
+                public DistributionResult getCommitted() {
+                  if (!isCommittedSupported) {
+                    // This is what getCommitted code is like for AccumulatedMetricResult on runners
+                    // that do not support committed metrics
+                    throw new UnsupportedOperationException(
+                        "This runner does not currently support committed"
+                            + " metrics results. Please use 'attempted' instead.");
+                  }
+                  return new DistributionResult() {
+
+                    @Override
+                    public long getSum() {
+                      return 10L;
+                    }
+
+                    @Override
+                    public long getCount() {
+                      return 2L;
+                    }
+
+                    @Override
+                    public long getMin() {
+                      return 5L;
+                    }
+
+                    @Override
+                    public long getMax() {
+                      return 8L;
+                    }
+                  };
+                }
+
+                @Override
+                public DistributionResult getAttempted() {
+                  return new DistributionResult() {
+
+                    @Override
+                    public long getSum() {
+                      return 25L;
+                    }
+
+                    @Override
+                    public long getCount() {
+                      return 4L;
+                    }
+
+                    @Override
+                    public long getMin() {
+                      return 3L;
+                    }
+
+                    @Override
+                    public long getMax() {
+                      return 9L;
+                    }
+                  };
+                }
+              });
+    }
+
+    @Override
+    public List<MetricResult<GaugeResult>> getGauges() {
+      return Collections.singletonList(
+          (MetricResult<GaugeResult>)
+              new MetricResult<GaugeResult>() {
+
+                @Override
+                public MetricName getName() {
+                  return new MetricName() {
+
+                    @Override
+                    public String getNamespace() {
+                      return "ns1";
+                    }
+
+                    @Override
+                    public String getName() {
+                      return "n3";
+                    }
+                  };
+                }
+
+                @Override
+                public String getStep() {
+                  return "s3";
+                }
+
+                @Override
+                public GaugeResult getCommitted() {
+                  if (!isCommittedSupported) {
+                    // This is what getCommitted code is like for AccumulatedMetricResult on runners
+                    // that do not support committed metrics
+                    throw new UnsupportedOperationException(
+                        "This runner does not currently support committed"
+                            + " metrics results. Please use 'attempted' instead.");
+                  }
+                  return new GaugeResult() {
+
+                    @Override
+                    public long getValue() {
+                      return 100L;
+                    }
+
+                    @Override
+                    public Instant getTimestamp() {
+                      return new Instant(0L);
+                    }
+                  };
+                }
+
+                @Override
+                public GaugeResult getAttempted() {
+                  return new GaugeResult() {
+
+                    @Override
+                    public long getValue() {
+                      return 120L;
+                    }
+
+                    @Override
+                    public Instant getTimestamp() {
+                      return new Instant(0L);
+                    }
+                  };
+                }
+              });
+    }
   }
 }

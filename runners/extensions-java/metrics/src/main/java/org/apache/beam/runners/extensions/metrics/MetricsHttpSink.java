@@ -18,9 +18,12 @@
 
 package org.apache.beam.runners.extensions.metrics;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.DataOutputStream;
@@ -71,6 +74,26 @@ public class MetricsHttpSink implements MetricsSink {
     objectMapper.registerModule(new JodaModule());
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
-    return objectMapper.writeValueAsString(metricQueryResults);
+    // need to register a filter as soon as @JsonFilter annotation is specified.
+    // So specify an pass through filter
+    SimpleBeanPropertyFilter filter = SimpleBeanPropertyFilter.serializeAll();
+    SimpleFilterProvider filterProvider = new SimpleFilterProvider();
+    filterProvider.addFilter("committedMetrics", filter);
+    objectMapper.setFilterProvider(filterProvider);
+    String result;
+    try {
+      result = objectMapper.writeValueAsString(metricQueryResults);
+    } catch (JsonMappingException exception) {
+      if ((exception.getCause() instanceof UnsupportedOperationException)
+          && exception.getCause().getMessage().contains("committed metrics")) {
+        filterProvider.removeFilter("committedMetrics");
+        filter = SimpleBeanPropertyFilter.serializeAllExcept("committed");
+        filterProvider.addFilter("committedMetrics", filter);
+        result = objectMapper.writeValueAsString(metricQueryResults);
+      } else {
+        throw exception;
+      }
+    }
+    return result;
   }
 }
