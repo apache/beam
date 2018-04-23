@@ -30,7 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
-// BuildWorkerTempBinary creates a local worker binary in the tmp directory
+// BuildTempWorkerBinary creates a local worker binary in the tmp directory
 // for linux/amd64. Caller responsible for deleting the binary.
 func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 	filename := filepath.Join(os.TempDir(), fmt.Sprintf("beam-go-%v", time.Now().UnixNano()))

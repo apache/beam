@@ -16,7 +16,6 @@
 package runtime
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -98,9 +97,6 @@ func (o *Options) Set(key, value string) {
 
 	if o.ro {
 		return // ignore silently to allow init-time set of options
-	}
-	if _, ok := o.opt[key]; ok {
-		panic(fmt.Sprintf("option %v already defined", key))
 	}
 	o.opt[key] = value
 }

@@ -20,16 +20,18 @@ import common_job_properties
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
+job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
+  previousNames('beam_PostCommit_Java_ValidatesRunner_Dataflow')
   previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
-
 
   // Set common parameters. Sets a long (3 hour) timeout due to timeouts in [BEAM-3775].
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-  // Set maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
@@ -40,6 +42,12 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
     'Google Cloud Dataflow Runner ValidatesRunner Tests',
     'Run Dataflow ValidatesRunner')
 
-  // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/google-cloud-dataflow-java -DforkCount=0 -DvalidatesRunnerPipelineOptions=\'[ "--runner=TestDataflowRunner", "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-validates-runner-tests/" ]\'')
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
+      common_job_properties.setGradleSwitches(delegate)
+    }
+  }
 }

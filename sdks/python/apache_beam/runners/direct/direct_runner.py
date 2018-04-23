@@ -268,7 +268,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
   class ReadFromPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       return isinstance(applied_ptransform.transform,
-                        beam_pubsub._ReadFromPubSub)
+                        beam_pubsub.ReadFromPubSub)
 
     def get_replacement_transform(self, transform):
       if not pipeline_options.view_as(StandardOptions).streaming:

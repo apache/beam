@@ -28,7 +28,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Kafka table provider.
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.RowType;
  *
  * <pre>{@code
  * CREATE TABLE ORDERS(
- *   ID INT PRIMARY KEY COMMENT 'this is the primary key',
+ *   ID INT COMMENT 'this is the primary key',
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
  * COMMENT 'this is the table orders'
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.RowType;
  */
 public class KafkaTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    RowType rowType = getRowTypeFromTable(table);
+    Schema schema = getRowTypeFromTable(table);
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");
@@ -56,7 +56,7 @@ public class KafkaTableProvider implements TableProvider {
     for (Object topic : topicsArr) {
       topics.add(topic.toString());
     }
-    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(rowType, bootstrapServers, topics);
+    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(schema, bootstrapServers, topics);
     return txtTable;
   }
 

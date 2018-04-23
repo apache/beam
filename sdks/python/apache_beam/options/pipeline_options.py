@@ -649,6 +649,13 @@ class TestOptions(PipelineOptions):
         default=False,
         help=('Used in unit testing runners without submitting the '
               'actual job.'))
+    parser.add_argument(
+        '--wait_until_finish_duration',
+        default=None,
+        type=int,
+        help='The time to wait (in milliseconds) for test pipeline to finish. '
+             'If it is set to None, it will wait indefinitely until the job '
+             'is finished.')
 
   def validate(self, validator):
     errors = []

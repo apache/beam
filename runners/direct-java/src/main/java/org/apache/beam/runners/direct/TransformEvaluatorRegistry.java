@@ -45,6 +45,8 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.slf4j.Logger;
@@ -57,33 +59,43 @@ import org.slf4j.LoggerFactory;
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
 
-  public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
+  /**
+   * Create the {@link TransformEvaluatorRegistry} that executes a {@link Pipeline} written with the
+   * Java SDK by directly invoking the classes of that SDK.
+   *
+   * <p>This is the legacy implementation of the {@link DirectRunner} engine.
+   */
+  public static TransformEvaluatorRegistry javaSdkNativeRegistry(
+      EvaluationContext ctxt, PipelineOptions options) {
     ImmutableMap<String, TransformEvaluatorFactory> primitives =
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             // Beam primitives
-            .put(READ_TRANSFORM_URN, new ReadEvaluatorFactory(ctxt))
+            .put(READ_TRANSFORM_URN, new ReadEvaluatorFactory(ctxt, options))
             .put(
                 PAR_DO_TRANSFORM_URN,
                 new ParDoEvaluatorFactory<>(
                     ctxt,
                     ParDoEvaluator.defaultRunnerFactory(),
-                    ParDoEvaluatorFactory.basicDoFnCacheLoader()))
+                    ParDoEvaluatorFactory.basicDoFnCacheLoader(),
+                    options))
             .put(FLATTEN_TRANSFORM_URN, new FlattenEvaluatorFactory(ctxt))
             .put(ASSIGN_WINDOWS_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
             .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory(ctxt))
 
             // Runner-specific primitives
             .put(DIRECT_WRITE_VIEW_URN, new ViewEvaluatorFactory(ctxt))
-            .put(DIRECT_STATEFUL_PAR_DO_URN, new StatefulParDoEvaluatorFactory<>(ctxt))
+            .put(DIRECT_STATEFUL_PAR_DO_URN, new StatefulParDoEvaluatorFactory<>(ctxt, options))
             .put(DIRECT_GBKO_URN, new GroupByKeyOnlyEvaluatorFactory(ctxt))
-            .put(DIRECT_GABW_URN, new GroupAlsoByWindowEvaluatorFactory(ctxt))
+            .put(DIRECT_GABW_URN, new GroupAlsoByWindowEvaluatorFactory(ctxt, options))
             .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory(ctxt))
             .put(
                 DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN,
                 new MultiStepCombine.MergeAndExtractAccumulatorOutputEvaluatorFactory(ctxt))
 
             // Runners-core primitives
-            .put(SPLITTABLE_PROCESS_URN, new SplittableProcessElementsEvaluatorFactory<>(ctxt))
+            .put(
+                SPLITTABLE_PROCESS_URN,
+                new SplittableProcessElementsEvaluatorFactory<>(ctxt, options))
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }

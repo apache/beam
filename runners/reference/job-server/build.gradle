@@ -17,22 +17,22 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-reference-job-orchestrator")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Reference :: Job Orchestrator"
 
 dependencies {
   shadow library.java.grpc_netty
-  shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
-  shadow project(path: ":runners:reference:java", configuration: "shadow")
-  shadow project(path: ":runners:local-artifact-service-java", configuration: "shadow")
+  shadow project(path: ":beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-runners-reference-java", configuration: "shadow")
+  shadow project(path: ":beam-local-artifact-service-java", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.slf4j_api
   shadow library.java.args4j
   testCompile library.java.junit
-  shadowTest project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.slf4j_jdk14
 }

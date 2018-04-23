@@ -49,6 +49,7 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -803,6 +804,20 @@ public class HadoopInputFormatIOTest {
     }
     List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+  }
+
+  @Test
+  public void testValidateConfigurationWithDBInputFormat() {
+    Configuration conf = new Configuration();
+    conf.setClass("key.class", LongWritable.class, Object.class);
+    conf.setClass("value.class", Text.class, Object.class);
+    conf.setClass("mapreduce.job.inputformat.class", DBInputFormat.class, InputFormat.class);
+
+    thrown.expect(IllegalArgumentException.class);
+    HadoopInputFormatIO.<String, String>read()
+        .withConfiguration(new SerializableConfiguration(conf).get())
+        .withKeyTranslation(myKeyTranslate)
+        .withValueTranslation(myValueTranslate);
   }
 
   private static SerializableConfiguration loadTestConfiguration(Class<?> inputFormatClassName,

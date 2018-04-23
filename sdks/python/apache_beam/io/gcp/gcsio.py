@@ -22,7 +22,6 @@ https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 
 import cStringIO
 import errno
-import fnmatch
 import io
 import logging
 import multiprocessing
@@ -91,6 +90,17 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 # GcsIO.delete_batch().
 MAX_BATCH_OPERATION_SIZE = 100
 
+# Batch endpoint URL for GCS.
+# We have to specify an API specific endpoint here since Google APIs global
+# batch endpoints will be deprecated on 03/25/2019.
+# See https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html.  # pylint: disable=line-too-long
+# Currently apitools library uses a global batch endpoint by default:
+# https://github.com/google/apitools/blob/master/apitools/base/py/batch.py#L152
+# TODO: remove this constant and it's usage after apitools move to using an API
+# specific batch endpoint or after Beam gcsio module start using a GCS client
+# library that does not use global batch endpoints.
+GCS_BATCH_ENDPOINT = 'https://www.googleapis.com/batch/storage/v1'
+
 
 def proxy_info_from_environment_var(proxy_env_var):
   """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
@@ -146,8 +156,6 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
 
-  local_state = threading.local()
-
   def __new__(cls, storage_client=None):
     if storage_client:
       # This path is only used for testing.
@@ -157,7 +165,7 @@ class GcsIO(object):
       # creating more than one storage client for each thread, since each
       # initialization requires the relatively expensive step of initializing
       # credentaials.
-      local_state = GcsIO.local_state
+      local_state = threading.local()
       if getattr(local_state, 'gcsio_instance', None) is None:
         credentials = auth.get_service_credentials()
         storage_client = storage.StorageV1(
@@ -209,40 +217,6 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def glob(self, pattern, limit=None):
-    """Return the GCS path names matching a given path name pattern.
-
-    Path name patterns are those recognized by fnmatch.fnmatch().  The path
-    can contain glob characters (*, ?, and [...] sets).
-
-    Args:
-      pattern: GCS file path pattern in the form gs://<bucket>/<name_pattern>.
-      limit: Maximal number of path names to return.
-        All matching paths are returned if set to None.
-
-    Returns:
-      list of GCS file paths matching the given pattern.
-    """
-    bucket, name_pattern = parse_gcs_path(pattern)
-    # Get the prefix with which we can list objects in the given bucket.
-    prefix = re.match('^[^[*?]*', name_pattern).group(0)
-    request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
-    object_paths = []
-    while True:
-      response = self.client.objects.List(request)
-      for item in response.items:
-        if fnmatch.fnmatch(item.name, name_pattern):
-          object_paths.append('gs://%s/%s' % (item.bucket, item.name))
-      if response.nextPageToken:
-        request.pageToken = response.nextPageToken
-        if limit is not None and len(object_paths) >= limit:
-          break
-      else:
-        break
-    return object_paths[:limit]
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def delete(self, path):
     """Deletes the object at the given GCS path.
 
@@ -276,6 +250,7 @@ class GcsIO(object):
     if not paths:
       return []
     batch_request = BatchApiRequest(
+        batch_url=GCS_BATCH_ENDPOINT,
         retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
     for path in paths:
       bucket, object_path = parse_gcs_path(path)
@@ -330,6 +305,7 @@ class GcsIO(object):
     if not src_dest_pairs:
       return []
     batch_request = BatchApiRequest(
+        batch_url=GCS_BATCH_ENDPOINT,
         retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
     for src, dest in src_dest_pairs:
       src_bucket, src_path = parse_gcs_path(src)
@@ -366,7 +342,7 @@ class GcsIO(object):
     """
     assert src.endswith('/')
     assert dest.endswith('/')
-    for entry in self.glob(src + '*'):
+    for entry in self.list_prefix(src):
       rel_path = entry[len(src):]
       self.copy(entry, dest + rel_path)
 
@@ -435,15 +411,16 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def size_of_files_in_glob(self, pattern, limit=None):
-    """Returns the size of all the files in the glob as a dictionary
+  def list_prefix(self, path):
+    """Lists files matching the prefix.
 
     Args:
-      pattern: a file path pattern that reads the size of all the files
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+
+    Returns:
+      Dictionary of file name -> size.
     """
-    bucket, name_pattern = parse_gcs_path(pattern)
-    # Get the prefix with which we can list objects in the given bucket.
-    prefix = re.match('^[^[*?]*', name_pattern).group(0)
+    bucket, prefix = parse_gcs_path(path)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
     counter = 0
@@ -452,23 +429,17 @@ class GcsIO(object):
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
-        if fnmatch.fnmatch(item.name, name_pattern):
-          file_name = 'gs://%s/%s' % (item.bucket, item.name)
-          file_sizes[file_name] = item.size
-          counter += 1
-        if limit is not None and counter >= limit:
-          break
+        file_name = 'gs://%s/%s' % (item.bucket, item.name)
+        file_sizes[file_name] = item.size
+        counter += 1
         if counter % 10000 == 0:
           logging.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
-        if limit is not None and len(file_sizes) >= limit:
-          break
       else:
         break
-    logging.info(
-        "Finished the size estimation of the input at %s files. " +\
-        "Estimation took %s seconds", counter, time.time() - start_time)
+    logging.info("Finished listing %s files in %s seconds.",
+                 counter, time.time() - start_time)
     return file_sizes
 
 

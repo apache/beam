@@ -60,9 +60,11 @@ import org.junit.runners.JUnit4;
  * <p>You can run this test directly using Maven with:
  *
  * <pre>{@code
- * mvn -e -Pio-it verify -pl sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
+ * ./gradlew integrationTest -p sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
  * "--cassandraHost=1.2.3.4",
  * "--cassandraPort=9042"]'
+ * --tests org.apache.beam.sdk.io.cassandra.CassandraIOIT
+ * -DintegrationTestRunner=direct
  * }</pre>
  */
 @RunWith(JUnit4.class)

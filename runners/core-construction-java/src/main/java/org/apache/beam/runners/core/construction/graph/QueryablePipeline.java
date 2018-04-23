@@ -110,16 +110,9 @@ public class QueryablePipeline {
     return ids;
   }
 
-  /**
-   * Returns true if the provided transform is a primitive. A primitive has no subtransforms and
-   * produces a new {@link PCollection}.
-   *
-   * <p>Note that this precludes primitive transforms which only consume input and produce no
-   * PCollections as output.
-   */
+  /** Returns true if the provided transform is a primitive. A primitive has no subtransforms. */
   private static boolean isPrimitiveTransform(PTransform transform) {
-    return transform.getSubtransformsCount() == 0
-        && !transform.getInputsMap().values().containsAll(transform.getOutputsMap().values());
+    return transform.getSubtransformsCount() == 0;
   }
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
@@ -237,17 +230,22 @@ public class QueryablePipeline {
   }
 
   /**
-   * Returns the {@link PCollectionNode PCollectionNodes} that the provided transform consumes as
-   * side inputs.
+   * Returns the {@link SideInputReference SideInputReferences} that the provided transform consumes
+   * as side inputs.
    */
-  public Collection<PCollectionNode> getSideInputs(PTransformNode transform) {
+  public Collection<SideInputReference> getSideInputs(PTransformNode transform) {
     return getLocalSideInputNames(transform.getTransform())
         .stream()
         .map(
             localName -> {
-              String pcollectionId = transform.getTransform().getInputsOrThrow(localName);
-              return PipelineNode.pCollection(
-                  pcollectionId, components.getPcollectionsOrThrow(pcollectionId));
+              String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
+              String collectionId = transform.getTransform().getInputsOrThrow(localName);
+              PCollection collection = components.getPcollectionsOrThrow(collectionId);
+              return SideInputReference.of(
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
+                  PipelineNode.pCollection(collectionId, collection));
             })
         .collect(Collectors.toSet());
   }

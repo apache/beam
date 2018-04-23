@@ -34,14 +34,11 @@ git clone https://github.com/apache/beam
 git checkout gearpump-runner
 ```
 
-Then switch to the newly created directory and run Maven to build the Apache Beam:
+Then run Gradle to build Apache Beam:
 
 ```
-cd beam
-mvn clean install -DskipTests
+./gradlew :beam-runners-gearpump:build
 ```
-
-Now Apache Beam and the Gearpump Runner are installed in your local Maven repository.
 
 ###Running Wordcount Example
 
@@ -50,6 +47,9 @@ Download something to count:
 ```
 curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt
 ```
+
+> Note: There is an open issue to update this README for Gradle:
+[BEAM-4129](https://issues.apache.org/jira/browse/BEAM-4129).
 
 Run the pipeline, using the Gearpump runner:
 

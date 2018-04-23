@@ -26,7 +26,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -365,30 +364,6 @@ public class TextIOWriteTest {
     runTestWrite(elems, header, footer, 1);
   }
 
-  private static class MatchesFilesystem implements SerializableFunction<Iterable<String>, Void> {
-    private final ResourceId baseFilename;
-
-    MatchesFilesystem(ResourceId baseFilename) {
-      this.baseFilename = baseFilename;
-    }
-
-    @Override
-    public Void apply(Iterable<String> values) {
-      try {
-        String pattern = baseFilename.toString() + "*";
-        List<String> matches = Lists.newArrayList();
-        for (Metadata match :Iterables.getOnlyElement(
-            FileSystems.match(Collections.singletonList(pattern))).metadata()) {
-          matches.add(match.resourceId().toString());
-        }
-        assertThat(values, containsInAnyOrder(Iterables.toArray(matches, String.class)));
-      } catch (Exception e) {
-        fail("Exception caught " + e);
-      }
-      return null;
-    }
-  }
-
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
     String outputName = "file.txt";
@@ -408,9 +383,8 @@ public class TextIOWriteTest {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
 
-    WriteFilesResult<Void> result = input.apply(write);
-    PAssert.that(result.getPerDestinationOutputFilenames().apply("GetFilenames", Values.create()))
-        .satisfies(new MatchesFilesystem(baseFilename));
+    input.apply(write);
+
     p.run();
 
     assertOutputFiles(

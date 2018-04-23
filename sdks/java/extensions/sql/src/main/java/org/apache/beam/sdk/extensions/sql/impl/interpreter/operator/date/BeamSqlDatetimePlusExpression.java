@@ -81,7 +81,7 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
     int intervalMultiplier = getIntervalMultiplier(intervalOperandPrimitive);
 
     DateTime newDate = addInterval(timestamp, intervalOperandType, intervalMultiplier);
-    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, newDate.toDate());
+    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, newDate);
   }
 
   private int getIntervalMultiplier(BeamSqlPrimitive intervalOperandPrimitive) {

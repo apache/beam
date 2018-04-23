@@ -99,7 +99,7 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> 
   }
 
   private RowCoder getBidRowCoder() {
-    return ModelAdaptersMapping.ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+    return ModelAdaptersMapping.ADAPTERS.get(Bid.class).getSchema().getRowCoder();
   }
 
   private ParDo.SingleOutput<Row, Bid> bidParDo() {

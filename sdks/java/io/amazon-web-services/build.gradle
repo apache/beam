@@ -17,15 +17,16 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-amazon-web-services")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
+ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
 def aws_java_sdk_version = "1.11.255"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version"
   shadow "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version"
   shadow library.java.jackson_core

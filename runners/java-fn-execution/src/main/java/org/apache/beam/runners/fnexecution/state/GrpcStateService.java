@@ -27,13 +27,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcStateService.class);
   private final ConcurrentHashMap<String, StateRequestHandler> requestHandlers;
 
   public GrpcStateService()
@@ -52,10 +49,29 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
   }
 
   @Override
-  public AutoCloseable registerForProcessBundleInstructionId(
+  public StateDelegator.Registration registerForProcessBundleInstructionId(
       String processBundleInstructionId, StateRequestHandler handler) {
-    requestHandlers.put(processBundleInstructionId, handler);
-    return () -> requestHandlers.remove(processBundleInstructionId);
+    requestHandlers.putIfAbsent(processBundleInstructionId, handler);
+    return new Registration(processBundleInstructionId);
+  }
+
+  private class Registration implements StateDelegator.Registration {
+    private final String processBundleInstructionId;
+
+    private Registration(String processBundleInstructionId) {
+      this.processBundleInstructionId = processBundleInstructionId;
+    }
+
+    @Override
+    public void deregister() {
+      requestHandlers.remove(processBundleInstructionId);
+    }
+
+    @Override
+    public void abort() {
+      deregister();
+      // TODO: Abort in-flight state requests. Flag this processBundleInstructionId as a fail.
+    }
   }
 
   /**

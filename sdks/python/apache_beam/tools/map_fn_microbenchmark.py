@@ -32,10 +32,10 @@ Run as
 
 from __future__ import print_function
 
-import os
 import time
 
 import apache_beam as beam
+from apache_beam.tools import utils
 from scipy import stats
 
 
@@ -61,16 +61,6 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
   print("R^2         ", r_value**2)
 
 
-def check_compiled():
-  from apache_beam.runners import common
-  ext = os.path.splitext(common.__file__)[-1]
-  if ext in ('.py', '.pyc'):
-    raise RuntimeError(
-        "Profiling uncompiled code.\n"
-        "To compile beam, run "
-        "'pip install Cython; python setup.py build_ext --inplace'")
-
-
 if __name__ == '__main__':
-  check_compiled()
+  utils.check_compiled('apache_beam.runners.common')
   run_benchmark()

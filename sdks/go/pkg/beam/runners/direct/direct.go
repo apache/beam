@@ -18,9 +18,11 @@ package direct
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -48,7 +50,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		plan.Down(ctx) // ignore any teardown errors
 		return err
 	}
-	return plan.Down(ctx)
+	if err = plan.Down(ctx); err != nil {
+		return err
+	}
+	metrics.DumpToLog(ctx)
+	return nil
 }
 
 // Compile translates a pipeline to a multi-bundle execution plan.
@@ -206,6 +212,7 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	switch edge.Op {
 	case graph.ParDo:
 		pardo := &exec.ParDo{UID: b.idgen.New(), Fn: edge.DoFn, Inbound: edge.Input, Out: out}
+		pardo.PID = path.Base(pardo.Fn.Name())
 		if len(edge.Input) == 1 {
 			u = pardo
 			break

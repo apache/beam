@@ -33,10 +33,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
@@ -47,6 +45,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
@@ -107,10 +106,12 @@ public class RemoteExecutionTest implements Serializable {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
-    BlockingQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
+    ControlClientPool<FnApiControlClient> clientPool = QueueControlClientPool.createSynchronous();
     controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            FnApiControlClientPoolService.offeringClientsToPool(clientPool), serverFactory);
+            FnApiControlClientPoolService.offeringClientsToPool(
+                clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+            serverFactory);
 
     // Create the SDK harness, and wait until it connects
     sdkHarnessExecutor = Executors.newSingleThreadExecutor(threadFactory);
@@ -127,7 +128,7 @@ public class RemoteExecutionTest implements Serializable {
                   }
                 },
                 StreamObserverFactory.direct()));
-    FnApiControlClient controlClient = clientPool.take();
+    FnApiControlClient controlClient = clientPool.getSource().get();
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
@@ -197,21 +198,10 @@ public class RemoteExecutionTest implements Serializable {
           targetCoder.getKey(),
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
-    ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers);
     // The impulse example
-    bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
-    bundle.getInputReceiver().close();
-    bundle
-        .getOutputClients()
-        .values()
-        .forEach(
-            inboundDataClient -> {
-              try {
-                inboundDataClient.awaitCompletion();
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
+    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers)) {
+      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
+    }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,

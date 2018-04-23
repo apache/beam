@@ -46,20 +46,8 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# ensure maven version is 3.5 or above
-TMPDIR=$(mktemp -d)
-MVN=$(which mvn)
-mvn_ver=$($MVN -v | head -1 | awk '{print $3}')
-if [[ "$mvn_ver" < "3.5" ]]
-then
-  pushd $TMPDIR
-  curl http://www.apache.org/dist/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz --output maven.tar.gz
-  tar xf maven.tar.gz
-  MVN="$(pwd)/apache-maven-3.5.2/bin/mvn"
-  popd
-fi
-
 # ensure gcloud is version 186 or above
+TMPDIR=$(mktemp -d)
 gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
 if [[ "$gcloud_ver" < "186" ]]
 then
@@ -77,7 +65,7 @@ fi
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=us.gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
-$MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=us.gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
+./gradlew :beam-sdks-python-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
 
 # Verify it exists
 docker images | grep $TAG
@@ -117,7 +105,7 @@ python setup.py nosetests \
 
 # Delete the container locally and remotely
 docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-gcloud container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
 # Clean up tempdir
 rm -rf $TMPDIR

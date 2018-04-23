@@ -22,6 +22,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*meanFn)(nil)).Elem())
+}
+
 // Mean returns the arithmetic mean (or average) of the elements in a collection.
 // It expects a PCollection<A> as input and returns a singleton PCollection<float64>.
 // It can only be used for numbers, such as int, uint16, float32, etc.

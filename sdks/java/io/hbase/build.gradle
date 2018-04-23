@@ -17,9 +17,10 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-hbase")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
+ext.summary = "Library to read and write from/to HBase"
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
@@ -27,19 +28,20 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
+  jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
 }
 
 def hbase_version = "1.2.6"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow "org.apache.hbase:hbase-shaded-client:$hbase_version"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

@@ -150,7 +150,8 @@ class QuiescenceDriver implements ExecutionDriver {
   /** Fires any available timers. */
   private void fireTimers() {
     try {
-      for (FiredTimers transformTimers : evaluationContext.extractFiredTimers()) {
+      for (FiredTimers<AppliedPTransform<?, ?, ?>> transformTimers :
+          evaluationContext.extractFiredTimers()) {
         Collection<TimerData> delivery = transformTimers.getTimers();
         KeyedWorkItem<?, Object> work =
             KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
@@ -161,12 +162,12 @@ class QuiescenceDriver implements ExecutionDriver {
                     transformTimers.getKey(),
                     (PCollection)
                         Iterables.getOnlyElement(
-                            transformTimers.getTransform().getInputs().values()))
+                            transformTimers.getExecutable().getInputs().values()))
                 .add(WindowedValue.valueInGlobalWindow(work))
                 .commit(evaluationContext.now());
         outstandingWork.incrementAndGet();
         bundleProcessor.process(
-            bundle, transformTimers.getTransform(), new TimerIterableCompletionCallback(delivery));
+            bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
         state.set(ExecutorState.ACTIVE);
       }
     } catch (Exception e) {
@@ -255,7 +256,8 @@ class QuiescenceDriver implements ExecutionDriver {
     @Override
     public final CommittedResult handleResult(
         CommittedBundle<?> inputBundle, TransformResult<?> result) {
-      CommittedResult committedResult = evaluationContext.handleResult(inputBundle, timers, result);
+      CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
+          evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         pendingWork.offer(
             WorkUpdate.fromBundle(
@@ -270,7 +272,7 @@ class QuiescenceDriver implements ExecutionDriver {
         } else {
           pendingWork.offer(
               WorkUpdate.fromBundle(
-                  unprocessedInputs.get(), Collections.singleton(committedResult.getTransform())));
+                  unprocessedInputs.get(), Collections.singleton(committedResult.getExecutable())));
         }
       }
       if (!committedResult.getProducedOutputTypes().isEmpty()) {

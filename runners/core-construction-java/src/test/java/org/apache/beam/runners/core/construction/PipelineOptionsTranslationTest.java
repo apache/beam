@@ -20,12 +20,15 @@ package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.NullValue;
 import com.google.protobuf.Struct;
+import com.google.protobuf.Value;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -115,6 +118,24 @@ public class PipelineOptionsTranslationTest {
       PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
 
       assertThat(deserialized.as(TestDefaultOptions.class).getDefault(), equalTo(19));
+    }
+
+    @Test
+    public void emptyStructDeserializes() throws Exception {
+      Struct serialized = Struct.getDefaultInstance();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+
+      assertThat(deserialized, notNullValue());
+    }
+
+    @Test
+    public void structWithNullOptionsDeserializes() throws Exception {
+      Struct serialized = Struct.newBuilder()
+          .putFields("options", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+          .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+
+      assertThat(deserialized, notNullValue());
     }
   }
 

@@ -20,7 +20,24 @@ package stats
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
 )
+
+func init() {
+	beam.RegisterFunction(minIntFn)
+	beam.RegisterFunction(minInt8Fn)
+	beam.RegisterFunction(minInt16Fn)
+	beam.RegisterFunction(minInt32Fn)
+	beam.RegisterFunction(minInt64Fn)
+	beam.RegisterFunction(minUintFn)
+	beam.RegisterFunction(minUint8Fn)
+	beam.RegisterFunction(minUint16Fn)
+	beam.RegisterFunction(minUint32Fn)
+	beam.RegisterFunction(minUint64Fn)
+	beam.RegisterFunction(minFloat32Fn)
+	beam.RegisterFunction(minFloat64Fn)
+}
 
 func findMinFn(t reflect.Type) interface{} {
 	switch t.String() {

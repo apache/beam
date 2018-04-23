@@ -17,19 +17,21 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-elasticsearch")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
+ext.summary = "IO to read and write on Elasticsearch"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.findbugs_jsr305
+  shadow "com.fasterxml.jackson.core:jackson-annotations:2.8.9"
   shadow "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
   shadow "org.apache.httpcomponents:httpasyncclient:4.1.2"
   shadow "org.apache.httpcomponents:httpcore-nio:4.4.5"
   shadow "org.apache.httpcomponents:httpcore:4.4.5"
   shadow "org.apache.httpcomponents:httpclient:4.5.2"
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
 }

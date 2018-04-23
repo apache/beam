@@ -17,10 +17,11 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-model-pipeline", enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Pipeline"
+ext.summary = "Portable definitions for building pipelines"
 
 dependencies {
   shadow library.java.protobuf_java

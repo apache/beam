@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -72,8 +73,10 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
         if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
           try {
-            GlobalCombineFn fn = CombineTranslation.getCombineFn(application);
-            return isApplicable(application.getInputs(), fn);
+            Optional<GlobalCombineFn<?, ?, ?>> fn = CombineTranslation.getCombineFn(application);
+            if (fn.isPresent()) {
+              return isApplicable(application.getInputs(), fn.get());
+            }
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -141,7 +144,13 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>>
                 transform) {
       try {
-        GlobalCombineFn<?, ?, ?> globalFn = CombineTranslation.getCombineFn(transform);
+        GlobalCombineFn<?, ?, ?> globalFn = CombineTranslation.getCombineFn(transform).orElseThrow(
+            () -> new IOException(String
+                .format("%s.matcher() should only match %s instances using %s, but %s was missing",
+                    MultiStepCombine.class.getSimpleName(),
+                    PerKey.class.getSimpleName(),
+                    CombineFn.class.getSimpleName(),
+                    CombineFn.class.getSimpleName())));
         checkState(
             globalFn instanceof CombineFn,
             "%s.matcher() should only match %s instances using %s, got %s",

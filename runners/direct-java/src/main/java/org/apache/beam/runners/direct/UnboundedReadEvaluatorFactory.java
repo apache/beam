@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -55,15 +56,18 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private static final double DEFAULT_READER_REUSE_CHANCE = 0.95;
 
   private final EvaluationContext evaluationContext;
+  private final PipelineOptions options;
   private final double readerReuseChance;
 
-  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
-    this(evaluationContext, DEFAULT_READER_REUSE_CHANCE);
+  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext, PipelineOptions options) {
+    this(evaluationContext, options, DEFAULT_READER_REUSE_CHANCE);
   }
 
   @VisibleForTesting
-  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext, double readerReuseChance) {
+  UnboundedReadEvaluatorFactory(
+      EvaluationContext evaluationContext, PipelineOptions options, double readerReuseChance) {
     this.evaluationContext = evaluationContext;
+    this.options = options;
     this.readerReuseChance = readerReuseChance;
   }
 
@@ -77,7 +81,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <OutputT> TransformEvaluator<?> createEvaluator(
       AppliedPTransform<PBegin, PCollection<OutputT>, Read.Unbounded<OutputT>> application) {
-    return new UnboundedReadEvaluator<>(application, evaluationContext, readerReuseChance);
+    return new UnboundedReadEvaluator<>(application, evaluationContext, options, readerReuseChance);
   }
 
   @Override
@@ -99,15 +103,18 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     private final AppliedPTransform<?, PCollection<OutputT>, ?> transform;
     private final EvaluationContext evaluationContext;
+    private final PipelineOptions options;
     private final double readerReuseChance;
     private final StepTransformResult.Builder resultBuilder;
 
     public UnboundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, ?> transform,
         EvaluationContext evaluationContext,
+        PipelineOptions options,
         double readerReuseChance) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
+      this.options = options;
       this.readerReuseChance = readerReuseChance;
       resultBuilder = StepTransformResult.withoutHold(transform);
     }
@@ -193,9 +200,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         if (checkpoint != null) {
           checkpoint = CoderUtils.clone(shard.getSource().getCheckpointMarkCoder(), checkpoint);
         }
-        return shard
-            .getSource()
-            .createReader(evaluationContext.getPipelineOptions(), checkpoint);
+        return shard.getSource().createReader(options, checkpoint);
       } else {
         return existing;
       }
@@ -287,9 +292,12 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   static class InputProvider<T>
       implements RootInputProvider<T, UnboundedSourceShard<T, ?>, PBegin> {
     private final EvaluationContext evaluationContext;
+    private final PipelineOptions options;
 
-    InputProvider(EvaluationContext evaluationContext) {
+    InputProvider(
+        EvaluationContext evaluationContext, PipelineOptions options) {
       this.evaluationContext = evaluationContext;
+      this.options = options;
     }
 
     @Override
@@ -300,7 +308,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         throws Exception {
       UnboundedSource<T, ?> source = ReadTranslation.unboundedSourceFromTransform(transform);
       List<? extends UnboundedSource<T, ?>> splits =
-          source.split(targetParallelism, evaluationContext.getPipelineOptions());
+          source.split(targetParallelism, options);
       UnboundedReadDeduplicator deduplicator =
           source.requiresDeduping()
               ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()

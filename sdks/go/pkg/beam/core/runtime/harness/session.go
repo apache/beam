@@ -16,13 +16,14 @@
 package harness
 
 import (
+	"context"
 	"fmt"
-	"os"
+	"io"
 	"sync"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
@@ -35,12 +36,13 @@ const (
 	dataSend
 )
 
+// capture is set by the capture hook below.
+var capture io.WriteCloser
+
 var (
 	selectedOptions = make(map[string]bool)
-	// TODO(wcn): add a buffered writer around capture and use it.
-	capture     *os.File
-	sessionLock sync.Mutex
-	bufPool     = sync.Pool{
+	sessionLock     sync.Mutex
+	bufPool         = sync.Pool{
 		New: func() interface{} {
 			return proto.NewBuffer(nil)
 		},
@@ -48,35 +50,6 @@ var (
 
 	storagePath string
 )
-
-// TODO(wcn): the plan is to make these hooks available in the harness in a fashion
-// similar to net/http/httptrace. They are simple function calls now to get this
-// code underway.
-func setupDiagnosticRecording() error {
-	// No recording options specified? We're done.
-	if runtime.GlobalOptions.Get("cpu_profiling") == "" && runtime.GlobalOptions.Get("session_recording") == "" {
-		return nil
-	}
-
-	var err error
-
-	storagePath = runtime.GlobalOptions.Get("storage_path")
-	// Any form of recording requires the destination directory to exist.
-	if err = os.MkdirAll(storagePath, 0755); err != nil {
-		return fmt.Errorf("Unable to create session directory: %v", err)
-	}
-
-	if !isEnabled("session_recording") {
-		return nil
-	}
-
-	// Set up the session recorder.
-	if capture, err = os.Create(fmt.Sprintf("%s/session-%v", storagePath, time.Now().Unix())); err != nil {
-		return fmt.Errorf("Unable to create session file: %v", err)
-	}
-
-	return nil
-}
 
 func isEnabled(option string) bool {
 	return runtime.GlobalOptions.Get(option) == "true"
@@ -212,4 +185,58 @@ func recordFooter() error {
 			Footer: &session.Footer{},
 		},
 	})
+}
+
+// CaptureHook writes the messaging content consumed and
+// produced by the worker, allowing the data to be used as
+// an input for the session runner. Since workers can exist
+// in a variety of environments, this allows the runner
+// to tailor the behavior best for its particular needs.
+type CaptureHook io.WriteCloser
+
+// CaptureHookFactory produces a CaptureHook from the supplied
+// options.
+type CaptureHookFactory func([]string) CaptureHook
+
+var captureHookRegistry = make(map[string]CaptureHookFactory)
+
+func init() {
+	hf := func(opts []string) hooks.Hook {
+		return hooks.Hook{
+			Init: func(_ context.Context) error {
+				if len(opts) > 0 {
+					name, opts := hooks.Decode(opts[0])
+					capture = captureHookRegistry[name](opts)
+				}
+				return nil
+			},
+		}
+	}
+
+	hooks.RegisterHook("session", hf)
+}
+
+// RegisterCaptureHook registers a CaptureHookFactory for the
+// supplied identifier.
+func RegisterCaptureHook(name string, c CaptureHookFactory) {
+	if _, exists := captureHookRegistry[name]; exists {
+		panic(fmt.Sprintf("RegisterSessionCaptureHook: %s registered twice", name))
+	}
+	captureHookRegistry[name] = c
+}
+
+// EnableCaptureHook is called to request the use of a hook in a pipeline.
+// It updates the supplied pipelines to capture this request.
+func EnableCaptureHook(name string, opts []string) {
+	if _, exists := captureHookRegistry[name]; !exists {
+		panic(fmt.Sprintf("EnableHook: %s not registered", name))
+	}
+	if exists, opts := hooks.IsEnabled("session"); exists {
+		n, _ := hooks.Decode(opts[0])
+		if n != name {
+			panic(fmt.Sprintf("EnableHook: can't enable hook %s, hook %s already enabled", name, n))
+		}
+	}
+
+	hooks.EnableHook("session", hooks.Encode(name, opts))
 }

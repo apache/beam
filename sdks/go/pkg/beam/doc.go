@@ -19,7 +19,7 @@
 //
 // In order to start creating the pipeline for execution, a Pipeline object is needed.
 //
-// 	 p, s := beam.NewPipeline()
+// 	 p := beam.NewPipeline()
 //
 // The pipeline object encapsulates all the data and steps in your processing task.
 // It is the basis for creating the pipeline's data sets as PCollections and its operations
@@ -30,6 +30,11 @@
 // Beam transforms use PCollection objects as inputs and outputs. As such, if
 // you want to work with data in your pipeline, it must be in the form of a
 // PCollection.
+//
+// Transformations are applied in a scoped fashion to the pipeline. The scope
+// can be obtained from the pipeline object.
+//
+//   s := p.Root()
 //
 //   // Start by reading text from an input files.
 //   lines := textio.Read(s, "protocol://path/file*.txt")

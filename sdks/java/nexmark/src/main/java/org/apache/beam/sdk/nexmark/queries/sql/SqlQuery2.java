@@ -79,7 +79,7 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Auctio
   }
 
   private RowCoder getBidRowCoder() {
-    return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+    return ADAPTERS.get(Bid.class).getSchema().getRowCoder();
   }
 
   private ParDo.SingleOutput<Row, AuctionPrice> auctionPriceParDo() {

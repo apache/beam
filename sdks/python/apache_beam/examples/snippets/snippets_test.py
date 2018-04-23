@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -25,7 +26,10 @@ import tempfile
 import unittest
 import uuid
 
+import mock
+
 import apache_beam as beam
+from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -35,9 +39,19 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterAny
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
 
 # Protect against environments where apitools library is not available.
@@ -54,6 +68,14 @@ try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
 except ImportError:
   datastore_pb2 = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+# Protect against environments where the PubSub library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import pubsub
+except ImportError:
+  pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -691,6 +713,59 @@ class SnippetsTest(unittest.TestCase):
         self.get_output(result_path),
         ['Flourish: 3', 'stomach: 1'])
 
+  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  @mock.patch('apache_beam.io.ReadFromPubSub')
+  @mock.patch('apache_beam.io.WriteStringsToPubSub')
+  def test_examples_wordcount_streaming(self, *unused_mocks):
+    def FakeReadFromPubSub(topic=None, subscription=None, values=None):
+      expected_topic = topic
+      expected_subscription = subscription
+
+      def _inner(topic=None, subscription=None):
+        assert topic == expected_topic
+        assert subscription == expected_subscription
+        return TestStream().add_elements(values)
+      return _inner
+
+    class AssertTransform(beam.PTransform):
+      def __init__(self, matcher):
+        self.matcher = matcher
+
+      def expand(self, pcoll):
+        assert_that(pcoll, self.matcher)
+
+    def FakeWriteStringsToPubSub(topic=None, values=None):
+      expected_topic = topic
+
+      def _inner(topic=None, subscription=None):
+        assert topic == expected_topic
+        return AssertTransform(equal_to(values))
+      return _inner
+
+    # Test basic execution.
+    input_topic = 'projects/fake-beam-test-project/topic/intopic'
+    input_values = [TimestampedValue('a a b', 1),
+                    TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
+                    TimestampedValue('a b c c c', 20)]
+    output_topic = 'projects/fake-beam-test-project/topic/outtopic'
+    output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
+    beam.io.ReadFromPubSub = (
+        FakeReadFromPubSub(topic=input_topic, values=input_values))
+    beam.io.WriteStringsToPubSub = (
+        FakeWriteStringsToPubSub(topic=output_topic, values=output_values))
+    snippets.examples_wordcount_streaming([
+        '--input_topic', 'projects/fake-beam-test-project/topic/intopic',
+        '--output_topic', 'projects/fake-beam-test-project/topic/outtopic'])
+
+    # Test with custom subscription.
+    input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
+    beam.io.ReadFromPubSub = FakeReadFromPubSub(subscription=input_sub,
+                                                values=input_values)
+    snippets.examples_wordcount_streaming([
+        '--input_subscription',
+        'projects/fake-beam-test-project/subscriptions/insub',
+        '--output_topic', 'projects/fake-beam-test-project/topic/outtopic'])
+
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
     result_path = self.create_temp_file()
@@ -838,6 +913,123 @@ class SnippetsTest(unittest.TestCase):
         name_list, email_list, phone_list, result_path)
     expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
     self.assertEqual(expect, self.get_output(result_path))
+
+  def test_model_early_late_triggers(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a', 'a', 'b', 'b'])
+                     .add_elements([TimestampedValue('a', 10)])
+                     .advance_watermark_to(20)
+                     .advance_processing_time(60)
+                     .add_elements([TimestampedValue('a', 10)]))
+      trigger = (
+          # [START model_early_late_triggers]
+          AfterWatermark(
+              early=AfterProcessingTime(delay=1 * 60),
+              late=AfterCount(1))
+          # [END model_early_late_triggers]
+          )
+      counts = (p
+                | test_stream
+                | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+                | WindowInto(FixedWindows(15),
+                             trigger=trigger,
+                             accumulation_mode=AccumulationMode.DISCARDING)
+                | 'group' >> beam.GroupByKey()
+                | 'count' >> beam.Map(
+                    lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 4), ('b', 2), ('a', 1)]))
+
+  def test_model_setting_trigger(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a', 'a', 'b', 'b'])
+                     .advance_watermark_to(70)
+                     .advance_processing_time(600))
+      pcollection = (p
+                     | test_stream
+                     | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+
+      counts = (
+          # [START model_setting_trigger]
+          pcollection | WindowInto(
+              FixedWindows(1 * 60),
+              trigger=AfterProcessingTime(10 * 60),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          # [END model_setting_trigger]
+          | 'group' >> beam.GroupByKey()
+          | 'count' >> beam.Map(
+              lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 3), ('b', 2)]))
+
+  def test_model_composite_triggers(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a', 'a', 'b', 'b'])
+                     .advance_watermark_to(70)
+                     .add_elements([TimestampedValue('a', 10),
+                                    TimestampedValue('a', 10),
+                                    TimestampedValue('c', 10),
+                                    TimestampedValue('c', 10)])
+                     .advance_processing_time(600))
+      pcollection = (p
+                     | test_stream
+                     | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+
+      counts = (
+          # [START model_composite_triggers]
+          pcollection | WindowInto(
+              FixedWindows(1 * 60),
+              trigger=AfterWatermark(
+                  late=AfterProcessingTime(10 * 60)),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          # [END model_composite_triggers]
+          | 'group' >> beam.GroupByKey()
+          | 'count' >> beam.Map(
+              lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 2), ('c', 2)]))
+
+  def test_model_other_composite_triggers(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a'])
+                     .add_elements(['a', 'b', 'b'])
+                     .advance_processing_time(60)
+                     .add_elements(['a'] * 100))
+      pcollection = (p
+                     | test_stream
+                     | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+
+      counts = (
+          # [START model_other_composite_triggers]
+          pcollection | WindowInto(
+              FixedWindows(1 * 60),
+              trigger=Repeatedly(
+                  AfterAny(
+                      AfterCount(100),
+                      AfterProcessingTime(1 * 60))),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          # [END model_other_composite_triggers]
+          | 'group' >> beam.GroupByKey()
+          | 'count' >> beam.Map(
+              lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 100)]))
 
 
 class CombineTest(unittest.TestCase):

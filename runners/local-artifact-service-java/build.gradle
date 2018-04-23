@@ -20,18 +20,22 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Java Local Artifact Service"
+ext.summary = """The Beam Artifact Service exposes APIs to stage and retrieve
+artifacts in a manner independent of the underlying storage system, for use
+by the Beam portability framework. The local implementation uses the local
+File System as the underlying storage system."""
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.protobuf_java
   shadow library.java.slf4j_api
-  testCompile project(path: ":runners:core-construction-java")
+  testCompile project(path: ":beam-runners-core-construction-java")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core

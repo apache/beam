@@ -36,7 +36,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -51,15 +50,17 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.avro.AvroIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path"
  *  ]'
+ *  --tests org.apache.beam.sdk.io.avro.AvroIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
- * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
@@ -107,8 +108,7 @@ public class AvroIOIT {
                     .withOutputFilenames()
                     .withSuffix(".avro"))
             .getPerDestinationOutputFilenames()
-            .apply(Values.create())
-            .apply(Reshuffle.viaRandomKey());
+            .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))

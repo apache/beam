@@ -51,7 +51,7 @@ func init() {
 
 var sessionFile = flag.String("session_file", "", "Session file for the runner")
 
-// controlServer manages the Fn API control channel.
+// controlServer manages the FnAPI control channel.
 type controlServer struct {
 	filename   string
 	wg         *sync.WaitGroup // used to signal when the session is completed
@@ -207,7 +207,7 @@ func extractPortSpec(spec *rapi_pb.FunctionSpec) string {
 	panic("unable to extract port")
 }
 
-// dataServer manages the Fn API data channel.
+// dataServer manages the FnAPI data channel.
 type dataServer struct {
 	ctrl *controlServer
 }
@@ -235,7 +235,7 @@ func (d *dataServer) Data(stream fnapi_pb.BeamFnData_DataServer) error {
 	}
 }
 
-// loggingServer manages the Fn API logging channel.
+// loggingServer manages the FnAPI logging channel.
 type loggingServer struct{} // no data content
 
 func (l *loggingServer) Logging(stream fnapi_pb.BeamFnLogging_LoggingServer) error {

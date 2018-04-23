@@ -86,7 +86,8 @@ public class KinesisIOIT implements Serializable {
                     // to prevent endless running in case of error
                     .withMaxReadTime(Duration.standardMinutes(5))
                     .withInitialPositionInStream(InitialPositionInStream.AT_TIMESTAMP)
-                    .withInitialTimestampInStream(now))
+                    .withInitialTimestampInStream(now)
+                    .withRequestRecordsLimit(1000))
             .apply(
                 ParDo.of(
                     new DoFn<KinesisRecord, byte[]>() {

@@ -17,16 +17,19 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-fn-execution")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
+ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
+the Beam Portability Framework."""
+
 
 dependencies {
   compile library.java.guava
   compile library.java.findbugs_jsr305
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":model:fn-execution", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.grpc_core

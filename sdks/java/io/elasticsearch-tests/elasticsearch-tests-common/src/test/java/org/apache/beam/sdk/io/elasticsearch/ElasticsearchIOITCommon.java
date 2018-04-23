@@ -40,14 +40,15 @@ public class ElasticsearchIOITCommon {
   /**
    * Use this to create the index for reading before IT read tests.
    *
-   * <p>To invoke this class, you can use this command line from elasticsearch io module directory:
+   * <p>To invoke this class, you can use this command line from elasticsearch-tests-common module
+   * directory after setting the correct server IP:
    *
    * <pre>
    * mvn test-compile exec:java \
-   * -Dexec.mainClass=ElasticsearchIOITCommon \
-   *   -Dexec.args="--elasticsearchServer=1.2.3.4 \
-   *  --elasticsearchHttpPort=9200 \
-   *   -Dexec.classpathScope=test
+   * -Dexec.mainClass=org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOITCommon \
+   * -Dexec.args="--elasticsearchServer=127.0.0.1 \
+   * --elasticsearchHttpPort=9200" \
+   * -Dexec.classpathScope=test
    *   </pre>
    *
    * @param args Please pass options from ElasticsearchTestOptions used for connection to

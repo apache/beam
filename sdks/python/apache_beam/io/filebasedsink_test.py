@@ -277,7 +277,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertItemsEqual(res, glob.glob(temp_path + '*'))
 
   @mock.patch.object(filebasedsink.FileSystems, 'rename')
-  def test_file_sink_rename_error(self, filesystems_mock):
+  def test_file_sink_rename_error(self, rename_mock):
     temp_path = os.path.join(self._new_tempdir(), 'rename_error')
     sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
@@ -285,7 +285,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     pre_finalize_results = sink.pre_finalize(init_token, writer_results)
 
     error_str = 'mock rename error description'
-    filesystems_mock.side_effect = BeamIOError(
+    rename_mock.side_effect = BeamIOError(
         'mock rename error', {('src', 'dst'): error_str})
     with self.assertRaisesRegexp(Exception, error_str):
       list(sink.finalize_write(init_token, writer_results,
@@ -352,7 +352,8 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertFalse(os.path.exists(shard1))
     self.assertFalse(os.path.exists(shard2))
 
-  def test_pre_finalize_error(self):
+  @mock.patch.object(filebasedsink.FileSystems, 'delete')
+  def test_pre_finalize_error(self, delete_mock):
     temp_path = os.path.join(self._new_tempdir(), 'pre_finalize')
     sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
@@ -369,17 +370,12 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
       f.write('foo')
     with open(shard2, 'w') as f:
       f.write('foo')
-    os.chmod(shard2, 0)
-    self.assertTrue(os.path.exists(res1))
-    self.assertTrue(os.path.exists(res2))
-    self.assertTrue(os.path.exists(shard1))
-    self.assertTrue(os.path.exists(shard2))
 
-    sink.pre_finalize(init_token, [res1, res2])
-    self.assertTrue(os.path.exists(res1))
-    self.assertTrue(os.path.exists(res2))
-    self.assertFalse(os.path.exists(shard1))
-    self.assertFalse(os.path.exists(shard2))
+    error_str = 'mock rename error description'
+    delete_mock.side_effect = BeamIOError(
+        'mock rename error', {shard2: error_str})
+    with self.assertRaisesRegexp(Exception, error_str):
+      sink.pre_finalize(init_token, [res1, res2])
 
 
 if __name__ == '__main__':

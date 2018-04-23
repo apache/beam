@@ -19,6 +19,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 )
 
+func init() {
+	beam.RegisterFunction(mapFn)
+}
+
 // Count counts the number of elements in a collection. It expects a
 // PCollection<T> as input and returns a PCollection<KV<T,int>>. T's encoding
 // must be a well-defined injection.

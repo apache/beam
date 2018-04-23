@@ -17,18 +17,20 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-jms")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: JMS"
+ext.summary = """IO to read and write to JMS (Java Messaging Service)
+destinations (queues and topics)."""
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_jaas
   testCompile library.java.activemq_kahadb_store

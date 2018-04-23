@@ -70,13 +70,13 @@ public class GreedyPipelineFuser {
   }
 
   /**
-   * Fuses a {@link Pipeline} into a collection of {@link ExecutableStage}s.
+   * Fuses a {@link Pipeline} into a collection of {@link ExecutableStage ExecutableStages}.
    *
    * <p>This fuser expects each ExecutableStage to have exactly one input. This means that pipelines
    * must be rooted at Impulse, or other runner-executed primitive transforms, instead of primitive
    * Read nodes. The utilities in
-   * {@link org.apache.beam.runners.core.construction.JavaReadViaImpulse} can be used to translate
-   * non-compliant pipelines.
+   * {@link org.apache.beam.runners.core.construction.JavaReadViaImpulse} can be used to convert
+   * bounded pipelines using the Read primitive.
    */
   public static FusedPipeline fuse(Pipeline p) {
     GreedyPipelineFuser fuser = new GreedyPipelineFuser(p);

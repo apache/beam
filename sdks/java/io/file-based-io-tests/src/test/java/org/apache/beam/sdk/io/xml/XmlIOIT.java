@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getHashForRecordCount;
+import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
@@ -38,7 +38,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -54,15 +53,19 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run those tests using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.xml.XmlIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path",
  *  "--charset=UTF-8",
  *  ]'
+ *  --tests org.apache.beam.sdk.io.xml.XmlIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
 public class XmlIOIT {
@@ -107,7 +110,6 @@ public class XmlIOIT {
           .withPrefix("birds")
           .withSuffix(".xml"))
       .getPerDestinationOutputFilenames()
-      .apply("Prevent fusion", Reshuffle.viaRandomKey())
       .apply("Get file names", Values.create());
 
     PCollection<Bird> birds = testFileNames

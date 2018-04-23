@@ -1730,6 +1730,11 @@ class Create(PTransform):
       value = value.items()
     self.value = tuple(value)
 
+  def to_runner_api_parameter(self, context):
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
+
   def infer_output_type(self, unused_input_type):
     if not self.value:
       return Any

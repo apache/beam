@@ -118,6 +118,7 @@ public class HBaseIOTest {
     if (htu != null) {
       htu.shutdownMiniHBaseCluster();
       htu.shutdownMiniZKCluster();
+      htu.cleanupTestDir();
       htu = null;
     }
   }

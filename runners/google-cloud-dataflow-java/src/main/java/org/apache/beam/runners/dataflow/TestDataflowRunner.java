@@ -333,8 +333,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public void process(List<JobMessage> messages) {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
-        if (message.getMessageImportance() != null
-            && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
+        if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
           LOG.info(
               "Dataflow job {} threw exception. Failure message was: {}",
               job.getJobId(),

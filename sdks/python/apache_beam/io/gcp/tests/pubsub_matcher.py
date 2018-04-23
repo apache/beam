@@ -72,14 +72,14 @@ class PubSubMessageMatcher(BaseMatcher):
     self.messages = None
 
   def _matches(self, _):
-    if not self.messages:
-      subscription = (pubsub
-                      .Client(project=self.project)
-                      .subscription(self.sub_name))
-      self.messages = self._wait_for_messages(subscription,
+    if self.messages is None:
+      self.messages = self._wait_for_messages(self._get_subscription(),
                                               len(self.expected_msg),
                                               self.timeout)
     return Counter(self.messages) == Counter(self.expected_msg)
+
+  def _get_subscription(self):
+    return pubsub.Client(project=self.project).subscription(self.sub_name)
 
   def _wait_for_messages(self, subscription, expected_num, timeout):
     """Wait for messages from given subscription."""

@@ -244,7 +244,7 @@
       <!-- Makes the SparkRunner available when running a pipeline. Additionally,
            overrides some Spark dependencies to Beam-compatible versions. -->
       <properties>
-        <netty.version>4.0.43.Final</netty.version>
+        <netty.version>4.1.17.Final</netty.version>
       </properties>
       <dependencies>
         <dependency>

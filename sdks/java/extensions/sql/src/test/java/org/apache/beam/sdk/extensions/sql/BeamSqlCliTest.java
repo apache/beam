@@ -44,7 +44,7 @@ public class BeamSqlCliTest {
         + "name varchar(31) COMMENT 'name', \n"
         + "age int COMMENT 'age') \n"
         + "TYPE 'text' \n"
-        + "COMMENT '' LOCATION 'text://home/admin/orders'"
+        + "COMMENT '' LOCATION '/home/admin/orders'"
     );
     Table table = metaStore.getTable("person");
     assertNotNull(table);
@@ -63,7 +63,7 @@ public class BeamSqlCliTest {
             + "name varchar(31) COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION 'text://home/admin/orders'"
+            + "COMMENT '' LOCATION '/home/admin/orders'"
     );
     Table table = metaStore.getTable("person");
     assertNotNull(table);
@@ -86,7 +86,7 @@ public class BeamSqlCliTest {
             + "name varchar(31) COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION 'text://home/admin/orders'"
+            + "COMMENT '' LOCATION '/home/admin/orders'"
     );
     cli.execute("drop table person");
     cli.explainQuery("select * from person");
@@ -107,7 +107,7 @@ public class BeamSqlCliTest {
             + "name varchar(31) COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION 'text://home/admin/orders'"
+            + "COMMENT '' LOCATION '/home/admin/orders'"
     );
 
     String plan = cli.explainQuery("select * from person");

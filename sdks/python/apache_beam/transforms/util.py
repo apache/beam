@@ -35,7 +35,7 @@ from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
-from apache_beam.transforms.core import WindowInto
+from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.trigger import AccumulationMode
@@ -485,33 +485,58 @@ class ReshufflePerKey(PTransform):
   """
 
   def expand(self, pcoll):
-    class ReifyTimestamps(DoFn):
-      def process(self, element, timestamp=DoFn.TimestampParam):
-        yield element[0], TimestampedValue(element[1], timestamp)
+    windowing_saved = pcoll.windowing
+    if windowing_saved.is_default():
+      # In this (common) case we can use a trivial trigger driver
+      # and avoid the (expensive) window param.
+      globally_windowed = window.GlobalWindows.windowed_value(None)
+      window_fn = window.GlobalWindows()
+      MIN_TIMESTAMP = window.MIN_TIMESTAMP
 
-    class RestoreTimestamps(DoFn):
-      def process(self, element, window=DoFn.WindowParam):
+      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+        key, value = element
+        if timestamp == MIN_TIMESTAMP:
+          timestamp = None
+        return key, (value, timestamp)
+
+      def restore_timestamps(element):
+        key, values = element
+        return [
+            globally_windowed.with_value((key, value))
+            if timestamp is None
+            else window.GlobalWindows.windowed_value((key, value), timestamp)
+            for (value, timestamp) in values]
+
+    else:
+      # The linter is confused.
+      # hash(1) is used to force "runtime" selection of _IdentityWindowFn
+      # pylint: disable=abstract-class-instantiated
+      cls = hash(1) and _IdentityWindowFn
+      window_fn = cls(
+          windowing_saved.windowfn.get_window_coder())
+
+      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+        key, value = element
+        return key, TimestampedValue(value, timestamp)
+
+      def restore_timestamps(element, window=DoFn.WindowParam):
         # Pass the current window since _IdentityWindowFn wouldn't know how
         # to generate it.
-        yield windowed_value.WindowedValue(
-            (element[0], element[1].value), element[1].timestamp, [window])
+        key, values = element
+        return [
+            windowed_value.WindowedValue(
+                (key, value.value), value.timestamp, [window])
+            for value in values]
 
-    windowing_saved = pcoll.windowing
-    # The linter is confused.
-    # pylint: disable=abstract-class-instantiated
-    result = (pcoll
-              | ParDo(ReifyTimestamps())
-              | 'IdentityWindow' >> WindowInto(
-                  _IdentityWindowFn(
-                      windowing_saved.windowfn.get_window_coder()),
-                  trigger=AfterCount(1),
-                  accumulation_mode=AccumulationMode.DISCARDING,
-                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST,
-                  )
+    ungrouped = pcoll | Map(reify_timestamps)
+    ungrouped._windowing = Windowing(
+        window_fn,
+        triggerfn=AfterCount(1),
+        accumulation_mode=AccumulationMode.DISCARDING,
+        timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+    result = (ungrouped
               | GroupByKey()
-              | 'ExpandIterable' >> FlatMap(
-                  lambda e: [(e[0], value) for value in e[1]])
-              | ParDo(RestoreTimestamps()))
+              | FlatMap(restore_timestamps))
     result._windowing = windowing_saved
     return result
 

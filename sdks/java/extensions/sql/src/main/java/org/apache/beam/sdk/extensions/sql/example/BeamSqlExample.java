@@ -20,9 +20,10 @@ package org.apache.beam.sdk.extensions.sql.example;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -30,7 +31,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -49,16 +49,16 @@ class BeamSqlExample {
     Pipeline p = Pipeline.create(options);
 
     //define the input row format
-    RowType type = RowSqlType
+    Schema type = RowSqlTypes
         .builder()
         .withIntegerField("c1")
         .withVarcharField("c2")
         .withDoubleField("c3")
         .build();
 
-    Row row1 = Row.withRowType(type).addValues(1, "row", 1.0).build();
-    Row row2 = Row.withRowType(type).addValues(2, "row", 2.0).build();
-    Row row3 = Row.withRowType(type).addValues(3, "row", 3.0).build();
+    Row row1 = Row.withSchema(type).addValues(1, "row", 1.0).build();
+    Row row2 = Row.withSchema(type).addValues(2, "row", 2.0).build();
+    Row row3 = Row.withSchema(type).addValues(3, "row", 3.0).build();
 
     //create a source PCollection with Create.of();
     PCollection<Row> inputTable = PBegin.in(p).apply(Create.of(row1, row2, row3)

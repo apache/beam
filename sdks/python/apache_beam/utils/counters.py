@@ -131,8 +131,9 @@ class Counter(object):
   SUM = cy_combiners.SumInt64Fn()
   MEAN = cy_combiners.MeanInt64Fn()
 
-  # Distribution Accumulator Fn
-  DISTRIBUTION = cy_combiners.DistributionCounterFn()
+  # Dataflow Distribution Accumulator Fn.
+  # TODO(BEAM-4045): Generalize distribution counter if necessary.
+  DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):
     """Creates a Counter object.

@@ -85,7 +85,7 @@ class _GCEMetadataCredentials(OAuth2Credentials):
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _refresh(self, http_request):
-    refresh_time = datetime.datetime.now()
+    refresh_time = datetime.datetime.utcnow()
     metadata_root = os.environ.get(
         'GCE_METADATA_ROOT', 'metadata.google.internal')
     token_url = ('http://{}/computeMetadata/v1/instance/service-accounts/'

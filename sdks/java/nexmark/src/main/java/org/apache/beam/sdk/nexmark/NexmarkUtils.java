@@ -99,7 +99,11 @@ public class NexmarkUtils {
     /**
      * Read from a PubSub topic. It will be fed the same synthetic events by this pipeline.
      */
-    PUBSUB
+    PUBSUB,
+    /**
+     * Read events from a Kafka topic. It will be fed the same synthetic events by this pipeline.
+     */
+    KAFKA
   }
 
   /**
@@ -119,6 +123,10 @@ public class NexmarkUtils {
      */
     PUBSUB,
     /**
+     * Write to a Kafka topic. It will be drained by this pipeline.
+     */
+    KAFKA,
+    /**
      * Write to a text file. Only works in batch mode.
      */
     TEXT,
@@ -129,7 +137,7 @@ public class NexmarkUtils {
     /**
      * Write raw Events to BigQuery.
      */
-    BIGQUERY,
+    BIGQUERY
   }
 
   /**

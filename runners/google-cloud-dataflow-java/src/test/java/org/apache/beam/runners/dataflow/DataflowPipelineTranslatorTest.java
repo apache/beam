@@ -780,7 +780,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     List<Step> steps = job.getSteps();
     Step processKeyedStep = null;
     for (Step step : steps) {
-      if (step.getKind().equals("SplittableProcessKeyed")) {
+      if ("SplittableProcessKeyed".equals(step.getKind())) {
         assertNull(processKeyedStep);
         processKeyedStep = step;
       }

@@ -32,7 +32,7 @@ func ValidateKVType(col PCollection) (typex.FullType, typex.FullType) {
 	return t.Components()[0], t.Components()[1]
 }
 
-// ValidateConcreteType panics if the type of the PCollection is not a
+// ValidateNonCompositeType panics if the type of the PCollection is not a
 // composite type. It returns the type.
 func ValidateNonCompositeType(col PCollection) typex.FullType {
 	t := col.Type()

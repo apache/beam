@@ -17,14 +17,15 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-model-job-management", enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Job Management"
+ext.summary = "Portable definitions for submitting pipelines."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow library.java.protobuf_java
   shadow library.java.grpc_core
   shadow library.java.grpc_protobuf

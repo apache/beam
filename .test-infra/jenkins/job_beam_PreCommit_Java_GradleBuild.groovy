@@ -37,25 +37,15 @@ job('beam_PreCommit_Java_GradleBuild') {
     archiveJunit('**/build/test-results/**/*.xml')
   }
 
-  def gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-  ]
-
-  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :javaPreCommit'
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Java Gradle PreCommit')
+  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':javaPreCommit')
-      for (String gradle_switch : gradle_switches) {
-        switches(gradle_switch)
-      }
+      common_job_properties.setGradleSwitches(delegate)
+      // Specify maven home on Jenkins, needed by Maven archetype integration tests.
+      switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
     }
   }
 }

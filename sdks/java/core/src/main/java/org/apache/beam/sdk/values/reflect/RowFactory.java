@@ -19,58 +19,71 @@
 package org.apache.beam.sdk.values.reflect;
 
 import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * <p>Generates the code to create {@link RowType}s and {@link Row}s based on pojos.
+ * <p>Generates the code to create {@link Schema}s and {@link Row}s based on pojos.
  *
  * <p>Generated record types are cached in the instance of this factory.
  *
- * <p>At the moment single pojo class corresponds to single {@link RowType}.
+ * <p>At the moment single pojo class corresponds to single {@link Schema}.
  *
  * <p>Supported pojo getter types depend on types supported by the {@link RowTypeFactory}.
  * See {@link DefaultRowTypeFactory} for default implementation.
  */
 @Internal
-public class RowFactory {
+public class RowFactory implements Serializable {
 
   private RowTypeFactory rowTypeFactory;
-  private final Map<Class, RowTypeGetters> rowTypesCache = new HashMap<>();
   private final List<GetterFactory> getterFactories;
+  private transient Map<Class, RowTypeGetters> rowTypesCache;
 
   /**
    * Creates an instance of {@link RowFactory} using {@link DefaultRowTypeFactory}
    * and {@link GeneratedGetterFactory}.
    */
   public static RowFactory createDefault() {
-    return new RowFactory();
+    return withRowTypeFactory(new DefaultRowTypeFactory());
+  }
+
+
+  /**
+   * Creates an instance of {@link RowFactory} using provided {@link RowTypeFactory}
+   * and {@link GeneratedGetterFactory}.
+   */
+  public static RowFactory withRowTypeFactory(RowTypeFactory rowTypeFactory) {
+    return of(rowTypeFactory, new GeneratedGetterFactory());
   }
 
   /**
-   * Create new instance based on default record type factory.
-   *
-   * <p>Use this to create instances of {@link RowType}.
+   * Creates an instance of {@link RowFactory} using provided {@link RowTypeFactory}
+   * and {@link GetterFactory}.
    */
-  private RowFactory() {
-    this(new DefaultRowTypeFactory(), new GeneratedGetterFactory());
+  public static RowFactory of(RowTypeFactory rowTypeFactory, GetterFactory getterFactory) {
+    return new RowFactory(rowTypeFactory, getterFactory);
   }
 
   /**
    * Create new instance with custom record type factory.
    *
-   * <p>For example this can be used to create BeamRecordSqlTypes instead of {@link RowType}.
+   * <p>For example this can be used to create BeamRecordSqlTypes instead of {@link Schema}.
    */
   RowFactory(RowTypeFactory rowTypeFactory, GetterFactory ... getterFactories) {
     this.rowTypeFactory = rowTypeFactory;
     this.getterFactories = Arrays.asList(getterFactories);
+  }
+
+  public <T> Schema getRowType(Class<T> elementType) {
+    return getRecordType(elementType).rowType();
   }
 
   /**
@@ -84,20 +97,24 @@ public class RowFactory {
    * <p>Field names for getters are stripped of the 'get' prefix.
    * For example record field 'name' will be generated for 'getName()' pojo method.
    */
-  public Row create(Object pojo) {
+  public <T> Row create(T pojo) {
     RowTypeGetters getters = getRecordType(pojo.getClass());
     List<Object> fieldValues = getFieldValues(getters.valueGetters(), pojo);
-    return Row.withRowType(getters.rowType()).addValues(fieldValues).build();
+    return Row.withSchema(getters.rowType()).addValues(fieldValues).build();
   }
 
   private synchronized RowTypeGetters getRecordType(Class pojoClass) {
+    if (rowTypesCache == null) {
+      rowTypesCache = new HashMap<>();
+    }
+
     if (rowTypesCache.containsKey(pojoClass)) {
       return rowTypesCache.get(pojoClass);
     }
 
     List<FieldValueGetter> fieldValueGetters = createGetters(pojoClass);
-    RowType rowType = rowTypeFactory.createRowType(fieldValueGetters);
-    rowTypesCache.put(pojoClass, new RowTypeGetters(rowType, fieldValueGetters));
+    Schema schema = rowTypeFactory.createRowType(fieldValueGetters);
+    rowTypesCache.put(pojoClass, new RowTypeGetters(schema, fieldValueGetters));
 
     return rowTypesCache.get(pojoClass);
   }

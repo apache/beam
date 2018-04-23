@@ -170,6 +170,13 @@ import org.slf4j.LoggerFactory;
  *     .fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
  *
+ * <p>Users can optionally specify a query priority using {@link TypedRead#withQueryPriority(
+ * TypedRead.QueryPriority)} and a geographic location where the query will be executed using {@link
+ * TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are not
+ * executed in US or EU. See <a
+ * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+ * query</a>.
+ *
  * <h3>Writing</h3>
  *
  * <p>To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation. This consumes a
@@ -549,6 +556,7 @@ public class BigQueryIO {
       abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
       abstract Builder<T> setQueryPriority(QueryPriority priority);
+      abstract Builder<T> setQueryLocation(String location);
       abstract TypedRead<T> build();
 
       abstract Builder<T> setParseFn(
@@ -569,6 +577,8 @@ public class BigQueryIO {
     abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
     @Nullable abstract QueryPriority getQueryPriority();
+
+    @Nullable abstract String getQueryLocation();
 
     @Nullable abstract Coder<T> getCoder();
 
@@ -632,7 +642,8 @@ public class BigQueryIO {
                 getBigQueryServices(),
                 coder,
                 getParseFn(),
-                MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH));
+                MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
+                getQueryLocation());
       }
       return source;
     }
@@ -687,7 +698,8 @@ public class BigQueryIO {
                 new JobConfigurationQuery()
                     .setQuery(getQuery().get())
                     .setFlattenResults(getFlattenResults())
-                    .setUseLegacySql(getUseLegacySql()));
+                    .setUseLegacySql(getUseLegacySql()),
+                getQueryLocation());
           } catch (Exception e) {
             throw new IllegalArgumentException(
                 String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
@@ -937,6 +949,18 @@ public class BigQueryIO {
     /** See {@link QueryPriority}. */
     public TypedRead<T> withQueryPriority(QueryPriority priority) {
       return toBuilder().setQueryPriority(priority).build();
+    }
+
+    /**
+     * BigQuery geographic location where the query <a
+     * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs">job</a> will be
+     * executed. If not specified, Beam tries to determine the location by examining the tables
+     * referenced by the query. Location must be specified for queries not executed in US or EU. See
+     * <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+     * query</a>.
+     */
+    public TypedRead<T> withQueryLocation(String location) {
+      return toBuilder().setQueryLocation(location).build();
     }
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -1341,7 +1365,7 @@ public class BigQueryIO {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
-    /** Specfies a policy for handling failed inserts.
+    /** Specfies a policy for handling fPailed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
      * collections are written using batch load jobs, so we don't get per-element failures.

@@ -38,7 +38,7 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return operands.size() == 2;
+    return operands.size() == 2 && op(0).getOutputType().equals(SqlTypeName.ARRAY);
   }
 
   @Override

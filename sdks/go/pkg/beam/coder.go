@@ -107,6 +107,13 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 				return nil, err
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+		case reflectx.Float32, reflectx.Float64:
+			c, err := coderx.NewFloat(t.Type())
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+
 		case reflectx.String, reflectx.ByteSlice:
 			// TODO(BEAM-3580): we should stop encoding string using the bytecoder. It forces
 			// conversions at runtime in inconvenient places.
@@ -168,10 +175,13 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 // form that doesn't require LengthPrefix'ing to cut up the bytestream from
 // the FnHarness.
 
+// ProtoEnc marshals the supplied proto.Message.
 func ProtoEnc(in typex.T) ([]byte, error) {
 	return proto.Marshal(in.(proto.Message))
 }
 
+// ProtoDec unmarshals the supplied bytes into an instance of the supplied
+// proto.Message type.
 func ProtoDec(t reflect.Type, in []byte) (typex.T, error) {
 	val := reflect.New(t.Elem()).Interface().(proto.Message)
 	if err := proto.Unmarshal(in, val); err != nil {

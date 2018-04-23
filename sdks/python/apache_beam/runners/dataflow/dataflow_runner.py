@@ -104,7 +104,7 @@ class DataflowRunner(PipelineRunner):
         is finished.
     """
     last_message_time = None
-    last_message_hash = None
+    current_seen_messages = set()
 
     last_error_rank = float('-inf')
     last_error_msg = None
@@ -159,15 +159,18 @@ class DataflowRunner(PipelineRunner):
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
           message = '%s: %s: %s' % (m.time, m.messageImportance, m.messageText)
-          m_hash = hash(message)
 
-          if last_message_hash is not None and m_hash == last_message_hash:
-            # Skip the first message if it is the last message we got in the
-            # previous round. This can happen because we use the
-            # last_message_time as a parameter of the query for new messages.
+          if m.time > last_message_time:
+            last_message_time = m.time
+            current_seen_messages = set()
+
+          if message in current_seen_messages:
+            # Skip the message if it has already been seen at the current
+            # time. This could be the case since the list_messages API is
+            # queried starting at last_message_time.
             continue
-          last_message_time = m.time
-          last_message_hash = m_hash
+          else:
+            current_seen_messages.add(message)
           # Skip empty messages.
           if m.messageImportance is None:
             continue
@@ -306,7 +309,8 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    pipeline.visit(self.side_input_visitor())
+    if apiclient._use_fnapi(pipeline._options):
+      pipeline.visit(self.side_input_visitor())
 
     # Snapshot the pipeline in a portable proto before mutating it
     proto_pipeline, self.proto_context = pipeline.to_runner_api(
@@ -777,7 +781,7 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubPayloadSource is currently available for use '
+        raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
       # Only one of topic or subscription should be set.
       if transform.source.full_subscription:
@@ -793,6 +797,9 @@ class DataflowRunner(PipelineRunner):
         # Setting this property signals Dataflow runner to return full
         # PubsubMessages instead of just the payload.
         step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      if transform.source.timestamp_attribute is not None:
+        step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+                          transform.source.timestamp_attribute)
     else:
       raise ValueError(
           'Source %r has unexpected format %s.' % (

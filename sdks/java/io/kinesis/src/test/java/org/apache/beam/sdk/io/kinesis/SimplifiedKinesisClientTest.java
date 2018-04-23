@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.kinesis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verifyZeroInteractions;
 
@@ -32,13 +34,19 @@ import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+import com.amazonaws.services.kinesis.model.GetRecordsRequest;
+import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
+import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamDescription;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
@@ -47,6 +55,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 
 /***
  */
@@ -328,5 +337,30 @@ public class SimplifiedKinesisClientTest {
     AmazonServiceException exception = new AmazonServiceException("");
     exception.setErrorType(errorType);
     return exception;
+  }
+
+  @Test
+  public void shouldReturnLimitedNumberOfRecords() throws Exception {
+    final Integer limit = 100;
+
+    doAnswer((Answer<GetRecordsResult>) invocation -> {
+      GetRecordsRequest request = (GetRecordsRequest) invocation.getArguments()[0];
+      List<Record> records = generateRecords(request.getLimit());
+      return new GetRecordsResult().withRecords(records).withMillisBehindLatest(1000L);
+    }).when(kinesis).getRecords(any(GetRecordsRequest.class));
+
+    GetKinesisRecordsResult result = underTest.getRecords(SHARD_ITERATOR, STREAM, SHARD_1, limit);
+    assertThat(result.getRecords().size()).isEqualTo(limit);
+  }
+
+  private List<Record> generateRecords(int num) {
+    List<Record> records = new ArrayList<>();
+    for (int i = 0; i < num; i++) {
+      byte[] value = new byte[1024];
+      Arrays.fill(value, (byte) i);
+      records.add(new Record().withSequenceNumber(String.valueOf(i)).withPartitionKey("key")
+          .withData(ByteBuffer.wrap(value)));
+    }
+    return records;
   }
 }

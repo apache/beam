@@ -17,14 +17,15 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-model-fn-execution", enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Fn Execution"
+ext.summary = "Portable definitions for execution user-defined functions."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow library.java.protobuf_java
   shadow library.java.grpc_core
   shadow library.java.grpc_protobuf

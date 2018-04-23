@@ -17,13 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-common")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
+ext.summary = "Code used by all Beam IOs"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.postgres
 }

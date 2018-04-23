@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -88,11 +90,16 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -764,6 +771,69 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }));
   }
 
+  static final DoFn<Event, byte[]> EVENT_TO_BYTEARRAY =
+          new DoFn<Event, byte[]>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              try {
+                byte[] encodedEvent = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+                c.output(encodedEvent);
+              } catch (CoderException e1) {
+                LOG.error("Error while sending Event {} to Kafka: serialization error",
+                        c.element().toString());
+              }
+            }
+          };
+
+  /**
+   * Send {@code events} to Kafka.
+   */
+  private void sinkEventsToKafka(PCollection<Event> events) {
+    PCollection<byte[]> eventToBytes =
+        events.apply("Event to bytes", ParDo.of(EVENT_TO_BYTEARRAY));
+    eventToBytes.apply(KafkaIO.<Void, byte[]>write()
+                    .withBootstrapServers(options.getBootstrapServers())
+                    .withTopic(options.getKafkaSinkTopic())
+                    .withValueSerializer(ByteArraySerializer.class)
+                    .values());
+
+  }
+
+
+  static final DoFn<KV<Long, byte[]>, Event> BYTEARRAY_TO_EVENT =
+          new DoFn<KV<Long, byte[]>, Event>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              byte[] encodedEvent = c.element().getValue();
+              try {
+                Event event = CoderUtils.decodeFromByteArray(Event.CODER, encodedEvent);
+                c.output(event);
+              } catch (CoderException e) {
+                LOG.error("Error while decoding Event from Kafka message: serialization error");
+              }
+            }
+          };
+
+  /**
+   * Return source of events from Kafka.
+   */
+  private PCollection<Event> sourceEventsFromKafka(Pipeline p) {
+    NexmarkUtils.console("Reading events from Kafka Topic %s", options.getKafkaSourceTopic());
+
+    checkArgument(!Strings.isNullOrEmpty(options.getBootstrapServers()),
+        "Missing --bootstrapServers");
+
+    KafkaIO.Read<Long, byte[]> read = KafkaIO.<Long, byte[]>read()
+            .withBootstrapServers(options.getBootstrapServers())
+            .withTopic(options.getKafkaSourceTopic())
+            .withKeyDeserializer(LongDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class);
+
+    return p
+      .apply(queryName + ".ReadKafkaEvents", read.withoutMetadata())
+      .apply(queryName + ".KafkaToEvents", ParDo.of(BYTEARRAY_TO_EVENT));
+  }
+
   /**
    * Return Avro source of events from {@code options.getInputFilePrefix}.
    */
@@ -811,6 +881,22 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                   }
                 }))
         .apply(queryName + ".WritePubsubEvents", io);
+  }
+
+  /**
+   * Send {@code formattedResults} to Kafka.
+   */
+  private void sinkResultsToKafka(PCollection<String> formattedResults) {
+    checkArgument(!Strings.isNullOrEmpty(options.getBootstrapServers()),
+            "Missing --bootstrapServers");
+
+    formattedResults.apply(
+        queryName + ".WriteKafkaResults",
+        KafkaIO.<Void, String>write()
+            .withBootstrapServers(options.getBootstrapServers())
+            .withTopic(options.getKafkaSinkTopic())
+            .withValueSerializer(StringSerializer.class)
+            .values());
   }
 
   /**
@@ -923,6 +1009,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       case AVRO:
         source = sourceEventsFromAvro(p);
         break;
+      case KAFKA:
+        source = sourceEventsFromKafka(p);
+        break;
       case PUBSUB:
         // Setup the sink for the publisher.
         switch (configuration.pubSubMode) {
@@ -1009,6 +1098,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         break;
       case PUBSUB:
         sinkResultsToPubsub(formattedResults, now);
+        break;
+      case KAFKA:
+        sinkResultsToKafka(formattedResults);
         break;
       case TEXT:
         sinkResultsToText(formattedResults, now);

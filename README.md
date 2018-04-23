@@ -23,7 +23,7 @@
 
 ## Status
 
-[![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_MavenInstall)](https://builds.apache.org/job/beam_PostCommit_Java_MavenInstall/)
+[![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_GradleBuild)](https://builds.apache.org/job/beam_PostCommit_Java_GradleBuild)
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
 
 ## Overview
@@ -77,12 +77,11 @@ in your system. In a Debian-based distribution:
 ```
 sudo apt-get install \
     openjdk-8-jdk \
-    maven \
     python-setuptools \
     python-pip
 ```
 
-Then please use the standard `mvn clean install` command.
+Then please use the standard `./gradlew build` command.
 
 ### Spark Runner
 

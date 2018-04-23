@@ -29,6 +29,23 @@ public interface StateDelegator {
    * StateRequest}s with a matching id. A handle is returned which allows one to deregister from
    * this {@link StateDelegator}.
    */
-  AutoCloseable registerForProcessBundleInstructionId(
+  Registration registerForProcessBundleInstructionId(
       String processBundleInstructionId, StateRequestHandler handler);
+
+  /**
+   * Allows callers to deregister from receiving further state requests.
+   */
+  interface Registration {
+    /**
+     * De-registers the handler for all future requests for state for the registered process
+     * bundle instruction id.
+     */
+    void deregister();
+
+    /**
+     * De-registers the handler for all future requests for state for the registered process
+     * bundle instruction id. Aborts all in-flight state requests.
+     */
+    void abort();
+  }
 }
