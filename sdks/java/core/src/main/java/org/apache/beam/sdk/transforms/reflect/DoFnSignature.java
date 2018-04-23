@@ -27,6 +27,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
@@ -100,6 +101,9 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract NewTrackerMethod newTracker();
 
+  @Nullable
+  public abstract FieldAccessDescriptor schemaFieldAccessDescriptor();
+
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
@@ -151,6 +155,8 @@ public abstract class DoFnSignature {
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+
+    abstract Builder setSchemaFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
 
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
 
