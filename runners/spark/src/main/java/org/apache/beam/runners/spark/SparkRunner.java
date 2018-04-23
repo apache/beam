@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
@@ -212,7 +213,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       updateCacheCandidates(pipeline, translator, evaluationContext);
 
       initAccumulators(mOptions, jsc);
-
       startPipeline =
           executorService.submit(
               () -> {
@@ -229,6 +229,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       registerMetricsSource(mOptions.getAppName());
     }
 
+    // it would have been better to create MetricsPusher from runner-core but we need
+    // runner-specific
+    // MetricsContainerStepMap
+    MetricsPusher metricsPusher =
+        new MetricsPusher(MetricsAccumulator.getInstance().value(), mOptions, result);
+    metricsPusher.start();
     return result;
   }
 

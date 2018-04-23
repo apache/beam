@@ -81,6 +81,7 @@ public class SparkRunnerStreamingContextFactory implements Function0<JavaStreami
 
     // We must first init accumulators since translators expect them to be instantiated.
     SparkRunner.initAccumulators(options, jsc);
+    //do not need to create a MetricsPusher instance here because if is called in SparkRunner.run()
 
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
     // update cache candidates
