@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -24,6 +25,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * The results of a single current metric.
  */
 @Experimental(Kind.METRICS)
+@JsonFilter("committedMetrics")
 public interface MetricResult<T> {
   /** Return the name of the metric. */
   MetricName getName();
