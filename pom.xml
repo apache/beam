@@ -1951,6 +1951,9 @@
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.common
                     </shadedPattern>
+                      <excludes>
+                          <exclude>com.google.common.util.concurrent.ListenableFuture</exclude>
+                      </excludes>
                   </relocation>
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>

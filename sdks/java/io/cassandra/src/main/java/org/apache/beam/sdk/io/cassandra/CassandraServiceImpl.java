@@ -32,12 +32,15 @@ import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -351,11 +354,18 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
    */
   protected class WriterImpl<T> implements Writer<T> {
 
+    /**
+     * The threshold of 100 concurrent async queries is a heuristic commonly used
+     * by the Apache Cassandra community. There is no real gain to expect in tuning this value.
+     */
+    private static final int CONCURRENT_ASYNC_QUERIES = 100;
+
     private final CassandraIO.Write<T> spec;
 
     private final Cluster cluster;
     private final Session session;
     private final MappingManager mappingManager;
+    private List<ListenableFuture<Void>> writeFutures;
 
     public WriterImpl(CassandraIO.Write<T> spec) {
       this.spec = spec;
@@ -363,21 +373,37 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
           spec.localDc(), spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.mappingManager = new MappingManager(session);
+      this.writeFutures = Lists.newArrayList();
     }
 
     /**
      * Write the entity to the Cassandra instance, using {@link Mapper} obtained with the
-     * {@link MappingManager}. This method use {@link Mapper#save(Object)} method, which is
-     * synchronous. It means the entity is guaranteed to be reliably committed to Cassandra.
+     * {@link MappingManager}. This method uses {@link Mapper#saveAsync(Object)} method, which is
+     * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
+     * succeeded.
      */
     @Override
-    public void write(T entity) {
+    public void write(T entity) throws ExecutionException, InterruptedException {
       Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
-      mapper.save(entity);
+      this.writeFutures.add(mapper.saveAsync(entity));
+      if (this.writeFutures.size() == CONCURRENT_ASYNC_QUERIES) {
+        // We reached the max number of allowed in flight queries.
+        // Write methods are synchronous in Beam as stated by the CassandraService interface,
+        // so we wait for each async query to return before exiting.
+        LOG.debug("Waiting for a batch of {} Cassandra writes to be executed...",
+            CONCURRENT_ASYNC_QUERIES);
+        waitForFuturesToFinish();
+        this.writeFutures = Lists.newArrayList();
+      }
     }
 
     @Override
-    public void close() {
+    public void close() throws ExecutionException, InterruptedException {
+      if (this.writeFutures.size() > 0) {
+        // Waiting for the last in flight async queries to return before finishing the bundle.
+        waitForFuturesToFinish();
+      }
+
       if (session != null) {
         session.close();
       }
@@ -386,6 +412,11 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
       }
     }
 
+    private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
+      for (ListenableFuture<Void> future:writeFutures) {
+        future.get();
+      }
+    }
   }
 
   @Override
