@@ -36,8 +36,7 @@ import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextMultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -136,12 +135,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
           @Override
           public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-            return new WindowedContextOutputReceiver<>(processContext, null);
+            return DoFnOutputReceivers.windowedReceiver(processContext, null);
           }
 
           @Override
           public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-            return new WindowedContextMultiOutputReceiver(processContext);
+            return DoFnOutputReceivers.windowedMultiReceiver(processContext);
           }
 
           @Override

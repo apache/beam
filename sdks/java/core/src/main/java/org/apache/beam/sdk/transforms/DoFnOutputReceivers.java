@@ -27,10 +27,7 @@ import org.joda.time.Instant;
  * Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes.
  */
 public class DoFnOutputReceivers {
-  /**
-   * A {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   */
-  public static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
+  private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
     DoFn<?, ?>.WindowedContext context;
     @Nullable TupleTag<T> outputTag;
     public WindowedContextOutputReceiver(DoFn<?, ?>.WindowedContext context,
@@ -58,10 +55,7 @@ public class DoFnOutputReceivers {
     }
   }
 
-  /**
-   * A {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   */
-  public static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
+  private static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
     DoFn<?, ?>.WindowedContext context;
     public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context) {
       this.context = context;
@@ -69,7 +63,22 @@ public class DoFnOutputReceivers {
 
     @Override
     public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-      return new WindowedContextOutputReceiver<T>(context, tag);
+      return DoFnOutputReceivers.windowedReceiver(context, tag);
     }
+  }
+
+  /**
+   * Returns a {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
+   */
+  public static <T> OutputReceiver<T> windowedReceiver(DoFn<?, ?>.WindowedContext context,
+                                                       @Nullable TupleTag<T> outputTag) {
+    return new WindowedContextOutputReceiver<>(context, outputTag);
+  }
+
+  /**
+   * Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
+   */
+  public static <T> MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
+    return new WindowedContextMultiOutputReceiver(context);
   }
 }

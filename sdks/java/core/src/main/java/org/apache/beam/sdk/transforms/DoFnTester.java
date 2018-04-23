@@ -39,8 +39,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextMultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextOutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -292,12 +290,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-              return new WindowedContextOutputReceiver<>(processContext, null);
+              return DoFnOutputReceivers.windowedReceiver(processContext, null);
             }
 
             @Override
             public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-              return new WindowedContextMultiOutputReceiver(processContext);
+              return DoFnOutputReceivers.windowedMultiReceiver(processContext);
             }
 
             @Override
