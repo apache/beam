@@ -817,12 +817,6 @@
       </dependency>
 
       <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-runners-extensions-java</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
         <version>${apache.commons.compress.version}</version>
@@ -1502,6 +1496,13 @@
         <artifactId>jaxb-api</artifactId>
         <version>${jaxb-api.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-extensions-java-metrics</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 

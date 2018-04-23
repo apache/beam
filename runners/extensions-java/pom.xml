@@ -26,48 +26,13 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-extensions-java</artifactId>
+  <artifactId>beam-runners-extensions-java-parent</artifactId>
   <name>Apache Beam :: Runners :: Extensions Java</name>
-  <description>Beam Runners Extensions provides implementations of runners core APIs.</description>
-  <packaging>jar</packaging>
 
-  <dependencies>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
+  <packaging>pom</packaging>
 
-    <dependency>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-      <artifactId>jackson-datatype-joda</artifactId>
-    </dependency>
+  <modules>
+    <module>metrics</module>
+  </modules>
 
-    <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.github.stephenc.findbugs</groupId>
-      <artifactId>findbugs-annotations</artifactId>
-    </dependency>
-
-
-  </dependencies>
 </project>

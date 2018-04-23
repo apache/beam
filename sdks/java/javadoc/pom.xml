@@ -245,7 +245,7 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-extensions-java</artifactId>
+      <artifactId>beam-runners-extensions-java-metrics</artifactId>
     </dependency>
 
     <!-- provided and optional dependencies.-->
