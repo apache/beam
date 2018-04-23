@@ -271,7 +271,7 @@ public class DatastoreV1 {
     static final int NUM_QUERY_SPLITS_MIN = 12;
 
     /** Default bundle size of 64MB. */
-    static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024;
+    static final long DEFAULT_BUNDLE_SIZE_BYTES = 64L * 1024L * 1024L;
 
     /**
      * Maximum number of results to request per query.

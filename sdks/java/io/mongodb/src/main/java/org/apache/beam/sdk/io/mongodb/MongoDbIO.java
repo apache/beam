@@ -316,8 +316,8 @@ public class MongoDbIO {
         }
 
         // the desired batch size is small, using default chunk size of 1MB
-        if (desiredBundleSizeBytes < 1024 * 1024) {
-          desiredBundleSizeBytes = 1 * 1024 * 1024;
+        if (desiredBundleSizeBytes < 1024L * 1024L) {
+          desiredBundleSizeBytes = 1L * 1024L * 1024L;
         }
 
         // now we have the batch size (provided by user or provided by the runner)

@@ -348,7 +348,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   @VisibleForTesting
   static class DatasetServiceImpl implements DatasetService {
     // Approximate amount of table data to upload per InsertAll request.
-    private static final long UPLOAD_BATCH_SIZE_BYTES = 64 * 1024;
+    private static final long UPLOAD_BATCH_SIZE_BYTES = 64L * 1024L;
 
     // The maximum number of rows to upload per InsertAll request.
     private static final long MAX_ROWS_PER_BATCH = 500;
