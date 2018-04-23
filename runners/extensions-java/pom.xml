@@ -21,54 +21,18 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-parent</artifactId>
+    <artifactId>beam-runners-parent</artifactId>
     <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-parent</artifactId>
+  <artifactId>beam-runners-extensions-java-parent</artifactId>
+  <name>Apache Beam :: Runners :: Extensions Java</name>
 
   <packaging>pom</packaging>
 
-  <name>Apache Beam :: Runners</name>
-
   <modules>
-    <module>core-construction-java</module>
-    <module>core-java</module>
-    <module>java-fn-execution</module>
-    <module>local-java</module>
-    <module>local-artifact-service-java</module>
-    <module>reference</module>
-    <module>direct-java</module>
-    <module>flink</module>
-    <module>gearpump</module>
-    <module>google-cloud-dataflow-java</module>
-    <module>spark</module>
-    <module>apex</module>
-    <module>gcp</module>
-    <module>extensions-java</module>
+    <module>metrics</module>
   </modules>
 
-  <profiles>
-    <profile>
-      <id>release</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>findbugs-maven-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 </project>
