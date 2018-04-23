@@ -19,8 +19,8 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
-description = "Apache Beam :: Runners :: Extensions Java"
-ext.summary = "Beam Runners Extensions provides implementations of runners core APIs."
+description = "Apache Beam :: Runners :: Extensions Java :: Metrics"
+ext.summary = "Beam Runners Extensions Metrics provides implementations of runners core metrics APIs."
 
 
 dependencies {
