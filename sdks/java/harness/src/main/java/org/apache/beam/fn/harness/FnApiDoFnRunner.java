@@ -83,8 +83,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextMultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -630,12 +629,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextOutputReceiver<>(this, null);
+      return DoFnOutputReceivers.windowedReceiver(this, null);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextMultiOutputReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this);
     }
 
     @Override

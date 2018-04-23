@@ -38,8 +38,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextMultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -603,12 +602,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextOutputReceiver<>(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextMultiOutputReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this);
     }
 
     @Override
@@ -746,12 +745,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextOutputReceiver<>(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextMultiOutputReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this);
     }
 
     @Override
