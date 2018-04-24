@@ -37,7 +37,7 @@ public abstract class Operator<IN, OUT> implements Serializable {
   /** Associated Flow. */
   private final Flow flow;
 
-  private Set<OutputHint> hints;
+  protected Set<OutputHint> hints;
 
   protected Operator(String name, Flow flow) {
     this.name = name;

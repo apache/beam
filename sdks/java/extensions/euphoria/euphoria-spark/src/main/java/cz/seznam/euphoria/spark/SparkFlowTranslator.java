@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
+import cz.seznam.euphoria.core.client.operator.hint.ComputationHint;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
@@ -36,6 +37,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 
 import javax.annotation.Nullable;
@@ -83,7 +85,7 @@ class SparkFlowTranslator {
   }
 
   @SuppressWarnings("unchecked")
-  List<DataSink<?>> translateInto(Flow flow) {
+  List<DataSink<?>> translateInto(Flow flow, StorageLevel storageLevel) {
     // ~ transform flow to direct acyclic graph of supported operators
     final DAG<Operator<?, ?>> dag = flowToDag(flow);
 
@@ -109,8 +111,9 @@ class SparkFlowTranslator {
       if (firstMatch != null) {
         final JavaRDD<?> out = firstMatch.translator.translate(op, executorContext);
         // ~ output result will be used more than once, cache Dataset for reusing
-        if (dag.getNode(op).getChildren().size() > 1) {
-          out.cache();
+        if (dag.getNode(op).getChildren().size() > 1
+            && op.getHints().contains(ComputationHint.EXPENSIVE)) {
+          out.persist(storageLevel);
         }
         // ~ save output of current operator to context
         executorContext.setOutput(op, out);
@@ -134,7 +137,8 @@ class SparkFlowTranslator {
 
           // unwrap data from WindowedElement
           JavaPairRDD<NullWritable, Object> unwrapped =
-              sparkOutput.mapToPair(el -> new Tuple2<>(NullWritable.get(), el.getElement()));
+              sparkOutput.mapToPair(el ->
+                  new Tuple2<>(NullWritable.get(), el.getElement()));
 
 
           try {
@@ -170,11 +174,7 @@ class SparkFlowTranslator {
     @Nullable
     final UnaryPredicate<O> accept;
 
-    public TranslateAcceptor(Class<O> type) {
-      this(type, null);
-    }
-
-    public TranslateAcceptor(Class<O> type, @Nullable UnaryPredicate<O> accept) {
+    TranslateAcceptor(Class<O> type, @Nullable UnaryPredicate<O> accept) {
       this.type = Objects.requireNonNull(type);
       this.accept = accept;
     }
