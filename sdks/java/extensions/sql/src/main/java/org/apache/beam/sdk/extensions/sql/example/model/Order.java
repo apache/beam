@@ -15,8 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.example.model;
+
+import java.io.Serializable;
 
 /**
- * Examples on how to use Beam SQL.
+ * Describes an order.
  */
-package org.apache.beam.sdk.extensions.sql.example;
+public class Order implements Serializable {
+  private int id;
+  private int customerId;
+
+  public Order(int id, int customerId) {
+    this.id = id;
+    this.customerId = customerId;
+  }
+
+  public int getId() {
+    return id;
+  }
+
+  public int getCustomerId() {
+    return customerId;
+  }
+}
