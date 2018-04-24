@@ -15,7 +15,6 @@ dependencies {
     exclude group: 'log4j'
     exclude group: 'org.slf4j'
   }
-  compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
   testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
   testCompile project(':euphoria-local')
 }
