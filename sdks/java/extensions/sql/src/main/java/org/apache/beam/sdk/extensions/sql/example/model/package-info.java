@@ -17,6 +17,6 @@
  */
 
 /**
- * Examples on how to use Beam SQL.
+ * Java classes used to for modeling the examples.
  */
-package org.apache.beam.sdk.extensions.sql.example;
+package org.apache.beam.sdk.extensions.sql.example.model;

@@ -141,3 +141,19 @@ idea {
     generatedSourceDirs += file(generatedJavaccSourceDir)
   }
 }
+
+// Run basic SQL example
+task runBasicExample(type: JavaExec) {
+  description = "Run basic SQL example"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
+}
+
+// Run SQL example on POJO inputs
+task runPojoExample(type: JavaExec) {
+  description = "Run SQL example for PCollections of POJOs"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
+}
