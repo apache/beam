@@ -27,6 +27,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
+import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +75,7 @@ public class SparkExecutor implements Executor {
 
     private boolean kryoRequiredRegistrationDisabled = false;
     private Class<? extends SparkKryoRegistrator> registrator = null;
+    private StorageLevel storageLevel = StorageLevel.MEMORY_AND_DISK_SER();
 
     private Builder(String appName, SparkConf conf) {
       this.appName = appName;
@@ -134,6 +136,16 @@ public class SparkExecutor implements Executor {
     }
 
     /**
+     * Storage level to be used for expensive computation graph splits.
+     *
+     * @return builder
+     */
+    public Builder storageLevel(StorageLevel storageLevel) {
+      this.storageLevel = storageLevel;
+      return this;
+    }
+
+    /**
      * Force kryo to accept non registered classes. Not recommended.
      *
      * @return builder
@@ -156,19 +168,25 @@ public class SparkExecutor implements Executor {
         conf.set("spark.kryo.registrationRequired", "true");
         conf.set("spark.kryo.registrator", registrator.getName());
       }
-      return new SparkExecutor(conf);
+      return new SparkExecutor(conf, storageLevel);
     }
   }
 
   private final JavaSparkContext sparkContext;
+
+  /**
+   * Storage level to be used for DAG splits.
+   */
+  private final StorageLevel storageLevel;
 
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   private SparkAccumulatorFactory accumulatorFactory =
       new SparkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
 
-  private SparkExecutor(SparkConf conf) {
-    sparkContext = new JavaSparkContext(conf);
+  private SparkExecutor(SparkConf conf, StorageLevel storageLevel) {
+    this.sparkContext = new JavaSparkContext(conf);
+    this.storageLevel = storageLevel;
   }
 
   @Override
@@ -218,7 +236,7 @@ public class SparkExecutor implements Executor {
       // FIXME blocking operation in Spark
       SparkFlowTranslator translator =
           new SparkFlowTranslator(sparkContext, flow.getSettings(), clonedFactory);
-      sinks = translator.translateInto(flow);
+      sinks = translator.translateInto(flow, storageLevel);
     } catch (Exception e) {
       // FIXME in case of exception list of sinks will be empty
       // when exception thrown rollback all sinks
