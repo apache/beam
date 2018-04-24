@@ -20,14 +20,14 @@ import cz.seznam.euphoria.operator.test.IntWindow;
 import cz.seznam.euphoria.operator.test.ReduceByKeyTest;
 import cz.seznam.euphoria.operator.test.ReduceStateByKeyTest;
 import cz.seznam.euphoria.operator.test.WindowingTest;
-import org.apache.spark.serializer.KryoRegistrator;
+import cz.seznam.euphoria.spark.SparkKryoRegistrator;
 
 import java.util.ArrayList;
 
-public class TestRegistrator implements KryoRegistrator {
+public class TestRegistrator extends SparkKryoRegistrator {
 
-  @Override
-  public void registerClasses(Kryo kryo) {
+
+  protected void registerUserClasses(Kryo kryo) {
     kryo.register(ArrayList.class);
     kryo.register(IntWindow.class);
     kryo.register(ReduceByKeyTest.CWindow.class);

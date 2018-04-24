@@ -18,25 +18,19 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
-import cz.seznam.euphoria.core.client.util.Either;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.serializer.KryoRegistrator;
 import org.apache.spark.serializer.KryoSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -51,21 +45,6 @@ public class SparkExecutor implements Executor {
   private static final Logger LOG = LoggerFactory.getLogger(SparkExecutor.class);
 
   private static final int DEFAULT_PARALLELISM = 5;
-
-  private static final Class<?>[] DEFAULT_CLASSES = new Class<?>[]{
-      Pair.class,
-      // windows
-      Window.class,
-      GlobalWindowing.Window.class,
-      KeyedWindow.class,
-      TimeInterval.class,
-      // elements
-      SparkElement.class,
-      TimestampedElement.class,
-      Either.class,
-      // broadcast hash join
-      HashMap.class
-  };
 
   /**
    * Create a new builder, the {@link SparkExecutor} can be constructed from
@@ -94,6 +73,7 @@ public class SparkExecutor implements Executor {
     private final SparkConf conf;
 
     private boolean kryoRequiredRegistrationDisabled = false;
+    private Class<? extends SparkKryoRegistrator> registrator = null;
 
     private Builder(String appName, SparkConf conf) {
       this.appName = appName;
@@ -138,8 +118,18 @@ public class SparkExecutor implements Executor {
      * @param registrator custom kryo registrator
      * @return builder
      */
-    public Builder kryoRegistrator(Class<? extends KryoRegistrator> registrator) {
-      conf.set("spark.kryo.registrator", registrator.getName());
+    public Builder kryoRegistrator(Class<? extends SparkKryoRegistrator> registrator) {
+      this.registrator = registrator;
+      return this;
+    }
+
+    /**
+     * Only one SparkContext may be running in this JVM (see SPARK-2243). Useful for testing.
+     *
+     * @return builder
+     */
+    public Builder allowMultipleContexts() {
+      conf.set("spark.driver.allowMultipleContexts", "true");
       return this;
     }
 
@@ -158,12 +148,13 @@ public class SparkExecutor implements Executor {
       // make sure we use kryo
       conf.set("spark.serializer", KryoSerializer.class.getName());
       // register euphoria-spark related classes
-      conf.registerKryoClasses(DEFAULT_CLASSES);
       if (kryoRequiredRegistrationDisabled) {
         LOG.warn("Required kryo registration is disabled. This is highly suboptimal!");
         conf.set("spark.kryo.registrationRequired", "false");
       } else {
+        Preconditions.checkArgument(registrator != null, "You must provide a kryo registrator.");
         conf.set("spark.kryo.registrationRequired", "true");
+        conf.set("spark.kryo.registrator", registrator.getName());
       }
       return new SparkExecutor(conf);
     }
