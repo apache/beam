@@ -170,10 +170,6 @@ class common_job_properties {
     "--info",
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
-    // Limit background number of workers to prevent exhausting machine memory.
-    // Jenkins machines have 15GB memory, and run 2 jobs in parallel; workers are configured with
-    // JVM max heap size 3.5GB. So 2 jobs * 2 workers * 3.5GB heap = 14GB
-    '--max-workers=2',
   ]
 
   static void setGradleSwitches(context) {
