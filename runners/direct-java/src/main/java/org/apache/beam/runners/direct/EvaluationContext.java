@@ -77,7 +77,8 @@ class EvaluationContext {
   private final BundleFactory bundleFactory;
 
   /** The current processing time and event time watermarks and timers. */
-  private final WatermarkManager<AppliedPTransform<?, ?, ?>, PValue> watermarkManager;
+  private final WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>>
+      watermarkManager;
 
   /** Executes callbacks based on the progression of the watermark. */
   private final WatermarkCallbackExecutor callbackExecutor;
@@ -121,7 +122,7 @@ class EvaluationContext {
 
   public void initialize(
       Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
-    watermarkManager.initialize(initialInputs);
+    watermarkManager.initialize((Map) initialInputs);
   }
 
   /**
