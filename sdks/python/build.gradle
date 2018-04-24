@@ -30,9 +30,38 @@ def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
   doLast {
-    exec {
-      commandLine 'virtualenv', "${envdir}"
+    if (System.getenv('JENKINS_URL') != null) {
+      // Upgrade pip and install virtualenv on a Jenkins machine.
+      exec {
+        executable 'sh'
+        args '-c', 'python -m pip install --user --upgrade pip'
+      }
+      exec {
+        executable 'sh'
+        args '-c', 'python -m pip install --user --upgrade virtualenv'
+      }
+      // Create virtual environment on a Jenkins machine.
+      exec {
+        executable 'sh'
+        args '-c', 'python --version; python -m pip --version; echo -n "virtualenv "; python -m virtualenv --version'
+      }
+      exec {
+        executable 'sh'
+        args '-c', "python -m virtualenv ${envdir}"
+      }
+    } else {
+      // Create virtual environment on a development machine. Development
+      // machines should have correct pip and virtualenv versions installed.
+      exec {
+        executable 'sh'
+        args '-c', 'python --version; pip --version; echo -n "virtualenv "; virtualenv --version'
+      }
+      exec {
+        executable 'sh'
+        args '-c', "virtualenv ${envdir}"
+      }
     }
+
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
