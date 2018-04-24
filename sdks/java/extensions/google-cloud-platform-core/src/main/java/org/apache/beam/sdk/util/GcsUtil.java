@@ -589,9 +589,7 @@ public class GcsUtil {
     List<CompletionStage<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {
       futures.add(MoreFutures.runAsync(
-          () -> {
-            batch.execute();
-          },
+          () -> batch.execute(),
           executor));
     }
 

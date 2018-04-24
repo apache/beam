@@ -103,17 +103,14 @@ public class SplittableDoFnOperator<
 
     checkState(doFn instanceof ProcessFn);
 
+    // this will implicitly be keyed by the key of the incoming
+    // element or by the key of a firing timer
     StateInternalsFactory<String> stateInternalsFactory =
-        key -> {
-          // this will implicitly be keyed by the key of the incoming
-          // element or by the key of a firing timer
-          return (StateInternals) keyedStateInternals;
-        };
+        key -> (StateInternals) keyedStateInternals;
+
+    // this will implicitly be keyed like the StateInternalsFactory
     TimerInternalsFactory<String> timerInternalsFactory =
-        key -> {
-          // this will implicitly be keyed like the StateInternalsFactory
-          return timerInternals;
-        };
+        key -> timerInternals;
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
