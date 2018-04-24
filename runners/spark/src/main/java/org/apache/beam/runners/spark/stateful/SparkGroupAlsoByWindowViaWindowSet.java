@@ -507,10 +507,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             JavaSparkContext$.MODULE$.fakeClassTag(),
             JavaSparkContext$.MODULE$.fakeClassTag())
         .filter(
-            t2 -> {
-              // filter output if defined.
-              return !t2._2()._2().isEmpty();
-            })
+            // filter output if defined.
+            t2 -> !t2._2()._2().isEmpty()
+            )
         .flatMap(
             new FlatMapFunction<
                 Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>,
@@ -564,10 +563,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                             true)
                         .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
-                            values -> {
-                              // add the batch timestamp for visibility (e.g., debugging)
-                              return KV.of(time.milliseconds(), values);
-                            })
+                            // add the batch timestamp for visibility (e.g., debugging)
+                            values -> KV.of(time.milliseconds(), values)
+                            )
                         // move to bytes representation and use coders for deserialization
                         // because of checkpointing.
                         .mapPartitionsToPair(
