@@ -384,6 +384,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.windowingStrategy = windowingStrategy;
     this.doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
     this.doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    this.doFnInvoker.invokeSetup();
     this.stateBinder = new BeamFnStateBinder();
     this.startBundleContext = new StartBundleContext();
     this.processBundleContext = new ProcessBundleContext();
