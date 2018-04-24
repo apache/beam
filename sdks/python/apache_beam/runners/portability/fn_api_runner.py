@@ -871,7 +871,7 @@ class FnApiRunner(runner.PipelineRunner):
           if data_api_service_descriptor:
             data_spec = beam_fn_api_pb2.RemoteGrpcPort()
             data_spec.api_service_descriptor.url = (
-              data_api_service_descriptor.url)
+                data_api_service_descriptor.url)
             transform.spec.payload = data_spec.SerializeToString()
           else:
             transform.spec.payload = ""
@@ -900,7 +900,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     if controller.state_api_service_descriptor():
       process_bundle_descriptor.state_api_service_descriptor.url = (
-        controller.state_api_service_descriptor().url)
+          controller.state_api_service_descriptor().url)
 
     # Store the required side inputs into state.
     for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
