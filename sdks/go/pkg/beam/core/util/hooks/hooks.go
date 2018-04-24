@@ -59,7 +59,7 @@ type Hook struct {
 
 // InitHook is a hook that is called when the harness
 // initializes.
-type InitHook func(context.Context) error
+type InitHook func(context.Context) (context.Context, error)
 
 // HookFactory is a function that produces a Hook from the supplied arguments.
 type HookFactory func([]string) Hook
@@ -71,34 +71,39 @@ func RegisterHook(name string, h HookFactory) {
 }
 
 // RunInitHooks runs the init hooks.
-func RunInitHooks(ctx context.Context) error {
+func RunInitHooks(ctx context.Context) (context.Context, error) {
 	// If an init hook fails to complete, the invariants of the
 	// system are compromised and we can't run a workflow.
 	// The hooks can run in any order. They should not be
 	// interdependent or interfere with each other.
 	for _, h := range activeHooks {
 		if h.Init != nil {
-			if err := h.Init(ctx); err != nil {
-				return err
+			var err error
+			if ctx, err = h.Init(ctx); err != nil {
+				return ctx, err
 			}
 		}
 	}
-	return nil
+	return ctx, nil
 }
 
-// RequestHook is called when handling a FnAPI instruction.
-type RequestHook func(context.Context, *fnpb.InstructionRequest) error
+// RequestHook is called when handling a FnAPI instruction. It can return an updated
+// context to pass additional information to downstream callers, or return the
+// original context provided.
+type RequestHook func(context.Context, *fnpb.InstructionRequest) (context.Context, error)
 
 // RunRequestHooks runs the hooks that handle a FnAPI request.
-func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
+func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) context.Context {
 	// The request hooks should not modify the request.
 	for n, h := range activeHooks {
 		if h.Req != nil {
-			if err := h.Req(ctx, req); err != nil {
+			var err error
+			if ctx, err = h.Req(ctx, req); err != nil {
 				log.Infof(ctx, "request hook %s failed: %v", n, err)
 			}
 		}
 	}
+	return ctx
 }
 
 // ResponseHook is called when sending a FnAPI instruction response.
