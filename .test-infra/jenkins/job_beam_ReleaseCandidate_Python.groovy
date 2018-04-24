@@ -27,16 +27,6 @@ job('beam_PostRelease_Python_Candidate') {
     // Set common parameters.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
-    parameters {
-        nodeParam('TEST_HOST') {
-            description('select test host as either beam1, 2 or 3')
-            defaultNodes(['beam1', 'beam2', 'beam3'])
-            allowedNodes(['beam1', 'beam2', 'beam3'])
-            trigger('multiSelectionDisallowed')
-            eligibility('IgnoreOfflineNodeEligibility')
-        }
-    }
-
     // Allows triggering this build against pull requests.
     common_job_properties.enablePhraseTriggeringFromPullRequest(
             delegate,
