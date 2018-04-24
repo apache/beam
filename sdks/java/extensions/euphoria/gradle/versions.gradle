@@ -17,6 +17,7 @@ ext {
   mockitoVersion = '2.10.0'
 
   // ~ benchmark dependencies
+  //NOTE: euphoria-beam/build.gradle redefines some of the following properties
   beamVersion = '0.6.0'
   beamFlinkVersion = '1.2.1'
   beamScalaVersion = '2.10'
