@@ -22,6 +22,10 @@ import common_job_properties
 job('beam_PerformanceTests_Spark'){
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
+    common_job_properties.enablePhraseTriggeringFromPullRequest(
+            delegate,
+            'Spark Performance Test',
+            'Run Spark Performance Test')
 
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
@@ -37,7 +41,8 @@ job('beam_PerformanceTests_Spark'){
       // There are currently problems uploading to Dataproc, so we use a file
       // already present on the machines as input.
       dpb_wordcount_input: '/etc/hosts',
-      config_override: 'dpb_wordcount_benchmark.dpb_service.service_type=dataproc'
+      config_override: 'dpb_wordcount_benchmark.dpb_service.service_type=dataproc',
+      bigquery_table: 'beam_performance.spark_pkp_results'
     ]
 
     common_job_properties.buildPerformanceTest(delegate, argMap)
