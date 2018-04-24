@@ -27,6 +27,7 @@ public interface SparkExecutorProvider extends ExecutorProvider {
 
     final Executor executor = SparkExecutor.newBuilder("test")
         .local()
+        .allowMultipleContexts()
         .kryoRegistrator(TestRegistrator.class)
         .build();
 
