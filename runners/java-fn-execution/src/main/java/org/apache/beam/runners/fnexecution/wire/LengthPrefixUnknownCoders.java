@@ -14,7 +14,7 @@
  * the License.
  */
 
-package org.apache.beam.runners.fnexecution.graph;
+package org.apache.beam.runners.fnexecution.wire;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
