@@ -18,18 +18,15 @@
 package org.apache.beam.sdk.io.solr;
 
 import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
-import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 
-import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.solr.SolrIOTestUtils.LenientRetryPredicate;
@@ -53,9 +50,7 @@ import org.apache.solr.cloud.SolrCloudTestCase;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkStateReader;
-import org.apache.solr.common.util.ObjectReleaseTracker;
 import org.apache.solr.security.Sha256AuthenticationProvider;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
@@ -290,9 +285,6 @@ public class SolrIOTest extends SolrCloudTestCase {
     thrown.expect(IOException.class);
     thrown.expectMessage("Error writing to Solr");
 
-    // entry state of the release tracker to ensure we only unregister newly created objects
-    Set<Object> entryState = ImmutableSet.copyOf(ObjectReleaseTracker.OBJECTS.keySet());
-
     SolrIO.Write write =
         SolrIO.write()
             .withConnectionConfiguration(connectionConfiguration)
@@ -307,21 +299,6 @@ public class SolrIOTest extends SolrCloudTestCase {
     try {
       pipeline.run();
     } catch (final Pipeline.PipelineExecutionException e) {
-      // Hack: await all worker threads completing (BEAM-4040)
-      int waitAttempts = 30; // defensive coding
-      while (namedThreadIsAlive("direct-runner-worker") && waitAttempts-- >= 0) {
-        LOG.info("Pausing to allow direct-runner-worker threads to finish");
-        Thread.sleep(1000);
-      }
-
-      // remove solrClients created by us as there are no guarantees on Teardown here
-      for (Object o : ObjectReleaseTracker.OBJECTS.keySet()) {
-        if (o instanceof SolrZkClient && !entryState.contains(o)) {
-          LOG.info("Removing unreleased SolrZkClient");
-          ObjectReleaseTracker.release(o);
-        }
-      }
-
       // check 2 retries were initiated by inspecting the log before passing on the exception
       expectedLogs.verifyWarn(String.format(SolrIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 1));
       expectedLogs.verifyWarn(String.format(SolrIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 2));

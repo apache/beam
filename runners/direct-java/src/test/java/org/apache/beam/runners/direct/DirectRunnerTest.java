@@ -20,9 +20,12 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
@@ -39,6 +42,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
@@ -332,6 +336,55 @@ public class DirectRunnerTest implements Serializable {
     final long tearDownTs = TEARDOWN_CALL.get();
     assertThat(tearDownTs, greaterThan(0L));
     assertThat(doneTs, greaterThan(tearDownTs));
+  }
+
+  private static final AtomicLong TEARDOWN_CALL_ON_EXCEPTION_COUNT = new AtomicLong(-1);
+  private static final AtomicBoolean EXCEPTION_THROWN = new AtomicBoolean(false);
+
+  @Test
+  public void tearsDownFnsBeforeFinishingOnException() {
+    TEARDOWN_CALL_ON_EXCEPTION_COUNT.set(0);
+    final Pipeline pipeline = getPipeline();
+    pipeline.apply(GenerateSequence.from(0).to(100000))
+      .apply(ParDo.of(new DoFn<Long, String>() {
+        @Setup
+        public void setup() {
+          TEARDOWN_CALL_ON_EXCEPTION_COUNT.incrementAndGet();
+        }
+
+        @ProcessElement
+        public void onElement(final ProcessContext ctx) {
+          // no-op
+        }
+
+        @FinishBundle
+        public void onBundle(final FinishBundleContext ctx) {
+          EXCEPTION_THROWN.set(true);
+          final IllegalStateException exception = new IllegalStateException(
+            "expected exception for test");
+          exception.setStackTrace(new StackTraceElement[0]);
+          throw exception;
+        }
+
+        @Teardown
+        public void teardown() {
+          // just to not have a fast execution hiding an issue until we have a shutdown callback
+          try {
+            Thread.sleep(1000);
+          } catch (final InterruptedException e) {
+            fail();
+          }
+          TEARDOWN_CALL_ON_EXCEPTION_COUNT.decrementAndGet();
+        }
+      }));
+    try {
+      pipeline.run();
+      fail("should have failed");
+    } catch (final Pipeline.PipelineExecutionException ise) {
+      assertTrue(EXCEPTION_THROWN.get());
+      assertThat(ise.getCause(), instanceOf(IllegalStateException.class));
+      assertEquals(0, TEARDOWN_CALL_ON_EXCEPTION_COUNT.get(), 0);
+    }
   }
 
   @Test

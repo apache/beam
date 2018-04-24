@@ -165,7 +165,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   }
 
   @Override
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public synchronized <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
     checkState(
@@ -180,7 +180,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() throws Exception {
+  public synchronized void cleanup() throws Exception {
     Collection<Exception> thrownInCleanup = new ArrayList<>();
     for (TransformEvaluatorFactory factory : factories.values()) {
       try {

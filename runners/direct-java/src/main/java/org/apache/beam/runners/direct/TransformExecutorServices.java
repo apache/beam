@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 import com.google.common.base.MoreObjects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Static factory methods for constructing instances of {@link TransformExecutorService}.
+ * Static factory methods for constructing instances of {@link TransformExecutor}.
  */
 final class TransformExecutorServices {
   private TransformExecutorServices() {
@@ -39,7 +39,7 @@ final class TransformExecutorServices {
    * Returns an EvaluationState that evaluates {@link TransformExecutor TransformExecutors} in
    * parallel.
    */
-  public static TransformExecutorService parallel(ExecutorService executor) {
+  public static TransformExecutorService parallel(Executor executor) {
     return new ParallelTransformExecutor(executor);
   }
 
@@ -47,13 +47,13 @@ final class TransformExecutorServices {
    * Returns an EvaluationState that evaluates {@link TransformExecutor TransformExecutors} in
    * serial.
    */
-  public static TransformExecutorService serial(ExecutorService executor) {
+  public static TransformExecutorService serial(Executor executor) {
     return new SerialTransformExecutor(executor);
   }
 
   /**
    * A {@link TransformExecutorService} with unlimited parallelism. Any {@link TransformExecutor}
-   * scheduled will be immediately submitted to the {@link ExecutorService}.
+   * scheduled will be immediately submitted to the {@link Executor}.
    *
    * <p>A principal use of this is for the evaluation of an unkeyed Step. Unkeyed computations are
    * processed in parallel.
@@ -61,10 +61,10 @@ final class TransformExecutorServices {
   private static class ParallelTransformExecutor implements TransformExecutorService {
     private static final Logger LOG = LoggerFactory.getLogger(ParallelTransformExecutor.class);
 
-    private final ExecutorService executor;
+    private final Executor executor;
     private final AtomicBoolean active = new AtomicBoolean(true);
 
-    private ParallelTransformExecutor(ExecutorService executor) {
+    private ParallelTransformExecutor(Executor executor) {
       this.executor = executor;
     }
 
@@ -72,7 +72,7 @@ final class TransformExecutorServices {
     public void schedule(TransformExecutor work) {
       if (active.get()) {
         try {
-          executor.submit(work);
+          executor.execute(work);
         } catch (RejectedExecutionException rejected) {
           boolean stillActive = active.get();
           if (stillActive) {
@@ -104,19 +104,19 @@ final class TransformExecutorServices {
   /**
    * A {@link TransformExecutorService} with a single work queue. Any {@link TransformExecutor}
    * scheduled will be placed on the work queue. Only one item of work will be submitted to the
-   * {@link ExecutorService} at any time.
+   * {@link Executor} at any time.
    *
    * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair.
    * Keyed computations are processed serially per step.
    */
   private static class SerialTransformExecutor implements TransformExecutorService {
-    private final ExecutorService executor;
+    private final Executor executor;
 
     private AtomicReference<TransformExecutor> currentlyEvaluating;
     private final Queue<TransformExecutor> workQueue;
     private boolean active = true;
 
-    private SerialTransformExecutor(ExecutorService executor) {
+    private SerialTransformExecutor(Executor executor) {
       this.executor = executor;
       this.currentlyEvaluating = new AtomicReference<>();
       this.workQueue = new ConcurrentLinkedQueue<>();
@@ -159,7 +159,7 @@ final class TransformExecutorServices {
           TransformExecutor newWork = workQueue.poll();
           if (active && newWork != null) {
             if (currentlyEvaluating.compareAndSet(null, newWork)) {
-              executor.submit(newWork);
+              executor.execute(newWork);
             } else {
               workQueue.offer(newWork);
             }
