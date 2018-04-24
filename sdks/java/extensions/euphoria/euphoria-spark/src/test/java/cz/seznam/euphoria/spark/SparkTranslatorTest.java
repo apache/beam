@@ -30,6 +30,7 @@ import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
+import org.apache.spark.storage.StorageLevel;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -86,7 +87,7 @@ public class SparkTranslatorTest {
 
 
     SparkFlowTranslator translator = new SparkFlowTranslator(sparkContext, flow.getSettings(), mockedFactory);
-    translator.translateInto(flow);
+    translator.translateInto(flow, StorageLevel.MEMORY_ONLY());
 
     List<Integer> expectedCachedNodeNumbers = new ArrayList<>(Arrays.asList(3, 6));
 
