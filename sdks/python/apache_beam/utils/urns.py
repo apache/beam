@@ -94,6 +94,7 @@ class RunnerApiFn(object):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.SdkFunctionSpec(
+        environment_id=context.default_environment_id(),
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
             payload=typed_param.SerializeToString()

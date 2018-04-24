@@ -352,15 +352,17 @@ class SideInputData(object):
     self.view_fn = view_fn
     self.coder = coder
 
-  def to_runner_api(self, unused_context):
+  def to_runner_api(self, context):
     return beam_runner_api_pb2.SideInput(
         access_pattern=beam_runner_api_pb2.FunctionSpec(
             urn=self.access_pattern),
         view_fn=beam_runner_api_pb2.SdkFunctionSpec(
+            environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_VIEWFN,
                 payload=pickler.dumps((self.view_fn, self.coder)))),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
+            environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_WINDOW_MAPPING_FN,
                 payload=pickler.dumps(self.window_mapping_fn))))
