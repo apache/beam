@@ -163,12 +163,13 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     }
 
     @ProcessElement
-    public void processElement(@Element X input, MultiOutputReceiver r) {
+    public void processElement(ProcessContext c) {
+      X input = c.element();
       int partition = partitionFn.partitionFor(input, numPartitions);
       if (0 <= partition && partition < numPartitions) {
         @SuppressWarnings("unchecked")
         TupleTag<X> typedTag = (TupleTag<X>) outputTags.get(partition);
-        r.get(typedTag).output(input);
+        c.output(typedTag, input);
       } else {
         throw new IndexOutOfBoundsException(
             "Partition function returned out of bounds index: "

@@ -430,12 +430,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.matches()) {
-                    r.output(m.group(group));
+                    c.output(m.group(group));
                   }
                 }
               }));
@@ -473,12 +472,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.matches()) {
-                    r.output(m.group(groupName));
+                    c.output(m.group(groupName));
                   }
                 }
               }));
@@ -516,9 +514,8 @@ public class Regex {
           ParDo.of(
               new DoFn<String, List<String>>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<List<String>> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.matches()) {
                     ArrayList list = new ArrayList(m.groupCount());
@@ -528,7 +525,7 @@ public class Regex {
                       list.add(m.group(i));
                     }
 
-                    r.output(list);
+                    c.output(list);
                   }
                 }
               }));
@@ -569,12 +566,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<KV<String, String>> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
-                    r.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
+                    c.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
                   }
                 }
               }));
@@ -616,12 +612,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<KV<String, String>> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
-                    r.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
+                    c.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
                   }
                 }
               }));
@@ -659,12 +654,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
-                    r.output(m.group(group));
+                    c.output(m.group(group));
                   }
                 }
               }));
@@ -702,12 +696,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
-                    r.output(m.group(groupName));
+                    c.output(m.group(groupName));
                   }
                 }
               }));
@@ -744,9 +737,8 @@ public class Regex {
           ParDo.of(
               new DoFn<String, List<String>>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<List<String>> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
                     ArrayList list = new ArrayList(m.groupCount());
@@ -756,7 +748,7 @@ public class Regex {
                       list.add(m.group(i));
                     }
 
-                    r.output(list);
+                    c.output(list);
                   }
                 }
               }));
@@ -798,12 +790,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<KV<String, String>> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
-                    r.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
+                    c.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
                   }
                 }
               }));
@@ -846,12 +837,11 @@ public class Regex {
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<KV<String, String>> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
-                    r.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
+                    c.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
                   }
                 }
               }));
@@ -889,10 +879,9 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
-                  r.output(m.replaceAll(replacement));
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+                  c.output(m.replaceAll(replacement));
                 }
               }));
     }
@@ -929,10 +918,9 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  Matcher m = pattern.matcher(element);
-                  r.output(m.replaceFirst(replacement));
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+                  c.output(m.replaceFirst(replacement));
                 }
               }));
     }
@@ -971,13 +959,12 @@ public class Regex {
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(@Element String element,
-                                           OutputReceiver<String> r) throws Exception {
-                  String[] items = pattern.split(element);
+                public void processElement(ProcessContext c) throws Exception {
+                  String[] items = pattern.split(c.element());
 
                   for (String item : items) {
                     if (outputEmpty || !item.isEmpty()) {
-                      r.output(item);
+                      c.output(item);
                     }
                   }
                 }

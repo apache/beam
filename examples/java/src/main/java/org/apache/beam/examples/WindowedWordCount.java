@@ -106,7 +106,7 @@ public class WindowedWordCount {
     }
 
     @ProcessElement
-    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+    public void processElement(ProcessContext c) {
       Instant randomTimestamp =
           new Instant(
               ThreadLocalRandom.current()
@@ -115,7 +115,7 @@ public class WindowedWordCount {
       /**
        * Concept #2: Set the data element with that timestamp.
        */
-      receiver.outputWithTimestamp(element, new Instant(randomTimestamp));
+      c.outputWithTimestamp(c.element(), new Instant(randomTimestamp));
     }
   }
 
