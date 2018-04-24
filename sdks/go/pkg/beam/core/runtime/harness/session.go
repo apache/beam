@@ -203,12 +203,12 @@ var captureHookRegistry = make(map[string]CaptureHookFactory)
 func init() {
 	hf := func(opts []string) hooks.Hook {
 		return hooks.Hook{
-			Init: func(_ context.Context) error {
+			Init: func(ctx context.Context) (context.Context, error) {
 				if len(opts) > 0 {
 					name, opts := hooks.Decode(opts[0])
 					capture = captureHookRegistry[name](opts)
 				}
-				return nil
+				return ctx, nil
 			},
 		}
 	}
