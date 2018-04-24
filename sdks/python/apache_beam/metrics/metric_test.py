@@ -25,6 +25,8 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 
 
 class NameTest(unittest.TestCase):
@@ -115,37 +117,33 @@ class MetricsTest(unittest.TestCase):
       Metrics.distribution("", "names")
 
   def test_create_counter_distribution(self):
-    MetricsEnvironment.set_current_container(MetricsContainer('mystep'))
-    counter_ns = 'aCounterNamespace'
-    distro_ns = 'aDistributionNamespace'
-    gauge_ns = 'aGaugeNamespace'
-    name = 'a_name'
-    counter = Metrics.counter(counter_ns, name)
-    distro = Metrics.distribution(distro_ns, name)
-    gauge = Metrics.gauge(gauge_ns, name)
-    counter.inc(10)
-    counter.dec(3)
-    distro.update(10)
-    distro.update(2)
-    gauge.set(10)
-    self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
-    self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
-    self.assertTrue(isinstance(gauge, Metrics.DelegatingGauge))
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state('mystep', 'myState',
+                                  metrics_container=MetricsContainer('mystep'))
+    with state1:
+      counter_ns = 'aCounterNamespace'
+      distro_ns = 'aDistributionNamespace'
+      name = 'a_name'
+      counter = Metrics.counter(counter_ns, name)
+      distro = Metrics.distribution(distro_ns, name)
+      counter.inc(10)
+      counter.dec(3)
+      distro.update(10)
+      distro.update(2)
+      self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
+      self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
 
-    del distro
-    del counter
-    del gauge
+      del distro
+      del counter
 
-    container = MetricsEnvironment.current_container()
-    self.assertEqual(
-        container.counters[MetricName(counter_ns, name)].get_cumulative(),
-        7)
-    self.assertEqual(
-        container.distributions[MetricName(distro_ns, name)].get_cumulative(),
-        DistributionData(12, 2, 2, 10))
-    self.assertEqual(
-        container.gauges[MetricName(gauge_ns, name)].get_cumulative().value,
-        10)
+      container = MetricsEnvironment.current_container()
+      self.assertEqual(
+          container.counters[MetricName(counter_ns, name)].get_cumulative(),
+          7)
+      self.assertEqual(
+          container.distributions[MetricName(distro_ns, name)].get_cumulative(),
+          DistributionData(12, 2, 2, 10))
 
 
 if __name__ == '__main__':

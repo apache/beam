@@ -31,8 +31,9 @@ from weakref import WeakValueDictionary
 import six
 
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
+from apache_beam.utils import counters
 
 
 class _ExecutorService(object):
@@ -40,7 +41,7 @@ class _ExecutorService(object):
 
   class CallableTask(object):
 
-    def call(self):
+    def call(self, state_sampler):
       pass
 
     @property
@@ -83,13 +84,15 @@ class _ExecutorService(object):
         return None
 
     def run(self):
+      state_sampler = statesampler.StateSampler('', counters.CounterFactory())
+      statesampler.set_current_tracker(state_sampler)
       while not self.shutdown_requested:
         task = self._get_task_or_none()
         if task:
           try:
             if not self.shutdown_requested:
               self._update_name(task)
-              task.call()
+              task.call(state_sampler)
               self._update_name()
           finally:
             self.queue.task_done()
@@ -290,35 +293,52 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._retry_count = 0
     self._max_retries_per_bundle = TransformExecutor._MAX_RETRY_PER_BUNDLE
 
-  def call(self):
+  def call(self, state_sampler):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_ptransform.side_inputs))
     metrics_container = MetricsContainer(self._applied_ptransform.full_label)
-    scoped_metrics_container = ScopedMetricsContainer(metrics_container)
+    start_state = state_sampler.scoped_state(
+        self._applied_ptransform.full_label,
+        'start',
+        metrics_container=metrics_container)
+    process_state = state_sampler.scoped_state(
+        self._applied_ptransform.full_label,
+        'process',
+        metrics_container=metrics_container)
+    finish_state = state_sampler.scoped_state(
+        self._applied_ptransform.full_label,
+        'finish',
+        metrics_container=metrics_container)
 
-    for side_input in self._applied_ptransform.side_inputs:
-      # Find the projection of main's window onto the side input's window.
-      window_mapping_fn = side_input._view_options().get(
-          'window_mapping_fn', sideinputs._global_window_mapping_fn)
-      main_onto_side_window = window_mapping_fn(self._latest_main_input_window)
-      block_until = main_onto_side_window.end
+    with start_state:
+      # Side input initialization should be accounted for in start_state.
+      for side_input in self._applied_ptransform.side_inputs:
+        # Find the projection of main's window onto the side input's window.
+        window_mapping_fn = side_input._view_options().get(
+            'window_mapping_fn', sideinputs._global_window_mapping_fn)
+        main_onto_side_window = window_mapping_fn(
+            self._latest_main_input_window)
+        block_until = main_onto_side_window.end
 
-      if side_input not in self._side_input_values:
-        value = self._evaluation_context.get_value_or_block_until_ready(
-            side_input, self, block_until)
-        if not value:
-          # Monitor task will reschedule this executor once the side input is
-          # available.
-          return
-        self._side_input_values[side_input] = value
-    side_input_values = [self._side_input_values[side_input]
-                         for side_input in self._applied_ptransform.side_inputs]
+        if side_input not in self._side_input_values:
+          value = self._evaluation_context.get_value_or_block_until_ready(
+              side_input, self, block_until)
+          if not value:
+            # Monitor task will reschedule this executor once the side input is
+            # available.
+            return
+          self._side_input_values[side_input] = value
+      side_input_values = [
+          self._side_input_values[side_input]
+          for side_input in self._applied_ptransform.side_inputs]
 
     while self._retry_count < self._max_retries_per_bundle:
       try:
         self.attempt_call(metrics_container,
-                          scoped_metrics_container,
-                          side_input_values)
+                          side_input_values,
+                          start_state,
+                          process_state,
+                          finish_state)
         break
       except Exception as e:
         self._retry_count += 1
@@ -336,24 +356,28 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._transform_evaluation_state.complete(self)
 
   def attempt_call(self, metrics_container,
-                   scoped_metrics_container,
-                   side_input_values):
+                   side_input_values,
+                   start_state,
+                   process_state,
+                   finish_state):
+    """Attempts to run a bundle."""
     evaluator = self._transform_evaluator_registry.get_evaluator(
         self._applied_ptransform, self._input_bundle,
-        side_input_values, scoped_metrics_container)
+        side_input_values)
 
-    with scoped_metrics_container:
+    with start_state:
       evaluator.start_bundle()
 
-    if self._fired_timers:
-      for timer_firing in self._fired_timers:
-        evaluator.process_timer_wrapper(timer_firing)
+    with process_state:
+      if self._fired_timers:
+        for timer_firing in self._fired_timers:
+          evaluator.process_timer_wrapper(timer_firing)
 
-    if self._input_bundle:
-      for value in self._input_bundle.get_elements_iterable():
-        evaluator.process_element(value)
+      if self._input_bundle:
+        for value in self._input_bundle.get_elements_iterable():
+          evaluator.process_element(value)
 
-    with scoped_metrics_container:
+    with finish_state:
       result = evaluator.finish_bundle()
       result.logical_metric_updates = metrics_container.get_cumulative()
 
@@ -525,7 +549,7 @@ class _ExecutorServiceParallelExecutor(object):
     def name(self):
       return 'monitor'
 
-    def call(self):
+    def call(self, state_sampler):
       try:
         update = self._executor.all_updates.poll()
         while update:

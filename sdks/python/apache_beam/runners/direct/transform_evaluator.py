@@ -89,7 +89,7 @@ class TransformEvaluatorRegistry(object):
 
   def get_evaluator(
       self, applied_ptransform, input_committed_bundle,
-      side_inputs, scoped_metrics_container):
+      side_inputs):
     """Returns a TransformEvaluator suitable for processing given inputs."""
     assert applied_ptransform
     assert bool(applied_ptransform.side_inputs) == bool(side_inputs)
@@ -106,8 +106,7 @@ class TransformEvaluatorRegistry(object):
           'Execution of [%s] not implemented in runner %s.' % (
               type(applied_ptransform.transform), self))
     return evaluator(self._evaluation_context, applied_ptransform,
-                     input_committed_bundle, side_inputs,
-                     scoped_metrics_container)
+                     input_committed_bundle, side_inputs)
 
   def get_root_bundle_provider(self, applied_ptransform):
     provider_cls = None
@@ -189,7 +188,7 @@ class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
     self._input_committed_bundle = input_committed_bundle
@@ -197,7 +196,6 @@ class _TransformEvaluator(object):
     self._expand_outputs()
     self._execution_context = evaluation_context.get_execution_context(
         applied_ptransform)
-    self.scoped_metrics_container = scoped_metrics_container
 
   def _expand_outputs(self):
     outputs = set()
@@ -279,13 +277,13 @@ class _BoundedReadEvaluator(_TransformEvaluator):
   MAX_ELEMENT_PER_BUNDLE = 1000
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     self._source = applied_ptransform.transform.source
     self._source.pipeline_options = evaluation_context.pipeline_options
     super(_BoundedReadEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def finish_bundle(self):
     assert len(self._outputs) == 1
@@ -314,12 +312,12 @@ class _TestStreamEvaluator(_TransformEvaluator):
   """TransformEvaluator for the TestStream transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     self.test_stream = applied_ptransform.transform
     super(_TestStreamEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     self.current_index = -1
@@ -383,11 +381,11 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   _subscription_cache = {}
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_PubSubReadEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
     self.source = self._applied_ptransform.transform._source
     self._subscription = _PubSubReadEvaluator.get_subscription(
@@ -481,11 +479,11 @@ class _FlattenEvaluator(_TransformEvaluator):
   """TransformEvaluator for Flatten transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_FlattenEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     assert len(self._outputs) == 1
@@ -534,11 +532,11 @@ class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container,
+               input_committed_bundle, side_inputs,
                perform_dofn_pickle_test=True):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
     # This is a workaround for SDF implementation. SDF implementation adds state
     # to the SDF that is not picklable.
     self._perform_dofn_pickle_test = perform_dofn_pickle_test
@@ -569,8 +567,7 @@ class _ParDoEvaluator(_TransformEvaluator):
         self._applied_ptransform.inputs[0].windowing,
         tagged_receivers=self._tagged_receivers,
         step_name=self._applied_ptransform.full_label,
-        state=DoFnState(self._counter_factory),
-        scoped_metrics_container=self.scoped_metrics_container)
+        state=DoFnState(self._counter_factory))
     self.runner.start()
 
   def process_element(self, element):
@@ -592,11 +589,11 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   COMPLETION_TAG = _CombiningValueStateTag('completed', any)
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_GroupByKeyOnlyEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def _is_final_bundle(self):
     return (self._execution_context.watermarks.input_watermark
@@ -687,11 +684,11 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   MAX_ELEMENT_PER_BUNDLE = None
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_StreamingGroupByKeyOnlyEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     self.gbk_items = collections.defaultdict(list)
@@ -739,11 +736,11 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
   """
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_StreamingGroupAlsoByWindowEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     assert len(self._outputs) == 1
@@ -798,11 +795,11 @@ class _NativeWriteEvaluator(_TransformEvaluator):
   ELEMENTS_TAG = _ListStateTag('elements')
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_NativeWriteEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
     assert applied_ptransform.transform.sink
     self._sink = applied_ptransform.transform.sink
@@ -867,10 +864,10 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
   DEFAULT_MAX_DURATION = 1
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     super(_ProcessElementsEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
     process_elements_transform = applied_ptransform.transform
     assert isinstance(process_elements_transform, ProcessElements)
@@ -895,7 +892,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
     self._par_do_evaluator = _ParDoEvaluator(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container, perform_dofn_pickle_test=False)
+        side_inputs, perform_dofn_pickle_test=False)
     self.keyed_holds = {}
 
   def start_bundle(self):
