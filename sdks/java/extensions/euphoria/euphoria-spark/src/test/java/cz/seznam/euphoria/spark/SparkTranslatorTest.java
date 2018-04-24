@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.io.VoidSink;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.hint.ComputationHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.testing.DatasetAssert;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
@@ -37,6 +38,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -44,56 +46,67 @@ import static org.mockito.Mockito.mock;
 public class SparkTranslatorTest {
 
   /**
-   * Dataset {@code mapped} and {@code reduced} are used twice in flow so they should be cached.
-   * In flow translation it corresponds with node 3 (mapped) and node 6 (reduced).
+   * Dataset {@code mapped} and {@code reduced} are used twice in flow so they should be cached. In
+   * flow translation it corresponds with node 3 (mapped) and node 6 (reduced).
    */
   @Test
-  public void testRDDcaching() {
-    Flow flow = Flow.create(getClass().getSimpleName());
-    final ListDataSource<Integer> dataSource = ListDataSource.bounded(Arrays.asList(
-        1, 2, 3,
-        4, 5, 6, 7));
-    Dataset<Integer> input = flow.createInput(dataSource);
+  public void testRDDCaching() {
 
-    Dataset<Integer> mapped = MapElements.of(input).using(e -> e).output();
-    Dataset<Pair<Integer, Long>> reduced = ReduceByKey
-        .of(mapped)
-        .keyBy(e -> e)
-        .reduceBy(values -> 1L)
-        .windowBy(Time.of(Duration.ofSeconds(1)))
-        .output();
+    final Flow flow = Flow.create(getClass().getSimpleName());
 
-    Dataset<Integer> mapped2 = MapElements.of(mapped).using(e -> e).output();
-    mapped2.persist(new VoidSink<>());
+    final ListDataSource<Integer> dataSource =
+        ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
 
-    Dataset<Integer> mapped3 = MapElements.of(reduced).using(Pair::getFirst).output();
-    mapped3.persist(new VoidSink<>());
+    final Dataset<Integer> input = flow.createInput(dataSource);
 
-    Dataset<Pair<Integer, Long>> output = Join.of(mapped, reduced)
+    final Dataset<Integer> mapped = MapElements.of(input)
+        .using(e -> e)
+        .output(ComputationHint.EXPENSIVE);
+
+    final Dataset<Pair<Integer, Long>> reduced =
+        ReduceByKey.of(mapped)
+            .keyBy(e -> e)
+            .reduceBy(values -> 1L)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .output(ComputationHint.EXPENSIVE);
+
+    MapElements.of(mapped)
+        .using(e -> e)
+        .output()
+        .persist(new VoidSink<>());
+
+    MapElements.of(reduced)
+        .using(Pair::getFirst)
+        .output()
+        .persist(new VoidSink<>());
+
+    Join.of(mapped, reduced)
         .by(e -> e, Pair::getFirst)
-        .using((Integer l, Pair<Integer, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
+        .using((Integer l, Pair<Integer, Long> r, Collector<Long> c) ->
+            c.collect(r.getSecond()))
         .windowBy(Time.of(Duration.ofSeconds(1)))
-        .output();
+        .output()
+        .persist(new VoidSink<>());
 
-    output.persist(new VoidSink<>());
+    final JavaSparkContext sparkContext =
+        new JavaSparkContext(
+            new SparkConf()
+                .setAppName("test")
+                .setMaster("local[4]")
+                .set("spark.serializer", KryoSerializer.class.getName())
+                .set("spark.kryo.registrationRequired", "false"));
 
-    JavaSparkContext sparkContext = new JavaSparkContext(new SparkConf()
-        .setAppName("test")
-        .setMaster("local[4]")
-        .set("spark.serializer", KryoSerializer.class.getName())
-        .set("spark.kryo.registrationRequired", "false"));
+    final SparkAccumulatorFactory mockedFactory = mock(SparkAccumulatorFactory.class);
 
-    SparkAccumulatorFactory mockedFactory = mock(SparkAccumulatorFactory.class);
-
-
-    SparkFlowTranslator translator = new SparkFlowTranslator(sparkContext, flow.getSettings(), mockedFactory);
+    final SparkFlowTranslator translator =
+        new SparkFlowTranslator(sparkContext, flow.getSettings(), mockedFactory);
     translator.translateInto(flow, StorageLevel.MEMORY_ONLY());
 
-    List<Integer> expectedCachedNodeNumbers = new ArrayList<>(Arrays.asList(3, 6));
+    final List<Integer> expectedCachedNodeNumbers = new ArrayList<>(Arrays.asList(3, 6));
 
     assertEquals(2, sparkContext.getPersistentRDDs().size());
-    DatasetAssert.unorderedEquals(expectedCachedNodeNumbers,
-        new ArrayList<>(sparkContext.getPersistentRDDs().keySet()));
+    DatasetAssert.unorderedEquals(
+        expectedCachedNodeNumbers, new ArrayList<>(sparkContext.getPersistentRDDs().keySet()));
 
     sparkContext.close();
   }
