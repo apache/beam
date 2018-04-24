@@ -688,31 +688,37 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
               return null;
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
               return null;
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
               return null;
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
               return null;
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
               return null;
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
               return null;
             }
