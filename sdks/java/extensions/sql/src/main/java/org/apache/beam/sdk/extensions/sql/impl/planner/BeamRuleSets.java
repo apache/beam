@@ -21,8 +21,6 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamFilterRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSourceRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
@@ -43,17 +41,15 @@ public class BeamRuleSets {
   public static RuleSet[] getRuleSets(BeamSqlEnv sqlEnv) {
     return new RuleSet[] {
       RuleSets.ofList(
-          BeamIOSourceRule.forSqlEnv(sqlEnv),
           BeamProjectRule.INSTANCE,
           BeamFilterRule.INSTANCE,
-          BeamIOSinkRule.forSqlEnv(sqlEnv),
           BeamAggregationRule.INSTANCE,
           BeamSortRule.INSTANCE,
           BeamValuesRule.INSTANCE,
           BeamIntersectRule.INSTANCE,
           BeamMinusRule.INSTANCE,
           BeamUnionRule.INSTANCE,
-          BeamJoinRule.forSqlEnv(sqlEnv))
+          BeamJoinRule.INSTANCE)
     };
   }
 }
