@@ -60,6 +60,7 @@ class DataflowDistributionCounter(object):
   BUCKET_PER_TEN = 3
 
   def __init__(self):
+    global INT64_MAX  # pylint: disable=global-variable-not-assigned
     self.min = INT64_MAX
     self.max = 0
     self.count = 0
