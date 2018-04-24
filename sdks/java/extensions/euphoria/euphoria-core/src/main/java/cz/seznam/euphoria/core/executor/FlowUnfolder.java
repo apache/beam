@@ -53,6 +53,7 @@ public class FlowUnfolder {
     InputOperator(Dataset<T> ds) {
       super("InputOperator", ds.getFlow());
       this.ds = ds;
+      this.hints = Collections.emptySet();
     }
 
     @Override
