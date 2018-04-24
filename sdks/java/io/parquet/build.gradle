@@ -20,36 +20,22 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
-
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
+ext.summary = "IO to read and write on Parquet storage format."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
-  shadow "org.apache.parquet:parquet-hadoop:1.9.0"
-  shadow "org.apache.parquet:parquet-avro:1.9.0"
+  shadow "org.apache.parquet:parquet-hadoop:1.10.0"
+  shadow "org.apache.parquet:parquet-avro:1.10.0"
   shadow "org.apache.avro:avro:1.8.1"
   shadow "org.apache.hadoop:hadoop-common:2.7.2"
   shadow "org.apache.hadoop:hadoop-client:2.7.2"
-  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
