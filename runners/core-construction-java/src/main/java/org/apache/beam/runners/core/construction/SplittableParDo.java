@@ -370,7 +370,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
             @Override
             public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
-              c.outputWithTimestamp(KV.of(element, part), timestamp);
+              throw new UnsupportedOperationException();
             }
           }
       );
