@@ -18,9 +18,14 @@
 package org.apache.beam.sdk.io.parquet;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.hadoop.crypto.key.kms.KMSClientProvider.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -28,7 +33,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -44,6 +51,8 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.io.OutputFile;
+import org.apache.parquet.io.PositionOutputStream;
 import org.joda.time.Duration;
 
 /**
@@ -77,7 +86,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  *  pipeline
  *    .apply(...) // PCollection<GenericRecord>
- *    .apply(ParquetIO.write().withPath("/foo/bar").withSchema(schema));
+ *    .apply(ParquetIO.write().to("/foo/bar").withSchema(schema));
  * }</pre>
  */
 public class ParquetIO {
@@ -229,8 +238,8 @@ public class ParquetIO {
   public abstract static class ReadAll extends PTransform<PCollection<String>,
       PCollection<GenericRecord>> {
 
-    abstract FileIO.MatchConfiguration matchConfiguration();
-    @Nullable abstract Schema schema();
+    abstract FileIO.MatchConfiguration getMatchConfiguration();
+    @Nullable abstract Schema getSchema();
 
     abstract Builder builder();
 
@@ -253,7 +262,7 @@ public class ParquetIO {
      * Sets the {@link EmptyMatchTreatment}.
      */
     public ReadAll withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
-      return withMatchConfiguration(matchConfiguration().withEmptyMatchTreatment(treatment));
+      return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
     /**
@@ -267,22 +276,22 @@ public class ParquetIO {
     public ReadAll watchForNewFiles(
         Duration pollInterval, Watch.Growth.TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
-          matchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     @Override
     public PCollection<GenericRecord> expand(PCollection<String> input) {
-      checkNotNull(schema(), "schema");
+      checkNotNull(getSchema(), "schema");
       return input
-          .apply(FileIO.matchAll().withConfiguration(matchConfiguration()))
+          .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(FileIO.readMatches())
-          .apply(readFiles().withSchema(schema()));
+          .apply(readFiles().withSchema(getSchema()));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.include("matchConfiguration", matchConfiguration());
+      builder.include("matchConfiguration", getMatchConfiguration());
     }
 
   }
@@ -303,6 +312,7 @@ public class ParquetIO {
       abstract Builder setSchema(Schema schema);
       abstract ReadFiles build();
     }
+
     /**
      * Define the Avro schema of the record to read from the Parquet file.
      */
@@ -339,7 +349,6 @@ public class ParquetIO {
       }
 
     }
-
   }
 
   /**
@@ -348,76 +357,160 @@ public class ParquetIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<GenericRecord>, PDone> {
 
-    @Nullable abstract String path();
-    @Nullable abstract String schema();
+    @Nullable abstract String getFilenamePrefix();
+
+    @Nullable abstract Schema getSchema();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setPath(String path);
-      abstract Builder setSchema(String schema);
+      abstract Builder setFilenamePrefix(String prefix);
+      abstract Builder setSchema(Schema schema);
       abstract Write build();
     }
 
     /**
-     * Define the location (path) of the Parquet file to write.
+     * Writes to files with the given path prefix.
+     *
+     * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
+     * the number of output bundles.
      */
-    public Write withPath(String path) {
-      checkArgument(path != null, "ParquetIO.write().withPath(path) called with null path");
-      return builder().setPath(path).build();
+    public Write to(String filenamePrefix) {
+      checkArgument(filenamePrefix != null,
+        "ParquetIO.write().to(path) called with null filenamePrefix");
+      return builder().setFilenamePrefix(filenamePrefix).build();
     }
 
     /**
      * Define the Avro schema of the Avro {@link GenericRecord} to be written in the Parquet file.
      */
-    public Write withSchema(String schema) {
-      checkArgument(schema != null,
-          "ParquetIO.write().withSchema(schema) called with null schema");
+    public Write withSchema(Schema schema) {
+
       return builder().setSchema(schema).build();
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("path", path()));
-      builder.add(DisplayData.item("schema", schema()));
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("filenamePrefix", getFilenamePrefix()));
     }
 
     @Override
     public PDone expand(PCollection<GenericRecord> input) {
-      input.apply(ParDo.of(new WriteFn(this)));
+      checkArgument(getSchema() != null,
+        "ParquetIO.write().withSchema(schema) called with null schema");
+      checkArgument(getFilenamePrefix() != null, "to() is required");
+
+      ResourceId prefix =
+        FileSystems.matchNewResource(getFilenamePrefix(), false /* isDirectory */);
+
+      input.apply(
+        FileIO.<GenericRecord>write()
+          .via(sink(getSchema()))
+          .to(prefix.getCurrentDirectory().toString())
+          .withPrefix(prefix.getFilename())
+          .withSuffix(".parquet"));
+
       return PDone.in(input.getPipeline());
     }
-
-    static class WriteFn extends DoFn<GenericRecord, Void> {
-
-      private Write spec;
-      private transient ParquetWriter<GenericRecord> writer;
-
-      public WriteFn(Write spec) {
-        this.spec = spec;
-      }
-
-      @Setup
-      public void setup() throws Exception {
-        Path path = new Path(spec.path());
-        Schema schema = new Schema.Parser().parse(spec.schema());
-        writer = AvroParquetWriter.<GenericRecord>builder(path).withSchema(schema).build();
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext processContext) throws Exception {
-        GenericRecord record = processContext.element();
-        writer.write(record);
-      }
-
-      @Teardown
-      public void teardown() throws Exception {
-        writer.close();
-      }
-
-    }
-
   }
 
+  /**
+   * Creates a {@link Sink} that, for use with {@link FileIO#write}.
+   */
+  public static Sink<GenericRecord> sink(Schema schema) {
+    return new AutoValue_ParquetIO_Sink.Builder<GenericRecord>()
+      .setJsonSchema(schema.toString())
+      .build();
+  }
+
+  /** Implementation of {@link #sink}. */
+  @AutoValue
+  public abstract static class Sink<T> implements FileIO.Sink<GenericRecord> {
+
+    abstract String getJsonSchema();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setJsonSchema(String jsonSchema);
+      abstract Sink<T> build();
+    }
+
+    @Nullable private transient ParquetWriter<GenericRecord> writer;
+
+    @Nullable private transient Schema schema;
+
+    @Override
+    public void open(WritableByteChannel channel) throws IOException {
+      this.schema = new Schema.Parser().parse(getJsonSchema());
+
+      BeamParquetOutputFile beamParquetOutputFile =
+        new BeamParquetOutputFile(Channels.newOutputStream(channel));
+
+      this.writer = AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
+        .withSchema(schema)
+        .withWriteMode(OVERWRITE)
+        .build();
+    }
+
+    @Override
+    public void write(GenericRecord element) throws IOException {
+      checkNotNull(writer, "Writer cannot be null");
+      writer.write(element);
+    }
+
+    @Override
+    public void flush() throws IOException {
+      writer.close();
+    }
+
+    private static class BeamParquetOutputFile implements OutputFile {
+
+      private OutputStream outputStream;
+
+      BeamParquetOutputFile(OutputStream outputStream) {
+        this.outputStream = outputStream;
+      }
+
+      @Override public PositionOutputStream create(long blockSizeHint) throws IOException {
+        return new BeamOutputStream(outputStream);
+      }
+
+      @Override public PositionOutputStream createOrOverwrite(long blockSizeHint) {
+        return new BeamOutputStream(outputStream);
+      }
+
+      @Override public boolean supportsBlockSize() {
+        return false;
+      }
+
+      @Override public long defaultBlockSize() {
+        return 0;
+      }
+    }
+
+    private static class BeamOutputStream extends PositionOutputStream {
+      private long position = 0;
+      private OutputStream outputStream;
+
+      private BeamOutputStream(OutputStream outputStream) {
+        this.outputStream = outputStream;
+      }
+
+      @Override public long getPos() throws IOException {
+        return position;
+      }
+
+      @Override public void write(int b) throws IOException {
+        position++;
+        outputStream.write(b);
+      }
+    }
+  }
+
+  /** Disallow construction of utility class. */
+  private ParquetIO() {}
 }
