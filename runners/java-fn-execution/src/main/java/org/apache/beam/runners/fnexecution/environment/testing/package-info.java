@@ -15,12 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.control;
 
-import java.util.concurrent.CompletionStage;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-
-/** Interface for any function that can handle a Fn API {@link BeamFnApi.InstructionRequest}. */
-public interface InstructionRequestHandler extends AutoCloseable {
-  CompletionStage<BeamFnApi.InstructionResponse> handle(BeamFnApi.InstructionRequest request);
-}
+/** Test utilities for the environment management package. */
+package org.apache.beam.runners.fnexecution.environment.testing;
