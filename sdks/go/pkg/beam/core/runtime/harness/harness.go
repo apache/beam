@@ -105,11 +105,11 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 		// Launch a goroutine to handle the control message.
 		// TODO(wcn): implement a rate limiter for 'heavy' messages?
-		fn := func() {
+		fn := func(ctx context.Context, req *fnpb.InstructionRequest) {
 			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
-			hooks.RunRequestHooks(ctx, req)
+			ctx = hooks.RunRequestHooks(ctx, req)
 			resp := ctrl.handleInstruction(ctx, req)
 
 			hooks.RunResponseHooks(ctx, req, resp)
@@ -123,9 +123,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		if req.GetProcessBundle() != nil {
 			// Only process bundles in a goroutine. We at least need to process instructions for
 			// each plan serially. Perhaps just invoke plan.Execute async?
-			go fn()
+			go fn(ctx, req)
 		} else {
-			fn()
+			fn(ctx, req)
 		}
 	}
 }
