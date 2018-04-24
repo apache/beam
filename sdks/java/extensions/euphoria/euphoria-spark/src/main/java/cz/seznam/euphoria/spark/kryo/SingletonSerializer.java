@@ -21,6 +21,7 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -47,28 +48,39 @@ public class SingletonSerializer<T> extends Serializer<T> {
   private final String methodName;
 
   /** Cached singleton instance. */
+  @GuardedBy("lock")
   private T instance;
+
+  /**
+   * Lock for synchronization of singleton instance.
+   */
+  private final Object lock = new Object();
 
   private SingletonSerializer(String methodName) {
     this.methodName = methodName;
   }
 
   @Override
-  public void write(Kryo kryo, Output output, T object) {}
+  public void write(Kryo kryo, Output output, T object) {
+    // we have nothing to write
+  }
 
   @Override
   @SuppressWarnings("unchecked")
   public T read(Kryo kryo, Input input, Class<T> type) {
     try {
-      if (instance == null) {
-        final Method method = kryo.getClassLoader().loadClass(type.getName()).getMethod(methodName);
-        if (!Modifier.isStatic(method.getModifiers())) {
-          throw new KryoException(
-              "Method " + type.getName() + "#" + methodName + " is not static.");
+      synchronized (lock) {
+        if (instance == null) {
+          final Method method =
+              kryo.getClassLoader().loadClass(type.getName()).getMethod(methodName);
+          if (!Modifier.isStatic(method.getModifiers())) {
+            throw new KryoException(
+                "Method " + type.getName() + "#" + methodName + " is not static.");
+          }
+          instance = (T) method.invoke(null);
         }
-        instance = (T) method.invoke(null);
+        return instance;
       }
-      return instance;
     } catch (IllegalAccessException
         | ClassNotFoundException
         | NoSuchMethodException
