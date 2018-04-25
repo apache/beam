@@ -24,8 +24,16 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.beam.runners.core.metrics.MetricsPusherTest;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.test.ThreadLeakTracker;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,9 +45,11 @@ import org.junit.rules.TestRule;
  */
 public class ExecutorServiceParallelExecutorTest {
 
+  private static final long NUM_ELEMENTS = 1000L;
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
   @Rule
   public final TestRule threadTracker = new ThreadLeakTracker();
-
   @Rule
   public final TestName testName = new TestName();
 
@@ -67,5 +77,29 @@ public class ExecutorServiceParallelExecutorTest {
               context,
               executorService)
       .stop();
+  }
+
+  @Test
+  public void test() throws Exception {
+    pipeline
+        .apply(
+            // Use maxReadTime to force unbounded mode.
+            GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
+        .apply(ParDo.of(new CountingDoFn()));
+    pipeline.run();
+  }
+
+  private static class CountingDoFn extends DoFn<Long, Long> {
+    private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      try {
+        counter.inc();
+        context.output(context.element());
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
   }
 }
