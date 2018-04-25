@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -28,8 +28,8 @@ import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.StepTransformResult.Builder;
+import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.direct.portable.StepTransformResult.Builder;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;

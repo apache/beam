@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;

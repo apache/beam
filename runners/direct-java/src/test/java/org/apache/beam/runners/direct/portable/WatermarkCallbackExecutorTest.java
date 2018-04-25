@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -23,6 +23,8 @@ import static org.junit.Assert.assertThat;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -42,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WatermarkCallbackExecutor}.
- */
+/** Tests for {@link WatermarkCallbackExecutor}. */
 @RunWith(JUnit4.class)
 public class WatermarkCallbackExecutorTest {
   private WatermarkCallbackExecutor executor =
@@ -52,15 +52,15 @@ public class WatermarkCallbackExecutorTest {
   private AppliedPTransform<?, ?, ?> create;
   private AppliedPTransform<?, ?, ?> sum;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> summed = created.apply(Sum.integersGlobally());
     DirectGraphs.performDirectOverrides(p);
-    DirectGraph graph = DirectGraphs.getGraph(p);
+    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
+        DirectGraphs.getGraph(p);
     create = graph.getProducer(created);
     sum = graph.getProducer(summed);
   }

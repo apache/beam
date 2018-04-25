@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
@@ -24,8 +24,8 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
-import org.apache.beam.runners.direct.CommittedResult.OutputType;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;

@@ -45,6 +45,7 @@ public class DirectRunnerApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam.sdk",
             "org.apache.beam.runners.direct",
+            "org.apache.beam.runners.direct.portable",
             "org.joda.time",
             "javax.annotation");
 
@@ -61,6 +62,7 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(PipelineOptions.DirectRunner.class)
             .pruningClass(DisplayData.Builder.class)
             .pruningClass(MetricResults.class)
+            .pruningClass(DirectGraphs.class)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")

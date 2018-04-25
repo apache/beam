@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+
+package org.apache.beam.runners.direct.portable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 
 /**
- * Execution Context for the {@link DirectRunner}.
+ * Execution Context for the {@code DirectRunner}.
  *
  * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
@@ -61,7 +62,7 @@ class DirectExecutionContext {
   }
 
   /**
-   * Step Context for the {@link DirectRunner}.
+   * Step Context for the {@code DirectRunner}.
    */
   public class DirectStepContext implements StepContext {
     private CopyOnAccessInMemoryStateInternals<?> stateInternals;

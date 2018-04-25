@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
@@ -32,7 +32,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -51,7 +52,7 @@ class QuiescenceDriver implements ExecutionDriver {
 
   public static ExecutionDriver create(
       EvaluationContext context,
-      DirectGraph graph,
+      ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph,
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver messageReceiver,
@@ -60,7 +61,7 @@ class QuiescenceDriver implements ExecutionDriver {
   }
 
   private final EvaluationContext evaluationContext;
-  private final DirectGraph graph;
+  private final ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph;
   private final BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
       bundleProcessor;
   private final PipelineMessageReceiver pipelineMessageReceiver;
@@ -79,7 +80,7 @@ class QuiescenceDriver implements ExecutionDriver {
 
   private QuiescenceDriver(
       EvaluationContext evaluationContext,
-      DirectGraph graph,
+      ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph,
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,

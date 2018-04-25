@@ -22,4 +22,4 @@
  *
  * <p>See {@link org.apache.beam.sdk.runners} for more information about Pipeline Runners.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;

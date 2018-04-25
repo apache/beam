@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -35,22 +37,21 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StepTransformResult}.
- */
+/** Tests for {@link StepTransformResult}. */
 @RunWith(JUnit4.class)
 public class StepTransformResultTest {
   private AppliedPTransform<?, ?, ?> transform;
   private BundleFactory bundleFactory;
   private PCollection<Integer> pc;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
     pc = p.apply(Create.of(1, 2, 3));
-    transform = DirectGraphs.getGraph(p).getProducer(pc);
+    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
+        DirectGraphs.getGraph(p);
+    transform = graph.getProducer(pc);
 
     bundleFactory = ImmutableListBundleFactory.create();
   }

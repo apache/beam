@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -33,16 +33,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StructuralKey}.
- */
+/** Tests for {@link StructuralKey}. */
 @RunWith(JUnit4.class)
 public class StructuralKeyTest {
   @Test
   public void getKeyEqualToOldKey() {
     assertThat(StructuralKey.of(1234, VarIntCoder.of()).getKey(), equalTo(1234));
     assertThat(StructuralKey.of("foobar", StringUtf8Coder.of()).getKey(), equalTo("foobar"));
-    assertArrayEquals(StructuralKey.of(new byte[] {2, 9, -22}, ByteArrayCoder.of()).getKey(),
+    assertArrayEquals(
+        StructuralKey.of(new byte[] {2, 9, -22}, ByteArrayCoder.of()).getKey(),
         new byte[] {2, 9, -22});
   }
 

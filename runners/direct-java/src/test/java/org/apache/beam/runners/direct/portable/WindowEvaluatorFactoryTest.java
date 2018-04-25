@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.apache.beam.runners.core.WindowMatchers.isSingleWindowedValue;
 import static org.apache.beam.runners.core.WindowMatchers.isWindowedValue;
@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.runners.direct.DirectGraphs;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,9 +58,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link WindowEvaluatorFactory}.
- */
+/** Tests for {@link WindowEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class WindowEvaluatorFactoryTest {
   private static final Instant EPOCH = new Instant(0);
@@ -77,9 +76,7 @@ public class WindowEvaluatorFactoryTest {
   private final PaneInfo intervalWindowPane = PaneInfo.createPane(false, false, Timing.LATE, 3, 2);
   private WindowedValue<Long> valueInIntervalWindow =
       WindowedValue.of(
-              2L,
-          new Instant(-10L),
-          new IntervalWindow(new Instant(-100), EPOCH), intervalWindowPane);
+          2L, new Instant(-10L), new IntervalWindow(new Instant(-100), EPOCH), intervalWindowPane);
 
   private IntervalWindow intervalWindow1 =
       new IntervalWindow(EPOCH, BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -91,13 +88,12 @@ public class WindowEvaluatorFactoryTest {
   private final PaneInfo multiWindowPane = PaneInfo.createPane(false, true, Timing.ON_TIME, 3, 0);
   private WindowedValue<Long> valueInGlobalAndTwoIntervalWindows =
       WindowedValue.of(
-              1L,
+          1L,
           EPOCH.plus(Duration.standardDays(3)),
           ImmutableList.of(GlobalWindow.INSTANCE, intervalWindow1, intervalWindow2),
           multiWindowPane);
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -308,8 +304,8 @@ public class WindowEvaluatorFactoryTest {
 
     @Override
     public Coder<BoundedWindow> windowCoder() {
-      @SuppressWarnings({"unchecked", "rawtypes"}) Coder coder =
-          (Coder) GlobalWindow.Coder.INSTANCE;
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder coder = (Coder) GlobalWindow.Coder.INSTANCE;
       return coder;
     }
 

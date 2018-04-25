@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -32,12 +31,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -74,8 +73,7 @@ public class DirectTransformExecutorTest {
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -93,7 +91,8 @@ public class DirectTransformExecutorTest {
     PCollection<KV<Integer, String>> downstream = created.apply(WithKeys.of(3));
 
     DirectGraphs.performDirectOverrides(p);
-    DirectGraph graph = DirectGraphs.getGraph(p);
+    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
+        DirectGraphs.getGraph(p);
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
 
@@ -124,7 +123,6 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.emptyList(),
             null,
             createdProducer,
             completionCallback,
@@ -144,7 +142,6 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.emptyList(),
             null,
             createdProducer,
             completionCallback,
@@ -185,7 +182,6 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.emptyList(),
             inputBundle,
             downstreamProducer,
             completionCallback,
@@ -227,7 +223,6 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.emptyList(),
             inputBundle,
             downstreamProducer,
             completionCallback,
@@ -261,7 +256,6 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.emptyList(),
             inputBundle,
             downstreamProducer,
             completionCallback,
@@ -272,124 +266,6 @@ public class DirectTransformExecutorTest {
 
     assertThat(completionCallback.handledResult, is(nullValue()));
     assertThat(completionCallback.handledException, Matchers.<Throwable>equalTo(exception));
-  }
-
-  @Test
-  public void callWithEnforcementAppliesEnforcement() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(downstreamProducer).build();
-
-    TransformEvaluator<Object> evaluator =
-        new TransformEvaluator<Object>() {
-          @Override
-          public void processElement(WindowedValue<Object> element) throws Exception {}
-
-          @Override
-          public TransformResult<Object> finishBundle() throws Exception {
-            return result;
-          }
-        };
-
-    WindowedValue<String> fooElem = WindowedValue.valueInGlobalWindow("foo");
-    WindowedValue<String> barElem = WindowedValue.valueInGlobalWindow("bar");
-    CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(fooElem).add(barElem).commit(Instant.now());
-    when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
-
-    TestEnforcementFactory enforcement = new TestEnforcementFactory();
-    DirectTransformExecutor<String> executor =
-        new DirectTransformExecutor<>(
-            evaluationContext,
-            registry,
-            Collections.<ModelEnforcementFactory>singleton(enforcement),
-            inputBundle,
-            downstreamProducer,
-            completionCallback,
-            transformEvaluationState);
-
-    executor.run();
-    TestEnforcement<?> testEnforcement = enforcement.instance;
-    assertThat(testEnforcement.beforeElements, Matchers.containsInAnyOrder(barElem, fooElem));
-    assertThat(testEnforcement.afterElements, Matchers.containsInAnyOrder(barElem, fooElem));
-    assertThat(testEnforcement.finishedBundles, Matchers.contains(result));
-  }
-
-  @Test
-  public void callWithEnforcementThrowsOnFinishPropagates() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(createdProducer).build();
-
-    TransformEvaluator<Object> evaluator =
-        new TransformEvaluator<Object>() {
-          @Override
-          public void processElement(WindowedValue<Object> element) throws Exception {}
-
-          @Override
-          public TransformResult<Object> finishBundle() throws Exception {
-            return result;
-          }
-        };
-
-    WindowedValue<String> fooBytes = WindowedValue.valueInGlobalWindow("foo");
-    CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(fooBytes).commit(Instant.now());
-    when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
-
-    DirectTransformExecutor<String> executor =
-        new DirectTransformExecutor<>(
-            evaluationContext,
-            registry,
-            Collections.<ModelEnforcementFactory>singleton(
-                new ThrowingEnforcementFactory(ThrowingEnforcementFactory.When.AFTER_BUNDLE)),
-            inputBundle,
-            downstreamProducer,
-            completionCallback,
-            transformEvaluationState);
-
-    Future<?> task = Executors.newSingleThreadExecutor().submit(executor);
-
-    thrown.expectCause(isA(RuntimeException.class));
-    thrown.expectMessage("afterFinish");
-    task.get();
-  }
-
-  @Test
-  public void callWithEnforcementThrowsOnElementPropagates() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(createdProducer).build();
-
-    TransformEvaluator<Object> evaluator =
-        new TransformEvaluator<Object>() {
-          @Override
-          public void processElement(WindowedValue<Object> element) throws Exception {}
-
-          @Override
-          public TransformResult<Object> finishBundle() throws Exception {
-            return result;
-          }
-        };
-
-    WindowedValue<String> fooBytes = WindowedValue.valueInGlobalWindow("foo");
-    CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(fooBytes).commit(Instant.now());
-    when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
-
-    DirectTransformExecutor<String> executor =
-        new DirectTransformExecutor<>(
-            evaluationContext,
-            registry,
-            Collections.<ModelEnforcementFactory>singleton(
-                new ThrowingEnforcementFactory(ThrowingEnforcementFactory.When.AFTER_ELEMENT)),
-            inputBundle,
-            downstreamProducer,
-            completionCallback,
-            transformEvaluationState);
-
-    Future<?> task = Executors.newSingleThreadExecutor().submit(executor);
-
-    thrown.expectCause(isA(RuntimeException.class));
-    thrown.expectMessage("afterElement");
-    task.get();
   }
 
   private static class RegisteringCompletionCallback implements CompletionCallback {
@@ -438,92 +314,6 @@ public class DirectTransformExecutorTest {
     @Override
     public void handleError(Error err) {
       throw err;
-    }
-  }
-
-  private static class TestEnforcementFactory implements ModelEnforcementFactory {
-    private TestEnforcement<?> instance;
-
-    @Override
-    public <T> TestEnforcement<T> forBundle(
-        CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
-      TestEnforcement<T> newEnforcement = new TestEnforcement<>();
-      instance = newEnforcement;
-      return newEnforcement;
-    }
-  }
-
-  private static class TestEnforcement<T> implements ModelEnforcement<T> {
-    private final List<WindowedValue<T>> beforeElements = new ArrayList<>();
-    private final List<WindowedValue<T>> afterElements = new ArrayList<>();
-    private final List<TransformResult<?>> finishedBundles = new ArrayList<>();
-
-    @Override
-    public void beforeElement(WindowedValue<T> element) {
-      beforeElements.add(element);
-    }
-
-    @Override
-    public void afterElement(WindowedValue<T> element) {
-      afterElements.add(element);
-    }
-
-    @Override
-    public void afterFinish(
-        CommittedBundle<T> input,
-        TransformResult<T> result,
-        Iterable<? extends CommittedBundle<?>> outputs) {
-      finishedBundles.add(result);
-    }
-  }
-
-  private static class ThrowingEnforcementFactory implements ModelEnforcementFactory {
-    private final When when;
-
-    private ThrowingEnforcementFactory(When when) {
-      this.when = when;
-    }
-
-    enum When {
-      BEFORE_BUNDLE,
-      BEFORE_ELEMENT,
-      AFTER_ELEMENT,
-      AFTER_BUNDLE
-    }
-
-    @Override
-    public <T> ModelEnforcement<T> forBundle(
-        CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
-      if (when == When.BEFORE_BUNDLE) {
-        throw new RuntimeException("forBundle");
-      }
-      return new ThrowingEnforcement<>();
-    }
-
-    private class ThrowingEnforcement<T> implements ModelEnforcement<T> {
-      @Override
-      public void beforeElement(WindowedValue<T> element) {
-        if (when == When.BEFORE_ELEMENT) {
-          throw new RuntimeException("beforeElement");
-        }
-      }
-
-      @Override
-      public void afterElement(WindowedValue<T> element) {
-        if (when == When.AFTER_ELEMENT) {
-          throw new RuntimeException("afterElement");
-        }
-      }
-
-      @Override
-      public void afterFinish(
-          CommittedBundle<T> input,
-          TransformResult<T> result,
-          Iterable<? extends CommittedBundle<?>> outputs) {
-        if (when == When.AFTER_BUNDLE) {
-          throw new RuntimeException("afterFinish");
-        }
-      }
     }
   }
 }

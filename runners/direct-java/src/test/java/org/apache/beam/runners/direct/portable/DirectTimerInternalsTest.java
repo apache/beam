@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -24,9 +24,9 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -39,9 +39,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link DirectTimerInternals}.
- */
+/** Tests for {@link DirectTimerInternals}. */
 @RunWith(JUnit4.class)
 public class DirectTimerInternalsTest {
   private MockClock clock;
