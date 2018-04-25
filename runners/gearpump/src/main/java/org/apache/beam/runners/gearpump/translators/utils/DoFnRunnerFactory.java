@@ -71,16 +71,9 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
       ReadyCheckingSideInputReader sideInputReader) {
     PipelineOptions options = serializedOptions.get();
-    DoFnRunner<InputT, OutputT> underlying =
-        DoFnRunners.simpleRunner(
-            options,
-            fn,
-            sideInputReader,
-            outputManager,
-            mainOutputTag,
-            sideOutputTags,
-            stepContext,
-            windowingStrategy);
+    DoFnRunner<InputT, OutputT> underlying = DoFnRunners.simpleRunner(
+        options, fn, sideInputReader, outputManager, mainOutputTag,
+        sideOutputTags, stepContext, null, windowingStrategy);
     return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
 }

@@ -430,29 +430,30 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       additionalOutputPortMapping.put(additionalOutputTags.get(i), port);
     }
 
-    NoOpStepContext stepContext =
-        new NoOpStepContext() {
+    NoOpStepContext stepContext = new NoOpStepContext() {
 
-          @Override
-          public StateInternals stateInternals() {
-            return currentKeyStateInternals;
-          }
+      @Override
+      public StateInternals stateInternals() {
+        return currentKeyStateInternals;
+      }
 
-          @Override
-          public TimerInternals timerInternals() {
-            return currentKeyTimerInternals;
-          }
-        };
-    DoFnRunner<InputT, OutputT> doFnRunner =
-        DoFnRunners.simpleRunner(
-            pipelineOptions.get(),
-            doFn,
-            sideInputReader,
-            this,
-            mainOutputTag,
-            additionalOutputTags,
-            stepContext,
-            windowingStrategy);
+      @Override
+      public TimerInternals timerInternals() {
+        return currentKeyTimerInternals;
+      }
+
+    };
+    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
+        pipelineOptions.get(),
+        doFn,
+        sideInputReader,
+        this,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        null,
+        windowingStrategy
+        );
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();

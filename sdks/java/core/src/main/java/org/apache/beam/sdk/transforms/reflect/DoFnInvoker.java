@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.reflect;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
 /**
@@ -134,7 +136,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a link to the time domain for a timer firing. */
+    /**
+     * Provides a link to the input element converted to a {@link Row} object. The input
+     * collection must have a schema registered for this to be called.
+     */
+    Row asRow(FieldAccessDescriptor fieldAccessDescriptor);
+
+    /** Provide a link to the time domain for a timer firing.
+     */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link OutputReceiver} for outputting to the default output. */

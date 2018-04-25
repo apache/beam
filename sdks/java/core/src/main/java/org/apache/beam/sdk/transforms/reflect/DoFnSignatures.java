@@ -44,6 +44,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.joda.time.Instant;
@@ -80,23 +82,25 @@ public class DoFnSignatures {
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
-          ImmutableList.of(
-              Parameter.ProcessContextParameter.class,
-              Parameter.ElementParameter.class,
-              Parameter.TimestampParameter.class,
-              Parameter.OutputReceiverParameter.class,
-              Parameter.TaggedOutputReceiverParameter.class,
-              Parameter.WindowParameter.class,
-              Parameter.PaneInfoParameter.class,
-              Parameter.PipelineOptionsParameter.class,
-              Parameter.TimerParameter.class,
-              Parameter.StateParameter.class);
+      ImmutableList.of(
+          Parameter.ProcessContextParameter.class,
+          Parameter.ElementParameter.class,
+          Parameter.RowParameter.class,
+          Parameter.TimestampParameter.class,
+          Parameter.OutputReceiverParameter.class,
+          Parameter.TaggedOutputReceiverParameter.class,
+          Parameter.WindowParameter.class,
+          Parameter.PaneInfoParameter.class,
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.TimerParameter.class,
+          Parameter.StateParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
+              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -808,12 +812,15 @@ public class DoFnSignatures {
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
     if (hasElementAnnotation(param.getAnnotations())) {
-      methodErrors.checkArgument(
-          paramT.equals(inputT), "@Element argument must have type %s", inputT);
-      return Parameter.elementParameter(paramT);
-    } else if (hasTimestampAnnotation(param.getAnnotations())) {
-      methodErrors.checkArgument(
-          rawType.equals(Instant.class),
+      if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
+        return Parameter.rowParameter(FieldAccessDescriptor.allFields());
+      } else {
+        methodErrors.checkArgument(paramT.equals(inputT),
+            "@Element argument must have type %s", inputT);
+        return Parameter.elementParameter(paramT);
+      }
+    }  else if (hasTimestampAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
     } else if (rawType.equals(TimeDomain.class)) {

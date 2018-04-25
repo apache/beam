@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -34,6 +35,7 @@ import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -55,6 +57,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DirectStepContext stepContext,
+        @Nullable SchemaCoder<InputT> schemaCoder,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy);
   }
 
@@ -67,6 +70,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
+        schemaCoder,
         windowingStrategy) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
@@ -77,6 +81,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               mainOutputTag,
               additionalOutputTags,
               stepContext,
+              schemaCoder,
               windowingStrategy);
       return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
@@ -87,6 +92,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       PipelineOptions options,
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
+      SchemaCoder<InputT> schemaCoder,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       DoFn<InputT, OutputT> fn,
       StructuralKey<?> key,
@@ -111,6 +117,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             mainOutputTag,
             additionalOutputTags,
             stepContext,
+            schemaCoder,
             windowingStrategy);
 
     return create(runner, stepContext, application, outputManager);

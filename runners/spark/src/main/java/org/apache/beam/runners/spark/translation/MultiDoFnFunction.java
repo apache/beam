@@ -143,6 +143,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             mainOutputTag,
             additionalOutputTags,
             context,
+            null,
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
