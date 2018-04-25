@@ -826,8 +826,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     KafkaIO.Read<Long, byte[]> read = KafkaIO.<Long, byte[]>read()
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaSourceTopic())
-            .withKeyDeserializer(LongDeserializer.class)
-            .withValueDeserializer(ByteArrayDeserializer.class);
+            .withKeyDeserializerClassName(LongDeserializer.class)
+            .withValueDeserializerClassName(ByteArrayDeserializer.class);
 
     return p
       .apply(queryName + ".ReadKafkaEvents", read.withoutMetadata())
