@@ -62,7 +62,7 @@ buildscript {
 
 // Create a function which returns true iff we are performing a release.
 def isRelease() {
-  return project.hasProperty('release')
+  return project.hasProperty('isRelease')
 }
 
 group = 'org.apache.beam'

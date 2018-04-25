@@ -49,6 +49,7 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
+    classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
     classpath "com.gradle:build-scan-plugin:1.13.1"                                                     // Enable publishing build scans
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"                                        // Enable proto code generation
@@ -160,3 +161,11 @@ task pythonPreCommit() {
   dependsOn ":beam-sdks-python:check"
 }
 
+apply plugin: 'net.researchgate.release'
+release {
+  revertOnFail = true
+  tagTemplate = 'v${version}'
+  git {
+    requireBranch = 'release-.*|master'
+  }
+}
