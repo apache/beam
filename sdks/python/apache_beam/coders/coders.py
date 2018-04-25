@@ -369,7 +369,7 @@ class BytesCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(common_urns.BYTES_CODER, BytesCoder)
+Coder.register_structured_urn(common_urns.coders.BYTES.urn, BytesCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -388,7 +388,7 @@ class VarIntCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(common_urns.VARINT_CODER, VarIntCoder)
+Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
 
 
 class FloatCoder(FastCoder):
@@ -742,11 +742,11 @@ class TupleCoder(FastCoder):
 
   def to_runner_api_parameter(self, context):
     if self.is_kv_coder():
-      return common_urns.KV_CODER, None, self.coders()
+      return common_urns.coders.KV.urn, None, self.coders()
     else:
       return super(TupleCoder, self).to_runner_api_parameter(context)
 
-  @Coder.register_urn(common_urns.KV_CODER, None)
+  @Coder.register_urn(common_urns.coders.KV.urn, None)
   def from_runner_api_parameter(unused_payload, components, unused_context):
     return TupleCoder(components)
 
@@ -835,7 +835,7 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-Coder.register_structured_urn(common_urns.ITERABLE_CODER, IterableCoder)
+Coder.register_structured_urn(common_urns.coders.ITERABLE.urn, IterableCoder)
 
 
 class GlobalWindowCoder(SingletonCoder):
@@ -852,7 +852,7 @@ class GlobalWindowCoder(SingletonCoder):
 
 
 Coder.register_structured_urn(
-    common_urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
+    common_urns.coders.GLOBAL_WINDOW.urn, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -877,7 +877,7 @@ class IntervalWindowCoder(FastCoder):
 
 
 Coder.register_structured_urn(
-    common_urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
+    common_urns.coders.INTERVAL_WINDOW.urn, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -937,7 +937,7 @@ class WindowedValueCoder(FastCoder):
 
 
 Coder.register_structured_urn(
-    common_urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+    common_urns.coders.WINDOWED_VALUE.urn, WindowedValueCoder)
 
 
 class LengthPrefixCoder(FastCoder):
@@ -982,4 +982,4 @@ class LengthPrefixCoder(FastCoder):
 
 
 Coder.register_structured_urn(
-    common_urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
+    common_urns.coders.LENGTH_PREFIX.urn, LengthPrefixCoder)

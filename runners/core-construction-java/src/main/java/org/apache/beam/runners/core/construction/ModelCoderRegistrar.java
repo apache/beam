@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
 @AutoService(CoderTranslatorRegistrar.class)
 public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
+
   // The URNs for coders which are shared across languages
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
@@ -53,6 +55,8 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(GlobalWindow.Coder.class, ModelCoders.GLOBAL_WINDOW_CODER_URN)
           .put(FullWindowedValueCoder.class, ModelCoders.WINDOWED_VALUE_CODER_URN)
           .build();
+
+  public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
 
   @VisibleForTesting
   static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> BEAM_MODEL_CODERS =

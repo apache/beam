@@ -308,9 +308,9 @@ class GlobalWindows(NonMergingWindowFn):
     return not self == other
 
   def to_runner_api_parameter(self, context):
-    return common_urns.GLOBAL_WINDOWS_WINDOWFN, None
+    return common_urns.global_windows.urn, None
 
-  @urns.RunnerApiFn.register_urn(common_urns.GLOBAL_WINDOWS_WINDOWFN, None)
+  @urns.RunnerApiFn.register_urn(common_urns.global_windows.urn, None)
   def from_runner_api_parameter(unused_fn_parameter, unused_context):
     return GlobalWindows()
 
@@ -351,7 +351,7 @@ class FixedWindows(NonMergingWindowFn):
     return not self == other
 
   def to_runner_api_parameter(self, context):
-    return (common_urns.FIXED_WINDOWS_WINDOWFN,
+    return (common_urns.fixed_windows.urn,
             standard_window_fns_pb2.FixedWindowsPayload(
                 size=proto_utils.from_micros(
                     duration_pb2.Duration, self.size.micros),
@@ -359,7 +359,7 @@ class FixedWindows(NonMergingWindowFn):
                     timestamp_pb2.Timestamp, self.offset.micros)))
 
   @urns.RunnerApiFn.register_urn(
-      common_urns.FIXED_WINDOWS_WINDOWFN,
+      common_urns.fixed_windows.urn,
       standard_window_fns_pb2.FixedWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return FixedWindows(
@@ -407,7 +407,7 @@ class SlidingWindows(NonMergingWindowFn):
               and self.period == other.period)
 
   def to_runner_api_parameter(self, context):
-    return (common_urns.SLIDING_WINDOWS_WINDOWFN,
+    return (common_urns.sliding_windows.urn,
             standard_window_fns_pb2.SlidingWindowsPayload(
                 size=proto_utils.from_micros(
                     duration_pb2.Duration, self.size.micros),
@@ -417,7 +417,7 @@ class SlidingWindows(NonMergingWindowFn):
                     duration_pb2.Duration, self.period.micros)))
 
   @urns.RunnerApiFn.register_urn(
-      common_urns.SLIDING_WINDOWS_WINDOWFN,
+      common_urns.sliding_windows.urn,
       standard_window_fns_pb2.SlidingWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return SlidingWindows(
@@ -474,13 +474,13 @@ class Sessions(WindowFn):
       return self.gap_size == other.gap_size
 
   def to_runner_api_parameter(self, context):
-    return (common_urns.SESSION_WINDOWS_WINDOWFN,
+    return (common_urns.session_windows.urn,
             standard_window_fns_pb2.SessionsPayload(
                 gap_size=proto_utils.from_micros(
                     duration_pb2.Duration, self.gap_size.micros)))
 
   @urns.RunnerApiFn.register_urn(
-      common_urns.SESSION_WINDOWS_WINDOWFN,
+      common_urns.session_windows.urn,
       standard_window_fns_pb2.SessionsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return Sessions(
