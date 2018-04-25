@@ -69,7 +69,7 @@ public class ValueProviders {
   }
 
   /**
-   * Used to build a {@link ValueProvider} for {@link List List&lt;String&gt;}.
+   * Used to build a {@link ValueProvider} for {@link List List&lt;String&gt;} for a given CSV.
    */
   private static class CsvTranslator implements SerializableFunction<String, List<String>> {
     @Override
@@ -79,6 +79,11 @@ public class ValueProviders {
     }
   }
 
+  /**
+   * Helper Method to provide {@link Class} using the Class Name provided as a {@link String}
+   * @param className
+   * @return {@link Class}
+   */
   public static Class classForName(String className) {
       Class clazz;
       try {
