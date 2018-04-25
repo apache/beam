@@ -186,7 +186,9 @@ class BeamExecutorContext {
       return getOutputCoder(first);
     } else if (op instanceof ReduceByKey) {
       ReduceByKey rb = (ReduceByKey) op;
-      return PairCoder.of(getCoder(rb.getKeyExtractor()), getCoder(rb.getReducer()));
+      Coder reducerCoder = getCoder(rb.getReducer());
+      Coder keyCoder = getCoder(rb.getKeyExtractor());
+      return PairCoder.of(keyCoder, reducerCoder);
     } else if (op instanceof ReduceStateByKey) {
       ReduceStateByKey rbsk = (ReduceStateByKey) op;
       // FIXME
