@@ -938,8 +938,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeySerializer(IntegerSerializer.class)
-            .withValueSerializer(LongSerializer.class)
+            .withKeySerializerClassName(IntegerSerializer.class)
+            .withValueSerializerClassName(LongSerializer.class)
             .withInputTimestamp()
             .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
@@ -970,7 +970,7 @@ public class KafkaIOTest {
               KafkaIO.<Integer, Long>write()
                   .withBootstrapServers("none")
                   .withTopic(topic)
-                  .withValueSerializer(LongSerializer.class)
+                  .withValueSerializerClassName(LongSerializer.class)
                   .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
                   .values());
 
@@ -1012,8 +1012,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
                  .withBootstrapServers("none")
                  .withTopic(topic)
-                 .withKeySerializer(IntegerSerializer.class)
-                 .withValueSerializer(LongSerializer.class)
+                 .withKeySerializerClassName(IntegerSerializer.class)
+                 .withValueSerializerClassName(LongSerializer.class)
                  .withEOS(1, "test")
                  .withConsumerFactoryFn(new ConsumerFactoryFn(
                    Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
@@ -1055,8 +1055,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeySerializer(IntegerSerializer.class)
-            .withValueSerializer(LongSerializer.class)
+            .withKeySerializerClassName(IntegerSerializer.class)
+            .withValueSerializerClassName(LongSerializer.class)
             .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       try {
@@ -1154,7 +1154,7 @@ public class KafkaIOTest {
       KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
         .withBootstrapServers("myServerA:9092,myServerB:9092")
         .withTopic("myTopic")
-        .withValueSerializer(LongSerializer.class)
+        .withValueSerializerClassName(LongSerializer.class)
         .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey));
 
       DisplayData displayData = DisplayData.from(write);
@@ -1261,8 +1261,8 @@ public class KafkaIOTest {
           .apply("writeToKafka", KafkaIO.<Integer, Long>write()
               .withBootstrapServers("none")
               .withTopic(topic)
-              .withKeySerializer(IntegerSerializer.class)
-              .withValueSerializer(LongSerializer.class)
+              .withKeySerializerClassName(IntegerSerializer.class)
+              .withValueSerializerClassName(LongSerializer.class)
               .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       PipelineResult result = p.run();

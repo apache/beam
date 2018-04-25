@@ -120,8 +120,8 @@ public class SparkRunnerDebuggerTest {
     KafkaIO.Write<String, String> write = KafkaIO.<String, String>write()
         .withBootstrapServers("myotherkafka:9092")
         .withTopic("my_output_topic")
-        .withKeySerializer(StringSerializer.class)
-        .withValueSerializer(StringSerializer.class);
+        .withKeySerializerClassName(StringSerializer.class)
+        .withValueSerializerClassName(StringSerializer.class);
 
     KvCoder<String, String> stringKvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 

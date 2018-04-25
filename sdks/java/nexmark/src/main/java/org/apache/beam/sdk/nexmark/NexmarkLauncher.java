@@ -782,7 +782,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     eventToBytes.apply(KafkaIO.<Void, byte[]>write()
                     .withBootstrapServers(options.getBootstrapServers())
                     .withTopic(options.getKafkaSinkTopic())
-                    .withValueSerializer(ByteArraySerializer.class)
+                    .withValueSerializerClassName(ByteArraySerializer.class)
                     .values());
 
   }
@@ -868,7 +868,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         KafkaIO.<Void, String>write()
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaSinkTopic())
-            .withValueSerializer(StringSerializer.class)
+            .withValueSerializerClassName(StringSerializer.class)
             .values());
   }
 
