@@ -19,10 +19,10 @@ package org.apache.beam.runners.direct.portable;
 
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,19 +30,19 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /**
- * The result of evaluating an {@link AppliedPTransform} with a {@link TransformEvaluator}.
+ * The result of evaluating an {@link PTransformNode} with a {@link TransformEvaluator}.
  *
  * <p>Every transform evaluator has a defined input type, but {@link ParDo} has multiple outputs
  * so there is not necesssarily a defined output type.
  */
 interface TransformResult<InputT> {
   /**
-   * Returns the {@link AppliedPTransform} that produced this result.
+   * Returns the {@link PTransformNode} that produced this result.
    *
    * <p>This is treated as an opaque identifier so evaluators can delegate to other evaluators
    * that may not have compatible types.
    */
-  AppliedPTransform<?, ?, ?> getTransform();
+  PTransformNode getTransform();
 
   /**
    * Returns the {@link UncommittedBundle (uncommitted) Bundles} output by this transform. These

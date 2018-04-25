@@ -19,25 +19,25 @@ package org.apache.beam.runners.direct.portable;
 
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.local.StructuralKey;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
  * A (Step, Key) pair. This is useful as a map key or cache key for things that are available
  * per-step in a keyed manner (e.g. State).
  */
 final class StepAndKey {
-  private final AppliedPTransform<?, ?, ?> step;
+  private final PTransformNode step;
   private final StructuralKey<?> key;
 
   /**
    * Create a new {@link StepAndKey} with the provided step and key.
    */
-  public static StepAndKey of(AppliedPTransform<?, ?, ?> step, StructuralKey<?> key) {
+  public static StepAndKey of(PTransformNode step, StructuralKey<?> key) {
     return new StepAndKey(step, key);
   }
 
-  private StepAndKey(AppliedPTransform<?, ?, ?> step, StructuralKey<?> key) {
+  private StepAndKey(PTransformNode step, StructuralKey<?> key) {
     this.step = step;
     this.key = key;
   }
@@ -45,7 +45,7 @@ final class StepAndKey {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(StepAndKey.class)
-        .add("step", step.getFullName())
+        .add("step", step.getId())
         .add("key", key.getKey())
         .toString();
   }

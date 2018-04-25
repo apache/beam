@@ -22,8 +22,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.Clock;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 
 /**

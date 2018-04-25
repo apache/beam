@@ -33,6 +33,8 @@ import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.direct.portable.DirectExecutionContext.DirectStepContext;
@@ -42,21 +44,19 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link DirectGroupAlsoByWindow} {@link PTransform}.
+ * {@code DirectGroupAlsoByWindow} {@link PTransform}.
  */
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -70,12 +70,11 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
+      PTransformNode application,
       CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
-        createEvaluator(
-            (AppliedPTransform) application, (CommittedBundle) inputBundle);
+        createEvaluator(application, (CommittedBundle) inputBundle);
     return evaluator;
   }
 
@@ -83,18 +82,13 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() {}
 
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
-      AppliedPTransform<
-              PCollection<KeyedWorkItem<K, V>>,
-              PCollection<KV<K, Iterable<V>>>,
-              DirectGroupAlsoByWindow<K, V>>
-          application,
-      CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
+      PTransformNode application, CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
     return new GroupAlsoByWindowEvaluator<>(
         evaluationContext, options, inputBundle, application);
   }
 
   /**
-   * A transform evaluator for the pseudo-primitive {@link DirectGroupAlsoByWindow}. The window of
+   * A transform evaluator for the pseudo-primitive {@code DirectGroupAlsoByWindow}. The window of
    * the input {@link KeyedWorkItem} is ignored; it should be in the global window, as element
    * windows are reified in the {@link KeyedWorkItem#elementsIterable()}.
    *
@@ -104,10 +98,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       implements TransformEvaluator<KeyedWorkItem<K, V>> {
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
-    private final AppliedPTransform<
-        PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
-        DirectGroupAlsoByWindow<K, V>>
-        application;
+    private final PTransformNode application;
 
     private final DirectStepContext stepContext;
     private @SuppressWarnings("unchecked") final WindowingStrategy<?, BoundedWindow>
@@ -124,11 +115,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         final EvaluationContext evaluationContext,
         PipelineOptions options,
         CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
-        final AppliedPTransform<
-                PCollection<KeyedWorkItem<K, V>>,
-                PCollection<KV<K, Iterable<V>>>,
-                DirectGroupAlsoByWindow<K, V>>
-            application) {
+        final PTransformNode application) {
       this.evaluationContext = evaluationContext;
       this.options = options;
       this.application = application;
@@ -138,18 +125,20 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           .getExecutionContext(application, inputBundle.getKey())
           .getStepContext(
               evaluationContext.getStepName(application));
+      // TODO: extract from input PCollection via the graph, including length-prefixing
       windowingStrategy =
-          (WindowingStrategy<?, BoundedWindow>)
-              application.getTransform().getInputWindowingStrategy();
+          null;
 
       outputBundles = new ArrayList<>();
       unprocessedElements = ImmutableList.builder();
 
+      // TODO: extract from input PCollection via the graph, including length-prefixing
       Coder<V> valueCoder =
-          application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
+          null;
       reduceFn = SystemReduceFn.buffering(valueCoder);
       droppedDueToLateness = Metrics.counter(GroupAlsoByWindowEvaluator.class,
           GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
+      throw new UnsupportedOperationException("Not yet migrated");
     }
 
     @Override
@@ -157,11 +146,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       KeyedWorkItem<K, V> workItem = element.getValue();
       K key = workItem.key();
 
+      PCollectionNode outputNode = null;
       UncommittedBundle<KV<K, Iterable<V>>> bundle =
-          evaluationContext.createKeyedBundle(
-              structuralKey,
-              (PCollection<KV<K, Iterable<V>>>)
-                  Iterables.getOnlyElement(application.getOutputs().values()));
+          evaluationContext.createKeyedBundle(structuralKey, outputNode);
       outputBundles.add(bundle);
       CopyOnAccessInMemoryStateInternals stateInternals = stepContext.stateInternals();
       DirectTimerInternals timerInternals = stepContext.timerInternals();
@@ -185,6 +172,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           dropExpiredWindows(key, workItem.elementsIterable(), timerInternals));
       reduceFnRunner.onTimers(workItem.timersIterable());
       reduceFnRunner.persist();
+      throw new UnsupportedOperationException("Not yet migrated");
     }
 
     @Override
@@ -261,7 +249,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         PaneInfo pane) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s should not use tagged outputs", DirectGroupAlsoByWindow.class.getSimpleName()));
+              "%s should not use tagged outputs", "DirectGroupAlsoByWindow"));
     }
   }
 }

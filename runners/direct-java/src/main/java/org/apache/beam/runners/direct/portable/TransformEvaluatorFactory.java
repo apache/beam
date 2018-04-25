@@ -18,9 +18,9 @@
 package org.apache.beam.runners.direct.portable;
 
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -47,13 +47,13 @@ interface TransformEvaluatorFactory {
    */
   @Nullable
   <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
+      PTransformNode application, CommittedBundle<?> inputBundle)
       throws Exception;
 
   /**
    * Cleans up any state maintained by this {@link TransformEvaluatorFactory}. Called after a
    * {@link Pipeline} is shut down. No more calls to
-   * {@link #forApplication(AppliedPTransform, CommittedBundle)} will be made after
+   * {@link #forApplication(PTransformNode, CommittedBundle)} will be made after
    * a call to {@link #cleanup()}.
    */
   void cleanup() throws Exception;

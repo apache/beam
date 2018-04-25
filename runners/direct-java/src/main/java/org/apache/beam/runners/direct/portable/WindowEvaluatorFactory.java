@@ -20,14 +20,13 @@ package org.apache.beam.runners.direct.portable;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.WindowIntoTranslation;
-import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
 /**
@@ -43,41 +42,29 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle
- )
-      throws Exception {
-    return createTransformEvaluator((AppliedPTransform) application);
+      PTransformNode application, @Nullable CommittedBundle<?> inputBundle)  {
+    return createTransformEvaluator(application);
   }
 
-  private <InputT> TransformEvaluator<InputT> createTransformEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
-          transform) {
+  private <InputT> TransformEvaluator<InputT> createTransformEvaluator(PTransformNode transform) {
+    WindowFn<? super InputT, ?> fn = null;
 
-    WindowFn<? super InputT, ?> fn = (WindowFn) WindowIntoTranslation.getWindowFn(transform);
-
-    UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(
-            (PCollection<InputT>) Iterables.getOnlyElement(transform.getOutputs().values()));
-    if (fn == null) {
-      return PassthroughTransformEvaluator.create(transform, outputBundle);
-    }
-    return new WindowIntoEvaluator<>(transform, fn, outputBundle);
+    PCollectionNode outputPCollection = null;
+    evaluationContext.createBundle(outputPCollection);
+    throw new UnsupportedOperationException("Not yet migrated");
   }
 
   @Override
   public void cleanup() {}
 
   private static class WindowIntoEvaluator<InputT> implements TransformEvaluator<InputT> {
-    private final AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
-        transform;
+    private final PTransformNode transform;
     private final WindowFn<InputT, ?> windowFn;
     private final UncommittedBundle<InputT> outputBundle;
 
     @SuppressWarnings("unchecked")
     public WindowIntoEvaluator(
-        AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
-            transform,
+        PTransformNode transform,
         WindowFn<? super InputT, ?> windowFn,
         UncommittedBundle<InputT> outputBundle) {
       this.outputBundle = outputBundle;
