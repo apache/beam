@@ -31,14 +31,16 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.WatermarkManager;
+import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
-import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.portable.WatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -65,18 +67,15 @@ import org.joda.time.Instant;
  * executed.
  */
 class EvaluationContext {
-  /**
-   * The graph representing this {@link Pipeline}.
-   */
-  private final ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph;
+  /** The graph representing this {@link Pipeline}. */
+  private final ExecutableGraph<PTransformNode, ? super PCollectionNode> graph;
 
   private final Clock clock;
 
   private final BundleFactory bundleFactory;
 
   /** The current processing time and event time watermarks and timers. */
-  private final WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>>
-      watermarkManager;
+  private final WatermarkManager<PTransformNode, ? super PCollectionNode> watermarkManager;
 
   /** Executes callbacks based on the progression of the watermark. */
   private final WatermarkCallbackExecutor callbackExecutor;
@@ -87,21 +86,21 @@ class EvaluationContext {
 
   private final DirectMetrics metrics;
 
-  private final Set<PValue> keyedPValues;
+  private final Set<PCollectionNode> keyedPValues;
 
   public static EvaluationContext create(
       Clock clock,
       BundleFactory bundleFactory,
-      ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph,
-      Set<PValue> keyedPValues) {
+      ExecutableGraph<PTransformNode, ? super PCollectionNode> graph,
+      Set<PCollectionNode> keyedPValues) {
     return new EvaluationContext(clock, bundleFactory, graph, keyedPValues);
   }
 
   private EvaluationContext(
       Clock clock,
       BundleFactory bundleFactory,
-      ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>>graph,
-      Set<PValue> keyedPValues) {
+      ExecutableGraph<PTransformNode, ? super PCollectionNode>graph,
+      Set<PCollectionNode> keyedPValues) {
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
@@ -116,7 +115,7 @@ class EvaluationContext {
   }
 
   public void initialize(
-      Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
+      Map<PTransformNode, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
     watermarkManager.initialize((Map) initialInputs);
   }
 
@@ -135,7 +134,7 @@ class EvaluationContext {
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
-  public CommittedResult<AppliedPTransform<?, ?, ?>> handleResult(
+  public CommittedResult<PTransformNode> handleResult(
       CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       TransformResult<?> result) {
@@ -150,7 +149,7 @@ class EvaluationContext {
     } else {
       outputTypes.add(OutputType.BUNDLE);
     }
-    CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
+    CommittedResult<PTransformNode> committedResult =
         CommittedResult.create(
             result, getUnprocessedInput(completedBundle, result), committedBundles, outputTypes);
     // Update state internals
@@ -196,7 +195,7 @@ class EvaluationContext {
       Iterable<? extends UncommittedBundle<?>> bundles) {
     ImmutableList.Builder<CommittedBundle<?>> completed = ImmutableList.builder();
     for (UncommittedBundle<?> inProgress : bundles) {
-      AppliedPTransform<?, ?, ?> producing =
+      PTransformNode producing =
           graph.getProducer(inProgress.getPCollection());
       TransformWatermarks watermarks = watermarkManager.getWatermarks(producing);
       CommittedBundle<?> committed =
@@ -211,12 +210,12 @@ class EvaluationContext {
   }
 
   private void fireAllAvailableCallbacks() {
-    for (AppliedPTransform<?, ?, ?> transform : graph.getExecutables()) {
+    for (PTransformNode transform : graph.getExecutables()) {
       fireAvailableCallbacks(transform);
     }
   }
 
-  private void fireAvailableCallbacks(AppliedPTransform<?, ?, ?> producingTransform) {
+  private void fireAvailableCallbacks(PTransformNode producingTransform) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
     Instant outputWatermark = watermarks.getOutputWatermark();
     callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
@@ -233,16 +232,16 @@ class EvaluationContext {
    * Create a {@link UncommittedBundle} whose elements belong to the specified {@link
    * PCollection}.
    */
-  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+  public <T> UncommittedBundle<T> createBundle(PCollectionNode output) {
     return bundleFactory.createBundle(output);
   }
 
   /**
    * Create a {@link UncommittedBundle} with the specified keys at the specified step. For use by
-   * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}.
+   * {@code DirectGroupByKeyOnly} {@link PTransform PTransforms}.
    */
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      StructuralKey<K> key, PCollection<T> output) {
+      StructuralKey<K> key, PCollectionNode output) {
     return bundleFactory.createKeyedBundle(key, output);
   }
 
@@ -250,7 +249,7 @@ class EvaluationContext {
    * Indicate whether or not this {@link PCollection} has been determined to be
    * keyed.
    */
-  public <T> boolean isKeyed(PValue pValue) {
+  public <T> boolean isKeyed(PCollectionNode pValue) {
     return keyedPValues.contains(pValue);
   }
 
@@ -267,11 +266,11 @@ class EvaluationContext {
    * callback will be executed regardless of whether values have been produced.
    */
   public void scheduleAfterOutputWouldBeProduced(
-      PCollection<?> value,
+      PCollectionNode value,
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
-    AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
+    PTransformNode producing = graph.getProducer(value);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -283,7 +282,7 @@ class EvaluationContext {
    * <p>For example, upstream state associated with the window may be cleared.
    */
   public void scheduleAfterWindowExpiration(
-      AppliedPTransform<?, ?, ?> producing,
+      PTransformNode producing,
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
@@ -293,15 +292,15 @@ class EvaluationContext {
   }
 
   /**
-   * Get a {@link DirectExecutionContext} for the provided {@link AppliedPTransform} and key.
+   * Get a {@link DirectExecutionContext} for the provided {@link PTransformNode} and key.
    */
   public DirectExecutionContext getExecutionContext(
-      AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {
+      PTransformNode application, StructuralKey<?> key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
     return new DirectExecutionContext(
         clock,
         key,
-        (CopyOnAccessInMemoryStateInternals) applicationStateInternals.get(stepAndKey),
+        applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
   }
 
@@ -309,12 +308,12 @@ class EvaluationContext {
   /**
    * Get the Step Name for the provided application.
    */
-  String getStepName(AppliedPTransform<?, ?, ?> application) {
+  String getStepName(PTransformNode application) {
     throw new UnsupportedOperationException("getStepName Unsupported");
   }
 
   /** Returns all of the steps in this {@link Pipeline}. */
-  Collection<AppliedPTransform<?, ?, ?>> getSteps() {
+  Collection<PTransformNode> getSteps() {
     return graph.getExecutables();
   }
 
@@ -335,7 +334,7 @@ class EvaluationContext {
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
+  public Collection<FiredTimers<PTransformNode>> extractFiredTimers() {
     forceRefresh();
     return watermarkManager.extractFiredTimers();
   }
@@ -343,7 +342,7 @@ class EvaluationContext {
   /**
    * Returns true if the step will not produce additional output.
    */
-  public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
+  public boolean isDone(PTransformNode transform) {
     // the PTransform is done only if watermark is at the max value
     Instant stepWatermark = watermarkManager.getWatermarks(transform).getOutputWatermark();
     return !stepWatermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -353,7 +352,7 @@ class EvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    for (AppliedPTransform<?, ?, ?> transform : graph.getExecutables()) {
+    for (PTransformNode transform : graph.getExecutables()) {
       if (!isDone(transform)) {
         return false;
       }

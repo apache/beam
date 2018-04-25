@@ -26,6 +26,9 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,14 +36,11 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -60,20 +60,23 @@ public class ImmutableListBundleFactoryTest {
 
   private ImmutableListBundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  private PCollection<Integer> created;
-  private PCollection<KV<String, Integer>> downstream;
+  private PCollectionNode created;
+  private PCollectionNode downstream;
 
   @Before
   public void setup() {
-    created = p.apply(Create.of(1, 2, 3));
-    downstream = created.apply(WithKeys.of("foo"));
+    created =
+        PipelineNode.pCollection(
+            "created", RunnerApi.PCollection.newBuilder().setUniqueName("created").build());
+    created =
+        PipelineNode.pCollection(
+            "downstream", RunnerApi.PCollection.newBuilder().setUniqueName("downstream").build());
   }
 
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
-    PCollection<Integer> pcollection = p.apply("Create", Create.of(1));
     StructuralKey<?> skey = StructuralKey.of(key, coder);
 
-    UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, pcollection);
+    UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, created);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
     assertThat(bundle.getKey(), Matchers.equalTo(skey));
@@ -223,7 +226,8 @@ public class ImmutableListBundleFactoryTest {
   public void createKeyedBundleKeyed() {
     CommittedBundle<KV<String, Integer>> keyedBundle =
         bundleFactory
-            .createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), downstream)
+            .<String, KV<String, Integer>>createKeyedBundle(
+                StructuralKey.of("foo", StringUtf8Coder.of()), downstream)
             .commit(Instant.now());
     assertThat(keyedBundle.getKey().getKey(), Matchers.equalTo("foo"));
   }

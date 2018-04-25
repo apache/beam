@@ -25,7 +25,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,11 +49,11 @@ class TransformEvaluatorRegistry {
   }
 
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
+      PTransformNode application, CommittedBundle<?> inputBundle) throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
 
-    String urn = PTransformTranslation.urnForTransform(application.getTransform());
+    String urn = PTransformTranslation.urnForTransformOrNull(application.getTransform());
 
     TransformEvaluatorFactory factory =
         checkNotNull(factories.get(urn), "No evaluator for PTransform \"%s\"", urn);

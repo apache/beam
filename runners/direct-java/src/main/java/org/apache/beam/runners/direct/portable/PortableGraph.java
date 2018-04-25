@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.direct.ExecutableGraph;
 
 /** A {@link ExecutableGraph} for a Portable {@link RunnerApi.Pipeline}. */
 class PortableGraph implements ExecutableGraph<PTransformNode, PCollectionNode> {

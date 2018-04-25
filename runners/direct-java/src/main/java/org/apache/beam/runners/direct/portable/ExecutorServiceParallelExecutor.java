@@ -36,16 +36,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -57,7 +56,7 @@ import org.slf4j.LoggerFactory;
  */
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,
-        BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
+        BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final int targetParallelism;
@@ -131,12 +130,12 @@ final class ExecutorServiceParallelExecutor
 
   @Override
   public void start(
-      ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph,
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
       RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);
-    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
+    ImmutableMap.Builder<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
         pendingRootBundles = ImmutableMap.builder();
-    for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
+    for (PTransformNode root : graph.getRootTransforms()) {
       ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
       try {
         Collection<CommittedBundle<?>> initialInputs =
@@ -184,13 +183,13 @@ final class ExecutorServiceParallelExecutor
   @Override
   public void process(
       CommittedBundle<?> bundle,
-      AppliedPTransform<?, ?, ?> consumer,
+      PTransformNode consumer,
       CompletionCallback onComplete) {
     evaluateBundle(consumer, bundle, onComplete);
   }
 
   private <T> void evaluateBundle(
-      final AppliedPTransform<?, ?, ?> transform,
+      final PTransformNode transform,
       final CommittedBundle<T> bundle,
       final CompletionCallback onComplete) {
     TransformExecutorService transformExecutor;
@@ -214,7 +213,7 @@ final class ExecutorServiceParallelExecutor
     }
   }
 
-  private boolean isKeyed(PValue pvalue) {
+  private boolean isKeyed(PCollectionNode pvalue) {
     return evaluationContext.isKeyed(pvalue);
   }
 

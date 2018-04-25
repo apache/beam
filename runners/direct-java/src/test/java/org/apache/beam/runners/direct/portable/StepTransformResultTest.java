@@ -23,13 +23,13 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.direct.DirectGraphs;
-import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -40,18 +40,19 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link StepTransformResult}. */
 @RunWith(JUnit4.class)
 public class StepTransformResultTest {
-  private AppliedPTransform<?, ?, ?> transform;
+  private PTransformNode transform;
   private BundleFactory bundleFactory;
-  private PCollection<Integer> pc;
+  private PCollectionNode pc;
 
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
-    pc = p.apply(Create.of(1, 2, 3));
-    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
-        DirectGraphs.getGraph(p);
-    transform = graph.getProducer(pc);
+    pc =
+        PipelineNode.pCollection(
+            "pc", RunnerApi.PCollection.newBuilder().setUniqueName("pc").build());
+    transform =
+        PipelineNode.pTransform("pt", PTransform.newBuilder().putOutputs("out", "pc").build());
 
     bundleFactory = ImmutableListBundleFactory.create();
   }

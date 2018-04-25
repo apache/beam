@@ -19,7 +19,6 @@ package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,16 +27,15 @@ import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.direct.portable.StepTransformResult.Builder;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
@@ -52,22 +50,17 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
+      PTransformNode application,
       CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<InputT> evaluator =
-        createEvaluator(
-            (AppliedPTransform) application);
+    TransformEvaluator<InputT> evaluator = (TransformEvaluator) createEvaluator(application);
     return evaluator;
   }
 
   @Override
   public void cleanup() {}
 
-  private <K, V> TransformEvaluator<KV<K, V>> createEvaluator(
-      final AppliedPTransform<
-              PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>, DirectGroupByKeyOnly<K, V>>
-          application) {
+  private <K, V> TransformEvaluator<KV<K, V>> createEvaluator(final PTransformNode application) {
     return new GroupByKeyOnlyEvaluator<>(evaluationContext, application);
   }
 
@@ -81,26 +74,18 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       implements TransformEvaluator<KV<K, V>> {
     private final EvaluationContext evaluationContext;
 
-    private final AppliedPTransform<
-            PCollection<KV<K, V>>,
-            PCollection<KeyedWorkItem<K, V>>,
-            DirectGroupByKeyOnly<K, V>> application;
+    private final PTransformNode application;
     private final Coder<K> keyCoder;
     private Map<StructuralKey<K>, List<WindowedValue<V>>> groupingMap;
 
     public GroupByKeyOnlyEvaluator(
         EvaluationContext evaluationContext,
-        AppliedPTransform<
-            PCollection<KV<K, V>>,
-            PCollection<KeyedWorkItem<K, V>>,
-            DirectGroupByKeyOnly<K, V>> application) {
+        PTransformNode application) {
       this.evaluationContext = evaluationContext;
       this.application = application;
-      this.keyCoder =
-          getKeyCoder(
-              ((PCollection<KV<K, V>>) Iterables.getOnlyElement(application.getInputs().values()))
-                  .getCoder());
+      this.keyCoder = null;
       this.groupingMap = new HashMap<>();
+      throw new UnsupportedOperationException("Not yet migrated");
     }
 
     private Coder<K> getKeyCoder(Coder<KV<K, V>> coder) {
@@ -134,15 +119,13 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
         K key = groupedEntry.getKey().getKey();
         KeyedWorkItem<K, V> groupedKv =
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
+        PCollectionNode outputNode = null;
         UncommittedBundle<KeyedWorkItem<K, V>> bundle =
-            evaluationContext.createKeyedBundle(
-                StructuralKey.of(key, keyCoder),
-                (PCollection<KeyedWorkItem<K, V>>)
-                    Iterables.getOnlyElement(application.getOutputs().values()));
+            evaluationContext.createKeyedBundle(StructuralKey.of(key, keyCoder), outputNode);
         bundle.add(WindowedValue.valueInGlobalWindow(groupedKv));
         resultBuilder.addOutput(bundle);
       }
-      return resultBuilder.build();
+      throw new UnsupportedOperationException("Not yet migrated");
     }
   }
 }
