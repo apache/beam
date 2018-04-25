@@ -49,6 +49,8 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -77,13 +79,30 @@ public class DoFnInvokersTest {
   @Mock private DoFn<String, String>.StartBundleContext mockStartBundleContext;
   @Mock private DoFn<String, String>.FinishBundleContext mockFinishBundleContext;
   @Mock private DoFn<String, String>.ProcessContext mockProcessContext;
+  private String mockElement;
+  private Instant mockTimestamp;
+  @Mock private OutputReceiver<String> mockOutputReceiver;
+  @Mock private MultiOutputReceiver mockMultiOutputReceiver;
   @Mock private IntervalWindow mockWindow;
+ // @Mock private PaneInfo mockPaneInfo;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
   public void setUp() {
+    mockElement =  new String("element");
+    mockTimestamp = new Instant(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
+   // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
+   //     .thenReturn(mockPaneInfo);
+    when(mockArgumentProvider.element(Matchers.<DoFn>any()))
+       .thenReturn(mockElement);
+    when(mockArgumentProvider.timestamp(Matchers.<DoFn>any()))
+        .thenReturn(mockTimestamp);
+    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any()))
+        .thenReturn(mockOutputReceiver);
+    when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
+        .thenReturn(mockMultiOutputReceiver);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
@@ -185,6 +204,25 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockWindow);
+  }
+
+  @Test
+  public void testDoFnWithAllParameters() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @DoFn.ProcessElement
+      public void processElement(ProcessContext c,
+                                 @Element String element,
+                                 @Timestamp Instant timestamp,
+                                 IntervalWindow w,
+                         //        PaneInfo p,
+                                 OutputReceiver<String> receiver,
+                                 MultiOutputReceiver multiReceiver) throws Exception {}
+    }
+
+    MockFn fn = mock(MockFn.class);
+    assertEquals(stop(), invokeProcessElement(fn));
+    verify(fn).processElement(mockProcessContext, mockElement, mockTimestamp, mockWindow,
+        mockOutputReceiver, mockMultiOutputReceiver);
   }
 
   /**
@@ -378,7 +416,18 @@ public class DoFnInvokersTest {
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     final List<SomeRestriction> outputs = new ArrayList<>();
-    invoker.invokeSplitRestriction("blah", restriction, outputs::add);
+    invoker.invokeSplitRestriction("blah", restriction,
+        new OutputReceiver<SomeRestriction>() {
+          @Override
+          public void output(SomeRestriction output) {
+            outputs.add(output);
+          }
+
+          @Override
+          public void outputWithTimestamp(SomeRestriction output, Instant timestamp) {
+            outputs.add(output);
+          }
+        });
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
     assertEquals(
@@ -470,6 +519,13 @@ public class DoFnInvokersTest {
 
           @Override
           public void output(String output) {
+            assertFalse(invoked);
+            invoked = true;
+            assertEquals("foo", output);
+          }
+
+          @Override
+          public void outputWithTimestamp(String output, Instant instant) {
             assertFalse(invoked);
             invoked = true;
             assertEquals("foo", output);
