@@ -142,6 +142,19 @@
     </dependency>
 
     <!-- test dependencies -->
+    <dependency>
+      <!-- For standard_coders.yaml -->
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-fn-execution</artifactId>
+      <type>jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.hamcrest</groupId>
