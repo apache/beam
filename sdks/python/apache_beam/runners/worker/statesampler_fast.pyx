@@ -112,7 +112,7 @@ cdef class StateSampler(object):
     self.element_tracker = DataflowElementExecutionTracker()
     # TODO(BEAM-4111): Remove experimental flag once time_counter release.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
-    if 'time_per_element_counter_v0' in experiments:
+    if 'per_element_instrumentation' in experiments:
       self.has_time_counter_experiment = True
     else:
       self.has_time_counter_experiment = False
