@@ -10,11 +10,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -99,7 +99,7 @@ public class ReinterpreterTest {
   }
 
   @Test public void testConvert() {
-    Date date = new Date(12345L);
+    DateTime date = new DateTime(12345L);
     BeamSqlPrimitive stringPrimitive = BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello");
     BeamSqlPrimitive datePrimitive = BeamSqlPrimitive.of(SqlTypeName.DATE, date);
 

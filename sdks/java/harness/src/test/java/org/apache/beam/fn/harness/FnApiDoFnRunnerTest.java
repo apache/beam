@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
@@ -41,7 +42,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
-import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -52,6 +52,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -97,10 +98,33 @@ public class FnApiDoFnRunnerTest {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
     private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
+    private enum State {
+      NOT_SET_UP,
+      OUTSIDE_BUNDLE,
+      INSIDE_BUNDLE,
+    }
+
+    private State state = State.NOT_SET_UP;
+
     private BoundedWindow window;
+
+    @Setup
+    public void setUp() {
+      checkState(State.NOT_SET_UP.equals(state), "Unexpected state: %s", state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+
+    // No testing for TearDown - it's currently not supported by FnHarness.
+
+    @StartBundle
+    public void startBundle() {
+      checkState(State.OUTSIDE_BUNDLE.equals(state), "Unexpected state: %s", state);
+      state = State.INSIDE_BUNDLE;
+    }
 
     @ProcessElement
     public void processElement(ProcessContext context, BoundedWindow window) {
+      checkState(State.INSIDE_BUNDLE.equals(state), "Unexpected state: %s", state);
       context.output("MainOutput" + context.element());
       context.output(additionalOutput, "AdditionalOutput" + context.element());
       this.window = window;
@@ -108,6 +132,8 @@ public class FnApiDoFnRunnerTest {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) {
+      checkState(State.INSIDE_BUNDLE.equals(state), "Unexpected state: %s", state);
+      state = State.OUTSIDE_BUNDLE;
       if (window != null) {
         context.output("FinishBundle", window.maxTimestamp(), window);
         window = null;

@@ -23,13 +23,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 import org.junit.Test;
 
 /**
@@ -37,8 +36,8 @@ import org.junit.Test;
  */
 public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase {
   private static final long DATE_LONG = 1000L;
-  private static final Date DATE = new Date(DATE_LONG);
-  private static final GregorianCalendar CALENDAR = new GregorianCalendar(2017, 8, 9);
+  private static final DateTime DATE = new DateTime(DATE_LONG);
+  private static final DateTime TIME = new DateTime().withDate(2019, 8, 9);
 
   private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
@@ -47,7 +46,7 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
       SqlTypeName.DATE, DATE);
 
   private static final BeamSqlExpression TIME_PRIMITIVE = BeamSqlPrimitive.of(
-      SqlTypeName.TIME, CALENDAR);
+      SqlTypeName.TIME, TIME);
 
   private static final BeamSqlExpression TIMESTAMP_PRIMITIVE = BeamSqlPrimitive.of(
       SqlTypeName.TIMESTAMP, DATE);
@@ -110,7 +109,7 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
 
   @Test
   public void evaluateTime() {
-    assertEquals(CALENDAR.getTimeInMillis(), evaluateReinterpretExpression(TIME_PRIMITIVE));
+    assertEquals(TIME.getMillis(), evaluateReinterpretExpression(TIME_PRIMITIVE));
   }
 
   @Test

@@ -61,6 +61,8 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map.BeamSqlMapExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map.BeamSqlMapItemExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlAbsExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlAcosExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlAsinExpression;
@@ -110,6 +112,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.util.NlsString;
+import org.joda.time.DateTime;
 
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
@@ -157,12 +160,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       } else if (isDateNode(type, value)) {
         // does this actually make sense?
         // Calcite actually treat Calendar as the java type of Date Literal
-        return BeamSqlPrimitive.of(type, ((Calendar) value).getTime());
+        return BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
       } else {
-        // node.getType().getSqlTypeName() and node.getSqlTypeName() can be different
+        // node.getTypeName().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"
         // here the literal 1 will be parsed as a RexLiteral where:
-        //     node.getType().getSqlTypeName() = INTEGER (the display type)
+        //     node.getTypeName().getSqlTypeName() = INTEGER (the display type)
         //     node.getSqlTypeName() = DECIMAL (the actual internal storage format)
         // So we need to do a convert here.
         // check RexBuilder#makeLiteral for more information.
@@ -404,9 +407,19 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         // array functions
         case "ARRAY":
           return new BeamSqlArrayExpression(subExps);
+       // map functions
+        case "MAP":
+          return new BeamSqlMapExpression(subExps);
 
         case "ITEM":
+        switch (subExps.get(0).getOutputType()) {
+        case MAP:
+          return new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
+        case ARRAY:
           return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+        default:
+          throw new UnsupportedOperationException("Operator: " + opName + " is not supported yet");
+        }
 
         // collections functions
         case "ELEMENT":

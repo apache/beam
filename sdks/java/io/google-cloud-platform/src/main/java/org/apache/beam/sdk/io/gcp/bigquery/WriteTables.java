@@ -228,8 +228,6 @@ class WriteTables<DestinationT>
     return writeTablesOutputs.get(mainOutputTag);
   }
 
-
-
   private void load(
       JobService jobService,
       DatasetService datasetService,
@@ -255,13 +253,20 @@ class WriteTables<DestinationT>
     }
     String projectId = ref.getProjectId();
     Job lastFailedLoadJob = null;
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
-      JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
+
+      JobReference jobRef =
+          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+
       LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
       jobService.startLoadJob(jobRef, loadConfig);
       LOG.info("Load job {} started", jobRef);
+
       Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
         case SUCCEEDED:

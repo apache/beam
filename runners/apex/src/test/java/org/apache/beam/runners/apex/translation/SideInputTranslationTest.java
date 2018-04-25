@@ -157,7 +157,7 @@ public class SideInputTranslationTest implements Serializable {
 
     DAG.InputPortMeta sideInput = null;
     for (DAG.InputPortMeta input : om.getInputStreams().keySet()) {
-      if (((LogicalPlan.InputPortMeta) input).getPortName().equals("sideInput1")) {
+      if ("sideInput1".equals(((LogicalPlan.InputPortMeta) input).getPortName())) {
         sideInput = input;
       }
     }

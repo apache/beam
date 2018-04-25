@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,8 +34,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 
 /**
  * Mocked table for bounded data sources.
@@ -45,8 +46,8 @@ public class MockedBoundedTable extends MockedTable {
   /** rows flow out from this table. */
   private final List<Row> rows = new ArrayList<>();
 
-  public MockedBoundedTable(RowType beamRowType) {
-    super(beamRowType);
+  public MockedBoundedTable(Schema beamSchema) {
+    super(beamSchema);
   }
 
   /**
@@ -69,7 +70,7 @@ public class MockedBoundedTable extends MockedTable {
   /**
    * Build a mocked bounded table with the specified type.
    */
-  public static MockedBoundedTable of(final RowType type) {
+  public static MockedBoundedTable of(final Schema type) {
     return new MockedBoundedTable(type);
   }
 
@@ -88,7 +89,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public MockedBoundedTable addRows(Object... args) {
-    List<Row> rows = buildRows(getRowType(), Arrays.asList(args));
+    List<Row> rows = buildRows(getSchema(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
   }
@@ -104,7 +105,7 @@ public class MockedBoundedTable extends MockedTable {
         "MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows));
   }
 
-  @Override public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+  @Override public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     return new OutputStore();
   }
 
@@ -112,7 +113,7 @@ public class MockedBoundedTable extends MockedTable {
    * Keep output in {@code CONTENT} for validation.
    *
    */
-  public static class OutputStore extends PTransform<PCollection<Row>, PDone> {
+  public static class OutputStore extends PTransform<PCollection<Row>, POutput> {
 
     @Override
     public PDone expand(PCollection<Row> input) {

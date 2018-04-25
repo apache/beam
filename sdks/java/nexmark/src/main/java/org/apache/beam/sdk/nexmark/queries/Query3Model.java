@@ -91,8 +91,8 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
         }
       } else {
         // Only want people in OR, ID or CA.
-        if (event.newPerson.state.equals("OR") || event.newPerson.state.equals("ID")
-            || event.newPerson.state.equals("CA")) {
+        if ("OR".equals(event.newPerson.state) || "ID".equals(event.newPerson.state)
+            || "CA".equals(event.newPerson.state)) {
           // Join new person with existing auctions.
           for (Auction auction : newAuctions.get(event.newPerson.id)) {
             addResult(auction, event.newPerson, timestamp);

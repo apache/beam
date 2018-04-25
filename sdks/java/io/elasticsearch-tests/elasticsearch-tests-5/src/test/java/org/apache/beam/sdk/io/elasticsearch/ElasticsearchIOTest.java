@@ -75,7 +75,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
         .put("http.enabled", "true")
         // had problems with some jdk, embedded ES was too slow for bulk insertion,
         // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
-        .put("thread_pool.bulk.queue_size", 100)
+        .put("thread_pool.bulk.queue_size", 400)
         .build();
   }
 
@@ -186,5 +186,29 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
         "There are too many empty splits, parallelism is sub-optimal",
         emptySplits,
         lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
+  }
+
+  @Test
+  public void testWriteWithIdFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIdFn();
+  }
+
+  @Test
+  public void testWriteWithIndexFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIndexFn();
+  }
+
+  @Test
+  public void testWriteWithTypeFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithTypeFn();
+  }
+
+  @Test
+  public void testWriteFullAddressing() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithFullAddressing();
   }
 }

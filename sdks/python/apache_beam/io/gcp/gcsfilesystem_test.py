@@ -79,7 +79,7 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
-    gcsio_mock.size_of_files_in_glob.return_value = {
+    gcsio_mock.list_prefix.return_value = {
         'gs://bucket/file1': 1,
         'gs://bucket/file2': 2
     }
@@ -91,8 +91,7 @@ class GCSFileSystemTest(unittest.TestCase):
     self.assertEqual(
         set(match_result.metadata_list),
         expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
-        'gs://bucket/*', None)
+    gcsio_mock.list_prefix.assert_called_once_with('gs://bucket/')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples_limit(self, mock_gcsio):
@@ -100,7 +99,7 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     limit = 1
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
-    gcsio_mock.size_of_files_in_glob.return_value = {
+    gcsio_mock.list_prefix.return_value = {
         'gs://bucket/file1': 1
     }
     expected_results = set([
@@ -113,8 +112,7 @@ class GCSFileSystemTest(unittest.TestCase):
     self.assertEqual(
         len(match_result.metadata_list),
         limit)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
-        'gs://bucket/*', 1)
+    gcsio_mock.list_prefix.assert_called_once_with('gs://bucket/')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples_error(self, mock_gcsio):
@@ -122,22 +120,21 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
     exception = IOError('Failed')
-    gcsio_mock.size_of_files_in_glob.side_effect = exception
-    expected_results = {'gs://bucket/': exception}
+    gcsio_mock.list_prefix.side_effect = exception
 
     with self.assertRaisesRegexp(BeamIOError,
                                  r'^Match operation failed') as error:
       self.fs.match(['gs://bucket/'])
-    self.assertEqual(error.exception.exception_details, expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
-        'gs://bucket/*', None)
+    self.assertRegexpMatches(str(error.exception.exception_details),
+                             r'gs://bucket/.*%s' % exception)
+    gcsio_mock.list_prefix.assert_called_once_with('gs://bucket/')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiple_patterns(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
-    gcsio_mock.size_of_files_in_glob.side_effect = [
+    gcsio_mock.list_prefix.side_effect = [
         {'gs://bucket/file1': 1},
         {'gs://bucket/file2': 2},
     ]
@@ -311,6 +308,7 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsio_mock.size.return_value = 0
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -328,6 +326,7 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
     exception = IOError('Failed')
     gcsio_mock.delete_batch.side_effect = exception
+    gcsio_mock.size.return_value = 0
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',

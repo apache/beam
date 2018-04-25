@@ -90,6 +90,8 @@ class Injector {
   private static final int THREAD_SLEEP_MS = 500;
 
   // Lists used to generate random team names.
+  // If COLORS is changed, please also make changes in
+  // release/src/main/groovy/MobileGamingCommands.COLORS
   private static final ArrayList<String> COLORS =
       new ArrayList<>(
           Arrays.asList(
@@ -351,10 +353,8 @@ class Injector {
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
-      if (out != null) {
-        out.flush();
-        out.close();
-      }
+      out.flush();
+      out.close();
     }
   }
 
@@ -371,7 +371,7 @@ class Injector {
     String fileName = args[2];
     // The Injector writes either to a PubSub topic, or a file. It will use the PubSub topic if
     // specified; otherwise, it will try to write to a file.
-    if (topicName.equalsIgnoreCase("none")) {
+    if ("none".equalsIgnoreCase(topicName)) {
       writeToFile = true;
       writeToPubsub = false;
     }
@@ -383,7 +383,7 @@ class Injector {
       InjectorUtils.createTopic(pubsub, topic);
       System.out.println("Injecting to topic: " + topic);
     } else {
-      if (fileName.equalsIgnoreCase("none")) {
+      if ("none".equalsIgnoreCase(fileName)) {
         System.out.println("Filename not specified.");
         System.exit(1);
       }

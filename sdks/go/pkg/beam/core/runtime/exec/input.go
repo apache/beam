@@ -44,7 +44,7 @@ type ReusableInput interface {
 }
 
 var (
-	inputs   = make(map[string]func(ReStream) ReusableInput)
+	inputs   = make(map[reflect.Type]func(ReStream) ReusableInput)
 	inputsMu sync.Mutex
 )
 
@@ -54,11 +54,10 @@ func RegisterInput(t reflect.Type, maker func(ReStream) ReusableInput) {
 	inputsMu.Lock()
 	defer inputsMu.Unlock()
 
-	key := t.String()
-	if _, exists := inputs[key]; exists {
-		log.Warnf(context.Background(), "Input for %v already registered. Overwriting.", key)
+	if _, exists := inputs[t]; exists {
+		log.Warnf(context.Background(), "Input for %v already registered. Overwriting.", t.String())
 	}
-	inputs[key] = maker
+	inputs[t] = maker
 }
 
 type reIterValue struct {
@@ -106,7 +105,7 @@ type iterValue struct {
 
 func makeIter(t reflect.Type, s ReStream) ReusableInput {
 	inputsMu.Lock()
-	maker, exists := inputs[t.String()]
+	maker, exists := inputs[t]
 	inputsMu.Unlock()
 
 	if exists {

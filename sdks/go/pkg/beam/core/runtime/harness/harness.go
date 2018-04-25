@@ -17,16 +17,14 @@
 package harness
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"runtime/pprof"
 	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -37,12 +35,13 @@ import (
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
-// "pipeline-construction time" -- on each worker. It is a Fn API client and
+// "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
-	setupRemoteLogging(ctx, loggingEndpoint)
-	setupDiagnosticRecording()
+	hooks.DeserializeHooksFromOptions(ctx)
 
+	hooks.RunInitHooks(ctx)
+	setupRemoteLogging(ctx, loggingEndpoint)
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
@@ -87,8 +86,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		data:   &DataManager{},
 	}
 
-	var cpuProfBuf bytes.Buffer
-
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -108,22 +105,14 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 		// Launch a goroutine to handle the control message.
 		// TODO(wcn): implement a rate limiter for 'heavy' messages?
-		fn := func() {
+		fn := func(ctx context.Context, req *fnpb.InstructionRequest) {
 			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
-			if isEnabled("cpu_profiling") {
-				cpuProfBuf.Reset()
-				pprof.StartCPUProfile(&cpuProfBuf)
-			}
+			ctx = hooks.RunRequestHooks(ctx, req)
 			resp := ctrl.handleInstruction(ctx, req)
 
-			if isEnabled("cpu_profiling") {
-				pprof.StopCPUProfile()
-				if err := ioutil.WriteFile(fmt.Sprintf("%s/cpu_prof%s", storagePath, req.InstructionId), cpuProfBuf.Bytes(), 0644); err != nil {
-					log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
-				}
-			}
+			hooks.RunResponseHooks(ctx, req, resp)
 
 			recordInstructionResponse(resp)
 			if resp != nil {
@@ -134,9 +123,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		if req.GetProcessBundle() != nil {
 			// Only process bundles in a goroutine. We at least need to process instructions for
 			// each plan serially. Perhaps just invoke plan.Execute async?
-			go fn()
+			go fn(ctx, req)
 		} else {
-			fn()
+			fn(ctx, req)
 		}
 	}
 }
@@ -154,7 +143,7 @@ type control struct {
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	id := req.GetInstructionId()
-	ctx = context.WithValue(ctx, instKey, id)
+	ctx = setInstID(ctx, id)
 
 	switch {
 	case req.GetRegister() != nil:
@@ -202,7 +191,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		err := plan.Execute(ctx, id, c.data)
-
+		m := plan.Metrics()
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		c.plans[plan.ID()] = plan
@@ -216,7 +205,9 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundle{
-				ProcessBundle: &fnpb.ProcessBundleResponse{},
+				ProcessBundle: &fnpb.ProcessBundleResponse{
+					Metrics: m,
+				},
 			},
 		}
 
@@ -233,25 +224,13 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(id, "execution plan for %v not found", ref)
 		}
 
-		snapshot := plan.ProgressReport()
+		m := plan.Metrics()
 
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					Metrics: &fnpb.Metrics{
-						Ptransforms: map[string]*fnpb.Metrics_PTransform{
-							snapshot.ID: &fnpb.Metrics_PTransform{
-								ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-									Measured: &fnpb.Metrics_PTransform_Measured{
-										OutputElementCounts: map[string]int64{
-											snapshot.Name: snapshot.Count,
-										},
-									},
-								},
-							},
-						},
-					},
+					Metrics: m,
 				},
 			},
 		}

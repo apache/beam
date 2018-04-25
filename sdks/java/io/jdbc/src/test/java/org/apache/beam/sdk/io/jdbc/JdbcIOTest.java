@@ -224,6 +224,7 @@ public class JdbcIOTest implements Serializable {
   public void testRead() throws Exception {
     PCollection<TestRow> rows = pipeline.apply(
         JdbcIO.<TestRow>read()
+            .withFetchSize(12)
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withQuery("select name,id from " + readTableName)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
@@ -334,7 +335,7 @@ public class JdbcIOTest implements Serializable {
                         "jdbc:derby://localhost:" + port + "/target/beam"))
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
                 .withRetryStrategy((JdbcIO.RetryStrategy) e -> {
-                  return e.getSQLState().equals("XJ208"); // we fake a deadlock with a lock here
+                  return "XJ208".equals(e.getSQLState()); // we fake a deadlock with a lock here
                 })
                 .withPreparedStatementSetter(
                     (element, statement) -> {

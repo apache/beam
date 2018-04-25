@@ -80,6 +80,10 @@ class PicklerTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       dumps((_ for _ in range(10)))
 
+  def test_recursive_class(self):
+    self.assertEquals('RecursiveClass:abc',
+                      loads(dumps(module_test.RecursiveClass('abc').datum)))
+
 
 if __name__ == '__main__':
   unittest.main()

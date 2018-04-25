@@ -29,11 +29,11 @@ func TestIsBound(t *testing.T) {
 	}{
 		{New(reflectx.Int), true},
 		{New(TType), false},
-		{NewWCoGBK(New(TType), New(reflectx.String)), false},
-		{NewWCoGBK(New(reflectx.String), New(reflectx.String)), true},
-		{NewWKV(New(reflectx.String), New(reflect.SliceOf(reflectx.Int))), true},
-		{NewWKV(New(reflectx.String), New(reflect.SliceOf(XType))), false},
-		{NewWKV(New(reflectx.String), New(reflectx.String)), true},
+		{NewCoGBK(New(TType), New(reflectx.String)), false},
+		{NewCoGBK(New(reflectx.String), New(reflectx.String)), true},
+		{NewKV(New(reflectx.String), New(reflect.SliceOf(reflectx.Int))), true},
+		{NewKV(New(reflectx.String), New(reflect.SliceOf(XType))), false},
+		{NewKV(New(reflectx.String), New(reflectx.String)), true},
 	}
 
 	for _, test := range tests {
@@ -53,13 +53,13 @@ func TestIsStructurallyAssignable(t *testing.T) {
 		{New(reflectx.Int64), New(reflectx.Int32), false}, // from Go assignability
 		{New(reflectx.Int), New(TType), true},
 		{New(XType), New(TType), true},
-		{NewWKV(New(XType), New(YType)), New(TType), false},                                                    // T cannot match composites
-		{NewWKV(New(reflectx.Int), New(reflectx.Int)), NewWCoGBK(New(reflectx.Int), New(reflectx.Int)), false}, // structural mismatch
-		{NewWKV(New(XType), New(reflectx.Int)), NewWKV(New(TType), New(UType)), true},
-		{NewWKV(New(XType), New(reflectx.Int)), NewWKV(New(TType), New(XType)), true},
-		{NewWKV(New(reflectx.String), New(reflectx.Int)), NewWKV(New(TType), New(TType)), true},
-		{NewWKV(New(reflectx.Int), New(reflectx.Int)), NewWKV(New(TType), New(TType)), true},
-		{NewWKV(New(reflectx.Int), New(reflectx.String)), NewWKV(New(TType), New(reflectx.String)), true},
+		{NewKV(New(XType), New(YType)), New(TType), false},                                                   // T cannot match composites
+		{NewKV(New(reflectx.Int), New(reflectx.Int)), NewCoGBK(New(reflectx.Int), New(reflectx.Int)), false}, // structural mismatch
+		{NewKV(New(XType), New(reflectx.Int)), NewKV(New(TType), New(UType)), true},
+		{NewKV(New(XType), New(reflectx.Int)), NewKV(New(TType), New(XType)), true},
+		{NewKV(New(reflectx.String), New(reflectx.Int)), NewKV(New(TType), New(TType)), true},
+		{NewKV(New(reflectx.Int), New(reflectx.Int)), NewKV(New(TType), New(TType)), true},
+		{NewKV(New(reflectx.Int), New(reflectx.String)), NewKV(New(TType), New(reflectx.String)), true},
 	}
 
 	for _, test := range tests {
@@ -76,32 +76,32 @@ func TestBindSubstitute(t *testing.T) {
 		{
 			New(reflectx.String),
 			New(XType),
-			NewWKV(New(reflectx.Int), New(XType)),
-			NewWKV(New(reflectx.Int), New(reflectx.String)),
+			NewKV(New(reflectx.Int), New(XType)),
+			NewKV(New(reflectx.Int), New(reflectx.String)),
 		},
 		{
 			New(reflectx.String),
 			New(XType),
-			NewWKV(New(reflectx.Int), New(reflectx.Int)),
-			NewWKV(New(reflectx.Int), New(reflectx.Int)),
+			NewKV(New(reflectx.Int), New(reflectx.Int)),
+			NewKV(New(reflectx.Int), New(reflectx.Int)),
 		},
 		{
-			NewWKV(New(reflectx.Int), New(reflectx.String)),
-			NewWKV(New(XType), New(YType)),
-			NewWCoGBK(New(XType), New(XType)),
-			NewWCoGBK(New(reflectx.Int), New(reflectx.Int)),
+			NewKV(New(reflectx.Int), New(reflectx.String)),
+			NewKV(New(XType), New(YType)),
+			NewCoGBK(New(XType), New(XType)),
+			NewCoGBK(New(reflectx.Int), New(reflectx.Int)),
 		},
 		{
-			NewWCoGBK(New(reflectx.Int), New(reflectx.String)),
-			NewWCoGBK(New(XType), New(YType)),
-			NewWCoGBK(New(YType), New(XType)),
-			NewWCoGBK(New(reflectx.String), New(reflectx.Int)),
+			NewCoGBK(New(reflectx.Int), New(reflectx.String)),
+			NewCoGBK(New(XType), New(YType)),
+			NewCoGBK(New(YType), New(XType)),
+			NewCoGBK(New(reflectx.String), New(reflectx.Int)),
 		},
 		{
-			NewWCoGBK(New(ZType), New(XType)),
-			NewWCoGBK(New(XType), New(YType)),
-			NewWCoGBK(New(YType), New(XType)),
-			NewWCoGBK(New(XType), New(ZType)),
+			NewCoGBK(New(ZType), New(XType)),
+			NewCoGBK(New(XType), New(YType)),
+			NewCoGBK(New(YType), New(XType)),
+			NewCoGBK(New(XType), New(ZType)),
 		},
 	}
 

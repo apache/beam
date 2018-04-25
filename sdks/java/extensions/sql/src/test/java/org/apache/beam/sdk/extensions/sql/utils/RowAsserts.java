@@ -37,7 +37,7 @@ public class RowAsserts {
     return records -> {
       Row row = Iterables.getOnlyElement(records);
       assertNotNull(row);
-      assertEquals(expected, (int) row.getInteger(0));
+      assertEquals(expected, (int) row.getInt32(0));
       return null;
     };
   }

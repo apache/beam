@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sql.meta;
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.net.URI;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -37,20 +36,12 @@ public abstract class Table implements Serializable {
   @Nullable
   public abstract String getComment();
   @Nullable
-  public abstract URI getLocation();
+  public abstract String getLocation();
   @Nullable
   public abstract JSONObject getProperties();
 
   public static Builder builder() {
     return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Table.Builder();
-  }
-
-  public String getLocationAsString() {
-    if (getLocation() == null) {
-      return null;
-    }
-
-    return "/" + getLocation().getHost() + getLocation().getPath();
   }
 
   /**
@@ -62,7 +53,7 @@ public abstract class Table implements Serializable {
     public abstract Builder name(String name);
     public abstract Builder columns(List<Column> columns);
     public abstract Builder comment(String name);
-    public abstract Builder location(URI location);
+    public abstract Builder location(String location);
     public abstract Builder properties(JSONObject properties);
     public abstract Table build();
   }

@@ -53,11 +53,11 @@ func TestParDo(t *testing.T) {
 	}
 
 	g := graph.New()
-	nN := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
-	aN := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
-	bN := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
-	cN := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
-	dN := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
+	nN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
+	aN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
+	bN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
+	cN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
+	dN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
 
 	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil)
 	if err != nil {

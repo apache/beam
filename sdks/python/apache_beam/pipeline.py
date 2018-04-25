@@ -185,6 +185,7 @@ class Pipeline(object):
     output_map = {}
     output_replacements = {}
     input_replacements = {}
+    side_input_replacements = {}
 
     class TransformUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
       """"A visitor that replaces the matching PTransforms."""
@@ -312,11 +313,27 @@ class Pipeline(object):
             replace_input = True
             break
 
+        replace_side_inputs = False
+        for side_input in transform_node.side_inputs:
+          if side_input.pvalue in output_map:
+            replace_side_inputs = True
+            break
+
         if replace_input:
           new_input = [
               input if not input in output_map else output_map[input]
               for input in transform_node.inputs]
           input_replacements[transform_node] = new_input
+
+        if replace_side_inputs:
+          new_side_inputs = []
+          for side_input in transform_node.side_inputs:
+            if side_input.pvalue in output_map:
+              side_input.pvalue = output_map[side_input.pvalue]
+              new_side_inputs.append(side_input)
+            else:
+              new_side_inputs.append(side_input)
+          side_input_replacements[transform_node] = new_side_inputs
 
     self.visit(InputOutputUpdater(self))
 
@@ -325,6 +342,9 @@ class Pipeline(object):
 
     for transform in input_replacements:
       transform.inputs = input_replacements[transform]
+
+    for transform in side_input_replacements:
+      transform.side_inputs = side_input_replacements[transform]
 
   def _check_replacement(self, override):
 
@@ -552,7 +572,7 @@ class Pipeline(object):
       ok = True  # Really a nonlocal.
 
       def enter_composite_transform(self, transform_node):
-        self.visit_transform(transform_node)
+        pass
 
       def visit_transform(self, transform_node):
         try:
@@ -570,11 +590,12 @@ class Pipeline(object):
     self.visit(Visitor())
     return Visitor.ok
 
-  def to_runner_api(self, return_context=False):
+  def to_runner_api(self, return_context=False, context=None):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
-    context = pipeline_context.PipelineContext()
+    if context is None:
+      context = pipeline_context.PipelineContext()
     # Mutates context; placing inline would force dependence on
     # argument evaluation order.
     root_transform_id = context.transforms.get_id(self._root_transform())
@@ -802,7 +823,7 @@ class AppliedPTransform(object):
       if transform is None:
         return None
       else:
-        return transform.to_runner_api(context)
+        return transform.to_runner_api(context, has_parts=bool(self.parts))
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
         spec=transform_to_runner_api(self.transform, context),
@@ -872,6 +893,13 @@ class PTransformOverride(object):
   @abc.abstractmethod
   def matches(self, applied_ptransform):
     """Determines whether the given AppliedPTransform matches.
+
+    Note that the matching will happen *after* Runner API proto translation.
+    If matching is done via type checks, to/from_runner_api[_parameter] methods
+    must be implemented to preserve the type (and other data) through proto
+    serialization.
+
+    Consider URN-based translation instead.
 
     Args:
       applied_ptransform: AppliedPTransform to be matched.

@@ -39,6 +39,7 @@ cdef class ConsumerSet(Receiver):
 
 
 cdef class Operation(object):
+  cdef readonly name_context
   cdef readonly operation_name
   cdef readonly spec
   cdef object consumers

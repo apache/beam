@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -30,6 +29,7 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -44,6 +44,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -239,8 +241,7 @@ public class GreedyStageFuserTest {
                 PipelineNode.pTransform("window", windowTransform)));
     // Nothing consumes the outputs of ParDo or Window, so they don't have to be materialized
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
-    assertThat(
-        subgraph.toPTransform().getSubtransformsList(), containsInAnyOrder("parDo", "window"));
+    assertThat(subgraph, hasSubtransforms("parDo", "window"));
   }
 
   @Test
@@ -299,8 +300,7 @@ public class GreedyStageFuserTest {
         contains(
             PipelineNode.pCollection(
                 "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())));
-    assertThat(
-        subgraph.toPTransform().getSubtransformsList(), containsInAnyOrder("parDo"));
+    assertThat(subgraph, hasSubtransforms("parDo"));
   }
 
   @Test
@@ -359,8 +359,7 @@ public class GreedyStageFuserTest {
         contains(
             PipelineNode.pCollection(
                 "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())));
-    assertThat(
-        subgraph.toPTransform().getSubtransformsList(), containsInAnyOrder("parDo"));
+    assertThat(subgraph, hasSubtransforms("parDo"));
   }
 
   @Test
@@ -440,9 +439,7 @@ public class GreedyStageFuserTest {
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, p.getPerElementConsumers(impulseOutputNode));
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
-    assertThat(
-        subgraph.toPTransform().getSubtransformsList(),
-        containsInAnyOrder("read", "parDo", "flatten", "window"));
+    assertThat(subgraph, hasSubtransforms("read", "parDo", "flatten", "window"));
   }
 
   @Test
@@ -524,9 +521,7 @@ public class GreedyStageFuserTest {
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(PipelineNode.pTransform("read", readTransform)));
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
-    assertThat(
-        subgraph.toPTransform().getSubtransformsList(),
-        containsInAnyOrder("read", "flatten", "window"));
+    assertThat(subgraph, hasSubtransforms("read", "flatten", "window"));
 
     // Flatten shows up in both of these subgraphs, but elements only go through a path to the
     // flatten once.
@@ -540,9 +535,7 @@ public class GreedyStageFuserTest {
         contains(
             PipelineNode.pCollection(
                 "flatten.out", components.getPcollectionsOrThrow("flatten.out"))));
-    assertThat(
-        readFromOtherEnv.toPTransform().getSubtransformsList(),
-        containsInAnyOrder("envRead", "flatten"));
+    assertThat(readFromOtherEnv, hasSubtransforms("envRead", "flatten"));
   }
 
   @Test
@@ -679,6 +672,7 @@ public class GreedyStageFuserTest {
     PTransform parDoTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
+            .putOutputs("out", "parDo.out")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -687,20 +681,20 @@ public class GreedyStageFuserTest {
                             .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
                             .build()
                             .toByteString()))
-            .putOutputs("out", "parDo.out")
             .build();
 
+    PCollection parDoOutput = PCollection.newBuilder().setUniqueName("parDo.out").build();
     QueryablePipeline p =
         QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
-                .putPcollections(
-                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putPcollections("parDo.out", parDoOutput)
                 .putTransforms(
                     "window",
                     PTransform.newBuilder()
                         .putInputs("input", "parDo.out")
+                        .putOutputs("output", "window.out")
                         .setSpec(
                             FunctionSpec.newBuilder()
                                 .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
@@ -711,6 +705,8 @@ public class GreedyStageFuserTest {
                                         .build()
                                         .toByteString()))
                         .build())
+                .putPcollections(
+                    "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
                 .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
                 .putEnvironments("common", env)
                 .build());
@@ -718,7 +714,9 @@ public class GreedyStageFuserTest {
     ExecutableStage subgraph =
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, p.getPerElementConsumers(impulseOutputNode));
-    assertThat(subgraph.getOutputPCollections(), emptyIterable());
+    assertThat(
+        subgraph.getOutputPCollections(),
+        contains(PipelineNode.pCollection("parDo.out", parDoOutput)));
     assertThat(subgraph.getInputPCollection(), equalTo(impulseOutputNode));
     assertThat(subgraph.getEnvironment(), equalTo(env));
     assertThat(
@@ -892,7 +890,76 @@ public class GreedyStageFuserTest {
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(readNode));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
-    assertThat(subgraph.toPTransform().getSubtransformsList(), contains(readNode.getId()));
+    assertThat(subgraph, hasSubtransforms(readNode.getId()));
+  }
+
+  @Test
+  public void sideInputIncludedInStage() {
+    Environment env = Environment.newBuilder().setUrl("common").build();
+    PTransform readTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "read.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "read.out")
+            .putInputs("side_input", "side_read.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putSideInputs("side_input", SideInput.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+    PCollection sideInputPCollection =
+        PCollection.newBuilder().setUniqueName("side_read.out").build();
+    QueryablePipeline p =
+        QueryablePipeline.forPrimitivesIn(
+            partialComponents
+                .toBuilder()
+                .putTransforms("read", readTransform)
+                .putPcollections(
+                    "read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+                .putTransforms(
+                    "side_read",
+                    PTransform.newBuilder()
+                        .putInputs("input", "impulse.out")
+                        .putOutputs("output", "side_read.out")
+                        .build())
+                .putPcollections("side_read.out", sideInputPCollection)
+                .putTransforms("parDo", parDoTransform)
+                .putPcollections(
+                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putEnvironments("common", env)
+                .build());
+
+    PCollectionNode readOutput =
+        getOnlyElement(p.getOutputPCollections(PipelineNode.pTransform("read", readTransform)));
+    ExecutableStage subgraph =
+        GreedyStageFuser.forGrpcPortRead(
+            p, readOutput, ImmutableSet.of(PipelineNode.pTransform("parDo", parDoTransform)));
+    PTransformNode parDoNode = PipelineNode.pTransform("parDo", parDoTransform);
+    SideInputReference sideInputRef =
+        SideInputReference.of(
+            parDoNode,
+            "side_input",
+            PipelineNode.pCollection("side_read.out", sideInputPCollection));
+    assertThat(subgraph.getSideInputs(), contains(sideInputRef));
+    assertThat(subgraph.getOutputPCollections(), emptyIterable());
   }
 
   @Test
@@ -943,6 +1010,28 @@ public class GreedyStageFuserTest {
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(readNode));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
-    assertThat(subgraph.toPTransform().getSubtransformsList(), contains(readNode.getId()));
+    assertThat(subgraph, hasSubtransforms(readNode.getId()));
   }
+
+  private static TypeSafeMatcher<ExecutableStage> hasSubtransforms(String id, String... ids) {
+    Set<String> expectedTransforms = ImmutableSet.<String>builder().add(id).add(ids).build();
+    return new TypeSafeMatcher<ExecutableStage>() {
+      @Override
+      protected boolean matchesSafely(ExecutableStage executableStage) {
+        // NOTE: Transform names must be unique, so it's fine to throw here if this does not hold.
+        Set<String> stageTransforms = executableStage.getTransforms().stream()
+            .map(PTransformNode::getId)
+            .collect(Collectors.toSet());
+        return stageTransforms.containsAll(expectedTransforms)
+            && expectedTransforms.containsAll(stageTransforms);
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(
+            "ExecutableStage with subtransform ids: " + expectedTransforms);
+      }
+    };
+  }
+
 }

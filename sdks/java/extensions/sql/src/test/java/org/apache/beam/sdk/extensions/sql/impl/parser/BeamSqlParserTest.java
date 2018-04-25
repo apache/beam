@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -26,9 +24,10 @@ import static org.junit.Assert.assertTrue;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
-import java.net.URI;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Test;
 
@@ -50,7 +49,7 @@ public class BeamSqlParserTest {
             + "name varchar(31) COMMENT 'name') \n"
             + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
-            + "LOCATION 'text://home/admin/person'\n"
+            + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
     );
     assertEquals(
@@ -66,7 +65,7 @@ public class BeamSqlParserTest {
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name') \n"
             + "COMMENT 'person table' \n"
-            + "LOCATION 'text://home/admin/person'\n"
+            + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
     );
   }
@@ -84,7 +83,7 @@ public class BeamSqlParserTest {
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name') \n"
             + "TYPE 'text' \n"
-            + "LOCATION 'text://home/admin/person'\n"
+            + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
     );
     assertEquals(mockTable("person", "text", null, properties), table);
@@ -98,7 +97,7 @@ public class BeamSqlParserTest {
             + "name varchar(31) COMMENT 'name') \n"
             + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
-            + "LOCATION 'text://home/admin/person'\n"
+            + "LOCATION '/home/admin/person'\n"
     );
     assertEquals(
         mockTable("person", "text", "person table", new JSONObject()),
@@ -131,7 +130,7 @@ public class BeamSqlParserTest {
     assertTrue(sqlNode instanceof SqlDropTable);
     SqlDropTable stmt = (SqlDropTable) sqlNode;
     assertNotNull(stmt);
-    assertEquals("person", stmt.tableName());
+    assertEquals("person", stmt.getNameSimple());
   }
 
   private Table parseTable(String sql) throws Exception {
@@ -141,36 +140,32 @@ public class BeamSqlParserTest {
     assertNotNull(sqlNode);
     assertTrue(sqlNode instanceof SqlCreateTable);
     SqlCreateTable stmt = (SqlCreateTable) sqlNode;
-    return ParserUtils.convertCreateTableStmtToTable(stmt);
+    return stmt.toTable();
   }
 
   private static Table mockTable(String name, String type, String comment, JSONObject properties) {
-    return mockTable(name, type, comment, properties, "text://home/admin/" + name);
+    return mockTable(name, type, comment, properties, "/home/admin/" + name);
   }
 
   private static Table mockTable(String name, String type, String comment, JSONObject properties,
       String location) {
-    URI locationURI = null;
-    if (location != null) {
-      locationURI = URI.create(location);
-    }
 
     return Table.builder()
         .name(name)
         .type(type)
         .comment(comment)
-        .location(locationURI)
+        .location(location)
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .coder(INTEGER)
-                .primaryKey(false)
+                .fieldType(TypeName.INT32.type())
+                .nullable(true)
                 .comment("id")
                 .build(),
             Column.builder()
                 .name("name")
-                .coder(VARCHAR)
-                .primaryKey(false)
+                .fieldType(RowSqlTypes.VARCHAR)
+                .nullable(true)
                 .comment("name")
                 .build()
         ))

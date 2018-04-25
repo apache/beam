@@ -35,6 +35,8 @@ cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
 
 cd ${CONTEXT_DIR}
+# Clean up leftover unused networks. BEAM-4051
+docker network prune --force
 time docker-compose -p ${PROJECT_NAME} build
 time docker-compose -p ${PROJECT_NAME} up --exit-code-from test \
     --abort-on-container-exit

@@ -23,12 +23,12 @@ import (
 )
 
 // PCollection is an immutable collection of values of type 'A', which must be
-// a concrete Windowed Value type, such as W<int> or W<KV<int,string>>. A
-// PCollection can contain either a bounded or unbounded number of elements.
-// Bounded and unbounded PCollections are produced as the output of PTransforms
-// (including root PTransforms like textio.Read), and can be passed as the
-// inputs of other PTransforms. Some root transforms produce bounded
-// PCollections and others produce unbounded ones.
+// a concrete type, such as int or KV<int,string>. A PCollection can contain
+// either a bounded or unbounded number of elements. Bounded and unbounded
+// PCollections are produced as the output of PTransforms (including root
+// PTransforms like textio.Read), and can be passed as the inputs of other
+// PTransforms. Some root transforms produce bounded PCollections and others
+// produce unbounded ones.
 //
 // Each element in a PCollection has an associated timestamp. Sources assign
 // timestamps to elements when they create PCollections, and other PTransforms
@@ -53,7 +53,7 @@ func (p PCollection) IsValid() bool {
 // TODO(herohde) 5/30/2017: add windowing strategy and documentation.
 
 // Type returns the full type 'A' of the elements. 'A' must be a concrete
-// Windowed Value type, such as W<int> or W<KV<int,string>>.
+// type, such as int or KV<int,string>.
 func (p PCollection) Type() FullType {
 	if !p.IsValid() {
 		panic("Invalid PCollection")

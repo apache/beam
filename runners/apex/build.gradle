@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-apex")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Apex"
 
@@ -25,30 +27,33 @@ description = "Apache Beam :: Runners :: Apex"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
-evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":beam-sdks-java-core")
+
+configurations {
+  validatesRunner
+}
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow library.java.apex_common
   shadow library.java.malhar_library
   shadow library.java.apex_engine
   shadow library.java.commons_lang3
   shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(":runners:core-java").sourceSets.test.output
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.jackson_dataformat_yaml
+  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
 }
 
 // TODO: Update this so that the generated file is added to the explicitly added instead of
@@ -73,5 +78,32 @@ task buildDependencyTree(type: DependencyReportTask) {
 }
 compileJava.dependsOn buildDependencyTree
 
-// Generates :runners:apex:runQuickstartJavaApex
-createJavaQuickstartValidationTask(name: 'Apex')
+task validatesRunnerBatch(type: Test) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestApexRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+  }
+}
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Apex runner"
+  dependsOn validatesRunnerBatch
+}
+
+// Generates :beam-runners-apex:runQuickstartJavaApex
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Apex')

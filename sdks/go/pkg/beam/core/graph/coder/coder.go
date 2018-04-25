@@ -214,8 +214,6 @@ func NewVarInt() *Coder {
 	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int32)}
 }
 
-// Convenience methods to operate through the top-level WindowedValue.
-
 // IsW returns true iff the coder is for a WindowedValue.
 func IsW(c *Coder) bool {
 	return c.Kind == WindowedValue
@@ -238,36 +236,34 @@ func NewW(c *Coder, w *window.Window) *Coder {
 	}
 }
 
-// IsWKV returns true iff the coder is for a WindowedValue key-value pair.
-func IsWKV(c *Coder) bool {
-	return IsW(c) && SkipW(c).Kind == KV
+// IsKV returns true iff the coder is for key-value pairs.
+func IsKV(c *Coder) bool {
+	return c.Kind == KV
 }
 
-// NewWKV returns a WindowedValue coder for the window of KV elements.
-func NewWKV(components []*Coder, w *window.Window) *Coder {
+// NewKV returns a coder for key-value pairs.
+func NewKV(components []*Coder) *Coder {
 	checkCodersNotNil(components)
-	c := &Coder{
+	return &Coder{
 		Kind:       KV,
 		T:          typex.New(typex.KVType, Types(components)...),
 		Components: components,
 	}
-	return NewW(c, w)
 }
 
-// IsWCoGBK returns true iff the coder is for a windowed CoGBK type.
-func IsWCoGBK(c *Coder) bool {
-	return IsW(c) && SkipW(c).Kind == CoGBK
+// IsCoGBK returns true iff the coder is for a CoGBK type.
+func IsCoGBK(c *Coder) bool {
+	return c.Kind == CoGBK
 }
 
-// NewWCoGBK returns a WindowedValue coder for the window of CoGBK elements.
-func NewWCoGBK(components []*Coder, w *window.Window) *Coder {
+// NewCoGBK returns a coder for CoGBK elements.
+func NewCoGBK(components []*Coder) *Coder {
 	checkCodersNotNil(components)
-	c := &Coder{
+	return &Coder{
 		Kind:       CoGBK,
 		T:          typex.New(typex.CoGBKType, Types(components)...),
 		Components: components,
 	}
-	return NewW(c, w)
 }
 
 // SkipW returns the data coder used by a WindowedValue, or returns the coder. This

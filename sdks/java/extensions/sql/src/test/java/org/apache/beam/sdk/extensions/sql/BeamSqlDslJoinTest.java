@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.stringContainsInOrder;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -38,7 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -54,8 +54,8 @@ public class BeamSqlDslJoinTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final RowType SOURCE_ROW_TYPE =
-      RowSqlType.builder()
+  private static final Schema SOURCE_ROW_TYPE =
+      RowSqlTypes.builder()
           .withIntegerField("order_id")
           .withIntegerField("site_id")
           .withIntegerField("price")
@@ -63,8 +63,8 @@ public class BeamSqlDslJoinTest {
 
   private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
 
-  private static final RowType RESULT_ROW_TYPE =
-      RowSqlType.builder()
+  private static final Schema RESULT_ROW_TYPE =
+      RowSqlTypes.builder()
           .withIntegerField("order_id")
           .withIntegerField("site_id")
           .withIntegerField("price")
@@ -316,7 +316,7 @@ public class BeamSqlDslJoinTest {
     return
         TestUtils
             .rowsBuilderOf(
-                RowSqlType
+                RowSqlTypes
                     .builder()
                     .withIntegerField("order_id")
                     .withIntegerField("price")
@@ -324,11 +324,11 @@ public class BeamSqlDslJoinTest {
                     .withTimestampField("timestamp")
                     .build())
             .addRows(
-                1, 2, 2, ts.plusSeconds(0).toDate(),
-                2, 2, 1, ts.plusSeconds(40).toDate(),
-                1, 4, 3, ts.plusSeconds(60).toDate(),
-                3, 2, 1, ts.plusSeconds(65).toDate(),
-                3, 3, 1, ts.plusSeconds(70).toDate())
+                1, 2, 2, ts.plusSeconds(0),
+                2, 2, 1, ts.plusSeconds(40),
+                1, 4, 3, ts.plusSeconds(60),
+                3, 2, 1, ts.plusSeconds(65),
+                3, 3, 1, ts.plusSeconds(70))
             .getPCollectionBuilder()
             .withTimestampField("timestamp")
             .inPipeline(pipeline)

@@ -40,7 +40,7 @@ The PubSub topic you specify should be the same topic to which the Injector is
 publishing.
 
 To run the Java injector:
-<beam_root>/examples/java8$ mvn compile exec:java \
+<beam_root>/examples/java$ mvn compile exec:java \
     -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
     -Dexec.args="$PROJECT_ID $PUBSUB_TOPIC none"
 
@@ -68,13 +68,6 @@ python game_stats.py \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \
     --temp_location gs://$BUCKET/user_score/temp
-
---------------------------------------------------------------------------------
-NOTE [BEAM-2354]: This example is not yet runnable by DataflowRunner.
-    The runner still needs support for:
-      * the --save_main_session flag when streaming is enabled
-      * combiners
---------------------------------------------------------------------------------
 """
 
 from __future__ import absolute_import
@@ -182,22 +175,19 @@ class WriteToBigQuery(beam.PTransform):
     return ', '.join(
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
-  def get_table(self, pipeline):
-    """Utility to construct an output table reference."""
-    project = pipeline.options.view_as(GoogleCloudOptions).project
-    return '%s:%s.%s' % (project, self.dataset, self.table_name)
+  def get_schema(self):
+    """Build the output table schema."""
+    return ', '.join(
+        '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
   def expand(self, pcoll):
-    table = self.get_table(pcoll.pipeline)
+    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
     return (
         pcoll
         | 'ConvertToRow' >> beam.Map(
             lambda elem: {col: elem[col] for col in self.schema})
-        | beam.io.Write(beam.io.BigQuerySink(
-            table,
-            schema=self.get_schema(),
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
+        | beam.io.WriteToBigQuery(
+            self.table_name, self.dataset, project, self.get_schema()))
 
 
 # [START abuse_detect]

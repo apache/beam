@@ -46,6 +46,7 @@
     <module>spark</module>
     <module>apex</module>
     <module>gcp</module>
+    <module>extensions-java</module>
   </modules>
 
   <profiles>

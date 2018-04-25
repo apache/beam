@@ -25,3 +25,4 @@ package optimized
 //go:generate specialize --package=optimized --input=emitters.tmpl --x=data,universals --y=data,universals
 //go:generate specialize --package=optimized --input=encoders.tmpl --x=primitives,universals --imports=typex
 //go:generate specialize --package=optimized --input=inputs.tmpl --x=data,universals --y=data,universals
+//go:generate gofmt -w callers.go decoders.go emitters.go encoders.go inputs.go

@@ -21,36 +21,34 @@ package org.apache.beam.sdk.extensions.sql.impl.utils;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * Provides converters from {@link BigDecimal} to other numeric types based on
- * the input {@link SqlTypeCoder}.
+ * the input {@link TypeName}.
  */
 public class BigDecimalConverter {
 
-  private static final Map<SqlTypeCoder, SerializableFunction<BigDecimal, ? extends Number>>
+  private static final Map<TypeName, SerializableFunction<BigDecimal, ? extends Number>>
       CONVERTER_MAP = ImmutableMap
-      .<SqlTypeCoder, SerializableFunction<BigDecimal, ? extends Number>>builder()
-      .put(SqlTypeCoders.INTEGER, BigDecimal::intValue)
-      .put(SqlTypeCoders.SMALLINT, BigDecimal::shortValue)
-      .put(SqlTypeCoders.TINYINT, BigDecimal::byteValue)
-      .put(SqlTypeCoders.BIGINT, BigDecimal::longValue)
-      .put(SqlTypeCoders.FLOAT, BigDecimal::floatValue)
-      .put(SqlTypeCoders.DOUBLE, BigDecimal::doubleValue)
-      .put(SqlTypeCoders.DECIMAL, v -> v)
+      .<TypeName, SerializableFunction<BigDecimal, ? extends Number>>builder()
+      .put(TypeName.INT32, BigDecimal::intValue)
+      .put(TypeName.INT16, BigDecimal::shortValue)
+      .put(TypeName.BYTE, BigDecimal::byteValue)
+      .put(TypeName.INT64, BigDecimal::longValue)
+      .put(TypeName.FLOAT, BigDecimal::floatValue)
+      .put(TypeName.DOUBLE, BigDecimal::doubleValue)
+      .put(TypeName.DECIMAL, v -> v)
       .build();
 
   public static SerializableFunction<BigDecimal, ? extends Number> forSqlType(
-      SqlTypeCoder sqlTypeCoder) {
-
-    if (!CONVERTER_MAP.containsKey(sqlTypeCoder)) {
+      TypeName typeName) {
+    if (!CONVERTER_MAP.containsKey(typeName)) {
       throw new UnsupportedOperationException(
-          "Conversion from " + sqlTypeCoder + " to BigDecimal is not supported");
+          "Conversion from " + typeName + " to BigDecimal is not supported");
     }
 
-    return CONVERTER_MAP.get(sqlTypeCoder);
+    return CONVERTER_MAP.get(typeName);
   }
 }

@@ -119,7 +119,7 @@ public class DoFnFunction<InputT, OutputT> extends
 
     for (RawUnionValue unionValue: inputs) {
       final String tag = unionValue.getUnionTag();
-      if (tag.equals("0")) {
+      if ("0".equals(tag)) {
         // main input
         pushedBackValues.add((WindowedValue<InputT>) unionValue.getValue());
       } else {

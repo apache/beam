@@ -30,6 +30,8 @@ prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
 
+import argparse
+
 import six
 
 import apache_beam as beam
@@ -626,6 +628,63 @@ def examples_wordcount_debugging(renames):
               | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
     p.visit(SnippetUtils.RenameFiles(renames))
+
+
+def examples_wordcount_streaming(argv):
+  import apache_beam as beam
+  from apache_beam import window
+  from apache_beam.io import ReadFromPubSub
+  from apache_beam.io import WriteStringsToPubSub
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import StandardOptions
+
+  # Parse out arguments.
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--output_topic', required=True,
+      help=('Output PubSub topic of the form '
+            '"projects/<PROJECT>/topic/<TOPIC>".'))
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument(
+      '--input_topic',
+      help=('Input PubSub topic of the form '
+            '"projects/<PROJECT>/topics/<TOPIC>".'))
+  group.add_argument(
+      '--input_subscription',
+      help=('Input PubSub subscription of the form '
+            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(StandardOptions).streaming = True
+
+  with TestPipeline(options=pipeline_options) as p:
+    # [START example_wordcount_streaming_read]
+    # Read from Pub/Sub into a PCollection.
+    if known_args.input_subscription:
+      lines = p | beam.io.ReadFromPubSub(
+          subscription=known_args.input_subscription)
+    else:
+      lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+    # [END example_wordcount_streaming_read]
+
+    output = (
+        lines
+        | 'DecodeUnicode' >> beam.FlatMap(
+            lambda encoded: encoded.decode('utf-8'))
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: __import__('re').findall(r'[A-Za-z\']+', x))
+        | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(15, 0))
+        | 'Group' >> beam.GroupByKey()
+        | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+        | 'Format' >> beam.Map(
+            lambda word_and_count: '%s: %d' % word_and_count))
+
+    # [START example_wordcount_streaming_write]
+    # Write to Pub/Sub
+    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    # [END example_wordcount_streaming_write]
 
 
 def examples_ptransforms_templated(renames):

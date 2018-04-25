@@ -110,7 +110,7 @@ public class DistinctTest {
         values.put(kv.getKey(), kv.getValue());
       }
       assertEquals(2, values.size());
-      assertTrue(values.get("k1").equals("v1") || values.get("k1").equals("v2"));
+      assertTrue("v1".equals(values.get("k1")) || "v2".equals(values.get("k1")));
       assertEquals("v1", values.get("k2"));
       return null;
     }

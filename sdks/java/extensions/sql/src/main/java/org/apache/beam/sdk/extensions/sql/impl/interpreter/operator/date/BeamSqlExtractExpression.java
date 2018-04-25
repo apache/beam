@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.ReadableInstant;
 
 /**
  * {@code BeamSqlExpression} for EXTRACT.
@@ -57,7 +57,7 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
   }
 
   @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    Date time = opValueEvaluated(1, inputRow, window);
+    ReadableInstant time = opValueEvaluated(1, inputRow, window);
 
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(0)).getValue();
 
@@ -71,7 +71,7 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
       case DOY:
       case CENTURY:
       case MILLENNIUM:
-        Long timeByDay = time.getTime() / DateTimeUtils.MILLIS_PER_DAY;
+        Long timeByDay = time.getMillis() / DateTimeUtils.MILLIS_PER_DAY;
         Long extracted = DateTimeUtils.unixDateExtract(
             unit,
             timeByDay
@@ -81,7 +81,7 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
       case HOUR:
       case MINUTE:
       case SECOND:
-        int timeInDay = (int) (time.getTime() % DateTimeUtils.MILLIS_PER_DAY);
+        int timeInDay = (int) (time.getMillis() % DateTimeUtils.MILLIS_PER_DAY);
         extracted = (long) DateTimeUtils.unixTimeExtract(
             unit,
             timeInDay

@@ -131,7 +131,7 @@ def getargspec(func):
         # Arguments with the %unknown% prefix will be ignored in the type
         # checking code.
         return inspect.ArgSpec(
-            ['_'], '%unknown%varargs', '%unknown%keywords', ())
+            ['_'], '__unknown__varargs', '__unknown__keywords', ())
     else:
       raise
 

@@ -26,14 +26,14 @@ import static org.mockito.Mockito.verify;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
+import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.util.MoreFutures;
@@ -48,11 +48,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FnApiControlClientPoolServiceTest {
 
-  // For ease of straight-line testing, we use a LinkedBlockingQueue; in practice a SynchronousQueue
-  // for matching incoming connections and server threads is likely.
-  private final BlockingQueue<FnApiControlClient> pool = new LinkedBlockingQueue<>();
+  private final ControlClientPool pool = MapControlClientPool.create();
   private final FnApiControlClientPoolService controlService =
-      FnApiControlClientPoolService.offeringClientsToPool(pool);
+      FnApiControlClientPoolService.offeringClientsToPool(
+          pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
   private GrpcFnServer<FnApiControlClientPoolService> server;
   private BeamFnControlGrpc.BeamFnControlStub stub;
 
@@ -75,7 +74,8 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    FnApiControlClient client = pool.take();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
+    InstructionRequestHandler client = pool.getSource().take("", Duration.ofSeconds(2));
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -113,7 +113,8 @@ public class FnApiControlClientPoolServiceTest {
           }
         });
 
-    pool.take();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
+    pool.getSource().take("", Duration.ofSeconds(2));
     server.close();
 
     latch.await();

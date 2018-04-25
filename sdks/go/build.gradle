@@ -23,11 +23,13 @@ description = "Apache Beam :: SDKs :: Go"
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/go'
-  build {
-    go 'build -o ./build/bin/beamctl github.com/apache/beam/sdks/go/cmd/beamctl'
 
+  build {
     // The symlinks makes it hard (impossible?) to do a wildcard build
     // of pkg. Go build refuses to follow symlinks. Drop for now. The files
     // are built when tested anyway.
+
+    // Build debugging utilities
+    go 'build -o ./build/bin/beamctl github.com/apache/beam/sdks/go/cmd/beamctl'
   }
 }

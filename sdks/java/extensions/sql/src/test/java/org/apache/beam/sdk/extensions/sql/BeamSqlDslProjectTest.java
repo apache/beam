@@ -21,11 +21,11 @@ import static java.util.stream.Collectors.toList;
 
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
@@ -83,7 +83,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFields", BeamSql.query(sql));
 
-    RowType resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int")
         .withBigIntField("f_long")
         .build();
@@ -118,8 +118,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
-    RowType resultType =
-        RowSqlType
+    Schema resultType =
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
@@ -138,9 +138,9 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  private Row rowAtIndex(RowType rowType, int index) {
+  private Row rowAtIndex(Schema schema, int index) {
     return Row
-        .withRowType(rowType)
+        .withSchema(schema)
         .addValues(
             rowsInTableA.get(index).getValue(0),
             rowsInTableA.get(index).getValue(1))
@@ -170,8 +170,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
-    RowType resultType =
-        RowSqlType
+    Schema resultType =
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
@@ -213,10 +213,10 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testLiteralField", BeamSql.query(sql));
 
-    RowType resultType =
-        RowSqlType.builder().withIntegerField("literal_field").build();
+    Schema resultType =
+        RowSqlTypes.builder().withIntegerField("literal_field").build();
 
-    Row row = Row.withRowType(resultType).addValues(1).build();
+    Row row = Row.withSchema(resultType).addValues(1).build();
 
     PAssert.that(result).containsInAnyOrder(row);
 

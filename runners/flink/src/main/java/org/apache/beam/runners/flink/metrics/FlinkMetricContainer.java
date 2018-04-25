@@ -88,16 +88,16 @@ public class FlinkMetricContainer {
         asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
-    updateCounters(metricQueryResults.counters());
-    updateDistributions(metricQueryResults.distributions());
-    updateGauge(metricQueryResults.gauges());
+    updateCounters(metricQueryResults.getCounters());
+    updateDistributions(metricQueryResults.getDistributions());
+    updateGauge(metricQueryResults.getGauges());
   }
 
   private void updateCounters(Iterable<MetricResult<Long>> counters) {
     for (MetricResult<Long> metricResult : counters) {
       String flinkMetricName = getFlinkMetricNameString(COUNTER_PREFIX, metricResult);
 
-      Long update = metricResult.attempted();
+      Long update = metricResult.getAttempted();
 
       // update flink metric
       Counter counter =
@@ -113,7 +113,7 @@ public class FlinkMetricContainer {
       String flinkMetricName =
           getFlinkMetricNameString(DISTRIBUTION_PREFIX, metricResult);
 
-      DistributionResult update = metricResult.attempted();
+      DistributionResult update = metricResult.getAttempted();
 
       // update flink metric
       FlinkDistributionGauge gauge = flinkDistributionGaugeCache.get(flinkMetricName);
@@ -132,7 +132,7 @@ public class FlinkMetricContainer {
       String flinkMetricName =
           getFlinkMetricNameString(GAUGE_PREFIX, metricResult);
 
-      GaugeResult update = metricResult.attempted();
+      GaugeResult update = metricResult.getAttempted();
 
       // update flink metric
       FlinkGauge gauge = flinkGaugeCache.get(flinkMetricName);
@@ -148,9 +148,9 @@ public class FlinkMetricContainer {
 
   private static String getFlinkMetricNameString(String prefix, MetricResult<?> metricResult) {
     return prefix
-        + METRIC_KEY_SEPARATOR + metricResult.step()
-        + METRIC_KEY_SEPARATOR + metricResult.name().namespace()
-        + METRIC_KEY_SEPARATOR + metricResult.name().name();
+        + METRIC_KEY_SEPARATOR + metricResult.getStep()
+        + METRIC_KEY_SEPARATOR + metricResult.getName().getNamespace()
+        + METRIC_KEY_SEPARATOR + metricResult.getName().getName();
   }
 
   /**

@@ -137,8 +137,8 @@ public abstract class MetricsTranslation {
 
   public static BeamFnApi.Metrics.User.MetricName metricNameToProto(MetricName metricName) {
     return BeamFnApi.Metrics.User.MetricName.newBuilder()
-        .setNamespace(metricName.namespace())
-        .setName(metricName.name())
+        .setNamespace(metricName.getNamespace())
+        .setName(metricName.getName())
         .build();
   }
 }

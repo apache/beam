@@ -17,6 +17,7 @@ package exec
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -51,7 +52,7 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			return nil, fmt.Errorf("expected one output from DataSource, got %v", transform.GetOutputs())
 		}
 
-		port, err := unmarshalPort(transform.GetSpec().GetPayload())
+		port, cid, err := unmarshalPort(transform.GetSpec().GetPayload())
 		if err != nil {
 			return nil, err
 		}
@@ -65,9 +66,17 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			if err != nil {
 				return nil, err
 			}
-			u.Coder, err = b.makeCoderForPCollection(pid)
-			if err != nil {
-				return nil, err
+
+			if cid == "" {
+				u.Coder, err = b.makeCoderForPCollection(pid)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -174,7 +183,12 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, error) {
 	if !ok {
 		return nil, fmt.Errorf("pcollection %v not found", id)
 	}
-	return b.coders.Coder(col.CoderId)
+	c, err := b.coders.Coder(col.CoderId)
+	if err != nil {
+		return nil, err
+	}
+	// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
+	return coder.SkipW(c), nil
 }
 
 func (b *builder) makePCollection(id string) (Node, error) {
@@ -282,11 +296,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
+				n := &ParDo{UID: b.idgen.New(), PID: id.to, Inbound: in, Out: out}
 				n.Fn, err = graph.AsDoFn(fn)
 				if err != nil {
 					return nil, err
 				}
+				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
+				n.PID = path.Base(n.Fn.Name())
 				if len(in) == 1 {
 					u = n
 					break
@@ -309,8 +325,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					return nil, err
 				}
 
-				n.IsPerKey = coder.IsWCoGBK(c)
-				n.UsesKey = typex.IsWKV(in[0].Type)
+				n.IsPerKey = coder.IsCoGBK(c)
+				n.UsesKey = typex.IsKV(in[0].Type)
 
 				u = n
 
@@ -323,10 +339,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			if !coder.IsWKV(c) {
+			if !coder.IsKV(c) {
 				return nil, fmt.Errorf("unexpected inject coder: %v", c)
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(coder.SkipW(c).Components[1]), Out: out[0]}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(c.Components[1]), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string
@@ -337,12 +353,12 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			if !coder.IsWCoGBK(c) {
+			if !coder.IsCoGBK(c) {
 				return nil, fmt.Errorf("unexpected expand coder: %v", c)
 			}
 
 			var decoders []ElementDecoder
-			for _, dc := range coder.SkipW(c).Components[1:] {
+			for _, dc := range c.Components[1:] {
 				decoders = append(decoders, MakeElementDecoder(dc))
 			}
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
@@ -352,7 +368,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 
 	case urnDataSink:
-		port, err := unmarshalPort(payload)
+		port, cid, err := unmarshalPort(payload)
 		if err != nil {
 			return nil, err
 		}
@@ -362,9 +378,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		for key, pid := range transform.GetInputs() {
 			sink.Target = Target{ID: id.to, Name: key}
 
-			sink.Coder, err = b.makeCoderForPCollection(pid)
-			if err != nil {
-				return nil, err
+			if cid == "" {
+				sink.Coder, err = b.makeCoderForPCollection(pid)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		u = sink
@@ -392,7 +415,7 @@ func unmarshalKeyedValues(m map[string]string) []string {
 	index := make(map[string]int)
 	complete := true
 
-	for key, _ := range m {
+	for key := range m {
 		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); !strings.HasPrefix(key, "i") || err != nil {
 			complete = false
 			break
@@ -422,12 +445,12 @@ func unmarshalKeyedValues(m map[string]string) []string {
 	return ret
 }
 
-func unmarshalPort(data []byte) (Port, error) {
+func unmarshalPort(data []byte) (Port, string, error) {
 	var port fnpb.RemoteGrpcPort
 	if err := proto.Unmarshal(data, &port); err != nil {
-		return Port{}, err
+		return Port{}, "", err
 	}
 	return Port{
 		URL: port.GetApiServiceDescriptor().GetUrl(),
-	}, nil
+	}, port.CoderId, nil
 }

@@ -21,6 +21,7 @@ applyJavaNature()
 apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
+ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
 
 test {
   jvmArgs "-da"
@@ -43,8 +44,8 @@ configurations {
 }
 
 
-def calcite_version = "1.15.0"
-def avatica_version = "1.10.0"
+def calcite_version = "1.16.0"
+def avatica_version = "1.11.0"
 
 dependencies {
   fmppTask "net.sourceforge.fmpp:fmpp:0.9.15"
@@ -57,13 +58,13 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.12"
   compileOnly library.java.findbugs_jsr305
   compileOnly library.java.findbugs_annotations
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.commons_csv
   shadow library.java.joda_time
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
-  provided project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided library.java.kafka_clients
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
@@ -139,4 +140,20 @@ idea {
     sourceDirs += file(generatedJavaccSourceDir)
     generatedSourceDirs += file(generatedJavaccSourceDir)
   }
+}
+
+// Run basic SQL example
+task runBasicExample(type: JavaExec) {
+  description = "Run basic SQL example"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
+}
+
+// Run SQL example on POJO inputs
+task runPojoExample(type: JavaExec) {
+  description = "Run SQL example for PCollections of POJOs"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
 }

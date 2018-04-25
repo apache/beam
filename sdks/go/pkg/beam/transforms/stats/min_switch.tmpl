@@ -18,7 +18,15 @@ package stats
 import (
     "fmt"
     "reflect"
+
+  	"github.com/apache/beam/sdks/go/pkg/beam"
 )
+
+func init() {
+{{- range .X}}
+	beam.RegisterFunction(min{{.Name}}Fn)
+{{- end}}
+}
 
 func findMinFn(t reflect.Type) interface{} {
     switch t.String() {

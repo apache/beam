@@ -45,7 +45,7 @@ func Info(ctx context.Context, endpoint string) (*pb.ProvisionInfo, error) {
 		return nil, fmt.Errorf("failed to get manifest: %v", err)
 	}
 	if resp.GetInfo() == nil {
-		return nil, fmt.Errorf("empty manifest",)
+		return nil, fmt.Errorf("empty manifest")
 	}
 	return resp.GetInfo(), nil
 }

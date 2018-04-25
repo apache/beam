@@ -162,10 +162,10 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     // first run should expect EOT matching the last injected element.
     SparkPipelineResult res = run(Optional.of(new Instant(400)), 0);
 
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "allMessages", "EOFShallNotPassFn", 4L)));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "processedMessages", "EOFShallNotPassFn", 4L)));
 
@@ -183,10 +183,10 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(1);
     // assertions 2:
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "processedMessages", "EOFShallNotPassFn", 5L)));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "allMessages", "EOFShallNotPassFn", 6L)));
     long successAssertions = 0;
@@ -194,9 +194,9 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
         MetricsFilter.builder()
             .addNameFilter(
                 MetricNameFilter.named(PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
-            .build()).counters();
+            .build()).getCounters();
     for (MetricResult<Long> counter : counterResults) {
-      if (counter.attempted() > 0) {
+      if (counter.getAttempted() > 0) {
         successAssertions++;
       }
     }
@@ -211,9 +211,9 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
         MetricsFilter.builder()
             .addNameFilter(MetricNameFilter.named(
                 PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
-            .build()).counters();
+            .build()).getCounters();
     for (MetricResult<Long> counter : failCounterResults) {
-      if (counter.attempted() > 0) {
+      if (counter.getAttempted() > 0) {
         failedAssertions++;
       }
     }
@@ -246,7 +246,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                   // at EOF move WM to infinity.
                   String key = kv.getKey();
                   Instant instant = kv.getValue();
-                  return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
+                  return "EOF".equals(key) ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
                 });
 
     TestSparkPipelineOptions options =
@@ -321,7 +321,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
       // assert that side input is passed correctly before/after resuming from checkpoint.
       assertThat(c.sideInput(view), containsInAnyOrder("side1", "side2"));
       counter.inc();
-      if (!element.equals("EOF")) {
+      if (!"EOF".equals(element)) {
         aggregator.inc();
         c.output(c.element());
       }

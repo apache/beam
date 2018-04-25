@@ -25,6 +25,7 @@ import java.util.Collections;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -50,6 +51,11 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     this.underlying = underlying;
     this.views = views;
     this.sideInputReader = sideInputReader;
+  }
+
+  @Override
+  public DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> getFn() {
+    return underlying.getFn();
   }
 
   @Override

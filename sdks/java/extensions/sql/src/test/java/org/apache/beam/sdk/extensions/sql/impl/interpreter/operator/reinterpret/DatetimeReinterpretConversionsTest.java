@@ -20,10 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Date;
-import java.util.GregorianCalendar;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 import org.junit.Test;
 
 /**
@@ -31,14 +30,14 @@ import org.junit.Test;
  */
 public class DatetimeReinterpretConversionsTest {
   private static final long DATE_LONG = 1000L;
-  private static final Date DATE = new Date(DATE_LONG);
-  private static final GregorianCalendar CALENDAR = new GregorianCalendar(2017, 8, 9);
+  private static final DateTime DATE = new DateTime(DATE_LONG);
+  private static final DateTime TIME = new DateTime().withDate(2017, 8, 9);
 
   private static final BeamSqlPrimitive DATE_PRIMITIVE = BeamSqlPrimitive.of(
       SqlTypeName.DATE, DATE);
 
   private static final BeamSqlPrimitive TIME_PRIMITIVE = BeamSqlPrimitive.of(
-      SqlTypeName.TIME, CALENDAR);
+      SqlTypeName.TIME, TIME);
 
   private static final BeamSqlPrimitive TIMESTAMP_PRIMITIVE = BeamSqlPrimitive.of(
       SqlTypeName.TIMESTAMP, DATE);
@@ -49,7 +48,7 @@ public class DatetimeReinterpretConversionsTest {
           .convert(TIME_PRIMITIVE);
 
     assertEquals(SqlTypeName.BIGINT, conversionResultPrimitive.getOutputType());
-    assertEquals(CALENDAR.getTimeInMillis(), conversionResultPrimitive.getLong());
+    assertEquals(TIME.getMillis(), conversionResultPrimitive.getLong());
   }
 
   @Test public void testDateToBigint() {

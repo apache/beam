@@ -20,12 +20,12 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -43,13 +43,13 @@ public class BeamTextCSVTable extends BeamTextTable {
   /**
    * CSV table with {@link CSVFormat#DEFAULT DEFAULT} format.
    */
-  public BeamTextCSVTable(RowType beamRowType, String filePattern)  {
-    this(beamRowType, filePattern, CSVFormat.DEFAULT);
+  public BeamTextCSVTable(Schema beamSchema, String filePattern)  {
+    this(beamSchema, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(RowType rowType, String filePattern,
+  public BeamTextCSVTable(Schema schema, String filePattern,
                           CSVFormat csvFormat) {
-    super(rowType, filePattern);
+    super(schema, filePattern);
     this.filePattern = filePattern;
     this.csvFormat = csvFormat;
   }
@@ -58,12 +58,12 @@ public class BeamTextCSVTable extends BeamTextTable {
   public PCollection<Row> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine",
-            new BeamTextCSVTableIOReader(rowType, filePattern, csvFormat));
+            new BeamTextCSVTableIOReader(schema, filePattern, csvFormat));
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(rowType, filePattern, csvFormat);
+  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+    return new BeamTextCSVTableIOWriter(schema, filePattern, csvFormat);
   }
 
   public CSVFormat getCsvFormat() {

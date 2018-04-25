@@ -48,4 +48,10 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
 
   /** Calls the underlying {@link DoFn.FinishBundle} method. */
   void finishBundle();
+
+  /**
+   * @since 2.5.0
+   * @return the underlying fn instance.
+   */
+  DoFn<InputT, OutputT> getFn();
 }

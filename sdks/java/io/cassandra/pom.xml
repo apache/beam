@@ -31,7 +31,7 @@
   <description>IO to read and write with Apache Cassandra database</description>
 
   <properties>
-    <cassandra.driver.version>3.2.0</cassandra.driver.version>
+    <cassandra.driver.version>3.4.0</cassandra.driver.version>
   </properties>
 
   <dependencies>
@@ -55,12 +55,13 @@
 
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
-      <artifactId>cassandra-driver-mapping</artifactId>
+      <artifactId>cassandra-driver-core</artifactId>
       <version>${cassandra.driver.version}</version>
     </dependency>
+
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
-      <artifactId>cassandra-driver-core</artifactId>
+      <artifactId>cassandra-driver-mapping</artifactId>
       <version>${cassandra.driver.version}</version>
     </dependency>
 

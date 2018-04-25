@@ -112,8 +112,8 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(ImmutableList.copyOf(result.counters()), is(empty()));
-    assertThat(ImmutableList.copyOf(result.distributions()), is(empty()));
+    assertThat(ImmutableList.copyOf(result.getCounters()), is(empty()));
+    assertThat(ImmutableList.copyOf(result.getDistributions()), is(empty()));
   }
 
   @Test
@@ -209,9 +209,9 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
   }
 
@@ -242,9 +242,9 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
   }
 
@@ -275,10 +275,10 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.distributions(), contains(
+    assertThat(result.getDistributions(), contains(
         attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
             DistributionResult.create(18, 2, 2, 16))));
-    assertThat(result.distributions(), contains(
+    assertThat(result.getDistributions(), contains(
         committedMetricsResult("distributionNamespace", "distributionName", "myStepName",
             DistributionResult.create(18, 2, 2, 16))));
   }
@@ -311,14 +311,14 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     try {
-      result.distributions().iterator().next().committed();
+      result.getDistributions().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException expected) {
       assertThat(expected.getMessage(),
           containsString("This runner does not currently support committed"
               + " metrics results. Please use 'attempted' instead."));
     }
-    assertThat(result.distributions(), contains(
+    assertThat(result.getDistributions(), contains(
         attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
             DistributionResult.create(18, 2, 2, 16))));
   }
@@ -362,11 +362,11 @@ public class DataflowMetricsTest {
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
         attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
         attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
         committedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
         committedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
@@ -408,14 +408,14 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     try {
-      result.counters().iterator().next().committed();
+      result.getCounters().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException expected) {
       assertThat(expected.getMessage(),
           containsString("This runner does not currently support committed"
               + " metrics results. Please use 'attempted' instead."));
     }
-    assertThat(result.counters(), containsInAnyOrder(
+    assertThat(result.getCounters(), containsInAnyOrder(
         attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
         attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
         attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));

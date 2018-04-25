@@ -18,18 +18,18 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,16 +42,16 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  public static final Date THE_DATE = new Date(100000);
+  public static final DateTime THE_DATE = new DateTime(100000);
 
   @BeforeClass
   public static void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS",
         MockedBoundedTable.of(
-            SqlTypeCoders.BIGINT, "order_id",
-            SqlTypeCoders.INTEGER, "site_id",
-            SqlTypeCoders.DOUBLE, "price",
-            SqlTypeCoders.TIMESTAMP, "order_time"
+            TypeName.INT64, "order_id",
+            TypeName.INT32, "site_id",
+            TypeName.DOUBLE, "price",
+            TypeName.DATETIME, "order_time"
         ).addRows(
             1L, 1, 1.0, THE_DATE,
             2L, 2, 2.0, THE_DATE
@@ -75,9 +75,9 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                SqlTypeCoders.BIGINT, "order_id",
-                SqlTypeCoders.INTEGER, "site_id",
-                SqlTypeCoders.BIGINT, "cnt"
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.INT64, "cnt"
             ).addRows(
                 1L, 1, 1L,
                 2L, 2, 1L

@@ -26,7 +26,6 @@ import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.RegisterHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
-import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
@@ -36,6 +35,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builde
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;

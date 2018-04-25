@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -462,7 +463,8 @@ public class CassandraIO {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext processContext) {
+    public void processElement(ProcessContext processContext)
+        throws ExecutionException, InterruptedException {
       T entity = processContext.element();
       writer.write(entity);
     }

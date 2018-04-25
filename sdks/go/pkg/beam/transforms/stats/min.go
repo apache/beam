@@ -20,6 +20,7 @@ import (
 )
 
 //go:generate specialize --input=min_switch.tmpl --x=integers,floats
+//go:generate gofmt -w min_switch.go
 
 // Min returns the minimal element in a PCollection<A> as a singleton
 // PCollection<A>. It can only be used for numbers, such as int, uint16,

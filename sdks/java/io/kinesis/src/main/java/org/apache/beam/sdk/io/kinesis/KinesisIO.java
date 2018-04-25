@@ -215,6 +215,9 @@ public final class KinesisIO {
 
     abstract Duration getUpToDateThreshold();
 
+    @Nullable
+    abstract Integer getRequestRecordsLimit();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -231,6 +234,8 @@ public final class KinesisIO {
       abstract Builder setMaxReadTime(Duration maxReadTime);
 
       abstract Builder setUpToDateThreshold(Duration upToDateThreshold);
+
+      abstract Builder setRequestRecordsLimit(Integer limit);
 
       abstract Read build();
     }
@@ -319,6 +324,18 @@ public final class KinesisIO {
       return toBuilder().setUpToDateThreshold(upToDateThreshold).build();
     }
 
+    /**
+     * Specifies the maximum number of records in GetRecordsResult returned by GetRecords call which
+     * is limited by 10K records. If should be adjusted according to average size of data record to
+     * prevent shard overloading. More details can be found here:
+     * <a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html">API_GetRecords</a>
+     */
+    public Read withRequestRecordsLimit(int limit) {
+      checkArgument(limit > 0, "limit must be positive, but was: %s", limit);
+      checkArgument(limit <= 10_000, "limit must be up to 10,000, but was: %s", limit);
+      return toBuilder().setRequestRecordsLimit(limit).build();
+    }
+
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
       Unbounded<KinesisRecord> unbounded =
@@ -327,7 +344,8 @@ public final class KinesisIO {
                   getAWSClientsProvider(),
                   getStreamName(),
                   getInitialPosition(),
-                  getUpToDateThreshold()));
+                  getUpToDateThreshold(),
+                  getRequestRecordsLimit()));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 

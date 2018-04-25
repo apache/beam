@@ -69,40 +69,38 @@ const (
 	URNExpand = "beam:go:transform:expand:v1"
 )
 
-// MakeKVUnionCoder returns W<KV<K,KV<int,[]byte>>> for a given CoGBK.
+// MakeKVUnionCoder returns KV<K,KV<int,[]byte>> for a given CoGBK.
 func MakeKVUnionCoder(gbk *graph.MultiEdge) *coder.Coder {
 	if gbk.Op != graph.CoGBK {
 		panic(fmt.Sprintf("expected CoGBK, got %v", gbk))
 	}
 
 	from := gbk.Input[0].From
-	key := coder.SkipW(from.Coder).Components[0]
-	return coder.NewWKV([]*coder.Coder{key, makeUnionCoder()}, from.Window())
+	key := from.Coder.Components[0]
+	return coder.NewKV([]*coder.Coder{key, makeUnionCoder()})
 }
 
-// MakeGBKUnionCoder returns W<CoGBK<K,KV<int,[]byte>>> for a given CoGBK.
+// MakeGBKUnionCoder returns CoGBK<K,KV<int,[]byte>> for a given CoGBK.
 func MakeGBKUnionCoder(gbk *graph.MultiEdge) *coder.Coder {
 	if gbk.Op != graph.CoGBK {
 		panic(fmt.Sprintf("expected CoGBK, got %v", gbk))
 	}
 
 	from := gbk.Input[0].From
-	key := coder.SkipW(from.Coder).Components[0]
-	return coder.NewWCoGBK([]*coder.Coder{key, makeUnionCoder()}, from.Window())
+	key := from.Coder.Components[0]
+	return coder.NewCoGBK([]*coder.Coder{key, makeUnionCoder()})
 }
 
 // makeUnionCoder returns a coder for the raw union value, KV<int,[]byte>. It uses
 // varintz instead of the built-in varint to avoid the implicit length-prefixing
 // of varint otherwise introduced by Dataflow.
 func makeUnionCoder() *coder.Coder {
-	t := typex.New(typex.KVType, typex.New(reflectx.Int), typex.New(reflectx.ByteSlice))
-
 	c, err := coderx.NewVarIntZ(reflectx.Int)
 	if err != nil {
 		panic(err)
 	}
-	return &coder.Coder{Kind: coder.KV, T: t, Components: []*coder.Coder{
+	return coder.NewKV([]*coder.Coder{
 		{Kind: coder.Custom, T: typex.New(reflectx.Int), Custom: c},
 		coder.NewBytes(),
-	}}
+	})
 }

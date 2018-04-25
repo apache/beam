@@ -21,13 +21,13 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 import org.junit.Test;
 
 /**
@@ -36,7 +36,7 @@ import org.junit.Test;
 public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
-    Date time = str2DateTime("2017-05-22 16:17:18");
+    DateTime time = str2DateTime("2017-05-22 16:17:18");
 
     // YEAR
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));

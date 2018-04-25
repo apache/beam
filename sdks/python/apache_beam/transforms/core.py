@@ -863,6 +863,7 @@ class ParDo(PTransformWithSideInputs):
         common_urns.PARDO_TRANSFORM,
         beam_runner_api_pb2.ParDoPayload(
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
+                environment_id=context.default_environment_id(),
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=python_urns.PICKLED_DOFN_INFO,
                     payload=picked_pardo_fn_data)),
@@ -1729,6 +1730,11 @@ class Create(PTransform):
     elif isinstance(value, dict):
       value = value.items()
     self.value = tuple(value)
+
+  def to_runner_api_parameter(self, context):
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):
     if not self.value:

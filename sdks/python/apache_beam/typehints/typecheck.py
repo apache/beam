@@ -176,7 +176,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       check_constraint(type_constraint, datum)
     except CompositeTypeHintError as e:
-      six.raise_from(TypeCheckError(e.message), sys.exc_info()[2])
+      six.raise_from(TypeCheckError(e.args[0]), sys.exc_info()[2])
     except SimpleTypeHintError:
       error_msg = ("According to type-hint expected %s should be of type %s. "
                    "Instead, received '%s', an instance of type %s."

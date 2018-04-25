@@ -24,10 +24,10 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
@@ -41,8 +41,8 @@ public class MockedUnboundedTable extends MockedTable {
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
-  private MockedUnboundedTable(RowType beamRowType) {
-    super(beamRowType);
+  private MockedUnboundedTable(Schema beamSchema) {
+    super(beamSchema);
   }
 
   /**
@@ -82,7 +82,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public MockedUnboundedTable addRows(Duration duration, Object... args) {
-    List<Row> rows = TestUtils.buildRows(getRowType(), Arrays.asList(args));
+    List<Row> rows = TestUtils.buildRows(getSchema(), Arrays.asList(args));
     // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;
@@ -93,13 +93,13 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   @Override public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    TestStream.Builder<Row> values = TestStream.create(rowType.getRowCoder());
+    TestStream.Builder<Row> values = TestStream.create(schema.getRowCoder());
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
       for (int i = 0; i < pair.getValue().size(); i++) {
         values = values.addElements(TimestampedValue.of(pair.getValue().get(i),
-            new Instant(pair.getValue().get(i).getDate(timestampField))));
+            new Instant(pair.getValue().get(i).getDateTime(timestampField))));
       }
     }
 

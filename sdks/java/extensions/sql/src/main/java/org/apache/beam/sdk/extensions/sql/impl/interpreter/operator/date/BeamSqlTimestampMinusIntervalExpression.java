@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 
 import java.math.BigDecimal;
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -61,9 +60,7 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
     DateTime date = new DateTime((Object) opValueEvaluated(0, row, window));
     Period period = intervalToPeriod(op(1).evaluate(row, window));
 
-    Date subtractionResult = date.minus(period).toDate();
-
-    return BeamSqlPrimitive.of(outputType, subtractionResult);
+    return BeamSqlPrimitive.of(outputType, date.minus(period));
   }
 
   private Period intervalToPeriod(BeamSqlPrimitive operand) {

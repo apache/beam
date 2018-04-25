@@ -22,23 +22,24 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
 	"os/user"
 	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	// Importing to get the side effect of the remote execution hook. See init().
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/hooks/perf"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
@@ -49,29 +50,34 @@ import (
 
 var (
 	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	experiments     = flag.String("experiments", "", "Comma-separated list of experiments (optional).")
+	zone            = flag.String("zone", "", "GCP zone (optional)")
+	region          = flag.String("region", "us-central1", "GCP Region (optional)")
+	network         = flag.String("network", "", "GCP network (optional)")
+	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
+	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	streaming       = flag.Bool("streaming", false, "Streaming job")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
-	block          = flag.Bool("block", true, "Wait for job to terminate.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
-	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles")
+	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
 )
 
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("dataflow", Execute)
+
+	perf.RegisterProfCaptureHook("gcs_profile_writer", gcsRecorderHook)
 }
 
 type dataflowOptions struct {
-	Options     map[string]string `json:"options"`
-	PipelineURL string            `json:"pipelineUrl"`
+	PipelineURL string `json:"pipelineUrl"`
+	Region      string `json:"region"`
 }
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
@@ -85,12 +91,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *image == "" {
-		return errors.New("no container image specified. Use --worker_harness_container_image=<image>")
+		*image = jobopts.GetContainerImage(ctx)
 	}
-
-	if *jobName == "" {
-		*jobName = fmt.Sprintf("go-%v-%v", username(), time.Now().UnixNano())
-	}
+	jobName := jobopts.GetJobName()
 
 	edges, _, err := p.Build()
 	if err != nil {
@@ -98,24 +101,37 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	if *cpuProfiling != "" {
-		beam.PipelineOptions.Set("cpu_profiling", "true")
-		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
+		perf.EnableProfCaptureHook("gcs_profile_writer", *cpuProfiling)
 	}
 
 	if *sessionRecording != "" {
-		beam.PipelineOptions.Set("session_recording", "true")
-		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
+		// TODO(wcn): BEAM-4017
+		// It's a bit inconvenient for GCS because the whole object is written in
+		// one pass, whereas the session logs are constantly appended. We wouldn't
+		// want to hold all the logs in memory to flush at the end of the pipeline
+		// as we'd blow out memory on the worker. The implementation of the
+		// CaptureHook should create an internal buffer and write chunks out to GCS
+		// once they get to an appropriate size (50M or so?)
 	}
 
+	hooks.SerializeHooksToOptions()
 	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary and model to GCS.
 
-	worker, err := buildLocalBinary(ctx)
-	if err != nil {
-		return err
+	if *jobopts.WorkerBinary == "" {
+		worker, err := runnerlib.BuildTempWorkerBinary(ctx)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(worker)
+
+		*jobopts.WorkerBinary = worker
+	} else {
+		log.Infof(ctx, "Using specified worker binary: '%v'", *jobopts.WorkerBinary)
 	}
-	binary, err := stageWorker(ctx, project, *stagingLocation, worker)
+
+	binary, err := stageWorker(ctx, project, *stagingLocation, *jobopts.WorkerBinary)
 	if err != nil {
 		return err
 	}
@@ -137,25 +153,33 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return err
 	}
 
+	jobType := "JOB_TYPE_BATCH"
+	apiJobType := "FNAPI_BATCH"
+	if *streaming {
+		jobType = "JOB_TYPE_STREAMING"
+		apiJobType = "FNAPI_STREAMING"
+	}
+
 	job := &df.Job{
 		ProjectId: project,
-		Name:      *jobName,
-		Type:      "JOB_TYPE_BATCH",
+		Name:      jobName,
+		Type:      jobType,
 		Environment: &df.Environment{
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
 				Version: "0.3.0",
 			}),
 			Version: newMsg(version{
-				JobType: "FNAPI_BATCH",
+				JobType: apiJobType,
 				Major:   "6",
 			}),
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: findPipelineFlags(),
 				Options: dataflowOptions{
-					Options:     options.Options,
 					PipelineURL: modelURL,
+					Region:      *region,
 				},
+				GoOptions: options,
 			}),
 			WorkerPools: []*df.WorkerPool{{
 				Kind: "harness",
@@ -165,8 +189,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				}},
 				WorkerHarnessContainerImage: *image,
 				NumWorkers:                  1,
+				MachineType:                 *machineType,
+				Network:                     *network,
+				Zone:                        *zone,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
+			Experiments:       jobopts.GetExperiments(),
 		},
 		Steps: steps,
 	}
@@ -177,8 +205,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *teardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
 	}
-	if *experiments != "" {
-		job.Environment.Experiments = strings.Split(*experiments, ",")
+	if *tempLocation != "" {
+		job.Environment.TempStoragePrefix = *tempLocation
+	}
+	if *streaming {
+		// Add separate data disk for streaming jobs
+		job.Environment.WorkerPools[0].DataDisks = []*df.Disk{{}}
 	}
 	printJob(ctx, job)
 
@@ -193,7 +225,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	upd, err := client.Projects.Jobs.Create(project, job).Do()
+	upd, err := client.Projects.Locations.Jobs.Create(project, *region, job).Do()
 	if err != nil {
 		return err
 	}
@@ -205,13 +237,13 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", project, upd.Id)
 
-	if !*block {
+	if *jobopts.Async {
 		return nil
 	}
 
 	time.Sleep(1 * time.Minute)
 	for {
-		j, err := client.Projects.Jobs.Get(project, upd.Id).Do()
+		j, err := client.Projects.Locations.Jobs.Get(project, *region, upd.Id).Do()
 		if err != nil {
 			return fmt.Errorf("failed to get job: %v", err)
 		}
@@ -219,6 +251,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		switch j.CurrentState {
 		case "JOB_STATE_DONE":
 			log.Info(ctx, "Job succeeded!")
+			return nil
+
+		case "JOB_STATE_CANCELLED":
+			log.Info(ctx, "Job cancelled")
 			return nil
 
 		case "JOB_STATE_FAILED":
@@ -282,46 +318,6 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	return gcsx.Upload(client, project, bucket, obj, fd)
 }
 
-// buildLocalBinary creates a local worker binary suitable to run on Dataflow. It finds the filename
-// by examining the call stack. We want the user entry (*), for example:
-//
-//   /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
-// * /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
-//   /usr/local/go/src/runtime/proc.go (skip: 4)
-//   /usr/local/go/src/runtime/asm_amd64.s (skip: 5)
-func buildLocalBinary(ctx context.Context) (string, error) {
-	ret := filepath.Join(os.TempDir(), fmt.Sprintf("dataflow-go-%v", time.Now().UnixNano()))
-	if *dryRun {
-		log.Infof(ctx, "Dry-run: not building binary %v", ret)
-		return ret, nil
-	}
-
-	program := ""
-	for i := 3; ; i++ {
-		_, file, _, ok := runtime.Caller(i)
-		if !ok || strings.HasSuffix(file, "runtime/proc.go") {
-			break
-		}
-		program = file
-	}
-	if program == "" {
-		return "", fmt.Errorf("could not detect user main")
-	}
-
-	log.Infof(ctx, "Cross-compiling %v as %v", program, ret)
-
-	// Cross-compile given go program. Not awesome.
-	build := []string{"go", "build", "-o", ret, program}
-
-	cmd := exec.Command(build[0], build[1:]...)
-	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Infof(ctx, string(out))
-		return "", fmt.Errorf("failed to cross-compile %v: %v", program, err)
-	}
-	return ret, nil
-}
-
 func username() string {
 	if u, err := user.Current(); err == nil {
 		return u.Username
@@ -364,4 +360,19 @@ func printJob(ctx context.Context, job *df.Job) {
 		log.Infof(ctx, "Failed to print job %v: %v", job.Id, err)
 	}
 	log.Info(ctx, string(str))
+}
+
+func gcsRecorderHook(opts []string) perf.CaptureHook {
+	bucket, prefix, err := gcsx.ParseObject(opts[0])
+	if err != nil {
+		panic(fmt.Sprintf("Invalid hook configuration for gcsRecorderHook: %s", opts))
+	}
+
+	return func(ctx context.Context, spec string, r io.Reader) error {
+		client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+		if err != nil {
+			return fmt.Errorf("couldn't establish GCS client: %v", err)
+		}
+		return gcsx.WriteObject(client, bucket, path.Join(prefix, spec), r)
+	}
 }

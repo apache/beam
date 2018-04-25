@@ -22,7 +22,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -48,9 +47,7 @@ func init() {
 func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
 	s = s.Scope("filter.Include")
 
-	t := typex.SkipW(col.Type()).Type()
-	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
-
+	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))
 	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFunc{Fn: reflectx.MakeFunc(fn)}, Include: true}, col)
 }
 
@@ -68,9 +65,7 @@ func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollectio
 func Exclude(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
 	s = s.Scope("filter.Exclude")
 
-	t := typex.SkipW(col.Type()).Type()
-	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
-
+	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))
 	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFunc{Fn: reflectx.MakeFunc(fn)}, Include: false}, col)
 }
 

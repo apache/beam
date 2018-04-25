@@ -97,6 +97,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private PipelineOptions options;
 
   @Before
   public void setup() {
@@ -104,7 +105,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     longs = p.apply(Read.from(source));
 
     context = mock(EvaluationContext.class);
-    factory = new UnboundedReadEvaluatorFactory(context);
+    factory = new UnboundedReadEvaluatorFactory(context, options);
     output = bundleFactory.createBundle(longs);
     graph = DirectGraphs.getGraph(p);
     when(context.createBundle(longs)).thenReturn(output);
@@ -116,7 +117,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     int numSplits = 5;
     Collection<CommittedBundle<?>> initialInputs =
-        new UnboundedReadEvaluatorFactory.InputProvider(context)
+        new UnboundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(graph.getProducer(longs), numSplits);
     // CountingSource.unbounded has very good splitting behavior
     assertThat(initialInputs, hasSize(numSplits));
@@ -149,7 +150,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
 
     Collection<CommittedBundle<?>> initialInputs =
-        new UnboundedReadEvaluatorFactory.InputProvider(context)
+        new UnboundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(graph.getProducer(longs), 1);
 
     CommittedBundle<?> inputShards = Iterables.getOnlyElement(initialInputs);
@@ -191,7 +192,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
-        new UnboundedReadEvaluatorFactory.InputProvider(context)
+        new UnboundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(sourceTransform, 1);
 
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
@@ -231,7 +232,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
-        new UnboundedReadEvaluatorFactory.InputProvider(context)
+        new UnboundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(sourceTransform, 1);
 
     // Process the initial shard. This might produce some output, and will produce a residual shard
@@ -301,8 +302,9 @@ public class UnboundedReadEvaluatorFactoryTest {
             .add(shard)
             .commit(Instant.now());
     UnboundedReadEvaluatorFactory factory =
-        new UnboundedReadEvaluatorFactory(context, 1.0 /* Always reuse */);
-    new UnboundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(sourceTransform, 1);
+        new UnboundedReadEvaluatorFactory(context, options, 1.0 /* Always reuse */);
+    new UnboundedReadEvaluatorFactory.InputProvider(context, options)
+        .getInitialInputs(sourceTransform, 1);
 
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> residual = inputBundle;
 
@@ -345,7 +347,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             .add(shard)
             .commit(Instant.now());
     UnboundedReadEvaluatorFactory factory =
-        new UnboundedReadEvaluatorFactory(context, 0.0 /* never reuse */);
+        new UnboundedReadEvaluatorFactory(context, options, 0.0 /* never reuse */);
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
     evaluator.processElement(shard);
@@ -392,7 +394,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             .add(shard)
             .commit(Instant.now());
     UnboundedReadEvaluatorFactory factory =
-        new UnboundedReadEvaluatorFactory(context, 0.0 /* never reuse */);
+        new UnboundedReadEvaluatorFactory(context, options, 0.0 /* never reuse */);
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
     thrown.expect(IOException.class);

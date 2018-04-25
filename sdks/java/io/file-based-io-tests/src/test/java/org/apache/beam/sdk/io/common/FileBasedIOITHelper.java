@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
@@ -32,6 +34,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+
 
 /**
  * Contains helper methods for file based IO Integration tests.
@@ -62,16 +65,6 @@ public class FileBasedIOITHelper {
     );
 
     return getHashForRecordCount(lineCount, expectedHashes);
-  }
-
-  public static String getHashForRecordCount(int recordCount, Map<Integer, String> hashes) {
-    String hash = hashes.get(recordCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-        String.format("No hash for that record count: %s", recordCount)
-      );
-    }
-    return hash;
   }
 
   /**

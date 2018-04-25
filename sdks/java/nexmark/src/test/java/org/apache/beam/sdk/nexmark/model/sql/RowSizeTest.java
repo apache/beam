@@ -24,16 +24,15 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,7 +42,7 @@ import org.junit.rules.ExpectedException;
  */
 public class RowSizeTest {
 
-  private static final RowType ROW_TYPE = RowSqlType.builder()
+  private static final Schema ROW_TYPE = RowSqlTypes.builder()
       .withTinyIntField("f_tinyint")
       .withSmallIntField("f_smallint")
       .withIntegerField("f_int")
@@ -59,11 +58,11 @@ public class RowSizeTest {
       .withVarcharField("f_varchar")
       .build();
 
-  private static final long ROW_SIZE = 91L;
+  private static final long ROW_SIZE = 96L;
 
   private static final Row ROW =
       Row
-          .withRowType(ROW_TYPE)
+          .withSchema(ROW_TYPE)
           .addValues(
               (byte) 1,
               (short) 2,
@@ -73,9 +72,9 @@ public class RowSizeTest {
               (double) 6.32,
               new BigDecimal(7),
               false,
-              new GregorianCalendar(2019, 03, 02),
-              new Date(10L),
-              new Date(11L),
+              new DateTime().withDate(2019, 03, 02),
+              new DateTime(10L),
+              new DateTime(11L),
               "12",
               "13")
           .build();

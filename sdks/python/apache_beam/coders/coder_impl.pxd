@@ -132,11 +132,16 @@ cdef class IterableCoderImpl(SequenceCoderImpl):
   pass
 
 
+cdef class PaneInfoCoderImpl(StreamCoderImpl):
+  cdef int _choose_encoding(self, value)
+
+
 cdef class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
   cdef CoderImpl _value_coder
   cdef CoderImpl _timestamp_coder
   cdef CoderImpl _windows_coder
+  cdef CoderImpl _pane_info_coder
 
   @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)

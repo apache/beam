@@ -579,7 +579,7 @@ public class CombineTest implements Serializable {
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =
-      input -> input.equals("a") ? 3 : 0;
+      input -> "a".equals(input) ? 3 : 0;
 
   private static final SerializableFunction<String, Integer> splitHotKeyFanout =
       input -> Math.random() < 0.5 ? 3 : 0;

@@ -30,6 +30,7 @@ import static org.junit.Assume.assumeTrue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -119,6 +120,7 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -151,12 +153,14 @@ public class KafkaIOTest {
   public ExpectedException thrown = ExpectedException.none();
 
   private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
+  private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
+  private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
 
   // Update mock consumer with records distributed among the given topics, each with given number
   // of partitions. Records are assigned in round-robin order among the partitions.
   private static MockConsumer<byte[], byte[]> mkMockConsumer(
       List<String> topics, int partitionsPerTopic, int numElements,
-      OffsetResetStrategy offsetResetStrategy) {
+      OffsetResetStrategy offsetResetStrategy, Map<String, Object> config) {
 
     final List<TopicPartition> partitions = new ArrayList<>();
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
@@ -176,6 +180,10 @@ public class KafkaIOTest {
     int numPartitions = partitions.size();
     final long[] offsets = new long[numPartitions];
 
+    long timestampStartMillis = (Long) config.getOrDefault(TIMESTAMP_START_MILLIS_CONFIG,
+                                                           LOG_APPEND_START_TIME.getMillis());
+    TimestampType timestampType = TimestampType.forName((String)
+      config.getOrDefault(TIMESTAMP_TYPE_CONFIG, TimestampType.LOG_APPEND_TIME.toString()));
 
     for (int i = 0; i < numElements; i++) {
       int pIdx = i % numPartitions;
@@ -189,8 +197,8 @@ public class KafkaIOTest {
               tp.topic(),
               tp.partition(),
               offsets[pIdx]++,
-              LOG_APPEND_START_TIME.plus(Duration.standardSeconds(i)).getMillis(),
-              TimestampType.LOG_APPEND_TIME,
+              timestampStartMillis + Duration.standardSeconds(i).getMillis(),
+              timestampType,
               0, key.length, value.length, key, value));
     }
 
@@ -242,13 +250,22 @@ public class KafkaIOTest {
       @Override
       public void run() {
         // add all the records with offset >= current partition position.
+        int recordsAdded = 0;
         for (TopicPartition tp : assignedPartitions.get()) {
           long curPos = consumer.position(tp);
           for (ConsumerRecord<byte[], byte[]> r : records.get(tp)) {
             if (r.offset() >= curPos) {
               consumer.addRecord(r);
+              recordsAdded++;
             }
           }
+        }
+        if (recordsAdded == 0) {
+          // MockConsumer.poll(timeout) does not actually wait even when there aren't any records.
+          // Add a small wait here in order to avoid busy looping in the reader.
+          Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+          //TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
+          //     without this wait. Need to look into it.
         }
         consumer.schedulePollTask(this);
       }
@@ -277,7 +294,7 @@ public class KafkaIOTest {
 
     @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
-      return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy);
+      return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy, config);
     }
   }
 
@@ -498,8 +515,73 @@ public class KafkaIOTest {
     p.run();
   }
 
+  @Test
+  public void testUnboundedSourceCustomTimestamps() {
+    // The custom timestamps is set to customTimestampStartMillis + value.
+    // Tests basic functionality of custom timestamps.
+
+    final int numElements = 1000;
+    final long customTimestampStartMillis = 80000L;
+
+    PCollection<Long> input =
+      p.apply(mkKafkaReadTransform(numElements, null)
+                .withTimestampPolicyFactory(
+                  (tp, prevWatermark) -> new CustomTimestampPolicyWithLimitedDelay<Integer, Long>(
+                    (record -> new Instant(TimeUnit.SECONDS.toMillis(record.getKV().getValue())
+                                             + customTimestampStartMillis)),
+                   Duration.millis(0),
+                   prevWatermark))
+                .withoutMetadata())
+        .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
+    PCollection<Long> diffs =
+      input
+        .apply(MapElements.into(TypeDescriptors.longs())
+                 .via(t -> TimeUnit.SECONDS.toMillis(t) + customTimestampStartMillis))
+        .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
+        .apply("DistinctTimestamps", Distinct.create());
+
+    // This assert also confirms that diff only has one unique value.
+    PAssert.thatSingleton(diffs).isEqualTo(0L);
+
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceCreateTimestamps() {
+    // Same as testUnboundedSourceCustomTimestamps with create timestamp.
+
+    final int numElements = 1000;
+    final long createTimestampStartMillis = 50000L;
+
+    PCollection<Long> input =
+      p.apply(mkKafkaReadTransform(numElements, null)
+                .withCreateTime(Duration.millis(0))
+                .updateConsumerProperties(ImmutableMap.of(
+                  TIMESTAMP_TYPE_CONFIG, "CreateTime",
+                  TIMESTAMP_START_MILLIS_CONFIG, createTimestampStartMillis))
+                .withoutMetadata())
+        .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
+    PCollection<Long> diffs =
+      input
+        .apply(MapElements.into(TypeDescriptors.longs())
+                 .via(t -> TimeUnit.SECONDS.toMillis(t) + createTimestampStartMillis))
+        .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
+        .apply("DistinctTimestamps", Distinct.create());
+
+    // This assert also confirms that diff only has one unique value.
+    PAssert.thatSingleton(diffs).isEqualTo(0L);
+
+    p.run();
+  }
+
   // Returns TIMESTAMP_MAX_VALUE for watermark when all the records are read from a partition.
-  static class TimestampPolicyWithEndOfSource<K, V> extends TimestampPolicyFactory<K, V> {
+  static class TimestampPolicyWithEndOfSource<K, V> implements TimestampPolicyFactory<K, V> {
     private final long maxOffset;
 
     TimestampPolicyWithEndOfSource(long maxOffset) {
@@ -533,11 +615,14 @@ public class KafkaIOTest {
   }
 
   @Test
+  @Ignore // TODO : BEAM-4086 : enable once flakiness is fixed.
   public void testUnboundedSourceWithoutBoundedWrapper() {
+    // This is same as testUnboundedSource() without the BoundedSource wrapper.
     // Most of the tests in this file set 'maxNumRecords' on the source, which wraps
     // the unbounded source in a bounded source. As a result, the test pipeline run as
     // bounded/batch pipelines under direct-runner.
-    // This is same as testUnboundedSource() without the BoundedSource wrapper.
+    // This tests runs without such a wrapper over unbounded wrapper, and depends on watermark
+    // progressing to infinity to end the test (see TimestampPolicyWithEndOfSource above).
 
     final int numElements = 1000;
     final int numPartitions = 10;
@@ -553,10 +638,9 @@ public class KafkaIOTest {
       .withTimestampPolicyFactory(
         new TimestampPolicyWithEndOfSource<>(numElements / numPartitions - 1));
 
-    PCollection <Long> input =
-      p.apply("readFromKafka", reader.withoutMetadata())
-        .apply(Values.create())
-        .apply(Window.into(FixedWindows.of(Duration.standardDays(100))));
+    p.apply("readFromKafka", reader.withoutMetadata())
+      .apply(Values.create())
+      .apply(Window.into(FixedWindows.of(Duration.standardDays(100))));
 
     PipelineResult result = p.run();
 
@@ -564,13 +648,13 @@ public class KafkaIOTest {
 
     MetricQueryResults metrics = result.metrics().queryMetrics(
       MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(elementsRead.namespace()))
+        .addNameFilter(MetricNameFilter.inNamespace(elementsRead.getNamespace()))
         .build());
 
-    assertThat(metrics.counters(), hasItem(
+    assertThat(metrics.getCounters(), hasItem(
       attemptedMetricsResult(
-        elementsRead.namespace(),
-        elementsRead.name(),
+        elementsRead.getNamespace(),
+        elementsRead.getName(),
         "readFromKafka",
               (long) numElements)));
   }
@@ -768,29 +852,29 @@ public class KafkaIOTest {
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().build());
 
-    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<Long>> counters = metrics.getCounters();
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        elementsRead.namespace(),
-        elementsRead.name(),
+        elementsRead.getNamespace(),
+        elementsRead.getName(),
         readStep,
         1000L)));
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        elementsReadBySplit.namespace(),
-        elementsReadBySplit.name(),
+        elementsReadBySplit.getNamespace(),
+        elementsReadBySplit.getName(),
         readStep,
         1000L)));
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        bytesRead.namespace(),
-        bytesRead.name(),
+        bytesRead.getNamespace(),
+        bytesRead.getName(),
         readStep,
         12000L)));
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        bytesReadBySplit.namespace(),
-        bytesReadBySplit.name(),
+        bytesReadBySplit.getNamespace(),
+        bytesReadBySplit.getName(),
         readStep,
         12000L)));
 
@@ -799,24 +883,24 @@ public class KafkaIOTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        backlogElementsOfSplit.namespace(),
-                        backlogElementsOfSplit.name()))
+                        backlogElementsOfSplit.getNamespace(),
+                        backlogElementsOfSplit.getName()))
                 .build());
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
-    assertThat(backlogElementsMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(backlogElementsMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
 
     MetricQueryResults backlogBytesMetrics =
         result.metrics().queryMetrics(
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        backlogBytesOfSplit.namespace(),
-                        backlogBytesOfSplit.name()))
+                        backlogBytesOfSplit.getNamespace(),
+                        backlogBytesOfSplit.getName()))
                 .build());
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
-    assertThat(backlogBytesMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(backlogBytesMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
 
     // Check checkpointMarkCommitsEnqueued metric.
     MetricQueryResults commitsEnqueuedMetrics =
@@ -828,8 +912,9 @@ public class KafkaIOTest {
                         KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
                 .build());
 
-    assertThat(commitsEnqueuedMetrics.counters(), IsIterableWithSize.iterableWithSize(1));
-    assertThat(commitsEnqueuedMetrics.counters().iterator().next().attempted(), greaterThan(0L));
+    assertThat(commitsEnqueuedMetrics.getCounters(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(
+        commitsEnqueuedMetrics.getCounters().iterator().next().getAttempted(), greaterThan(0L));
   }
 
   @Test
@@ -854,13 +939,14 @@ public class KafkaIOTest {
             .withTopic(topic)
             .withKeySerializer(IntegerSerializer.class)
             .withValueSerializer(LongSerializer.class)
+            .withInputTimestamp()
             .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
     }
   }
 
@@ -891,7 +977,7 @@ public class KafkaIOTest {
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, true);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, true, false);
     }
   }
 
@@ -930,13 +1016,14 @@ public class KafkaIOTest {
                  .withEOS(1, "test")
                  .withConsumerFactoryFn(new ConsumerFactoryFn(
                    Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                 .withPublishTimestampFunction((e, ts) -> ts)
                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
     }
   }
 
@@ -1183,13 +1270,13 @@ public class KafkaIOTest {
 
       MetricQueryResults metrics = result.metrics().queryMetrics(
           MetricsFilter.builder()
-              .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.namespace()))
+              .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.getNamespace()))
               .build());
 
-      assertThat(metrics.counters(), hasItem(
+      assertThat(metrics.getCounters(), hasItem(
           attemptedMetricsResult(
-              elementsWritten.namespace(),
-              elementsWritten.name(),
+              elementsWritten.getNamespace(),
+              elementsWritten.getName(),
               "writeToKafka",
               1000L)));
 
@@ -1198,7 +1285,10 @@ public class KafkaIOTest {
   }
 
   private static void verifyProducerRecords(MockProducer<Integer, Long> mockProducer,
-                                            String topic, int numElements, boolean keyIsAbsent) {
+                                            String topic,
+                                            int numElements,
+                                            boolean keyIsAbsent,
+                                            boolean verifyTimestamp) {
 
     // verify that appropriate messages are written to kafka
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
@@ -1215,6 +1305,9 @@ public class KafkaIOTest {
         assertEquals(i, record.key().intValue());
       }
       assertEquals(i, record.value().longValue());
+      if (verifyTimestamp) {
+        assertEquals(i, record.timestamp().intValue());
+      }
     }
   }
 

@@ -111,8 +111,9 @@ import org.slf4j.LoggerFactory;
  *       // settings for ConsumerConfig. e.g :
  *       .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
- *       // set event times and watermark based on LogAppendTime. To provide a custom
+ *       // set event times and watermark based on 'LogAppendTime'. To provide a custom
  *       // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
+ *       // Use withCreateTime() with topics that have 'CreateTime' timestamps.
  *       .withLogAppendTime()
  *
  *       // restrict reader to committed messages on Kafka (see method documentation).
@@ -174,9 +175,14 @@ import org.slf4j.LoggerFactory;
  *       .withKeySerializer(LongSerializer.class)
  *       .withValueSerializer(StringSerializer.class)
  *
- *       // you can further customize KafkaProducer used to write the records by adding more
+ *       // You can further customize KafkaProducer used to write the records by adding more
  *       // settings for ProducerConfig. e.g, to enable compression :
  *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *
+ *       // You set publish timestamp for the Kafka records.
+ *       .withInputTimestamp() // element timestamp is used while publishing to Kafka
+ *       // or you can also set a custom timestamp with a function.
+ *       .withPublishTimestampFunction((elem, elemTs) -> ...)
  *
  *       // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
  *       .withEOS(20, "eos-sink-group-id");
@@ -482,12 +488,11 @@ public class KafkaIO {
       return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
     }
 
-
     /**
      * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}.
      * This is the default timestamp policy. It assigns processing time to each record.
      * Specifically, this is the timestamp when the record becomes 'current' in the reader.
-     * The watermark aways advances to current time. If servicer side time (log append time) is
+     * The watermark aways advances to current time. If server side time (log append time) is
      * enabled in Kafka, {@link #withLogAppendTime()} is recommended over this.
      */
     public Read<K, V> withProcessingTime() {
@@ -495,10 +500,29 @@ public class KafkaIO {
     }
 
     /**
+     * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of the
+     * records. It is an error if a record's timestamp type is not
+     * {@link KafkaTimestampType#CREATE_TIME}. The timestamps within a partition are expected to
+     * be roughly monotonically increasing with a cap on out of order delays (e.g. 'max delay' of
+     * 1 minute). The watermark at any time is
+     * '({@code Min(now(), Max(event timestamp so far)) - max delay})'. However, watermark is never
+     * set in future and capped to 'now - max delay'. In addition, watermark advanced to
+     * 'now - max delay' when a partition is idle.
+     *
+     * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent
+     *                 record is expected to be after {@code current record timestamp - maxDelay}.
+     */
+    public Read<K, V> withCreateTime(Duration maxDelay) {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay));
+    }
+
+    /**
      * Provide custom {@link TimestampPolicyFactory} to set event times and watermark for each
      * partition. {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)}
      * is invoked for each partition when the reader starts.
-     * @see #withLogAppendTime() and {@link #withProcessingTime()}
+     * @see #withLogAppendTime()
+     * @see #withCreateTime(Duration)
+     * @see #withProcessingTime()
      */
     public Read<K, V> withTimestampPolicyFactory(
       TimestampPolicyFactory<K, V> timestampPolicyFactory) {
@@ -813,6 +837,8 @@ public class KafkaIO {
     @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
     @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
 
+    @Nullable abstract KafkaPublishTimestampFunction<KV<K, V>> getPublishTimestampFunction();
+
     // Configuration for EOS sink
     abstract boolean isEOS();
     @Nullable abstract String getSinkGroupId();
@@ -830,6 +856,8 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+      abstract Builder<K, V> setPublishTimestampFunction(
+        KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
       abstract Builder<K, V> setNumShards(int numShards);
@@ -887,6 +915,28 @@ public class KafkaIO {
     public Write<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
       return toBuilder().setProducerFactoryFn(producerFactoryFn).build();
+    }
+
+    /**
+     * The timestamp for each record being published is set to timestamp of the element in the
+     * pipeline. This is equivalent to {@code withPublishTimestampFunction((e, ts) -> ts)}. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline
+     * is processing messages from the past, they might be deleted immediately by Kafka after
+     * being published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public Write<K, V> withInputTimestamp() {
+      return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
+    }
+
+    /**
+     * A function to provide timestamp for records being published. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline
+     * is processing messages from the past, they might be deleted immediately by Kafka after
+     * being published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public Write<K, V> withPublishTimestampFunction(
+      KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
+      return toBuilder().setPublishTimestampFunction(timestampFunction).build();
     }
 
     /**
@@ -991,7 +1041,7 @@ public class KafkaIO {
     public void validate(PipelineOptions options) {
       if (isEOS()) {
         String runner = options.getRunner().getName();
-        if (runner.equals("org.apache.beam.runners.direct.DirectRunner")
+        if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
           || runner.startsWith("org.apache.beam.runners.dataflow.")
           || runner.startsWith("org.apache.beam.runners.spark.")) {
           return;

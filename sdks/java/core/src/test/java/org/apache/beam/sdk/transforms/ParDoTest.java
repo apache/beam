@@ -1444,12 +1444,12 @@ public class ParDoTest implements Serializable {
       boolean foundElement = false;
       boolean foundFinish = false;
       for (String str : input) {
-        if (str.equals("elem:1:1")) {
+        if ("elem:1:1".equals(str)) {
           if (foundElement) {
             throw new AssertionError("Received duplicate element");
           }
           foundElement = true;
-        } else if (str.equals("finish:3:3")) {
+        } else if ("finish:3:3".equals(str)) {
           foundFinish = true;
         } else {
           throw new AssertionError("Got unexpected value: " + str);

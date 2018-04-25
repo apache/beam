@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
@@ -108,10 +110,6 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
    */
   public static String getExpectedHashForRowCount(int rowCount)
       throws UnsupportedOperationException {
-    String hash = EXPECTED_HASHES.get(rowCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException("No hash for that row count");
-    }
-    return hash;
+    return getHashForRecordCount(rowCount, EXPECTED_HASHES);
   }
 }

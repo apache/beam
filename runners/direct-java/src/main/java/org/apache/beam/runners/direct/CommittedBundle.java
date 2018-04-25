@@ -19,10 +19,8 @@
 package org.apache.beam.runners.direct;
 
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -35,7 +33,7 @@ import org.joda.time.Instant;
  * a part of at a later point.
  * @param <T> the type of elements contained within this bundle
  */
-interface CommittedBundle<T> extends Bundle<T> {
+interface CommittedBundle<T> extends Bundle<T, PCollection<T>> {
   /**
    * Returns the PCollection that the elements of this bundle belong to.
    */
@@ -43,7 +41,7 @@ interface CommittedBundle<T> extends Bundle<T> {
   PCollection<T> getPCollection();
 
   /**
-   * Returns the key that was output in the most recent {@link GroupByKey} in the
+   * Returns the key that was output in the most recent {@code GroupByKey} in the
    * execution of this bundle.
    */
   StructuralKey<?> getKey();
@@ -54,11 +52,16 @@ interface CommittedBundle<T> extends Bundle<T> {
    */
   Iterable<WindowedValue<T>> getElements();
 
-  @Override
+  /**
+   * Return the minimum timestamp among elements in this bundle.
+   *
+   * <p>This should be equivalent to iterating over all of the elements within a bundle and
+   * selecting the minimum timestamp from among them.
+   */
   Instant getMinimumTimestamp();
 
   /**
-   * Returns the processing time output watermark at the time the producing {@link PTransform}
+   * Returns the processing time output watermark at the time the producing {@code Executable}
    * committed this bundle. Downstream synchronized processing time watermarks cannot progress
    * past this point before consuming this bundle.
    *
@@ -67,7 +70,6 @@ interface CommittedBundle<T> extends Bundle<T> {
    * timers that fired to produce this bundle.
    */
   Instant getSynchronizedProcessingOutputWatermark();
-
   /**
    * Return a new {@link CommittedBundle} that is like this one, except calls to
    * {@link #getElements()} will return the provided elements. This bundle is unchanged.

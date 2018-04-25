@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
@@ -34,8 +35,9 @@ func newMsg(msg interface{}) googleapi.RawMessage {
 
 // pipelineOptions models Job/Environment/SdkPipelineOptions
 type pipelineOptions struct {
-	DisplayData []*displayData `json:"display_data,omitempty"`
-	Options     interface{}    `json:"options,omitempty"`
+	DisplayData []*displayData     `json:"display_data,omitempty"`
+	Options     interface{}        `json:"options,omitempty"`
+	GoOptions   runtime.RawOptions `json:"beam:option:go_options:v1,omitempty"`
 }
 
 // NOTE(herohde) 2/9/2017: most of the v1b3 messages are weakly-typed json
@@ -79,6 +81,19 @@ type properties struct {
 	OutputInfo              []output                    `json:"output_info,omitempty"`               // Source, ParDo, GBK, Flatten, Combine
 	ParallelInput           *outputReference            `json:"parallel_input,omitempty"`            // ParDo, GBK, Flatten, Combine
 	SerializedFn            string                      `json:"serialized_fn,omitempty"`             // ParDo, Combine
+
+	PubSubTopic          string `json:"pubsub_topic,omitempty"`           // Read,Write
+	PubSubSubscription   string `json:"pubsub_subscription,omitempty"`    // Read,Write
+	PubSubIDLabel        string `json:"pubsub_id_label,omitempty"`        // Read,Write
+	PubSubTimestampLabel string `json:"pubsub_timestamp_label,omitempty"` // Read,Write
+
+	// This special property triggers whether the below struct should be used instead.
+	PubSubWithAttributes bool `json:"pubsub_with_attributes,omitempty"`
+}
+
+type propertiesWithPubSubMessage struct {
+	properties
+	PubSubSerializedAttributesFn string `json:"pubsub_serialized_attributes_fn"` // Read,Write
 }
 
 type output struct {

@@ -21,14 +21,15 @@ package org.apache.beam.runners.fnexecution;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
-import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.SynchronousQueue;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
+import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
+import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -47,8 +48,14 @@ import org.junit.rules.TestRule;
 public class InProcessSdkHarness extends ExternalResource implements TestRule {
 
   public static InProcessSdkHarness create() {
-    return new InProcessSdkHarness();
+    return new InProcessSdkHarness(null);
   }
+
+  public static InProcessSdkHarness withClientTimeout(Duration clientTimeout) {
+    return new InProcessSdkHarness(clientTimeout);
+  }
+
+  @Nullable private final Duration clientTimeout;
 
   private ExecutorService executor;
   private GrpcFnServer<GrpcLoggingService> loggingServer;
@@ -57,7 +64,9 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
 
   private SdkHarnessClient client;
 
-  private InProcessSdkHarness() {}
+  private InProcessSdkHarness(Duration clientTimeout) {
+    this.clientTimeout = clientTimeout;
+  }
 
   public SdkHarnessClient client() {
     return client;
@@ -67,12 +76,14 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     return dataServer.getApiServiceDescriptor();
   }
 
-  protected void before() throws IOException, InterruptedException {
+  protected void before() throws Exception {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
-    SynchronousQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
+    ControlClientPool clientPool;
+    clientPool = MapControlClientPool.create();
     FnApiControlClientPoolService clientPoolService =
-        FnApiControlClientPoolService.offeringClientsToPool(clientPool);
+        FnApiControlClientPoolService.offeringClientsToPool(
+            clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
 
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
@@ -97,7 +108,11 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
           return null;
         });
 
-    client = SdkHarnessClient.usingFnApiClient(clientPool.take(), dataServer.getService());
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by
+    // the harness. All clients have the implicit empty id for now.
+    client =
+        SdkHarnessClient.usingFnApiClient(
+            clientPool.getSource().take("", clientTimeout), dataServer.getService());
   }
 
   protected void after() {

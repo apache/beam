@@ -142,11 +142,11 @@ class FlinkPipelineExecutionEnvironment {
     ExecutionEnvironment flinkBatchEnv;
 
     // depending on the master, create the right environment.
-    if (masterUrl.equals("[local]")) {
+    if ("[local]".equals(masterUrl)) {
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment();
-    } else if (masterUrl.equals("[collection]")) {
+    } else if ("[collection]".equals(masterUrl)) {
       flinkBatchEnv = new CollectionEnvironment();
-    } else if (masterUrl.equals("[auto]")) {
+    } else if ("[auto]".equals(masterUrl)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       String[] parts = masterUrl.split(":");
@@ -189,9 +189,9 @@ class FlinkPipelineExecutionEnvironment {
     StreamExecutionEnvironment flinkStreamEnv = null;
 
     // depending on the master, create the right environment.
-    if (masterUrl.equals("[local]")) {
+    if ("[local]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.createLocalEnvironment();
-    } else if (masterUrl.equals("[auto]")) {
+    } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       String[] parts = masterUrl.split(":");

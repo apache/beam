@@ -245,6 +245,8 @@ class Coder(object):
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
+            environment_id=(
+                context.default_environment_id() if context else None),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urn,
                 payload=typed_param.SerializeToString()

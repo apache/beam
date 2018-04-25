@@ -21,10 +21,10 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,8 +42,8 @@ public class BeamSqlDotExpressionTest {
 
   @Test
   public void testReturnsFieldValue() {
-    RowType rowType =
-        RowSqlType
+    Schema schema =
+        RowSqlTypes
           .builder()
           .withVarcharField("f_string")
           .withIntegerField("f_int")
@@ -54,7 +54,7 @@ public class BeamSqlDotExpressionTest {
             BeamSqlPrimitive.of(
                 SqlTypeName.ROW,
                 Row
-                  .withRowType(rowType)
+                  .withSchema(schema)
                   .addValues("aaa", 14)
                   .build()),
             BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "f_string"));
@@ -66,8 +66,8 @@ public class BeamSqlDotExpressionTest {
 
   @Test
   public void testThrowsForNonExistentField() {
-    RowType rowType =
-        RowSqlType
+    Schema schema =
+        RowSqlTypes
             .builder()
             .withVarcharField("f_string")
             .withIntegerField("f_int")
@@ -78,7 +78,7 @@ public class BeamSqlDotExpressionTest {
             BeamSqlPrimitive.of(
                 SqlTypeName.ROW,
                 Row
-                    .withRowType(rowType)
+                    .withSchema(schema)
                     .addValues("aaa", 14)
                     .build()),
             BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "f_nonExistent"));

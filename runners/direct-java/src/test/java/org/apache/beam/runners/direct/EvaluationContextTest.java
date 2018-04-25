@@ -115,7 +115,6 @@ public class EvaluationContextTest {
     graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
-            runner.getPipelineOptions(),
             NanosOffsetClock.create(),
             bundleFactory,
             graph,
@@ -123,7 +122,7 @@ public class EvaluationContextTest {
 
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
-    viewProducer = graph.getWriter(view);
+    viewProducer = graph.getProducer(view);
     unboundedProducer = graph.getProducer(unbounded);
   }
 
@@ -364,10 +363,10 @@ public class EvaluationContextTest {
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.of(), advanceResult);
 
-    Collection<FiredTimers> fired = context.extractFiredTimers();
+    Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> fired = context.extractFiredTimers();
     assertThat(Iterables.getOnlyElement(fired).getKey(), Matchers.equalTo(key));
 
-    FiredTimers firedForKey = Iterables.getOnlyElement(fired);
+    FiredTimers<AppliedPTransform<?, ?, ?>> firedForKey = Iterables.getOnlyElement(fired);
     // Contains exclusively the fired timer
     assertThat(firedForKey.getTimers(), contains(toFire));
 

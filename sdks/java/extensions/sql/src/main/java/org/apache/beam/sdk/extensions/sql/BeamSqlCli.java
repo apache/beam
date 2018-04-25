@@ -22,7 +22,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
-import org.apache.beam.sdk.extensions.sql.impl.parser.ParserUtils;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -94,7 +93,7 @@ public class BeamSqlCli {
   }
 
   private void handleCreateTable(SqlCreateTable stmt, MetaStore store) {
-    Table table = ParserUtils.convertCreateTableStmtToTable(stmt);
+    Table table = stmt.toTable();
     if (table.getType() == null) {
       throw new IllegalStateException("Table type is not specified and BeamSqlCli#defaultTableType"
           + "is not configured!");
@@ -107,8 +106,8 @@ public class BeamSqlCli {
   }
 
   private void handleDropTable(SqlDropTable stmt) {
-    metaStore.dropTable(stmt.tableName());
-    env.deregisterTable(stmt.tableName());
+    metaStore.dropTable(stmt.getNameSimple());
+    env.deregisterTable(stmt.getNameSimple());
   }
 
   /**

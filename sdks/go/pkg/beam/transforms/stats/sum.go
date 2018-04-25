@@ -20,6 +20,7 @@ import (
 )
 
 //go:generate specialize --input=sum_switch.tmpl --x=integers,floats
+//go:generate gofmt -w sum_switch.go
 
 // Sum returns the sum of the elements in a PCollection<A> as a singleton
 // PCollection<A>. It can only be used for numbers, such as int, uint16,

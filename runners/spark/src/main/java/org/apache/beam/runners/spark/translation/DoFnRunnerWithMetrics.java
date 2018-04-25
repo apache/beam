@@ -26,6 +26,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.Accumulator;
@@ -47,6 +48,11 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
     this.delegate = delegate;
     this.stepName = stepName;
     this.metricsAccum = metricsAccum;
+  }
+
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return delegate.getFn();
   }
 
   @Override

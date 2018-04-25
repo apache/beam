@@ -133,7 +133,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     checkState(stateAddressWindows != null,
                              "Cannot ensure window %s is active since it is neither ACTIVE nor NEW",
                              window);
-    if (stateAddressWindows != null && stateAddressWindows.isEmpty()) {
+    if (stateAddressWindows.isEmpty()) {
       // Window was NEW, make it ACTIVE with itself as its state address window.
       stateAddressWindows.add(window);
     }

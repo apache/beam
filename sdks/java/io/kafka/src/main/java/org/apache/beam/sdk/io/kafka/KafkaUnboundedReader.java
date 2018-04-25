@@ -211,7 +211,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             rawRecord.partition(),
             rawRecord.offset(),
             consumerSpEL.getRecordTimestamp(rawRecord),
-            consumerSpEL.getRecordTimestamptType(rawRecord),
+            consumerSpEL.getRecordTimestampType(rawRecord),
+            ConsumerSpEL.hasHeaders ? rawRecord.headers() : null,
             keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
             valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 

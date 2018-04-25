@@ -42,6 +42,7 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  * to eliminate the method definition differences.
  */
 class ConsumerSpEL {
+
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerSpEL.class);
 
   private SpelParserConfiguration config = new SpelParserConfiguration(true, true);
@@ -55,6 +56,21 @@ class ConsumerSpEL {
 
   private boolean hasRecordTimestamp = false;
   private boolean hasOffsetsForTimes = false;
+  static boolean hasHeaders = false;
+
+  static {
+    try {
+      // It is supported by Kafka Client 0.11.0.0 onwards.
+      hasHeaders = ConsumerRecord
+          .class
+          .getMethod("headers", (Class<?>[]) null)
+          .getReturnType()
+          .getName()
+          .equals("org.apache.kafka.common.header.Headers");
+    } catch (NoSuchMethodException | SecurityException e) {
+      LOG.debug("Headers is not available");
+    }
+  }
 
   public ConsumerSpEL() {
     try {
@@ -101,7 +117,7 @@ class ConsumerSpEL {
     return -1L; // This is the timestamp used in Kafka for older messages without timestamps.
   }
 
-  public KafkaTimestampType getRecordTimestamptType(
+  public KafkaTimestampType getRecordTimestampType(
     ConsumerRecord<byte[], byte[]> rawRecord) {
     if (hasRecordTimestamp) {
       return KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal());

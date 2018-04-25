@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -29,13 +30,16 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,11 +50,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExecutableStageTest {
   @Test
-  public void testRoundTripToFromTransform() {
+  public void testRoundTripToFromTransform() throws Exception {
     Environment env = Environment.newBuilder().setUrl("foo").build();
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
+            .putInputs("side_input", "sideInput.in")
             .putOutputs("output", "output.out")
             .setSpec(
                 FunctionSpec.newBuilder()
@@ -58,39 +63,51 @@ public class ExecutableStageTest {
                     .setPayload(
                         ParDoPayload.newBuilder()
                             .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .putSideInputs("side_input", SideInput.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
+    PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
     PCollection output = PCollection.newBuilder().setUniqueName("output.out").build();
-
-    ImmutableExecutableStage stage =
-        ImmutableExecutableStage.of(
-            env,
-            PipelineNode.pCollection("input.out", input),
-            Collections.singleton(PipelineNode.pTransform("pt", pt)),
-            Collections.singleton(PipelineNode.pCollection("output.out", output)));
 
     Components components =
         Components.newBuilder()
             .putTransforms("pt", pt)
             .putPcollections("input.out", input)
+            .putPcollections("sideInput.in", sideInput)
             .putPcollections("output.out", output)
             .putEnvironments("foo", env)
             .build();
 
+    PTransformNode transformNode = PipelineNode.pTransform("pt", pt);
+    SideInputReference sideInputRef =
+        SideInputReference.of(
+            transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+    ImmutableExecutableStage stage =
+        ImmutableExecutableStage.of(
+            components,
+            env,
+            PipelineNode.pCollection("input.out", input),
+            Collections.singleton(sideInputRef),
+            Collections.singleton(PipelineNode.pTransform("pt", pt)),
+            Collections.singleton(PipelineNode.pCollection("output.out", output)));
+
     PTransform stagePTransform = stage.toPTransform();
     assertThat(stagePTransform.getOutputsMap(), hasValue("output.out"));
     assertThat(stagePTransform.getOutputsCount(), equalTo(1));
-    assertThat(stagePTransform.getInputsMap(), hasValue("input.out"));
-    assertThat(stagePTransform.getInputsCount(), equalTo(1));
-    assertThat(stagePTransform.getSubtransformsList(), contains("pt"));
+    assertThat(
+        stagePTransform.getInputsMap(), allOf(hasValue("input.out"), hasValue("sideInput.in")));
+    assertThat(stagePTransform.getInputsCount(), equalTo(2));
 
-    assertThat(ExecutableStage.fromPTransform(stagePTransform, components), equalTo(stage));
+    ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
+        stagePTransform.getSpec().getPayload());
+    assertThat(payload.getTransformsList(), contains("pt"));
+    assertThat(ExecutableStage.fromPayload(payload), equalTo(stage));
   }
 
   @Test
-  public void testRoundTripToFromTransformFused() {
+  public void testRoundTripToFromTransformFused() throws Exception {
     PTransform parDoTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -148,9 +165,11 @@ public class ExecutableStageTest {
     assertThat(ptransform.getSpec().getUrn(), equalTo(ExecutableStage.URN));
     assertThat(ptransform.getInputsMap().values(), containsInAnyOrder("impulse.out"));
     assertThat(ptransform.getOutputsMap().values(), emptyIterable());
-    assertThat(ptransform.getSubtransformsList(), contains("parDo", "window"));
 
-    ExecutableStage desered = ExecutableStage.fromPTransform(ptransform, components);
+    ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
+        ptransform.getSpec().getPayload());
+    assertThat(payload.getTransformsList(), contains("parDo", "window"));
+    ExecutableStage desered = ExecutableStage.fromPayload(payload);
     assertThat(desered, equalTo(subgraph));
   }
 }

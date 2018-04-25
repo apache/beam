@@ -79,7 +79,7 @@ type diffFn struct {
 }
 
 func (f *diffFn) ProcessElement(_ []byte, ls, rs func(*beam.T) bool, left, both, right func(t beam.T)) error {
-	c := coder.SkipW(beam.UnwrapCoder(f.Coder.Coder))
+	c := beam.UnwrapCoder(f.Coder.Coder)
 
 	indexL, err := index(c, ls)
 	if err != nil {
@@ -178,10 +178,10 @@ func Empty(s beam.Scope, col beam.PCollection) beam.PCollection {
 
 func fail(s beam.Scope, col beam.PCollection, format string) {
 	switch {
-	case typex.IsWKV(col.Type()):
+	case typex.IsKV(col.Type()):
 		beam.ParDo0(s, &failKVFn{Format: format}, col)
 
-	case typex.IsWCoGBK(col.Type()):
+	case typex.IsCoGBK(col.Type()):
 		beam.ParDo0(s, &failGBKFn{Format: format}, col)
 
 	default:

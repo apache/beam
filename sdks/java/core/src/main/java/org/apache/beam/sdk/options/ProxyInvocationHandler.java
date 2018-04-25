@@ -732,15 +732,19 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     @Override
     public PipelineOptions deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {
-      ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
-      ObjectNode optionsNode = (ObjectNode) objectNode.get("options");
+      ObjectNode objectNode = jp.readValueAsTree();
+      JsonNode rawOptionsNode = objectNode.get("options");
 
       Map<String, JsonNode> fields = Maps.newHashMap();
-      for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();
-          iterator.hasNext(); ) {
-        Map.Entry<String, JsonNode> field = iterator.next();
-        fields.put(field.getKey(), field.getValue());
+      if (rawOptionsNode != null && !rawOptionsNode.isNull()) {
+        ObjectNode optionsNode = (ObjectNode) rawOptionsNode;
+        for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();
+            iterator != null && iterator.hasNext(); ) {
+          Map.Entry<String, JsonNode> field = iterator.next();
+          fields.put(field.getKey(), field.getValue());
+        }
       }
+
       PipelineOptions options =
           new ProxyInvocationHandler(Maps.newHashMap(), fields).as(PipelineOptions.class);
       ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);

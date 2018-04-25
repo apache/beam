@@ -83,8 +83,10 @@ class SwitchingDirectRunner(PipelineRunner):
     class _FnApiRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the FnApiRunner."""
 
-      def __init__(self):
+      def accept(self, pipeline):
         self.supported_by_fnapi_runner = True
+        pipeline.visit(self)
+        return self.supported_by_fnapi_runner
 
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
@@ -115,9 +117,13 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner.
-    visitor = _FnApiRunnerSupportVisitor()
-    pipeline.visit(visitor)
-    if not visitor.supported_by_fnapi_runner:
+    use_fnapi_runner = _FnApiRunnerSupportVisitor().accept(pipeline)
+
+    # Also ensure grpc is available.
+    try:
+      # pylint: disable=unused-variable
+      import grpc
+    except ImportError:
       use_fnapi_runner = False
 
     if use_fnapi_runner:
@@ -262,7 +268,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
   class ReadFromPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       return isinstance(applied_ptransform.transform,
-                        beam_pubsub._ReadFromPubSub)
+                        beam_pubsub.ReadFromPubSub)
 
     def get_replacement_transform(self, transform):
       if not pipeline_options.view_as(StandardOptions).streaming:
