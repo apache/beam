@@ -21,17 +21,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
 )
 
 func init() {
-	textio.RegisterFileSystem("default", New)
+	filesystem.Register("default", New)
 }
 
 type fs struct{}
 
 // New creates a new local filesystem.
-func New(ctx context.Context) textio.FileSystem {
+func New(ctx context.Context) filesystem.Interface {
 	return &fs{}
 }
 
