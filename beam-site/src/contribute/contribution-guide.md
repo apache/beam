@@ -167,8 +167,8 @@ If you do not already have a personal GitHub account, sign up
 
 #### Fork the repository on GitHub
 
-Go to the [Beam GitHub mirror](https://github.com/apache/beam/) and fork the
-repository to your own private account. This will be your private workspace for
+Go to the [Beam GitHub repository](https://github.com/apache/beam/) and fork the
+it to your own private account. This will be your private workspace for
 staging changes.
 
 #### Clone the repository locally
@@ -181,7 +181,7 @@ We assume you are using SSH-based authentication with GitHub. If necessary,
 exchange SSH keys with GitHub by following [their
 instructions](https://help.github.com/articles/generating-an-ssh-key/).
 
-Clone Beam’s read-only GitHub mirror.
+Clone Beam’s GitHub repository.
 
     $ git clone https://github.com/apache/beam.git
     $ cd beam
