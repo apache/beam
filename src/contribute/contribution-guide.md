@@ -66,6 +66,7 @@ mailing list, which is archived
 [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by
 emailing
 [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
+Anyone is welcome to join, and we'd love to hear what you're interested in.
 
 If interested, you can also join the other [mailing lists]({{ site.baseurl
 }}/get-started/support/).
@@ -74,9 +75,7 @@ If interested, you can also join the other [mailing lists]({{ site.baseurl
 
 We use the Apache Software Foundation's
 [JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and
-project management tool, as well as a way to communicate among a very diverse
-and distributed set of contributors. To avoid duplicated efforts,
-significant Beam-related work should be tracked there.
+project management tool.
 
 If you do not already have an Apache JIRA account, sign up
 [here](https://issues.apache.org/jira/).
@@ -84,9 +83,7 @@ If you do not already have an Apache JIRA account, sign up
 If a quick
 [search](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20text%20~%20%22the%20thing%20I%20want%20to%20contribute%22)
 doesn’t turn up an existing JIRA issue for the work you want to contribute,
-feel free to create one. Please discuss your idea with a committer or the [component
-lead](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel)
-in JIRA or, alternatively, on the developer mailing list.
+feel free to create one.
 
 If there’s an existing JIRA issue for your intended contribution, please
 comment about your intended work. A committer can
@@ -303,7 +300,7 @@ $ python setup.py sdist > /dev/null && \
 ## Review
 
 Once the initial code is complete and the tests pass, it’s time to start the
-code review process. We review and discuss all code, no matter who authors it.
+code review process. All code is peer reviewed, no matter who authors it.
 It’s a great way to build community, since you can learn from other developers,
 and they become familiar with your contribution. It also builds a strong
 project by encouraging a high quality bar and keeping code consistent
