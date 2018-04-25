@@ -12,6 +12,7 @@ task :test do
     :allow_hash_href => true,
     :check_html => true,
     :file_ignore => [/javadoc/, /v2/, /pydoc/],
+    :url_ignore => [/jstorm.io/],
     :parallel => { :in_processes => Etc.nprocessors },
     }).run
 end
