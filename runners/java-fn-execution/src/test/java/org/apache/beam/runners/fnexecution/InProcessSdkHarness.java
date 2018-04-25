@@ -19,8 +19,6 @@
 package org.apache.beam.runners.fnexecution;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,8 +32,8 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -98,12 +96,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
               PipelineOptionsFactory.create(),
               loggingServer.getApiServiceDescriptor(),
               controlServer.getApiServiceDescriptor(),
-              new ManagedChannelFactory() {
-                @Override
-                public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-                  return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
-                }
-              },
+              new InProcessManagedChannelFactory(),
               StreamObserverFactory.direct());
           return null;
         });
