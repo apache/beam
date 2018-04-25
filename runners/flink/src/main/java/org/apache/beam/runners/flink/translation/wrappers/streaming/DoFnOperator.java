@@ -334,16 +334,16 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     StepContext stepContext = new FlinkStepContext();
 
-    doFnRunner =
-        DoFnRunners.simpleRunner(
-            options,
-            doFn,
-            sideInputReader,
-            outputManager,
-            mainOutputTag,
-            additionalOutputTags,
-            stepContext,
-            windowingStrategy);
+    doFnRunner = DoFnRunners.simpleRunner(
+        options,
+        doFn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        null,
+        windowingStrategy);
 
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 

@@ -30,6 +30,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -50,6 +53,7 @@ import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -93,6 +97,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   // Because of setKey(Object), we really must refresh stateInternals() at each access
   private final StepContext stepContext;
 
+  @Nullable
+  private final SchemaCoder<InputT> schemaCoder;
+
   public SimpleDoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
@@ -101,6 +108,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
+      @Nullable SchemaCoder<InputT> schemaCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.options = options;
     this.fn = fn;
@@ -108,6 +116,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
+    this.schemaCoder = schemaCoder;
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.outputTags =
@@ -272,6 +281,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+      throw new UnsupportedOperationException(
+          "Cannot access element outside of @ProcessElement method.");
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timestamp outside of @ProcessElement method.");
@@ -374,6 +389,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+      throw new UnsupportedOperationException(
+          "Cannot access element outside of @ProcessElement method.");
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timestamp outside of @ProcessElement method.");
@@ -439,7 +460,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     final WindowedValue<InputT> elem;
-
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     @Nullable private StateNamespace namespace;
 
@@ -471,6 +491,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public InputT element() {
       return elem.getValue();
     }
+
+
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
@@ -576,6 +598,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       return element();
+    }
+
+    @Override
+    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+     return schemaCoder.getToRowFunction().apply(element());
     }
 
     @Override
@@ -715,6 +742,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+      throw new UnsupportedOperationException(
+          "Cannot access element outside of @ProcessElement method.");
     }
 
     @Override

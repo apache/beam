@@ -114,28 +114,27 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
     List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
 
-    DoFnRunner<KV<K, V>, OutputT> doFnRunner =
-        DoFnRunners.simpleRunner(
-            serializedOptions.get(),
-            dofn,
-            new FlinkSideInputReader(sideInputs, runtimeContext),
-            outputManager,
-            mainOutputTag,
-            additionalOutputTags,
-            new FlinkNoOpStepContext() {
-              @Override
-              public StateInternals stateInternals() {
-                return stateInternals;
-              }
+    DoFnRunner<KV<K, V>, OutputT> doFnRunner = DoFnRunners.simpleRunner(
+        serializedOptions.get(), dofn,
+        new FlinkSideInputReader(sideInputs, runtimeContext),
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        new FlinkNoOpStepContext() {
+          @Override
+          public StateInternals stateInternals() {
+            return stateInternals;
+          }
+          @Override
+          public TimerInternals timerInternals() {
+            return timerInternals;
+          }
+        },
+        null,
+        windowingStrategy);
 
-              @Override
-              public TimerInternals timerInternals() {
-                return timerInternals;
-              }
-            },
-            windowingStrategy);
-
-    if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
+    if ((serializedOptions.get().as(FlinkPipelineOptions.class))
+        .getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 

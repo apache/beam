@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -221,6 +223,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
+      } else if (this instanceof RowParameter) {
+        return cases.dispatch((RowParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
       } else if (this instanceof OutputReceiverParameter) {
@@ -246,6 +250,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(ProcessContextParameter p);
 
       ResultT dispatch(ElementParameter p);
+
+      ResultT dispatch(RowParameter p);
 
       ResultT dispatch(TimestampParameter p);
 
@@ -291,6 +297,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ElementParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -378,6 +389,10 @@ public abstract class DoFnSignature {
 
     public static ElementParameter elementParameter(TypeDescriptor<?> elementT) {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
+    }
+
+    public static RowParameter rowParameter(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new AutoValue_DoFnSignature_Parameter_RowParameter(fieldAccessDescriptor);
     }
 
     public static TimestampParameter timestampParameter() {
@@ -475,6 +490,14 @@ public abstract class DoFnSignature {
       ElementParameter() {}
 
       public abstract TypeDescriptor<?> elementT();
+    }
+
+
+    @AutoValue
+    public abstract static class RowParameter extends  Parameter {
+      RowParameter() { }
+
+      public abstract FieldAccessDescriptor fieldAccessDescriptor();
     }
 
     /**
@@ -651,6 +674,19 @@ public abstract class DoFnSignature {
                       Predicates.instanceOf(TimerParameter.class),
                       Predicates.instanceOf(StateParameter.class))
                   ::apply);
+    }
+
+    /**
+     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a
+     * @link org.apache.beam.sdk.values.Row} object.
+     */
+    public FieldAccessDescriptor readsRowDescriptor() {
+      Optional<Parameter> parameter = extraParameters()
+          .stream()
+          .filter(Predicates.instanceOf(RowParameter.class)::apply)
+          .findFirst();
+      return parameter.isPresent() ? ((RowParameter)parameter.get()).fieldAccessDescriptor()
+          : null;
     }
 
     /**

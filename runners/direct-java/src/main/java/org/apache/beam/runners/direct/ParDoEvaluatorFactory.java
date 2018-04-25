@@ -29,6 +29,7 @@ import org.apache.beam.runners.direct.ParDoEvaluator.DoFnRunnerFactory;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -137,12 +138,17 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
       throws Exception {
+    SchemaCoder<InputT> schemaCoder = null;
+    if (mainInput.getCoder() instanceof SchemaCoder) {
+      schemaCoder = (SchemaCoder<InputT>) mainInput.getCoder();
+    }
     try {
       return ParDoEvaluator.create(
           evaluationContext,
           options,
           stepContext,
           application,
+          schemaCoder,
           mainInput.getWindowingStrategy(),
           fn,
           key,
