@@ -23,8 +23,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	// Import the reflection-optimized runtime.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec/optimized"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/gcs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/local"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
 	// The imports here are for the side effect of runner registration.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
