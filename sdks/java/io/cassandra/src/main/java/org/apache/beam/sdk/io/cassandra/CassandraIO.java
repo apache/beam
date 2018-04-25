@@ -86,14 +86,18 @@ public class CassandraIO {
    * Provide a {@link Read} {@link PTransform} to read data from a Cassandra database.
    */
   public static <T> Read<T> read() {
-    return new AutoValue_CassandraIO_Read.Builder<T>().build();
+    return new AutoValue_CassandraIO_Read.Builder<T>()
+        .setCassandraService(new CassandraServiceImpl<>())
+        .build();
   }
 
   /**
    * Provide a {@link Write} {@link PTransform} to write data to a Cassandra database.
    */
   public static <T> Write<T> write() {
-    return new AutoValue_CassandraIO_Write.Builder<T>().build();
+    return new AutoValue_CassandraIO_Write.Builder<T>()
+        .setCassandraService(new CassandraServiceImpl<>())
+        .build();
   }
 
   /**
@@ -113,7 +117,7 @@ public class CassandraIO {
     @Nullable abstract String localDc();
     @Nullable abstract String consistencyLevel();
     @Nullable abstract Integer minNumberOfSplits();
-    @Nullable abstract CassandraService<T> cassandraService();
+    abstract CassandraService<T> cassandraService();
     abstract Builder<T> builder();
 
     /**
@@ -129,7 +133,7 @@ public class CassandraIO {
      * Specify the port number of the Apache Cassandra instances.
      */
     public Read<T> withPort(int port) {
-      checkArgument(port > 0, "port must be > 0, but was: %d", port);
+      checkArgument(port > 0, "port must be > 0, but was: %s", port);
       return builder().setPort(port).build();
     }
 
@@ -246,19 +250,6 @@ public class CassandraIO {
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
       abstract Read<T> build();
     }
-
-    /**
-     * Helper function to either get a fake/mock Cassandra service provided by
-     * {@link #withCassandraService(CassandraService)} or creates and returns an implementation
-     * of a concrete Cassandra service dealing with a Cassandra instance.
-     */
-    @VisibleForTesting
-    CassandraService<T> getCassandraService() {
-      if (cassandraService() != null) {
-        return cassandraService();
-      }
-      return new CassandraServiceImpl<>();
-    }
   }
 
   @VisibleForTesting
@@ -278,18 +269,18 @@ public class CassandraIO {
 
     @Override
     public BoundedReader<T> createReader(PipelineOptions pipelineOptions) {
-      return spec.getCassandraService().createReader(this);
+      return spec.cassandraService().createReader(this);
     }
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      return spec.getCassandraService().getEstimatedSizeBytes(spec);
+      return spec.cassandraService().getEstimatedSizeBytes(spec);
     }
 
     @Override
     public List<BoundedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions pipelineOptions) {
-      return spec.getCassandraService().split(spec, desiredBundleSizeBytes);
+      return spec.cassandraService().split(spec, desiredBundleSizeBytes);
     }
 
     @Override
@@ -315,7 +306,6 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-
     @Nullable abstract List<String> hosts();
     @Nullable abstract Integer port();
     @Nullable abstract String keyspace();
@@ -342,7 +332,7 @@ public class CassandraIO {
      */
     public Write<T> withPort(int port) {
       checkArgument(port > 0, "CassandraIO.write().withPort(port) called with invalid port "
-          + "number (%d)", port);
+          + "number (%s)", port);
       return builder().setPort(port).build();
     }
 
@@ -440,41 +430,25 @@ public class CassandraIO {
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
       abstract Write<T> build();
     }
-
-    /**
-     * Helper function to either get a fake/mock Cassandra service provided by
-     * {@link #withCassandraService(CassandraService)} or creates and returns an implementation
-     * of a concrete Cassandra service dealing with a Cassandra instance.
-     */
-    @VisibleForTesting
-    CassandraService<T> getCassandraService() {
-      if (cassandraService() != null) {
-        return cassandraService();
-      }
-      return new CassandraServiceImpl<>();
-    }
-
   }
 
   private static class WriteFn<T> extends DoFn<T, Void> {
-
     private final Write<T> spec;
     private CassandraService.Writer writer;
 
-    public WriteFn(Write<T> spec) {
+    WriteFn(Write<T> spec) {
       this.spec = spec;
     }
 
     @Setup
-    public void setup() throws Exception {
-      writer = spec.getCassandraService().createWriter(spec);
+    public void setup() {
+      writer = spec.cassandraService().createWriter(spec);
     }
 
     @ProcessElement
-    public void processElement(ProcessContext processContext)
+    public void processElement(ProcessContext c)
         throws ExecutionException, InterruptedException {
-      T entity = processContext.element();
-      writer.write(entity);
+      writer.write(c.element());
     }
 
     @Teardown
@@ -482,7 +456,5 @@ public class CassandraIO {
       writer.close();
       writer = null;
     }
-
   }
-
 }
