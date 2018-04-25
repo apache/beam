@@ -120,8 +120,8 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
             KafkaIO.<byte[], byte[]>write()
                 .withBootstrapServers(bootstrapServers)
                 .withTopic(topics.get(0))
-                .withKeySerializer(ByteArraySerializer.class)
-                .withValueSerializer(ByteArraySerializer.class));
+                .withKeySerializerClassName(ByteArraySerializer.class)
+                .withValueSerializerClassName(ByteArraySerializer.class));
       }
     };
   }
