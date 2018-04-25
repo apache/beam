@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -40,12 +40,14 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.WatermarkManager.AppliedPTransformInputWatermark;
-import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
-import org.apache.beam.runners.direct.WatermarkManager.Watermark;
+import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.WatermarkManager.AppliedPTransformInputWatermark;
+import org.apache.beam.runners.direct.portable.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.portable.WatermarkManager.Watermark;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -100,7 +102,7 @@ public class WatermarkManagerTest implements Serializable {
 
   private transient WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> manager;
   private transient BundleFactory bundleFactory;
-  private DirectGraph graph;
+  private ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph;
 
   @Rule
   public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -299,9 +301,8 @@ public class WatermarkManagerTest implements Serializable {
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> multiConsumer =
         PCollectionList.of(created).and(created).apply(Flatten.pCollections());
-    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
-    p.traverseTopologically(graphVisitor);
-    DirectGraph graph = graphVisitor.getGraph();
+    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
+        DirectGraphs.getGraph(p);
 
     AppliedPTransform<?, ?, ?> theFlatten = graph.getProducer(multiConsumer);
 

@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
+import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
@@ -30,28 +32,27 @@ import org.joda.time.Duration;
 interface PipelineExecutor {
   /**
    * Starts this executor on the provided graph. The {@link RootProviderRegistry} will be used to
-   * create initial inputs for the provide {@link DirectGraph graph}.
+   * create initial inputs for the provide {@link ExecutableGraph graph}.
    */
   void start(
-      DirectGraph graph, RootProviderRegistry rootProviderRegistry);
+      ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph,
+      RootProviderRegistry rootProviderRegistry);
 
   /**
-   * Blocks until the job being executed enters a terminal state. A job is completed after all
-   * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
-   * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
+   * Blocks until the job being executed enters a terminal state. A job is completed after all root
+   * {@link AppliedPTransform AppliedPTransforms} have completed, and all {@link CommittedBundle
+   * Bundles} have been consumed. Jobs may also terminate abnormally.
    *
    * <p>Waits for up to the provided duration, or forever if the provided duration is less than or
    * equal to zero.
    *
    * @return The terminal state of the Pipeline.
-   * @throws Exception whenever an executor thread throws anything, transfers to the
-   *                   waiting thread and rethrows it
+   * @throws Exception whenever an executor thread throws anything, transfers to the waiting thread
+   *     and rethrows it
    */
   State waitUntilFinish(Duration duration) throws Exception;
 
-  /**
-   * Gets the current state of the {@link Pipeline}.
-   */
+  /** Gets the current state of the {@link Pipeline}. */
   State getPipelineState();
 
   /**

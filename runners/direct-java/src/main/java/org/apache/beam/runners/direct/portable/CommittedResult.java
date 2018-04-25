@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -26,18 +26,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Collection;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
-import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.CommittedResult.OutputType;
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.direct.portable.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -51,10 +49,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
+ * The evaluation context for a specific pipeline being executed by the {@code DirectRunner}.
  * Contains state shared within the execution across all transforms.
  *
- * <p>{@link EvaluationContext} contains shared state for an execution of the {@link DirectRunner}
+ * <p>{@link EvaluationContext} contains shared state for an execution of the {@code DirectRunner}
  * that can be used while evaluating a {@link PTransform}. This consists of views into underlying
  * state and watermark implementations, access to read and write {@link PCollectionView
  * PCollectionViews}, and managing the {@link DirectExecutionContext ExecutionContexts}. This
@@ -70,7 +68,7 @@ class EvaluationContext {
   /**
    * The graph representing this {@link Pipeline}.
    */
-  private final DirectGraph graph;
+  private final ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph;
 
   private final Clock clock;
 
@@ -87,8 +85,6 @@ class EvaluationContext {
   private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals>
       applicationStateInternals;
 
-  private final SideInputContainer sideInputContainer;
-
   private final DirectMetrics metrics;
 
   private final Set<PValue> keyedPValues;
@@ -96,7 +92,7 @@ class EvaluationContext {
   public static EvaluationContext create(
       Clock clock,
       BundleFactory bundleFactory,
-      DirectGraph graph,
+      ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph,
       Set<PValue> keyedPValues) {
     return new EvaluationContext(clock, bundleFactory, graph, keyedPValues);
   }
@@ -104,7 +100,7 @@ class EvaluationContext {
   private EvaluationContext(
       Clock clock,
       BundleFactory bundleFactory,
-      DirectGraph graph,
+      ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>>graph,
       Set<PValue> keyedPValues) {
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
@@ -112,7 +108,6 @@ class EvaluationContext {
     this.keyedPValues = keyedPValues;
 
     this.watermarkManager = WatermarkManager.create(clock, graph);
-    this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.metrics = new DirectMetrics();
@@ -260,15 +255,6 @@ class EvaluationContext {
   }
 
   /**
-   * Create a {@link PCollectionViewWriter}, whose elements will be used in the provided
-   * {@link PCollectionView}.
-   */
-  public <ElemT, ViewT> PCollectionViewWriter<ElemT, ViewT> createPCollectionViewWriter(
-      PCollection<Iterable<ElemT>> input, final PCollectionView<ViewT> output) {
-    return values -> sideInputContainer.write(output, values);
-  }
-
-  /**
    * Schedule a callback to be executed after output would be produced for the given window
    * if there had been input.
    *
@@ -286,21 +272,6 @@ class EvaluationContext {
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
-    callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
-
-    fireAvailableCallbacks(producing);
-  }
-
-  /**
-   * Schedule a callback to be executed after output would be produced for the given window if there
-   * had been input.
-   */
-  public void scheduleAfterOutputWouldBeProduced(
-      PCollectionView<?> view,
-      BoundedWindow window,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Runnable runnable) {
-    AppliedPTransform<?, ?, ?> producing = graph.getProducer(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -339,26 +310,12 @@ class EvaluationContext {
    * Get the Step Name for the provided application.
    */
   String getStepName(AppliedPTransform<?, ?, ?> application) {
-    return graph.getStepName(application);
+    throw new UnsupportedOperationException("getStepName Unsupported");
   }
 
   /** Returns all of the steps in this {@link Pipeline}. */
   Collection<AppliedPTransform<?, ?, ?>> getSteps() {
     return graph.getExecutables();
-  }
-
-  /**
-   * Returns a {@link ReadyCheckingSideInputReader} capable of reading the provided
-   * {@link PCollectionView PCollectionViews}.
-   *
-   * @param sideInputs the {@link PCollectionView PCollectionViews} the result should be able to
-   * read
-   * @return a {@link SideInputReader} that can read all of the provided {@link PCollectionView
-   * PCollectionViews}
-   */
-  public ReadyCheckingSideInputReader createSideInputReader(
-      final List<PCollectionView<?>> sideInputs) {
-    return sideInputContainer.createReaderForViews(sideInputs);
   }
 
   /** Returns the metrics container for this pipeline. */

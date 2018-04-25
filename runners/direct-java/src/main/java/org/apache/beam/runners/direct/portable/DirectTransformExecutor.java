@@ -15,17 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.Callable;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -45,15 +39,10 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   static class Factory implements TransformExecutorFactory {
     private final EvaluationContext context;
     private final TransformEvaluatorRegistry registry;
-    private final Map<String, Collection<ModelEnforcementFactory>> transformEnforcements;
 
-    Factory(
-        EvaluationContext context,
-        TransformEvaluatorRegistry registry,
-        Map<String, Collection<ModelEnforcementFactory>> transformEnforcements) {
+    Factory(EvaluationContext context, TransformEvaluatorRegistry registry) {
       this.context = context;
       this.registry = registry;
-      this.transformEnforcements = transformEnforcements;
     }
 
     @Override
@@ -62,18 +51,12 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         AppliedPTransform<?, ?, ?> transform,
         CompletionCallback onComplete,
         TransformExecutorService executorService) {
-      Collection<ModelEnforcementFactory> enforcements =
-          MoreObjects.firstNonNull(
-              transformEnforcements.get(
-                  PTransformTranslation.urnForTransform(transform.getTransform())),
-              Collections.<ModelEnforcementFactory>emptyList());
       return new DirectTransformExecutor<>(
-          context, registry, enforcements, bundle, transform, onComplete, executorService);
+          context, registry, bundle, transform, onComplete, executorService);
     }
   }
 
   private final TransformEvaluatorRegistry evaluatorRegistry;
-  private final Iterable<? extends ModelEnforcementFactory> modelEnforcements;
 
   /** The transform that will be evaluated. */
   private final AppliedPTransform<?, ?, ?> transform;
@@ -88,13 +71,11 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   DirectTransformExecutor(
       EvaluationContext context,
       TransformEvaluatorRegistry factory,
-      Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
     this.evaluatorRegistry = factory;
-    this.modelEnforcements = modelEnforcements;
 
     this.inputBundle = inputBundle;
     this.transform = transform;
@@ -109,11 +90,6 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   public void run() {
     MetricsContainerImpl metricsContainer = new MetricsContainerImpl(transform.getFullName());
     try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
-      Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
-      for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {
-        ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
-        enforcements.add(enforcement);
-      }
       TransformEvaluator<T> evaluator =
           evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {
@@ -122,9 +98,9 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         return;
       }
 
-      processElements(evaluator, metricsContainer, enforcements);
+      processElements(evaluator, metricsContainer);
 
-      finishBundle(evaluator, metricsContainer, enforcements);
+      finishBundle(evaluator, metricsContainer);
     } catch (Exception e) {
       onComplete.handleException(inputBundle, e);
       if (e instanceof RuntimeException) {
@@ -144,20 +120,14 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   }
 
   /**
-   * Processes all the elements in the input bundle using the transform evaluator, applying any
-   * necessary {@link ModelEnforcement ModelEnforcements}.
+   * Processes all the elements in the input bundle using the transform evaluator.
    */
   private void processElements(
       TransformEvaluator<T> evaluator,
-      MetricsContainerImpl metricsContainer,
-      Collection<ModelEnforcement<T>> enforcements)
+      MetricsContainerImpl metricsContainer)
       throws Exception {
     if (inputBundle != null) {
       for (WindowedValue<T> value : inputBundle.getElements()) {
-        for (ModelEnforcement<T> enforcement : enforcements) {
-          enforcement.beforeElement(value);
-        }
-
         evaluator.processElement(value);
 
         // Report the physical metrics after each element
@@ -166,31 +136,23 @@ class DirectTransformExecutor<T> implements TransformExecutor {
           context.getMetrics().updatePhysical(inputBundle, deltas);
           metricsContainer.commitUpdates();
         }
-
-        for (ModelEnforcement<T> enforcement : enforcements) {
-          enforcement.afterElement(value);
-        }
       }
     }
   }
 
   /**
    * Finishes processing the input bundle and commit the result using the
-   * {@link CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
+   * {@link CompletionCallback}.
    *
    * @return the {@link TransformResult} produced by
    *         {@link TransformEvaluator#finishBundle()}
    */
   private TransformResult<T> finishBundle(
-      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer,
-      Collection<ModelEnforcement<T>> enforcements)
+      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer)
       throws Exception {
     TransformResult<T> result =
         evaluator.finishBundle().withLogicalMetricUpdates(metricsContainer.getCumulative());
-    CommittedResult outputs = onComplete.handleResult(inputBundle, result);
-    for (ModelEnforcement<T> enforcement : enforcements) {
-      enforcement.afterFinish(inputBundle, result, outputs.getOutputs());
-    }
+    onComplete.handleResult(inputBundle, result);
     return result;
   }
 }

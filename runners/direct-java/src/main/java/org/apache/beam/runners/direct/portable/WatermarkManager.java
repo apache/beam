@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -54,6 +54,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
@@ -786,7 +787,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * @param graph the graph representing this pipeline
    */
   public static WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> create(
-      Clock clock, DirectGraph graph) {
+      Clock clock, ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph) {
     return new WatermarkManager<>(clock, graph);
   }
 

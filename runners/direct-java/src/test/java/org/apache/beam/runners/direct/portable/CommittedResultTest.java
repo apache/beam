@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.junit.Assert.assertThat;
 
@@ -26,7 +26,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -44,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CommittedResult}.
- */
+/** Tests for {@link CommittedResult}. */
 @RunWith(JUnit4.class)
 public class CommittedResultTest implements Serializable {
 
@@ -83,7 +81,8 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getUncommittedElementsEqualInput() {
     CommittedBundle<Integer> bundle =
-        bundleFactory.createBundle(created)
+        bundleFactory
+            .createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult<AppliedPTransform<?, ?, ?>> result =

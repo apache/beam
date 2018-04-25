@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,8 +27,9 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
-import org.apache.beam.runners.direct.ImpulseEvaluatorFactory.ImpulseRootProvider;
-import org.apache.beam.runners.direct.ImpulseEvaluatorFactory.ImpulseShard;
+import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.runners.direct.portable.ImpulseEvaluatorFactory.ImpulseRootProvider;
+import org.apache.beam.runners.direct.portable.ImpulseEvaluatorFactory.ImpulseShard;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Impulse;

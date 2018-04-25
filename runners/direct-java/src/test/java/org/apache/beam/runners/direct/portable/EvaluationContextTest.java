@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
-import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -27,27 +25,25 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.DirectExecutionContext.DirectStepContext;
+import org.apache.beam.runners.direct.portable.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -57,12 +53,9 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
@@ -73,9 +66,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link EvaluationContext}.
- */
+/** Tests for {@link EvaluationContext}. */
 @RunWith(JUnit4.class)
 public class EvaluationContextTest {
   private EvaluationContext context;
@@ -85,100 +76,37 @@ public class EvaluationContextTest {
   private PCollectionView<Iterable<Integer>> view;
   private PCollection<Long> unbounded;
 
-  private DirectGraph graph;
+  private ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph;
 
   private AppliedPTransform<?, ?, ?> createdProducer;
   private AppliedPTransform<?, ?, ?> downstreamProducer;
-  private AppliedPTransform<?, ?, ?> viewProducer;
   private AppliedPTransform<?, ?, ?> unboundedProducer;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
-    DirectRunner runner =
-        DirectRunner.fromOptions(PipelineOptionsFactory.create());
-
     created = p.apply(Create.of(1, 2, 3));
     downstream = created.apply(WithKeys.of("foo"));
     view = created.apply(View.asIterable());
     unbounded = p.apply(GenerateSequence.from(0));
-
-    p.replaceAll(runner.defaultTransformOverrides());
-
-    KeyedPValueTrackingVisitor keyedPValueTrackingVisitor = KeyedPValueTrackingVisitor.create();
-    p.traverseTopologically(keyedPValueTrackingVisitor);
 
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     DirectGraphs.performDirectOverrides(p);
     graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
-            NanosOffsetClock.create(),
-            bundleFactory,
-            graph,
-            keyedPValueTrackingVisitor.getKeyedPValues());
+            NanosOffsetClock.create(), bundleFactory, graph, ImmutableSet.of());
 
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
-    viewProducer = graph.getProducer(view);
     unboundedProducer = graph.getProducer(unbounded);
-  }
-
-  @Test
-  public void writeToViewWriterThenReadReads() {
-    PCollectionViewWriter<?, Iterable<Integer>> viewWriter =
-        context.createPCollectionViewWriter(
-            PCollection.createPrimitiveOutputInternal(
-                p,
-                WindowingStrategy.globalDefault(),
-                IsBounded.BOUNDED,
-                IterableCoder.of(KvCoder.of(VoidCoder.of(), VarIntCoder.of()))),
-            view);
-    BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
-    BoundedWindow second = new TestBoundedWindow(new Instant(899999L));
-    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
-    for (Object materializedValue : materializeValuesFor(View.asIterable(), 1)) {
-      valuesBuilder.add(WindowedValue.of(
-          materializedValue,
-          new Instant(1222),
-          window,
-          PaneInfo.ON_TIME_AND_ONLY_FIRING));
-    }
-    for (Object materializedValue : materializeValuesFor(View.asIterable(), 2)) {
-      valuesBuilder.add(WindowedValue.of(
-          materializedValue,
-          new Instant(8766L),
-          second,
-          PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0)));
-    }
-    viewWriter.add((Iterable) valuesBuilder.build());
-
-    SideInputReader reader = context.createSideInputReader(ImmutableList.of(view));
-    assertThat(reader.get(view, window), containsInAnyOrder(1));
-    assertThat(reader.get(view, second), containsInAnyOrder(2));
-
-    ImmutableList.Builder<WindowedValue<?>> overwrittenValuesBuilder = ImmutableList.builder();
-    for (Object materializedValue : materializeValuesFor(View.asIterable(), 4444)) {
-      overwrittenValuesBuilder.add(WindowedValue.of(
-          materializedValue,
-          new Instant(8677L),
-          second,
-          PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
-    }
-    viewWriter.add((Iterable) overwrittenValuesBuilder.build());
-    assertThat(reader.get(view, second), containsInAnyOrder(2));
-    // The cached value is served in the earlier reader
-    reader = context.createSideInputReader(ImmutableList.of(view));
-    assertThat(reader.get(view, second), containsInAnyOrder(4444));
   }
 
   @Test
   public void getExecutionContextSameStepSameKeyState() {
     DirectExecutionContext fooContext =
-        context.getExecutionContext(createdProducer,
-            StructuralKey.of("foo", StringUtf8Coder.of()));
+        context.getExecutionContext(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
@@ -195,8 +123,7 @@ public class EvaluationContextTest {
             .build());
 
     DirectExecutionContext secondFooContext =
-        context.getExecutionContext(createdProducer,
-            StructuralKey.of("foo", StringUtf8Coder.of()));
+        context.getExecutionContext(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
         secondFooContext
             .getStepContext("s1")
@@ -206,24 +133,17 @@ public class EvaluationContextTest {
         contains(1));
   }
 
-
   @Test
   public void getExecutionContextDifferentKeysIndependentState() {
     DirectExecutionContext fooContext =
-        context.getExecutionContext(createdProducer,
-            StructuralKey.of("foo", StringUtf8Coder.of()));
+        context.getExecutionContext(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    fooContext
-        .getStepContext("s1")
-        .stateInternals()
-        .state(StateNamespaces.global(), intBag)
-        .add(1);
+    fooContext.getStepContext("s1").stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
     DirectExecutionContext barContext =
-        context.getExecutionContext(createdProducer,
-            StructuralKey.of("bar", StringUtf8Coder.of()));
+        context.getExecutionContext(createdProducer, StructuralKey.of("bar", StringUtf8Coder.of()));
     assertThat(barContext, not(equalTo(fooContext)));
     assertThat(
         barContext
@@ -237,19 +157,13 @@ public class EvaluationContextTest {
   @Test
   public void getExecutionContextDifferentStepsIndependentState() {
     StructuralKey<?> myKey = StructuralKey.of("foo", StringUtf8Coder.of());
-    DirectExecutionContext fooContext =
-        context.getExecutionContext(createdProducer, myKey);
+    DirectExecutionContext fooContext = context.getExecutionContext(createdProducer, myKey);
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    fooContext
-        .getStepContext("s1")
-        .stateInternals()
-        .state(StateNamespaces.global(), intBag)
-        .add(1);
+    fooContext.getStepContext("s1").stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
-    DirectExecutionContext barContext =
-        context.getExecutionContext(downstreamProducer, myKey);
+    DirectExecutionContext barContext = context.getExecutionContext(downstreamProducer, myKey);
     assertThat(
         barContext
             .getStepContext("s1")
@@ -262,22 +176,18 @@ public class EvaluationContextTest {
   @Test
   public void handleResultStoresState() {
     StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
-    DirectExecutionContext fooContext =
-        context.getExecutionContext(downstreamProducer, myKey);
+    DirectExecutionContext fooContext = context.getExecutionContext(downstreamProducer, myKey);
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    CopyOnAccessInMemoryStateInternals<?> state =
-        fooContext.getStepContext("s1").stateInternals();
+    CopyOnAccessInMemoryStateInternals<?> state = fooContext.getStepContext("s1").stateInternals();
     BagState<Integer> bag = state.state(StateNamespaces.global(), intBag);
     bag.add(1);
     bag.add(2);
     bag.add(4);
 
     TransformResult<?> stateResult =
-        StepTransformResult.withoutHold(downstreamProducer)
-            .withState(state)
-            .build();
+        StepTransformResult.withoutHold(downstreamProducer).withState(state).build();
 
     context.handleResult(
         context.createKeyedBundle(myKey, created).commit(Instant.now()),
@@ -302,16 +212,14 @@ public class EvaluationContextTest {
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
 
     TransformResult<?> result =
-        StepTransformResult.withHold(createdProducer, new Instant(0))
-            .build();
+        StepTransformResult.withHold(createdProducer, new Instant(0)).build();
 
     context.handleResult(null, ImmutableList.of(), result);
     // Difficult to demonstrate that we took no action in a multithreaded world; poll for a bit
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
-    TransformResult<?> finishedResult =
-        StepTransformResult.withoutHold(createdProducer).build();
+    TransformResult<?> finishedResult = StepTransformResult.withoutHold(createdProducer).build();
     context.handleResult(null, ImmutableList.of(), finishedResult);
     context.forceRefresh();
     // Obtain the value via blocking call
@@ -320,8 +228,7 @@ public class EvaluationContextTest {
 
   @Test
   public void callAfterOutputMustHaveBeenProducedAlreadyAfterCallsImmediately() throws Exception {
-    TransformResult<?> finishedResult =
-        StepTransformResult.withoutHold(createdProducer).build();
+    TransformResult<?> finishedResult = StepTransformResult.withoutHold(createdProducer).build();
     context.handleResult(null, ImmutableList.of(), finishedResult);
 
     final CountDownLatch callLatch = new CountDownLatch(1);
@@ -335,8 +242,7 @@ public class EvaluationContextTest {
   @Test
   public void extractFiredTimersExtractsTimers() {
     TransformResult<?> holdResult =
-        StepTransformResult.withHold(createdProducer, new Instant(0))
-            .build();
+        StepTransformResult.withHold(createdProducer, new Instant(0)).build();
     context.handleResult(null, ImmutableList.of(), holdResult);
 
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
@@ -358,8 +264,7 @@ public class EvaluationContextTest {
     // timer hasn't fired
     assertThat(context.extractFiredTimers(), emptyIterable());
 
-    TransformResult<?> advanceResult =
-        StepTransformResult.withoutHold(createdProducer).build();
+    TransformResult<?> advanceResult = StepTransformResult.withoutHold(createdProducer).build();
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.of(), advanceResult);
 
@@ -378,9 +283,7 @@ public class EvaluationContextTest {
   public void createKeyedBundleKeyed() {
     StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
     CommittedBundle<KV<String, Integer>> keyedBundle =
-        context.createKeyedBundle(
-            key,
-            downstream).commit(Instant.now());
+        context.createKeyedBundle(key, downstream).commit(Instant.now());
     assertThat(keyedBundle.getKey(), Matchers.equalTo(key));
   }
 

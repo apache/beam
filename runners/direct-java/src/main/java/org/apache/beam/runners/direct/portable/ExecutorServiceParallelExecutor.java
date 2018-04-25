@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
@@ -76,19 +76,12 @@ final class ExecutorServiceParallelExecutor
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
-      int targetParallelism,
-      TransformEvaluatorRegistry registry,
-      Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
-    return new ExecutorServiceParallelExecutor(
-        targetParallelism, registry, transformEnforcements, context);
+      int targetParallelism, TransformEvaluatorRegistry registry, EvaluationContext context) {
+    return new ExecutorServiceParallelExecutor(targetParallelism, registry, context);
   }
 
   private ExecutorServiceParallelExecutor(
-      int targetParallelism,
-      TransformEvaluatorRegistry registry,
-      Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      int targetParallelism, TransformEvaluatorRegistry registry, EvaluationContext context) {
     this.targetParallelism = targetParallelism;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
@@ -114,7 +107,7 @@ final class ExecutorServiceParallelExecutor
     this.visibleUpdates = new QueueMessageReceiver();
 
     parallelExecutorService = TransformExecutorServices.parallel(executorService);
-    executorFactory = new DirectTransformExecutor.Factory(context, registry, transformEnforcements);
+    executorFactory = new DirectTransformExecutor.Factory(context, registry);
   }
 
   private CacheLoader<StepAndKey, TransformExecutorService>
@@ -137,7 +130,9 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
+  public void start(
+      ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph,
+      RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);
     ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
         pendingRootBundles = ImmutableMap.builder();

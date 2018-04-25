@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -58,16 +58,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CopyOnAccessInMemoryStateInternals}.
- */
+/** Tests for {@link CopyOnAccessInMemoryStateInternals}. */
 @RunWith(JUnit4.class)
 public class CopyOnAccessInMemoryStateInternalsTest {
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
   private String key = "foo";
 
   @Test
@@ -111,8 +107,8 @@ public class CopyOnAccessInMemoryStateInternalsTest {
   }
 
   /**
-   * Tests that retrieving state with an underlying StateInternals with an existing value returns
-   * a value that initially has equal value to the provided state but can be modified without
+   * Tests that retrieving state with an underlying StateInternals with an existing value returns a
+   * value that initially has equal value to the provided state but can be modified without
    * modifying the existing state.
    */
   @Test
@@ -164,7 +160,8 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     assertThat(underlyingValue.read(), containsInAnyOrder(1));
 
     BagState<Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
-    assertThat(Lists.newArrayList(underlyingValue.read()),
+    assertThat(
+        Lists.newArrayList(underlyingValue.read()),
         equalTo(Lists.newArrayList(reReadUnderlyingValue.read())));
   }
 
@@ -232,8 +229,8 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();
     StateTag<CombiningState<Long, long[], Long>> stateTag =
-        StateTags.combiningValue("summer",
-            sumLongFn.getAccumulatorCoder(reg, reg.getCoder(Long.class)), sumLongFn);
+        StateTags.combiningValue(
+            "summer", sumLongFn.getAccumulatorCoder(reg, reg.getCoder(Long.class)), sumLongFn);
     GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
 
@@ -281,8 +278,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     copyOnAccessState.add(new Instant(500L));
     assertThat(copyOnAccessState.read(), equalTo(new Instant(100L)));
 
-    WatermarkHoldState reReadUnderlyingValue =
-        underlying.state(namespace, stateTag);
+    WatermarkHoldState reReadUnderlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
   }
 
@@ -467,18 +463,20 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testGetEarliestWatermarkHoldAfterCommit() {
-    BoundedWindow first = new BoundedWindow() {
-      @Override
-      public Instant maxTimestamp() {
-        return new Instant(2048L);
-      }
-    };
-    BoundedWindow second = new BoundedWindow() {
-      @Override
-      public Instant maxTimestamp() {
-        return new Instant(689743L);
-      }
-    };
+    BoundedWindow first =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(2048L);
+          }
+        };
+    BoundedWindow second =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(689743L);
+          }
+        };
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
 
@@ -500,18 +498,20 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testGetEarliestWatermarkHoldWithEarliestInUnderlyingTable() {
-    BoundedWindow first = new BoundedWindow() {
-      @Override
-      public Instant maxTimestamp() {
-        return new Instant(2048L);
-      }
-    };
-    BoundedWindow second = new BoundedWindow() {
-      @Override
-      public Instant maxTimestamp() {
-        return new Instant(689743L);
-      }
-    };
+    BoundedWindow first =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(2048L);
+          }
+        };
+    BoundedWindow second =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(689743L);
+          }
+        };
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
     StateTag<WatermarkHoldState> firstHoldAddress =

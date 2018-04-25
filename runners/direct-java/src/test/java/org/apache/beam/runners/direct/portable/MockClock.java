@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -23,8 +23,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A clock that returns a constant value for now which can be set with calls to
- * {@link #set(Instant)}.
+ * A clock that returns a constant value for now which can be set with calls to {@link
+ * #set(Instant)}.
  *
  * <p>For uses of the {@link Clock} interface in unit tests.
  */
@@ -41,8 +41,11 @@ class MockClock implements Clock {
   }
 
   public void set(Instant newNow) {
-    checkArgument(!newNow.isBefore(now), "Cannot move MockClock backwards in time from %s to %s",
-        now, newNow);
+    checkArgument(
+        !newNow.isBefore(now),
+        "Cannot move MockClock backwards in time from %s to %s",
+        now,
+        newNow);
     this.now = newNow;
   }
 
@@ -58,5 +61,4 @@ class MockClock implements Clock {
   public Instant now() {
     return now;
   }
-
 }

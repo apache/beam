@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -52,9 +52,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ImmutableListBundleFactory}.
- */
+/** Tests for {@link ImmutableListBundleFactory}. */
 @RunWith(JUnit4.class)
 public class ImmutableListBundleFactoryTest {
   @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -101,8 +99,8 @@ public class ImmutableListBundleFactoryTest {
     createKeyedBundle(ByteArrayCoder.of(), new byte[] {0, 2, 4, 99});
   }
 
-  private <T> CommittedBundle<T>
-  afterCommitGetElementsShouldHaveAddedElements(Iterable<WindowedValue<T>> elems) {
+  private <T> CommittedBundle<T> afterCommitGetElementsShouldHaveAddedElements(
+      Iterable<WindowedValue<T>> elems) {
     UncommittedBundle<T> bundle = bundleFactory.createRootBundle();
     Collection<Matcher<? super WindowedValue<T>>> expectations = new ArrayList<>();
     Instant minElementTs = BoundedWindow.TIMESTAMP_MAX_VALUE;
@@ -223,9 +221,10 @@ public class ImmutableListBundleFactoryTest {
 
   @Test
   public void createKeyedBundleKeyed() {
-    CommittedBundle<KV<String, Integer>> keyedBundle = bundleFactory.createKeyedBundle(
-        StructuralKey.of("foo", StringUtf8Coder.of()),
-        downstream).commit(Instant.now());
+    CommittedBundle<KV<String, Integer>> keyedBundle =
+        bundleFactory
+            .createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), downstream)
+            .commit(Instant.now());
     assertThat(keyedBundle.getKey().getKey(), Matchers.equalTo("foo"));
   }
 }
