@@ -15,23 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.reference.testing;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import io.grpc.ManagedChannel;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 
-description = "Apache Beam :: Runners :: Reference :: Java"
-ext.summary = """A Java implementation of the Beam Model which utilizes the portability
-framework to execute user-definied functions."""
+/**
+ * A {@link org.apache.beam.sdk.fn.channel.ManagedChannelFactory} that uses in-process channels.
+ *
+ * <p>The channel builder uses {@link ApiServiceDescriptor#getUrl()} as the unique in-process name.
+ */
+public class InProcessManagedChannelFactory extends ManagedChannelFactory {
 
-
-dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  @Override
+  public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
+    return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+  }
 }
