@@ -63,7 +63,14 @@ public class GrpcContextHeaderAccessorProvider {
     @Override
     /** This method should be called from the request method. */
     public String getSdkWorkerId() {
-      return SDK_WORKER_CONTEXT_KEY.get();
+      // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Some harnesses may not set the worker
+      // id header. Remove the null check below once this is fixed.
+      String workerId = SDK_WORKER_CONTEXT_KEY.get();
+      if (workerId == null) {
+        return "";
+      } else {
+        return workerId;
+      }
     }
   }
 }

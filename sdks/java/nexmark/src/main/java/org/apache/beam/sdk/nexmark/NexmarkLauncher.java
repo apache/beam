@@ -755,20 +755,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
 
-    return p
-      .apply(queryName + ".ReadPubsubEvents", io)
-      .apply(queryName + ".PubsubMessageToEvent", ParDo.of(new DoFn<PubsubMessage, Event>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          byte[] payload = c.element().getPayload();
-          try {
-            Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
-            c.output(event);
-          } catch (CoderException e) {
-            LOG.error("Error while decoding Event from pusbSub message: serialization error");
-          }
-        }
-      }));
+    return p.apply(queryName + ".ReadPubsubEvents", io)
+        .apply(queryName + ".PubsubMessageToEvent", ParDo.of(new PubsubMessageEventDoFn()));
   }
 
   static final DoFn<Event, byte[]> EVENT_TO_BYTEARRAY =
@@ -864,22 +852,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
 
     events
-        .apply(
-            queryName + ".EventToPubsubMessage",
-            ParDo.of(
-                new DoFn<Event, PubsubMessage>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    try {
-                      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                      c.output(new PubsubMessage(payload, new HashMap<>()));
-                    } catch (CoderException e1) {
-                      LOG.error(
-                          "Error while sending Event {} to pusbSub: serialization error",
-                          c.element().toString());
-                    }
-                  }
-                }))
+        .apply(queryName + ".EventToPubsubMessage", ParDo.of(new EventPubsubMessageDoFn()))
         .apply(queryName + ".WritePubsubEvents", io);
   }
 
@@ -1322,5 +1295,33 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         new Query10(configuration),
         new Query11(configuration),
         new Query12(configuration));
+  }
+
+  private static class PubsubMessageEventDoFn extends DoFn<PubsubMessage, Event> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      byte[] payload = c.element().getPayload();
+      try {
+        Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+        c.output(event);
+      } catch (CoderException e) {
+        LOG.error("Error while decoding Event from pusbSub message: serialization error");
+      }
+    }
+  }
+
+  private static class EventPubsubMessageDoFn extends DoFn<Event, PubsubMessage> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      try {
+        byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+        c.output(new PubsubMessage(payload, new HashMap<>()));
+      } catch (CoderException e1) {
+        LOG.error(
+            "Error while sending Event {} to pusbSub: serialization error", c.element().toString());
+      }
+    }
   }
 }

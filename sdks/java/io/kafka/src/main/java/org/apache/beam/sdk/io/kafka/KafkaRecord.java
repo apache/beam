@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import com.google.common.base.Objects;
 import java.io.Serializable;
 import java.util.Arrays;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.KV;
+import org.apache.kafka.common.header.Headers;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,
@@ -33,6 +36,7 @@ public class KafkaRecord<K, V> implements Serializable {
   private final String topic;
   private final int partition;
   private final long offset;
+  private final Headers headers;
   private final KV<K, V> kv;
   private final long timestamp;
   private final KafkaTimestampType timestampType;
@@ -43,9 +47,10 @@ public class KafkaRecord<K, V> implements Serializable {
       long offset,
       long timestamp,
       KafkaTimestampType timestampType,
+      @Nullable Headers headers,
       K key,
       V value) {
-    this(topic, partition, offset, timestamp, timestampType, KV.of(key, value));
+    this(topic, partition, offset, timestamp, timestampType, headers, KV.of(key, value));
   }
 
   public KafkaRecord(
@@ -54,15 +59,16 @@ public class KafkaRecord<K, V> implements Serializable {
       long offset,
       long timestamp,
       KafkaTimestampType timestampType,
+      @Nullable Headers headers,
       KV<K, V> kv) {
     this.topic = topic;
     this.partition = partition;
     this.offset = offset;
     this.timestamp = timestamp;
     this.timestampType = timestampType;
+    this.headers = headers;
     this.kv = kv;
   }
-
 
   public String getTopic() {
     return topic;
@@ -74,6 +80,14 @@ public class KafkaRecord<K, V> implements Serializable {
 
   public long getOffset() {
     return offset;
+  }
+
+  public Headers getHeaders() {
+    if (!ConsumerSpEL.hasHeaders){
+      throw new RuntimeException("The version kafka-clients does not support record headers, "
+          + "please use version 0.11.0.0 or newer");
+    }
+    return headers;
   }
 
   public KV<K, V> getKV() {
@@ -90,7 +104,7 @@ public class KafkaRecord<K, V> implements Serializable {
 
   @Override
   public int hashCode() {
-    return Arrays.deepHashCode(new Object[]{topic, partition, offset, timestamp, kv});
+    return Arrays.deepHashCode(new Object[] {topic, partition, offset, timestamp, headers, kv});
   }
 
   @Override
@@ -102,6 +116,7 @@ public class KafkaRecord<K, V> implements Serializable {
           && partition == other.partition
           && offset == other.offset
           && timestamp == other.timestamp
+          && Objects.equal(headers, other.headers)
           && kv.equals(other.kv);
     } else {
       return false;

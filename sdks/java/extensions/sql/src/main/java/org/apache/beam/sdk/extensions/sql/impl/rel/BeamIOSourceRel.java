@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import com.google.common.base.Joiner;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -28,7 +27,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.TableScan;
 
 /**
@@ -37,12 +35,12 @@ import org.apache.calcite.rel.core.TableScan;
  */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
-  private BeamSqlEnv sqlEnv;
+  private BeamSqlTable sqlTable;
 
   public BeamIOSourceRel(
-      BeamSqlEnv sqlEnv, RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table) {
-    super(cluster, traitSet, table);
-    this.sqlEnv = sqlEnv;
+      RelOptCluster cluster, RelOptTable table, BeamSqlTable sqlTable) {
+    super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
+    this.sqlTable = sqlTable;
   }
 
   @Override
@@ -61,13 +59,15 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
         // choose PCollection from input PCollectionTuple if exists there.
         PCollection<Row> sourceStream = inputPCollections.get(new TupleTag<Row>(sourceName));
         return sourceStream;
-      } else {
-        // If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-        BeamSqlTable sourceTable = sqlEnv.findTable(sourceName);
-        return sourceTable
-            .buildIOReader(inputPCollections.getPipeline())
-            .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
       }
+      // If not, the source PColection is provided with BaseBeamTable.buildIOReader().
+      return sqlTable
+          .buildIOReader(inputPCollections.getPipeline())
+          .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
     }
+  }
+
+  protected BeamSqlTable getBeamSqlTable() {
+    return sqlTable;
   }
 }

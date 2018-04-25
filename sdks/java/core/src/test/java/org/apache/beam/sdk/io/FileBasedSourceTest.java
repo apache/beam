@@ -450,7 +450,7 @@ public class FileBasedSourceTest {
     String missingFilePath = tempFolder.newFolder().getAbsolutePath() + "/missing.txt";
     TestFileBasedSource source = new TestFileBasedSource(missingFilePath, Long.MAX_VALUE, null);
     thrown.expect(FileNotFoundException.class);
-    thrown.expectMessage(String.format("No files found for spec: %s", missingFilePath));
+    thrown.expectMessage(missingFilePath);
     source.split(1234, options);
   }
 

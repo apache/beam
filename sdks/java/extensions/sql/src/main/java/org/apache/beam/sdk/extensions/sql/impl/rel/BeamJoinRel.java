@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -93,10 +91,8 @@ import org.apache.calcite.util.Pair;
  * </ul>
  */
 public class BeamJoinRel extends Join implements BeamRelNode {
-  private final BeamSqlEnv sqlEnv;
 
   public BeamJoinRel(
-      BeamSqlEnv sqlEnv,
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode left,
@@ -105,7 +101,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Set<CorrelationId> variablesSet,
       JoinRelType joinType) {
     super(cluster, traits, left, right, condition, variablesSet, joinType);
-    this.sqlEnv = sqlEnv;
   }
 
   @Override
@@ -116,7 +111,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       RelNode right,
       JoinRelType joinType,
       boolean semiJoinDone) {
-    return new BeamJoinRel(sqlEnv, getCluster(), traitSet, left, right, conditionExpr, variablesSet,
+    return new BeamJoinRel(getCluster(), traitSet, left, right, conditionExpr, variablesSet,
         joinType);
   }
 
@@ -133,8 +128,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
       final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
 
-      if (!seekable(leftRelNode, sqlEnv) && seekable(rightRelNode, sqlEnv)) {
-        return joinAsLookup(leftRelNode, rightRelNode, inputPCollections, sqlEnv)
+      if (!seekable(leftRelNode) && seekable(rightRelNode)) {
+        return joinAsLookup(leftRelNode, rightRelNode, inputPCollections)
             .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
       }
 
@@ -374,10 +369,10 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   private PCollection<Row> joinAsLookup(
       BeamRelNode leftRelNode,
       BeamRelNode rightRelNode,
-      PCollectionTuple inputPCollections,
-      BeamSqlEnv sqlEnv) {
+      PCollectionTuple inputPCollections) {
     PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform());
-    BeamSqlSeekableTable seekableTable = getSeekableTableFromRelNode(rightRelNode, sqlEnv);
+    BeamIOSourceRel srcRel = (BeamIOSourceRel) rightRelNode;
+    BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) srcRel.getBeamSqlTable();
 
     return factStream.apply(
         "join_as_lookup",
@@ -388,19 +383,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             CalciteUtils.toBeamSchema(leftRelNode.getRowType()).getFieldCount()));
   }
 
-  private BeamSqlSeekableTable getSeekableTableFromRelNode(BeamRelNode relNode, BeamSqlEnv sqlEnv) {
-    BeamIOSourceRel srcRel = (BeamIOSourceRel) relNode;
-    String tableName = Joiner.on('.').join(srcRel.getTable().getQualifiedName());
-    BeamSqlTable sourceTable = sqlEnv.findTable(tableName);
-    return (BeamSqlSeekableTable) sourceTable;
-  }
-
   /** check if {@code BeamRelNode} implements {@code BeamSeekableTable}. */
-  private boolean seekable(BeamRelNode relNode, BeamSqlEnv sqlEnv) {
+  private boolean seekable(BeamRelNode relNode) {
     if (relNode instanceof BeamIOSourceRel) {
       BeamIOSourceRel srcRel = (BeamIOSourceRel) relNode;
-      String tableName = Joiner.on('.').join(srcRel.getTable().getQualifiedName());
-      BeamSqlTable sourceTable = sqlEnv.findTable(tableName);
+      BeamSqlTable sourceTable = srcRel.getBeamSqlTable();
       if (sourceTable instanceof BeamSqlSeekableTable) {
         return true;
       }

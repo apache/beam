@@ -50,26 +50,25 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
   private static final Map<Class, TypeName> SUPPORTED_TYPES =
       ImmutableMap.<Class, TypeName>builder()
           .put(Boolean.class, TypeName.BOOLEAN)
+          .put(boolean.class, TypeName.BOOLEAN)
           .put(Byte.class, TypeName.BYTE)
+          .put(byte.class, TypeName.BYTE)
           .put(Character.class, TypeName.BYTE)
+          .put(char.class, TypeName.BYTE)
           .put(String.class, TypeName.STRING)
           .put(Short.class, TypeName.INT16)
+          .put(short.class, TypeName.INT16)
           .put(Integer.class, TypeName.INT32)
+          .put(int.class, TypeName.INT32)
           .put(Long.class, TypeName.INT64)
+          .put(long.class, TypeName.INT64)
           .put(Float.class, TypeName.FLOAT)
+          .put(float.class, TypeName.FLOAT)
           .put(Double.class, TypeName.DOUBLE)
+          .put(double.class, TypeName.DOUBLE)
           .put(BigDecimal.class, TypeName.DECIMAL)
           .put(DateTime.class, TypeName.DATETIME)
           .build();
-
-  // Does not support neested types.
-  private FieldType getTypeDescriptor(Class clazz) {
-    TypeName typeName = SUPPORTED_TYPES.get(clazz);
-    if (typeName == null) {
-      throw new UnsupportedOperationException("Unsupported type");
-    }
-    return FieldType.of(typeName);
-  }
 
   /**
    * Uses {@link FieldValueGetter#name()} as field names.
@@ -84,4 +83,12 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
     return Schema.builder().addFields(fields).build();
   }
 
+  // Does not support nested types.
+  private FieldType getTypeDescriptor(Class clazz) {
+    TypeName typeName = SUPPORTED_TYPES.get(clazz);
+    if (typeName == null) {
+      throw new UnsupportedOperationException("Unsupported type: " + clazz);
+    }
+    return FieldType.of(typeName);
+  }
 }

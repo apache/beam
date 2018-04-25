@@ -17,7 +17,6 @@
  */
 
 /**
- * examples on how to use BeamSQL.
- *
+ * Examples on how to use Beam SQL.
  */
 package org.apache.beam.sdk.extensions.sql.example;

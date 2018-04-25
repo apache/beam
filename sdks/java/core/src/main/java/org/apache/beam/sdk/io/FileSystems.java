@@ -161,15 +161,16 @@ public class FileSystems {
   private static MatchResult maybeAdjustEmptyMatchResult(
       String spec, MatchResult res, EmptyMatchTreatment emptyMatchTreatment)
       throws IOException {
-    if (res.status() != Status.NOT_FOUND) {
-      return res;
-    }
-    boolean notFoundAllowed =
-        emptyMatchTreatment == EmptyMatchTreatment.ALLOW
-            || (FileSystems.hasGlobWildcard(spec)
-                && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
-    if (notFoundAllowed) {
-      return MatchResult.create(Status.OK, Collections.emptyList());
+    if (res.status() == Status.NOT_FOUND
+        || (res.status() == Status.OK && res.metadata().isEmpty())) {
+      boolean notFoundAllowed =
+          emptyMatchTreatment == EmptyMatchTreatment.ALLOW
+              || (hasGlobWildcard(spec)
+                  && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
+      return notFoundAllowed
+          ? MatchResult.create(Status.OK, Collections.emptyList())
+          : MatchResult.create(
+              Status.NOT_FOUND, new FileNotFoundException("No files matched spec: " + spec));
     }
     return res;
   }

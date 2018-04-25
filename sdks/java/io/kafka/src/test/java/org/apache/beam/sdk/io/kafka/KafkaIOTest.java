@@ -30,6 +30,7 @@ import static org.junit.Assume.assumeTrue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -119,6 +120,7 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -248,13 +250,22 @@ public class KafkaIOTest {
       @Override
       public void run() {
         // add all the records with offset >= current partition position.
+        int recordsAdded = 0;
         for (TopicPartition tp : assignedPartitions.get()) {
           long curPos = consumer.position(tp);
           for (ConsumerRecord<byte[], byte[]> r : records.get(tp)) {
             if (r.offset() >= curPos) {
               consumer.addRecord(r);
+              recordsAdded++;
             }
           }
+        }
+        if (recordsAdded == 0) {
+          // MockConsumer.poll(timeout) does not actually wait even when there aren't any records.
+          // Add a small wait here in order to avoid busy looping in the reader.
+          Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+          //TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
+          //     without this wait. Need to look into it.
         }
         consumer.schedulePollTask(this);
       }
@@ -605,11 +616,14 @@ public class KafkaIOTest {
   }
 
   @Test
+  @Ignore // TODO : BEAM-4086 : enable once flakiness is fixed.
   public void testUnboundedSourceWithoutBoundedWrapper() {
+    // This is same as testUnboundedSource() without the BoundedSource wrapper.
     // Most of the tests in this file set 'maxNumRecords' on the source, which wraps
     // the unbounded source in a bounded source. As a result, the test pipeline run as
     // bounded/batch pipelines under direct-runner.
-    // This is same as testUnboundedSource() without the BoundedSource wrapper.
+    // This tests runs without such a wrapper over unbounded wrapper, and depends on watermark
+    // progressing to infinity to end the test (see TimestampPolicyWithEndOfSource above).
 
     final int numElements = 1000;
     final int numPartitions = 10;
