@@ -51,50 +51,61 @@ public class OutputDeduplicatorTest {
   @Test
   public void unchangedWithNoDuplicates() {
     /* When all the PCollections are produced by only one transform or stage, the result should be
-     * empty//identical to the input.
+     * empty/identical to the input.
+     *
+     * Pipeline:
+     *              /-> one -> .out \
+     * red -> .out ->                -> blue -> .out
+     *              \-> two -> .out /
      */
-    PTransform one =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "one.out").build();
-    PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
-    PTransform two =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "two.out").build();
-    PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", "red.out").build();
     PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
-    PTransform blue =
+    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
+    PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
+    PTransform one =
         PTransform.newBuilder()
-            .putInputs("one", "one.out")
-            .putInputs("two", "two.out")
-            .putOutputs("out", "blue.out")
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", oneOut.getUniqueName())
+            .build();
+    PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
+    PTransform two =
+        PTransform.newBuilder()
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", twoOut.getUniqueName())
             .build();
     PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
+    PTransform blue =
+        PTransform.newBuilder()
+            .putInputs("one", oneOut.getUniqueName())
+            .putInputs("two", twoOut.getUniqueName())
+            .putOutputs("out", blueOut.getUniqueName())
+            .build();
     RunnerApi.Components components =
         Components.newBuilder()
             .putTransforms("one", one)
-            .putPcollections("one.out", oneOut)
+            .putPcollections(oneOut.getUniqueName(), oneOut)
             .putTransforms("two", two)
-            .putPcollections("two.out", twoOut)
+            .putPcollections(twoOut.getUniqueName(), twoOut)
             .putTransforms("red", red)
-            .putPcollections("red.out", redOut)
+            .putPcollections(redOut.getUniqueName(), redOut)
             .putTransforms("blue", blue)
-            .putPcollections("blue.out", blueOut)
+            .putPcollections(blueOut.getUniqueName(), blueOut)
             .build();
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one)),
-            ImmutableList.of(PipelineNode.pCollection("one.out", oneOut)));
+            ImmutableList.of(PipelineNode.pCollection(oneOut.getUniqueName(), oneOut)));
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("two", two)),
-            ImmutableList.of(PipelineNode.pCollection("two.out", twoOut)));
+            ImmutableList.of(PipelineNode.pCollection(twoOut.getUniqueName(), twoOut)));
     PTransformNode redTransform = PipelineNode.pTransform("red", red);
     PTransformNode blueTransform = PipelineNode.pTransform("blue", blue);
     QueryablePipeline pipeline = QueryablePipeline.forPrimitivesIn(components);
@@ -114,47 +125,66 @@ public class OutputDeduplicatorTest {
   public void duplicateOverStages() {
     /* When multiple stages and a runner-executed transform produce a PCollection, all should be
      * replaced with synthetic flattens.
-     * S -> A; T -> A becomes S -> A'; T -> A''; A', A'' -> Flatten -> A
+     * original graph:
+     *             --> one -> .out \
+     * red -> .out |                -> shared -> .out -> blue -> .out
+     *             --> two -> .out /
+     *
+     * fused graph:
+     *             --> [one -> .out -> shared ->] .out
+     * red -> .out |                                   (shared.out) -> blue -> .out
+     *             --> [two -> .out -> shared ->] .out
+     *
+     * deduplicated graph:
+     *             --> [one -> .out -> shared ->] .out:0 \
+     * red -> .out |                                      -> shared -> .out -> blue ->.out
+     *             --> [two -> .out -> shared ->] .out:1 /
      */
-    PTransform one =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "one.out").build();
+    PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
+    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
-    PTransform two =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "two.out").build();
+    PTransform one =
+        PTransform.newBuilder()
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", oneOut.getUniqueName())
+            .build();
     PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
+    PTransform two =
+        PTransform.newBuilder()
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", twoOut.getUniqueName())
+            .build();
     PCollection sharedOut = PCollection.newBuilder().setUniqueName("shared.out").build();
     PTransform shared =
         PTransform.newBuilder()
-            .putInputs("one", "one.out")
-            .putInputs("two", "two.out")
+            .putInputs("one", oneOut.getUniqueName())
+            .putInputs("two", twoOut.getUniqueName())
             .putOutputs("shared", sharedOut.getUniqueName())
             .build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", "red.out").build();
-    PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
+    PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
             .putInputs("in", sharedOut.getUniqueName())
-            .putOutputs("out", "blue.out")
+            .putOutputs("out", blueOut.getUniqueName())
             .build();
-    PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     RunnerApi.Components components =
         Components.newBuilder()
             .putTransforms("one", one)
-            .putPcollections("one.out", oneOut)
+            .putPcollections(oneOut.getUniqueName(), oneOut)
             .putTransforms("two", two)
-            .putPcollections("two.out", twoOut)
+            .putPcollections(twoOut.getUniqueName(), twoOut)
             .putTransforms("shared", shared)
             .putPcollections(sharedOut.getUniqueName(), sharedOut)
             .putTransforms("red", red)
-            .putPcollections("red.out", redOut)
+            .putPcollections(redOut.getUniqueName(), redOut)
             .putTransforms("blue", blue)
-            .putPcollections("blue.out", blueOut)
+            .putPcollections(blueOut.getUniqueName(), blueOut)
             .build();
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
@@ -163,7 +193,7 @@ public class OutputDeduplicatorTest {
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("two", two), PipelineNode.pTransform("shared", shared)),
@@ -213,43 +243,59 @@ public class OutputDeduplicatorTest {
   public void duplicateOverStagesAndTransforms() {
     /* When both a stage and a runner-executed transform produce a PCollection, all should be
      * replaced with synthetic flattens.
-     * S -> A; GBK -> A becomes S -> A'; GBK -> A''; A', A'' -> Flatten -> A
+     * original graph:
+     *             --> one -> .out \
+     * red -> .out |                -> shared -> .out
+     *             --------------> /
+     *
+     * fused graph:
+     *             --> [one -> .out -> shared ->] .out
+     * red -> .out |
+     *             ------------------> shared --> .out
+     *
+     * deduplicated graph:
+     *             --> [one -> .out -> shared ->] .out:0 \
+     * red -> .out |                                      -> shared -> .out
+     *             -----------------> shared:0 -> .out:1 /
      */
-    PTransform red = PTransform.newBuilder().putOutputs("out", "red.out").build();
     PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
-    PTransform one =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "one.out").build();
+    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
+    PTransform one =
+        PTransform.newBuilder()
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", oneOut.getUniqueName())
+            .build();
     PCollection sharedOut = PCollection.newBuilder().setUniqueName("shared.out").build();
     PTransform shared =
         PTransform.newBuilder()
-            .putInputs("one", "one.out")
-            .putInputs("red", "red.out")
+            .putInputs("one", oneOut.getUniqueName())
+            .putInputs("red", redOut.getUniqueName())
             .putOutputs("shared", sharedOut.getUniqueName())
             .build();
+    PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
             .putInputs("in", sharedOut.getUniqueName())
-            .putOutputs("out", "blue.out")
+            .putOutputs("out", blueOut.getUniqueName())
             .build();
-    PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     RunnerApi.Components components =
         Components.newBuilder()
             .putTransforms("one", one)
-            .putPcollections("one.out", oneOut)
+            .putPcollections(oneOut.getUniqueName(), oneOut)
             .putTransforms("red", red)
-            .putPcollections("red.out", redOut)
+            .putPcollections(redOut.getUniqueName(), redOut)
             .putTransforms("shared", shared)
             .putPcollections(sharedOut.getUniqueName(), sharedOut)
             .putTransforms("blue", blue)
-            .putPcollections("blue.out", blueOut)
+            .putPcollections(blueOut.getUniqueName(), blueOut)
             .build();
     PTransformNode sharedTransform = PipelineNode.pTransform("shared", shared);
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one), sharedTransform),
             ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
@@ -301,72 +347,97 @@ public class OutputDeduplicatorTest {
   @Test
   public void multipleDuplicatesInStages() {
     /* A stage that produces multiple duplicates should have them all synthesized.
-     * S -> A, B, C; T -> B, D; U -> A
-     * becomes
-     * S -> A', B', C; T -> B'', D; U -> A'', and A', A'' -> A; B', B'' -> B
+     *
+     * Original Pipeline:
+     * red -> .out ---> one -> .out -----\
+     *             \                      -> shared.out
+     *              \--> two -> .out ----|
+     *               \                    -> otherShared -> .out
+     *                \-> three --> .out /
+     *
+     * Fused Pipeline:
+     *      -> .out [-> one -> .out -> shared -> .out] \
+     *     /                                            -> blue -> .out
+     *     |                        -> shared -> .out] /
+     * red -> .out [-> two -> .out |
+     *     |                        -> otherShared -> .out]
+     *     \
+     *      -> .out [-> three -> .out -> otherShared -> .out]
+     *
+     * Deduplicated Pipeline:
+     *           [-> one -> .out -> shared -> .out:0] --\
+     *           |                                       -> shared -> .out -> blue -> .out
+     *           |                 -> shared -> .out:1] /
+     * red -> .out [-> two -> .out |
+     *           |                  -> otherShared -> .out:0] --\
+     *           |                                               -> otherShared -> .out
+     *           [-> three -> .out -> otherShared -> .out:1] ---/
      */
-    PCollection multiOut = PCollection.newBuilder().setUniqueName("multi.out").build();
-    PCollection multiOutOther = PCollection.newBuilder().setUniqueName("multi.out0").build();
-    PTransform multi =
+    PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
+    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
+    PCollection threeOut = PCollection.newBuilder().setUniqueName("three.out").build();
+    PTransform three =
         PTransform.newBuilder()
-            .putInputs("in", "red.out")
-            .putOutputs("left", multiOut.getUniqueName())
-            .putOutputs("right", multiOutOther.getUniqueName())
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", threeOut.getUniqueName())
             .build();
-    PTransform one =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "one.out").build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
-    PTransform two =
-        PTransform.newBuilder().putInputs("in", "red.out").putOutputs("out", "two.out").build();
+    PTransform one =
+        PTransform.newBuilder()
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", oneOut.getUniqueName())
+            .build();
     PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
+    PTransform two =
+        PTransform.newBuilder()
+            .putInputs("in", redOut.getUniqueName())
+            .putOutputs("out", twoOut.getUniqueName())
+            .build();
     PCollection sharedOut = PCollection.newBuilder().setUniqueName("shared.out").build();
     PTransform shared =
         PTransform.newBuilder()
-            .putInputs("one", "one.out")
-            .putInputs("two", "two.out")
+            .putInputs("one", oneOut.getUniqueName())
+            .putInputs("two", twoOut.getUniqueName())
             .putOutputs("shared", sharedOut.getUniqueName())
             .build();
     PCollection otherSharedOut = PCollection.newBuilder().setUniqueName("shared.out2").build();
     PTransform otherShared =
         PTransform.newBuilder()
-            .putInputs("multi", multiOutOther.getUniqueName())
+            .putInputs("multi", threeOut.getUniqueName())
             .putInputs("two", twoOut.getUniqueName())
             .putOutputs("out", otherSharedOut.getUniqueName())
             .build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", "red.out").build();
-    PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
+    PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
             .putInputs("in", sharedOut.getUniqueName())
-            .putOutputs("out", "blue.out")
+            .putOutputs("out", blueOut.getUniqueName())
             .build();
-    PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     RunnerApi.Components components =
         Components.newBuilder()
             .putTransforms("one", one)
-            .putPcollections("one.out", oneOut)
+            .putPcollections(oneOut.getUniqueName(), oneOut)
             .putTransforms("two", two)
-            .putPcollections("two.out", twoOut)
-            .putTransforms("multi", multi)
-            .putPcollections(multiOut.getUniqueName(), multiOut)
-            .putPcollections(multiOutOther.getUniqueName(), multiOutOther)
+            .putPcollections(twoOut.getUniqueName(), twoOut)
+            .putTransforms("multi", three)
+            .putPcollections(threeOut.getUniqueName(), threeOut)
             .putTransforms("shared", shared)
             .putPcollections(sharedOut.getUniqueName(), sharedOut)
             .putTransforms("otherShared", otherShared)
             .putPcollections(otherSharedOut.getUniqueName(), otherSharedOut)
             .putTransforms("red", red)
-            .putPcollections("red.out", redOut)
+            .putPcollections(redOut.getUniqueName(), redOut)
             .putTransforms("blue", blue)
-            .putPcollections("blue.out", blueOut)
+            .putPcollections(blueOut.getUniqueName(), blueOut)
             .build();
     ExecutableStage multiStage =
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(
-                PipelineNode.pTransform("multi", multi),
+                PipelineNode.pTransform("multi", three),
                 PipelineNode.pTransform("shared", shared),
                 PipelineNode.pTransform("otherShared", otherShared)),
             ImmutableList.of(
@@ -376,7 +447,7 @@ public class OutputDeduplicatorTest {
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
@@ -385,7 +456,7 @@ public class OutputDeduplicatorTest {
         ImmutableExecutableStage.of(
             components,
             Environment.getDefaultInstance(),
-            PipelineNode.pCollection("red.out", redOut),
+            PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("two", two),
