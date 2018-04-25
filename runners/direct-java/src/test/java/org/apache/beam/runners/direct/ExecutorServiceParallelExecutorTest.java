@@ -47,7 +47,7 @@ public class ExecutorServiceParallelExecutorTest {
   public void ensureMetricsThreadDoesntLeak() {
     final DirectGraph graph = DirectGraph.create(
       emptyMap(), emptyMap(), LinkedListMultimap.create(),
-      LinkedListMultimap.create(), emptySet(), emptyMap());
+      emptySet(), emptyMap());
     final ExecutorService executorService = Executors.newSingleThreadExecutor(
       new ThreadFactoryBuilder()
         .setDaemon(false)
@@ -58,14 +58,12 @@ public class ExecutorServiceParallelExecutorTest {
     executorService.submit(() -> {});
 
     final EvaluationContext context = EvaluationContext.create(
-      PipelineOptionsFactory.create().as(DirectOptions.class),
       MockClock.fromInstant(Instant.now()),
       CloningBundleFactory.create(), graph, emptySet(), executorService);
     ExecutorServiceParallelExecutor
       .create(
-        2,
-              TransformEvaluatorRegistry.defaultRegistry(context),
-              emptyMap(),
+        2, TransformEvaluatorRegistry.javaSdkNativeRegistry(context,
+              PipelineOptionsFactory.create().as(DirectOptions.class)), emptyMap(),
               context,
               executorService)
       .stop();
