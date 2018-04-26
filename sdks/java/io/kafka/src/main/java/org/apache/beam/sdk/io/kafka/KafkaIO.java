@@ -25,6 +25,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -399,6 +400,45 @@ public class KafkaIO {
           getTopics().isAccessible(),
           "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopicPartitions(topicPartitions).build();
+    }
+
+    /**
+     * Sets the list of Topic Partitions to read from using CSV String Input.
+     * <p>Format is CSV string of topic partitions where each Topic Name
+     * and Partition is separated by a colon(:).
+     * colon(:) is used as a delimiter because it is not a valid character for topic name</p>
+     */
+    public Read<K, V> withTopicPartitionsCsv(String csv) {
+      return withTopicPartitionsCsv(ValueProvider.StaticValueProvider.of(csv));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider ValueProvider&lt;List&lt;TopicPartition&gt;&gt;}.
+     *
+     */
+    public Read<K, V> withTopicPartitionsCsv(ValueProvider<String> csv) {
+      checkArgument(getTopics().isAccessible(),
+          "Only topics or topicPartitions can be set, not both");
+      return toBuilder().setTopicPartitions(ValueProvider.NestedValueProvider.of(csv,
+          new TopicPartitionCsvTranslator())).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link List List&lt;TopicPartition&gt;}.
+     */
+    private static class TopicPartitionCsvTranslator
+        implements SerializableFunction<String, List<TopicPartition>> {
+      @Override
+      public List<TopicPartition> apply(String csv) {
+        List<TopicPartition> topicPartitionList = new ArrayList<>();
+        for (String topicPartition: Splitter
+            .on(',').trimResults().omitEmptyStrings().splitToList(csv)) {
+          topicPartitionList
+              .add(new TopicPartition(Splitter.on(':').splitToList(topicPartition).get(0),
+                  Integer.parseInt(Splitter.on(':').splitToList(topicPartition).get(1))));
+        }
+        return ImmutableList.copyOf(topicPartitionList);
+      }
     }
 
     /**

@@ -1149,6 +1149,23 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testSourceWithExplicitStringCsvPartitionsDisplayData() {
+    KafkaIO.Read<byte[], byte[]> read = KafkaIO.readBytes()
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
+        .withTopicPartitionsCsv("test:5,test:6")
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)); // 10 partitions
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
   public void testSinkDisplayData() {
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
       KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
