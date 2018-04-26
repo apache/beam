@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Unit tests for the setup module."""
 
 import logging
@@ -99,9 +98,7 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).save_main_session = False
     self.update_options(options)
 
-    self.assertEqual(
-        [],
-        dependency.stage_job_resources(options))
+    self.assertEqual([], dependency.stage_job_resources(options))
 
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
@@ -111,9 +108,8 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).save_main_session = True
     self.update_options(options)
 
-    self.assertEqual(
-        [names.PICKLED_MAIN_SESSION_FILE],
-        dependency.stage_job_resources(options))
+    self.assertEqual([names.PICKLED_MAIN_SESSION_FILE],
+                     dependency.stage_job_resources(options))
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
@@ -124,9 +120,7 @@ class SetupTest(unittest.TestCase):
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
     self.update_options(options)
 
-    self.assertEqual(
-        [],
-        dependency.stage_job_resources(options))
+    self.assertEqual([], dependency.stage_job_resources(options))
 
   def test_with_requirements_file(self):
     staging_dir = self.make_temp_dir()
@@ -142,14 +136,13 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
-        sorted([dependency.REQUIREMENTS_FILE,
-                'abc.txt', 'def.txt']),
-        sorted(dependency.stage_job_resources(
-            options,
-            populate_requirements_cache=self.populate_requirements_cache)))
+        sorted([dependency.REQUIREMENTS_FILE, 'abc.txt', 'def.txt']),
+        sorted(
+            dependency.stage_job_resources(
+                options,
+                populate_requirements_cache=self.populate_requirements_cache)))
     self.assertTrue(
-        os.path.isfile(
-            os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
+        os.path.isfile(os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
@@ -180,22 +173,20 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
-        sorted([dependency.REQUIREMENTS_FILE,
-                'abc.txt', 'def.txt']),
-        sorted(dependency.stage_job_resources(
-            options,
-            populate_requirements_cache=self.populate_requirements_cache)))
+        sorted([dependency.REQUIREMENTS_FILE, 'abc.txt', 'def.txt']),
+        sorted(
+            dependency.stage_job_resources(
+                options,
+                populate_requirements_cache=self.populate_requirements_cache)))
     self.assertTrue(
-        os.path.isfile(
-            os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
+        os.path.isfile(os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_with_setup_file(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
-    self.create_temp_file(
-        os.path.join(source_dir, 'setup.py'), 'notused')
+    self.create_temp_file(os.path.join(source_dir, 'setup.py'), 'notused')
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -214,7 +205,8 @@ class SetupTest(unittest.TestCase):
             # equivalent behavior.
             build_setup_args=[
                 'python', '-c', 'open(__import__("sys").argv[1], "a")',
-                os.path.join(source_dir, dependency.WORKFLOW_TARBALL_FILE)],
+                os.path.join(source_dir, dependency.WORKFLOW_TARBALL_FILE)
+            ],
             temp_dir=source_dir))
     self.assertTrue(
         os.path.isfile(
@@ -245,14 +237,12 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).setup_file = (
         os.path.join(source_dir, 'xyz-setup.py'))
 
-    self.create_temp_file(
-        os.path.join(source_dir, 'xyz-setup.py'), 'notused')
+    self.create_temp_file(os.path.join(source_dir, 'xyz-setup.py'), 'notused')
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
-    self.assertTrue(
-        cm.exception.args[0].startswith(
-            'The --setup_file option expects the full path to a file named '
-            'setup.py instead of '))
+    self.assertTrue(cm.exception.args[0].startswith(
+        'The --setup_file option expects the full path to a file named '
+        'setup.py instead of '))
 
   def build_fake_pip_download_command_handler(self, has_wheels):
     """A stub for apache_beam.utils.processes.check_call that imitates pip.
@@ -283,11 +273,11 @@ class SetupTest(unittest.TestCase):
         # package_name==x.y.z
         if '==' in args[6]:
           distribution_name = args[6][0:args[6].find('==')]
-          distribution_version = args[6][args[6].find('==')+2:]
+          distribution_version = args[6][args[6].find('==') + 2:]
 
           if args[8] == '--no-binary':
-            package_file = '%s-%s.zip' % (
-                distribution_name, distribution_version)
+            package_file = '%s-%s.zip' % (distribution_name,
+                                          distribution_version)
           elif args[8] == '--only-binary' and len(args) >= 18:
             if not has_wheels:
               # Imitate the case when desired wheel distribution is not in PyPI.
@@ -297,11 +287,12 @@ class SetupTest(unittest.TestCase):
             # in distribution name are replaced with underscore.
             distribution_name = distribution_name.replace('-', '_')
             package_file = '%s-%s-%s%s-%s-%s.whl' % (
-                distribution_name, distribution_version,
+                distribution_name,
+                distribution_version,
                 args[13],  # implementation
                 args[11],  # python version
                 args[15],  # abi tag
-                args[17]   # platform
+                args[17]  # platform
             )
 
       assert package_file, 'Pip fake does not support the command: ' + str(args)
@@ -317,17 +308,15 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = 'default'
 
-    with mock.patch('apache_beam.utils.processes.check_call',
-                    self.build_fake_pip_download_command_handler(
-                        has_wheels=False)):
+    with mock.patch(
+        'apache_beam.utils.processes.check_call',
+        self.build_fake_pip_download_command_handler(has_wheels=False)):
       staged_resources = dependency.stage_job_resources(
           options, temp_dir=self.make_temp_dir())
 
-    self.assertEqual(
-        [names.DATAFLOW_SDK_TARBALL_FILE], staged_resources)
+    self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE], staged_resources)
 
-    with open(os.path.join(
-        staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)) as f:
+    with open(os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)) as f:
       self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_default_with_wheels(self):
@@ -342,8 +331,7 @@ class SetupTest(unittest.TestCase):
         'apache_beam.utils.processes.check_call',
         self.build_fake_pip_download_command_handler(has_wheels=True)):
       staged_resources = dependency.stage_job_resources(
-          options,
-          temp_dir=self.make_temp_dir())
+          options, temp_dir=self.make_temp_dir())
 
       self.assertTrue(len(staged_resources), 2)
       self.assertEqual(staged_resources[0], names.DATAFLOW_SDK_TARBALL_FILE)
@@ -357,9 +345,7 @@ class SetupTest(unittest.TestCase):
     staging_dir = self.make_temp_dir()
     sdk_location = self.make_temp_dir()
     self.create_temp_file(
-        os.path.join(
-            sdk_location,
-            names.DATAFLOW_SDK_TARBALL_FILE),
+        os.path.join(sdk_location, names.DATAFLOW_SDK_TARBALL_FILE),
         'Package content.')
 
     options = PipelineOptions()
@@ -367,11 +353,9 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    self.assertEqual(
-        [names.DATAFLOW_SDK_TARBALL_FILE],
-        dependency.stage_job_resources(options))
-    tarball_path = os.path.join(
-        staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
+    self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
+                     dependency.stage_job_resources(options))
+    tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
 
@@ -387,11 +371,9 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    self.assertEqual(
-        [names.DATAFLOW_SDK_TARBALL_FILE],
-        dependency.stage_job_resources(options))
-    tarball_path = os.path.join(
-        staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
+    self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
+                     dependency.stage_job_resources(options))
+    tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
 
@@ -407,11 +389,8 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    self.assertEqual(
-        [sdk_filename],
-        dependency.stage_job_resources(options))
-    tarball_path = os.path.join(
-        staging_dir, sdk_filename)
+    self.assertEqual([sdk_filename], dependency.stage_job_resources(options))
+    tarball_path = os.path.join(staging_dir, sdk_filename)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
 
@@ -428,8 +407,7 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(
         'The file "%s" cannot be found. Its '
         'location was specified by the --sdk_location command-line option.' %
-        sdk_location,
-        cm.exception.args[0])
+        sdk_location, cm.exception.args[0])
 
   def test_sdk_location_gcs_source_file(self):
     staging_dir = self.make_temp_dir()
@@ -442,9 +420,8 @@ class SetupTest(unittest.TestCase):
 
     with mock.patch('apache_beam.runners.dataflow.internal.'
                     'dependency._dependency_file_copy'):
-      self.assertEqual(
-          [names.DATAFLOW_SDK_TARBALL_FILE],
-          dependency.stage_job_resources(options))
+      self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
+                       dependency.stage_job_resources(options))
 
   def test_sdk_location_gcs_wheel_file(self):
     staging_dir = self.make_temp_dir()
@@ -458,9 +435,7 @@ class SetupTest(unittest.TestCase):
 
     with mock.patch('apache_beam.runners.dataflow.internal.'
                     'dependency._dependency_file_copy'):
-      self.assertEqual(
-          [sdk_filename],
-          dependency.stage_job_resources(options))
+      self.assertEqual([sdk_filename], dependency.stage_job_resources(options))
 
   def test_sdk_location_http(self):
     staging_dir = self.make_temp_dir()
@@ -477,28 +452,23 @@ class SetupTest(unittest.TestCase):
         f.write('Package content.')
       return tarball_path
 
-    with mock.patch('apache_beam.runners.dataflow.internal.'
-                    'dependency._dependency_file_download', file_download):
-      self.assertEqual(
-          [names.DATAFLOW_SDK_TARBALL_FILE],
-          dependency.stage_job_resources(options))
+    with mock.patch(
+        'apache_beam.runners.dataflow.internal.'
+        'dependency._dependency_file_download', file_download):
+      self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
+                       dependency.stage_job_resources(options))
 
-    tarball_path = os.path.join(
-        staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
+    tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
 
   def test_with_extra_packages(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
-    self.create_temp_file(
-        os.path.join(source_dir, 'abc.tar.gz'), 'nothing')
-    self.create_temp_file(
-        os.path.join(source_dir, 'xyz.tar.gz'), 'nothing')
-    self.create_temp_file(
-        os.path.join(source_dir, 'xyz2.tar'), 'nothing')
-    self.create_temp_file(
-        os.path.join(source_dir, 'whl.whl'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'abc.tar.gz'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'xyz.tar.gz'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'xyz2.tar'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'whl.whl'), 'nothing')
     self.create_temp_file(
         os.path.join(source_dir, dependency.EXTRA_PACKAGES_FILE), 'nothing')
 
@@ -509,8 +479,8 @@ class SetupTest(unittest.TestCase):
         os.path.join(source_dir, 'abc.tar.gz'),
         os.path.join(source_dir, 'xyz.tar.gz'),
         os.path.join(source_dir, 'xyz2.tar'),
-        os.path.join(source_dir, 'whl.whl'),
-        'gs://my-gcs-bucket/gcs.tar.gz']
+        os.path.join(source_dir, 'whl.whl'), 'gs://my-gcs-bucket/gcs.tar.gz'
+    ]
 
     gcs_copied_files = []
 
@@ -529,13 +499,15 @@ class SetupTest(unittest.TestCase):
 
     dependency._dependency_file_copy = file_copy
 
-    self.assertEqual(
-        ['abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl', 'gcs.tar.gz',
-         dependency.EXTRA_PACKAGES_FILE],
-        dependency.stage_job_resources(options))
+    self.assertEqual([
+        'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl', 'gcs.tar.gz',
+        dependency.EXTRA_PACKAGES_FILE
+    ], dependency.stage_job_resources(options))
     with open(os.path.join(staging_dir, dependency.EXTRA_PACKAGES_FILE)) as f:
-      self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n',
-                        'whl.whl\n', 'gcs.tar.gz\n'], f.readlines())
+      self.assertEqual([
+          'abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n', 'whl.whl\n',
+          'gcs.tar.gz\n'
+      ], f.readlines())
     self.assertEqual(['gs://my-gcs-bucket/gcs.tar.gz'], gcs_copied_files)
 
   def test_with_extra_packages_missing_files(self):
@@ -556,14 +528,14 @@ class SetupTest(unittest.TestCase):
   def test_with_extra_packages_invalid_file_name(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
-    self.create_temp_file(
-        os.path.join(source_dir, 'abc.tgz'), 'nothing')
+    self.create_temp_file(os.path.join(source_dir, 'abc.tgz'), 'nothing')
     with self.assertRaises(RuntimeError) as cm:
       options = PipelineOptions()
       options.view_as(GoogleCloudOptions).staging_location = staging_dir
       self.update_options(options)
       options.view_as(SetupOptions).extra_packages = [
-          os.path.join(source_dir, 'abc.tgz')]
+          os.path.join(source_dir, 'abc.tgz')
+      ]
       dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.args[0],

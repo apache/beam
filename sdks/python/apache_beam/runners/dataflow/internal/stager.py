@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Support for installing custom code and required dependencies.
 
 Workflows, with the exception of very simple ones, are organized in multiple
@@ -125,8 +124,9 @@ def _dependency_file_copy(from_path, to_path):
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.
     if not os.path.isdir(os.path.dirname(to_path)):
-      logging.info('Created folder (since we have not done yet, and any errors '
-                   'will follow): %s ', os.path.dirname(to_path))
+      logging.info(
+          'Created folder (since we have not done yet, and any errors '
+          'will follow): %s ', os.path.dirname(to_path))
       os.mkdir(os.path.dirname(to_path))
     shutil.copyfile(from_path, to_path)
 
@@ -151,7 +151,9 @@ def _dependency_file_download(from_url, to_folder):
   return local_download_file
 
 
-def _stage_extra_packages(extra_packages, staging_location, temp_dir,
+def _stage_extra_packages(extra_packages,
+                          staging_location,
+                          temp_dir,
                           file_copy=_dependency_file_copy):
   """Stages a list of local extra packages.
 
@@ -211,9 +213,10 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
       local_packages.append(package)
 
   if staging_temp_dir:
-    local_packages.extend(
-        [FileSystems.join(staging_temp_dir, f) for f in os.listdir(
-            staging_temp_dir)])
+    local_packages.extend([
+        FileSystems.join(staging_temp_dir, f)
+        for f in os.listdir(staging_temp_dir)
+    ])
 
   for package in local_packages:
     basename = os.path.basename(package)
@@ -255,17 +258,28 @@ def _populate_requirements_cache(requirements_file, cache_dir):
   # It will get the packages downloaded in the order they are presented in
   # the requirements file and will not download package dependencies.
   cmd_args = [
-      _get_python_executable(), '-m', 'pip', 'download', '--dest', cache_dir,
-      '-r', requirements_file,
+      _get_python_executable(),
+      '-m',
+      'pip',
+      'download',
+      '--dest',
+      cache_dir,
+      '-r',
+      requirements_file,
       # Download from PyPI source distributions.
-      '--no-binary', ':all:']
+      '--no-binary',
+      ':all:'
+  ]
   logging.info('Executing command: %s', cmd_args)
   processes.check_call(cmd_args)
 
 
 def stage_job_resources(
-    options, file_copy=_dependency_file_copy, build_setup_args=None,
-    temp_dir=None, populate_requirements_cache=_populate_requirements_cache):
+    options,
+    file_copy=_dependency_file_copy,
+    build_setup_args=None,
+    temp_dir=None,
+    populate_requirements_cache=_populate_requirements_cache):
   """For internal use only; no backwards-compatibility guarantees.
 
   Creates (if needed) and stages job resources to options.staging_location.
@@ -301,11 +315,9 @@ def stage_job_resources(
   # Make sure that all required options are specified. There are a few that have
   # defaults to support local running scenarios.
   if google_cloud_options.staging_location is None:
-    raise RuntimeError(
-        'The --staging_location option must be specified.')
+    raise RuntimeError('The --staging_location option must be specified.')
   if google_cloud_options.temp_location is None:
-    raise RuntimeError(
-        'The --temp_location option must be specified.')
+    raise RuntimeError('The --temp_location option must be specified.')
 
   # Stage a requirements file if present.
   if setup_options.requirements_file is not None:
@@ -319,17 +331,19 @@ def stage_job_resources(
     resources.append(REQUIREMENTS_FILE)
     requirements_cache_path = (
         os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
-        if setup_options.requirements_cache is None
-        else setup_options.requirements_cache)
+        if setup_options.requirements_cache is None else
+        setup_options.requirements_cache)
     # Populate cache with packages from requirements and stage the files
     # in the cache.
     if not os.path.exists(requirements_cache_path):
       os.makedirs(requirements_cache_path)
-    populate_requirements_cache(
-        setup_options.requirements_file, requirements_cache_path)
-    for pkg in  glob.glob(os.path.join(requirements_cache_path, '*')):
-      file_copy(pkg, FileSystems.join(google_cloud_options.staging_location,
-                                      os.path.basename(pkg)))
+    populate_requirements_cache(setup_options.requirements_file,
+                                requirements_cache_path)
+    for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
+      file_copy(
+          pkg,
+          FileSystems.join(google_cloud_options.staging_location,
+                           os.path.basename(pkg)))
       resources.append(os.path.basename(pkg))
 
   # Handle a setup file if present.
@@ -338,9 +352,9 @@ def stage_job_resources(
   # created directly there.
   if setup_options.setup_file is not None:
     if not os.path.isfile(setup_options.setup_file):
-      raise RuntimeError('The file %s cannot be found. It was specified in the '
-                         '--setup_file command line option.' %
-                         setup_options.setup_file)
+      raise RuntimeError(
+          'The file %s cannot be found. It was specified in the '
+          '--setup_file command line option.' % setup_options.setup_file)
     if os.path.basename(setup_options.setup_file) != 'setup.py':
       raise RuntimeError(
           'The --setup_file option expects the full path to a file named '
@@ -355,9 +369,11 @@ def stage_job_resources(
   # Handle extra local packages that should be staged.
   if setup_options.extra_packages is not None:
     resources.extend(
-        _stage_extra_packages(setup_options.extra_packages,
-                              google_cloud_options.staging_location,
-                              temp_dir=temp_dir, file_copy=file_copy))
+        _stage_extra_packages(
+            setup_options.extra_packages,
+            google_cloud_options.staging_location,
+            temp_dir=temp_dir,
+            file_copy=file_copy))
 
   # Pickle the main session if requested.
   # We will create the pickled main session locally and then copy it to the
@@ -408,8 +424,8 @@ def stage_job_resources(
             os.path.dirname(module_path), '..', '..', '..',
             names.DATAFLOW_SDK_TARBALL_FILE)
       elif os.path.isdir(setup_options.sdk_location):
-        sdk_path = os.path.join(
-            setup_options.sdk_location, names.DATAFLOW_SDK_TARBALL_FILE)
+        sdk_path = os.path.join(setup_options.sdk_location,
+                                names.DATAFLOW_SDK_TARBALL_FILE)
       else:
         sdk_path = setup_options.sdk_location
       if os.path.isfile(sdk_path):
@@ -431,8 +447,7 @@ def stage_job_resources(
         else:
           raise RuntimeError(
               'The file "%s" cannot be found. Its location was specified by '
-              'the --sdk_location command-line option.' %
-              sdk_path)
+              'the --sdk_location command-line option.' % sdk_path)
 
   # Delete all temp files created while staging job resources.
   shutil.rmtree(temp_dir)
@@ -445,8 +460,9 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(os.path.dirname(setup_file))
     if build_setup_args is None:
       build_setup_args = [
-          _get_python_executable(), os.path.basename(setup_file),
-          'sdist', '--dist-dir', temp_dir]
+          _get_python_executable(),
+          os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
+      ]
     logging.info('Executing command: %s', build_setup_args)
     processes.check_call(build_setup_args)
     output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
@@ -492,22 +508,20 @@ def _stage_beam_sdk(sdk_remote_location, staging_location, temp_dir):
   """
   if (sdk_remote_location.startswith('http://') or
       sdk_remote_location.startswith('https://')):
-    local_download_file = _dependency_file_download(
-        sdk_remote_location, temp_dir)
+    local_download_file = _dependency_file_download(sdk_remote_location,
+                                                    temp_dir)
     staged_name = _desired_sdk_filename_in_staging_location(local_download_file)
     staged_path = FileSystems.join(staging_location, staged_name)
-    logging.info(
-        'Staging Beam SDK from %s to %s',
-        sdk_remote_location, staged_path)
+    logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
+                 staged_path)
     _dependency_file_copy(local_download_file, staged_path)
     return [staged_name]
   elif sdk_remote_location.startswith('gs://'):
     # Stage the file to the GCS staging area.
     staged_name = _desired_sdk_filename_in_staging_location(sdk_remote_location)
     staged_path = FileSystems.join(staging_location, staged_name)
-    logging.info(
-        'Staging Beam SDK from %s to %s',
-        sdk_remote_location, staged_path)
+    logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
+                 staged_path)
     _dependency_file_copy(sdk_remote_location, staged_path)
     return [staged_name]
   elif sdk_remote_location == 'pypi':
@@ -529,14 +543,14 @@ def _stage_beam_sdk(sdk_remote_location, staging_location, temp_dir):
       _dependency_file_copy(sdk_local_file, staged_path)
       staged_sdk_files.append(sdk_binary_staged_name)
     except RuntimeError as e:
-      logging.warn('Failed to download requested binary distribution '
-                   'of the SDK: %s', repr(e))
+      logging.warn(
+          'Failed to download requested binary distribution '
+          'of the SDK: %s', repr(e))
 
     return staged_sdk_files
   else:
-    raise RuntimeError(
-        'The --sdk_location option was used with an unsupported '
-        'type of location: %s' % sdk_remote_location)
+    raise RuntimeError('The --sdk_location option was used with an unsupported '
+                       'type of location: %s' % sdk_remote_location)
 
 
 def get_runner_harness_container_image():
@@ -615,7 +629,8 @@ def get_sdk_package_name():
     return BEAM_PACKAGE_NAME
 
 
-def _download_pypi_sdk_package(temp_dir, fetch_binary=False,
+def _download_pypi_sdk_package(temp_dir,
+                               fetch_binary=False,
                                language_version_tag='27',
                                language_implementation_tag='cp',
                                abi_tag='cp27mu',
@@ -630,7 +645,8 @@ def _download_pypi_sdk_package(temp_dir, fetch_binary=False,
                        .format(package_name))
   cmd_args = [
       _get_python_executable(), '-m', 'pip', 'download', '--dest', temp_dir,
-      '%s==%s' % (package_name, version), '--no-deps']
+      '%s==%s' % (package_name, version), '--no-deps'
+  ]
 
   if fetch_binary:
     logging.info('Downloading binary distribtution of the SDK from PyPi')
@@ -638,15 +654,16 @@ def _download_pypi_sdk_package(temp_dir, fetch_binary=False,
     cmd_args.extend([
         '--only-binary', ':all:', '--python-version', language_version_tag,
         '--implementation', language_implementation_tag, '--abi', abi_tag,
-        '--platform', platform_tag])
+        '--platform', platform_tag
+    ])
     # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
     expected_files = [
         os.path.join(
-            temp_dir,
-            '%s-%s-%s%s-%s-%s.whl' % (package_name.replace('-', '_'), version,
-                                      language_implementation_tag,
-                                      language_version_tag, abi_tag,
-                                      platform_tag))]
+            temp_dir, '%s-%s-%s%s-%s-%s.whl' %
+            (package_name.replace('-',
+                                  '_'), version, language_implementation_tag,
+             language_version_tag, abi_tag, platform_tag))
+    ]
   else:
     logging.info('Downloading source distribtution of the SDK from PyPi')
     cmd_args.extend(['--no-binary', ':all:'])
@@ -667,5 +684,5 @@ def _download_pypi_sdk_package(temp_dir, fetch_binary=False,
 
   raise RuntimeError(
       'Failed to download a distribution for the running SDK. '
-      'Expected either one of %s to be found in the download folder.' % (
-          expected_files))
+      'Expected either one of %s to be found in the download folder.' %
+      (expected_files))
