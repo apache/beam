@@ -19,18 +19,20 @@ package org.apache.beam.runners.direct;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
+import static org.junit.rules.RuleChain.outerRule;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.MetricsPusherTest;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.test.ThreadLeakTracker;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ThreadLeakTracker;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.joda.time.Duration;
@@ -46,10 +48,13 @@ import org.junit.rules.TestRule;
 public class ExecutorServiceParallelExecutorTest {
 
   private static final long NUM_ELEMENTS = 1000L;
+
+  private final TestPipeline pipeline = TestPipeline.create();
+  private final TestRule threadLeakTracker = new ThreadLeakTracker();
+
   @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public final TestRule threadTracker = new ThreadLeakTracker();
+  public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
+
   @Rule
   public final TestName testName = new TestName();
 
@@ -58,25 +63,30 @@ public class ExecutorServiceParallelExecutorTest {
     final DirectGraph graph = DirectGraph.create(
       emptyMap(), emptyMap(), LinkedListMultimap.create(),
       emptySet(), emptyMap());
-    final ExecutorService executorService = Executors.newSingleThreadExecutor(
+    final ExecutorService metricsExecutorService = Executors.newSingleThreadExecutor(
       new ThreadFactoryBuilder()
         .setDaemon(false)
         .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
         .build());
 
     // fake a metrics usage
-    executorService.submit(() -> {});
+    metricsExecutorService.submit(() -> {});
 
     final EvaluationContext context = EvaluationContext.create(
       MockClock.fromInstant(Instant.now()),
-      CloningBundleFactory.create(), graph, emptySet(), executorService);
+      CloningBundleFactory.create(), graph, emptySet(), metricsExecutorService);
     ExecutorServiceParallelExecutor
       .create(
         2, TransformEvaluatorRegistry.javaSdkNativeRegistry(context,
               PipelineOptionsFactory.create().as(DirectOptions.class)), emptyMap(),
               context,
-              executorService)
+              metricsExecutorService)
       .stop();
+    try {
+      metricsExecutorService.awaitTermination(10000L, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 
   @Test
