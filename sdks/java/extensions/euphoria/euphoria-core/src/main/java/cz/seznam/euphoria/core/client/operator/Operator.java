@@ -74,7 +74,8 @@ public abstract class Operator<IN, OUT> implements Serializable {
    *
    * @return a newly created dataset associated with this operator as its output
    */
-  final Dataset<OUT> createOutput(final Dataset<IN> input) {
+  final Dataset<OUT> createOutput(final Dataset<IN> input,  Set<OutputHint> outputHints) {
+    this.hints = outputHints;
     Preconditions.checkArgument(
         input.getFlow() == getFlow(),
         "Please don't mix operators and datasets from various flows.");
