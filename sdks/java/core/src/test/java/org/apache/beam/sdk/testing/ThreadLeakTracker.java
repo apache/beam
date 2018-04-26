@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.test;
+package org.apache.beam.sdk.testing;
 
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
