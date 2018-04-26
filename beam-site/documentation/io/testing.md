@@ -149,17 +149,17 @@ Prerequisites:
 1.  [Install PerfKit Benchmarker](https://github.com/GoogleCloudPlatform/PerfKitBenchmarker)
 1.  Have a running Kubernetes cluster you can connect to locally using kubectl
 
-You won't need to invoke PerfKit Benchmarker directly. Run mvn verify in the directory of the I/O module you'd like to test, with the parameter io-it-suite when running in jenkins CI or with a kubernetes cluster on the same network or io-it-suite-local when running on a local dev box accessing a kubernetes cluster on a remote network.
+You won’t need to invoke PerfKit Benchmarker directly. Run `./gradlew performanceTest` in project's root directory, passing appropriate kubernetes scripts depending on the network you're using (local network or remote one).
 
 Example run with the direct runner:
 ```
-mvn verify -Dio-it-suite-local -pl sdks/java/io/jdbc,sdks/java/io/jdbc -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py" -DforceDirectRunner -DintegrationTestPipelineOptions=["--myTestParam=val"]
+./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=direct
 ```
 
 
 Example run with the Cloud Dataflow runner:
 ```
-mvn verify -Dio-it-suite -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions=["--project=PROJECT","--gcpTempLocation=GSBUCKET"] -DintegrationTestRunner=dataflow -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py"
+/gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=dataflow
 ```
 
 
@@ -179,40 +179,46 @@ Parameter descriptions:
   </thead>
   <tbody>
     <tr>
-     <td>-Dio-it-suite
+     <td>-DpkbLocation
      </td>
-     <td>Invokes the call to PerfKit Benchmarker when running in apache beam's jenkins instance or with a kubernetes cluster on the same network.
-     </td>
-    </tr>
-    <tr>
-     <td>-Dio-it-suite-local
-     </td>
-     <td>io-it-suite-local when running on a local dev box accessing a kubernetes cluster on a remote network. May not be supported for all I/O transforms.
+     <td>Path to PerfKit Benchmarker project.
      </td>
     </tr>
     <tr>
-     <td>-pl sdks/java/io/jdbc
-     </td>
-     <td>Specifies the maven project of the I/O to test.
-     </td>
-    </tr>
-    <tr>
-     <td>-Dkubectl="path-to-kubectl" -Dkubeconfig="path-to-kubeconfig"
-     </td>
-     <td>Options for specifying non-standard kubectl configurations. Optional. Defaults to "kubectl" and "~/.kube/config".
-     </td>
-    </tr>
-    <tr>
-     <td>integrationTestPipelineOptions
+     <td>-DintegrationTestPipelineOptions
      </td>
      <td>Passes pipeline options directly to the test being run.
      </td>
     </tr>
     <tr>
-     <td>-DforceDirectRunner
+     <td>-DitModule
      </td>
-     <td>Runs the test with the direct runner.
+     <td>Specifies the project submodule of the I/O to test.
      </td>
+    </tr>
+    <tr>
+     <td>-DintegrationTest
+     </td>
+     <td>Specifies the test to be run.
+     </td>
+    </tr>
+    <tr>
+     <td>-DkubernetesScripts
+     </td>
+     <td>Paths to scripts with necessary kubernetes infrastructure.
+     </td>
+    </tr>
+    <tr>
+      <td>-DbeamITOptions
+      </td>
+      <td>Path to file with Benchmark configuration (static and dynamic pipeline options. See below for description).
+      </td>
+    </tr>
+    <tr>
+      <td>-DintegrationTestRunner
+      </td>
+      <td>Runner to be used for running the test. Currently possible options are: direct, dataflow.
+      </td>
     </tr>
   </tbody>
 </table>
@@ -245,7 +251,7 @@ If you're using Kubernetes, make sure you can connect to your cluster locally us
 There are three components necessary to implement an integration test:
 *   **Test code**: the code that does the actual testing: interacting with the I/O transform, reading and writing data, and verifying the data.
 *   **Kubernetes scripts**: a Kubernetes script that sets up the data store that will be used by the test code.
-*   **Integrate with PerfKit Benchmarker using io-it-suite**: this allows users to easily invoke PerfKit Benchmarker, creating the Kubernetes resources and running the test code.
+*   **Integrate with PerfKit Benchmarker**: this allows users to easily invoke PerfKit Benchmarker, creating the Kubernetes resources and running the test code.
 
 These three pieces are discussed in detail below.
 
@@ -296,11 +302,7 @@ Guidelines for creating a Beam data store Kubernetes script:
 
 #### Integrate with PerfKit Benchmarker {#integrate-with-perfkit-benchmarker}
 
-To allow developers to easily invoke your I/O integration test, you must perform these two steps. The follow sections describe each step in more detail.
-1.  Create a PerfKit Benchmarker benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry.
-1.  Modify the per-I/O Maven pom configuration so that PerfKit Benchmarker can be invoked from Maven.
-
-The goal is that a checked in config has defaults such that other developers can run the test without changing the configuration.
+To allow developers to easily invoke your I/O integration test, you should create a PerfKit Benchmarker benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry. This is to be passed to perfkit via "beamITOptions" option in "performanceTest" task (described above). The goal is that a checked in config has defaults such that other developers can run the test without changing the configuration.
 
 
 #### Defining the benchmark configuration file {#defining-the-benchmark-configuration-file}
@@ -391,19 +393,19 @@ and may contain the following elements:
     <tr>
      <td>static_pipeline_options
      </td>
-     <td>The set of preconfigured mvn pipeline options.
+     <td>The set of preconfigured pipeline options.
      </td>
     </tr>
     <tr>
      <td>dynamic_pipeline_options
      </td>
-     <td>The set of mvn pipeline options that PerfKit Benchmarker will determine at runtime.
+     <td>The set of pipeline options that PerfKit Benchmarker will determine at runtime.
      </td>
     </tr>
     <tr>
      <td>dynamic_pipeline_options.name
      </td>
-     <td>The name of the parameter to be passed to mvn's invocation of the I/O integration test.
+     <td>The name of the parameter to be passed to gradle's invocation of the I/O integration test.
      </td>
     </tr>
     <tr>
@@ -423,11 +425,9 @@ and may contain the following elements:
 
 
 
-#### Per-I/O mvn pom configuration {#per-i-o-mvn-pom-configuration}
+#### Customizing PerfKit Benchmarker behaviour {#customizing-perf-kit-benchmarker-behaviour}
 
-Each I/O is responsible for adding a section to its pom with a profile that invokes PerfKit Benchmarker with the proper parameters during the verify phase. Below are the set of PerfKit Benchmarker parameters and how to configure them.
-
-The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/pom.xml) has an example of how to put these options together into a profile and invoke Python+PerfKit Benchmarker with them.
+In most cases, to run the _performanceTest_ task it is sufficient to pass the properties described above, which makes it easy to use. However, users can customize Perfkit Benchmarker's behavior even more by pasing some extra Gradle properties:
 
 
 <table class="table">
@@ -435,115 +435,117 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td><strong>PerfKit Benchmarker Parameter</strong>
      </td>
-     <td><strong>Description</strong>
+     <td><strong>Corresponding Gradle property</strong>
      </td>
-     <td><strong>Example value</strong>
+     <td><strong>Default value</strong>
+     </td>
+     <td><strong>Description</strong>
      </td>
     </tr>
   </thead>
   <tbody>
     <tr>
-     <td>benchmarks
+     <td>dpb_log_level
      </td>
-     <td>Defines the PerfKit Benchmarker benchmark to run. This is same for all I/O integration tests.
+     <td>-DlogLevel
      </td>
-     <td>beam_integration_benchmark
+     <td>INFO
+     </td>
+     <td>Data Processing Backend's log level.
      </td>
     </tr>
     <tr>
-     <td>beam_location
+     <td>gradle_binary
      </td>
-     <td>The location where PerfKit Benchmarker can find the Beam repository.
+     <td>-DgradleBinary
      </td>
-     <td>${beamRootProjectDir} - this is a variable you'll need to define for each maven pom. See example pom for an example.
+     <td>./gradlew
+     </td>
+     <td>Path to gradle binary.
+     </td>
+    </tr>
+    <tr>
+     <td>official
+     </td>
+     <td>-Dofficial
+     </td>
+     <td>false
+     </td>
+     <td>If true, the benchmark results are marked as "official" and can be displayed on PerfKitExplorer dashboards.
+     </td>
+    </tr>
+    <tr>
+     <td>benchmarks
+     </td>
+     <td>-Dbenchmarks
+     </td>
+     <td>beam_integration_benchmark
+     </td>
+     <td>Defines the PerfKit Benchmarker benchmark to run. This is same for all I/O integration tests.
      </td>
     </tr>
     <tr>
      <td>beam_prebuilt
      </td>
-     <td>Whether or not to rebuild the Beam repository before invoking the I/O integration test command.
+     <td>-DbeamPrebuilt
      </td>
      <td>true
+     </td>
+     <td>If false, PerfKit Benchmarker runs the build task before running the tests.
      </td>
     </tr>
     <tr>
      <td>beam_sdk
      </td>
-     <td>Whether PerfKit Benchmarker will run the Beam SDK for Java or Python.
+     <td>-DbeamSdk
      </td>
      <td>java
      </td>
-    </tr>
-    <tr>
-     <td>beam_runner_profile
-     </td>
-     <td>Optional command line parameter used to override the runner, allowing us to use the direct runner.
-     </td>
-     <td>Always use the predefined variable instead of specifying this parameter ${pkbBeamRunnerProfile}
+     <td>Beam's sdk to be used by PerfKit Benchmarker.
      </td>
     </tr>
     <tr>
-     <td>beam_runner_option
+     <td>beam_timeout
      </td>
-     <td>Optional command line parameter used to override the runner, allowing us to use the direct runner.
+     <td>-DitTimeout
      </td>
-     <td>Always use the predefined variable instead of specifying this parameter ${pkbBeamRunnerOption}
+     <td>1200
      </td>
-    </tr>
-    <tr>
-     <td>beam_it_module
-     </td>
-     <td>The path to the pom that contains the test (needed for invoking the test with PerfKit Benchmarker).
-     </td>
-     <td>sdks/java/io/jdbc
-     </td>
-    </tr>
-    <tr>
-     <td>beam_it_class
-     </td>
-     <td>The test to run.
-     </td>
-     <td>org.apache.beam.sdk.io.jdbc.JdbcIOIT
-     </td>
-    </tr>
-    <tr>
-     <td>beam_it_options
-     </td>
-     <td>Pipeline options for the beam job - meant to be a way to pass pipeline options the user specifies on the commandline when invoking io-it-suite
-     </td>
-     <td>Always use ${integrationTestPipelineOptions}, which allows the user to pass in parameters.
+     <td>Timeout (in seconds) after which PerfKit Benchmarker will stop executing the benchmark (and will fail).
      </td>
     </tr>
     <tr>
      <td>kubeconfig
      </td>
-     <td>The standard PerfKit Benchmarker parameter `kubeconfig`, which specifies where the Kubernetes config file lives.
+     <td>-Dkubeconfig
      </td>
-     <td>Always use ${kubeconfig}
+     <td>~/.kube/config
+     </td>
+     <td>Path to kubernetes configuration file.
      </td>
     </tr>
     <tr>
      <td>kubectl
      </td>
-     <td>The standard PerfKit Benchmarker parameter `kubectl`, which specifies where the kubectl binary lives.
+     <td>-Dkubectl
      </td>
-     <td>Always use ${kubectl}
+     <td>kubectl
+     </td>
+     <td>Path to kubernetes executable.
      </td>
     </tr>
     <tr>
-     <td>beam_kubernetes_scripts
+     <td>beam_extra_properties
      </td>
-     <td>The Kubernetes script files to create and teardown via create/delete. Specify absolute path.
+     <td>-DbeamExtraProperties
      </td>
-     <td>${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config.yml
+     <td>(empty string)
+     </td>
+     <td>Any additional properties to be appended to benchmark execution command.
      </td>
     </tr>
   </tbody>
 </table>
-
-
-There is also a set of Maven properties which are useful when invoking PerfKit Benchmarker. These properties are configured in the I/O parent pom, and some are only available when the io-it-suite profile is active in Maven.
-
 
 #### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
 
