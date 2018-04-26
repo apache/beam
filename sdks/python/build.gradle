@@ -44,13 +44,24 @@ task setupVirtualenv {
   outputs.dirs(envdir)
 }
 
+configurations { distConfig }
+
 task sdist(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
     }
+    def collection = fileTree('build'){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
+    println "sdist archive name: ${collection.singleFile}"
+    // we need a fixed name for the artifact
+    //collection.singleFile.renameTo(file("${project.buildDir}/apache-beam.tar.gz"))
+    copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
   }
+}
+
+artifacts {
+  distConfig file: file("${project.buildDir}/apache-beam.tar.gz"), builtBy: sdist
 }
 
 task cleanPython(dependsOn: 'setupVirtualenv') {
