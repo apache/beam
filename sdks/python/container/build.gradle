@@ -27,6 +27,10 @@ description = "Apache Beam :: SDKs :: Python :: Container"
 // "./github.com/apache/beam/sdks/go"
 resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
 
+configurations {
+  dockerDependency
+}
+
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -34,6 +38,15 @@ dependencies {
     build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
     test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
   }
+
+  dockerDependency project(path: ":beam-sdks-python", configuration: "distConfig")
+}
+
+task copyDockerfileDependencies(type: Copy) {
+  from configurations.dockerDependency
+  rename "apache-beam.*\\.tar.gz", "apache-beam.tar.gz"
+  into "build/target"
+  configurations.dockerDependency.stopExecutionIfEmpty()
 }
 
 golang {
@@ -49,5 +62,7 @@ docker {
   name containerImageName(name: "python")
   files "./build/"
 }
+
 // Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn build
+dockerPrepare.dependsOn copyDockerfileDependencies
