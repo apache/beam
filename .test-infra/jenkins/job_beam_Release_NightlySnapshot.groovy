@@ -37,6 +37,12 @@ mavenJob('beam_Release_NightlySnapshot') {
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
 
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'maven publish',
+      'Run Maven Publish')
+
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
@@ -51,7 +57,7 @@ mavenJob('beam_Release_NightlySnapshot') {
       --errors \
       --fail-at-end \
       -P release,dataflow-runner \
-      -D skipITs=false \
+      -D skipITs=true \
       -D integrationTestPipelineOptions=\'[ \
         "--project=apache-beam-testing", \
         "--tempRoot=gs://temp-storage-for-end-to-end-tests", \
