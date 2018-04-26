@@ -535,7 +535,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
-    PCollection<String> unconsumed = p.apply(TextIO.read().from(options.getInput()));
+    p.apply(TextIO.read().from(options.getInput()));
     DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(new PipelineVisitor.Defaults() {
@@ -1181,7 +1181,7 @@ public class DataflowRunnerTest implements Serializable {
   public void testSetStateUnsupportedInBatch() throws Exception {
     PipelineOptions options = buildPipelineOptions();
     options.as(StreamingOptions.class).setStreaming(false);
-    Pipeline p = Pipeline.create(options);
+    Pipeline.create(options);
     verifySetStateUnsupported(options);
   }
 

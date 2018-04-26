@@ -860,7 +860,7 @@ class ParDo(PTransformWithSideInputs):
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     return (
-        common_urns.PARDO_TRANSFORM,
+        common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
                 environment_id=context.default_environment_id(),
@@ -877,7 +877,7 @@ class ParDo(PTransformWithSideInputs):
                 for ix, si in enumerate(self.side_inputs)}))
 
   @PTransform.register_urn(
-      common_urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
+      common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
     assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
@@ -1234,11 +1234,12 @@ class CombinePerKey(PTransformWithSideInputs):
     else:
       combine_fn = self.fn
     return (
-        common_urns.COMBINE_PER_KEY_TRANSFORM,
+        common_urns.composites.COMBINE_PER_KEY.urn,
         _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
-      common_urns.COMBINE_PER_KEY_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+      common_urns.composites.COMBINE_PER_KEY.urn,
+      beam_runner_api_pb2.CombinePayload)
   def from_runner_api_parameter(combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
@@ -1272,11 +1273,11 @@ class CombineValues(PTransformWithSideInputs):
     else:
       combine_fn = self.fn
     return (
-        common_urns.COMBINE_GROUPED_VALUES_TRANSFORM,
+        common_urns.composites.COMBINE_GROUPED_VALUES.urn,
         _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
-      common_urns.COMBINE_GROUPED_VALUES_TRANSFORM,
+      common_urns.composites.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
   def from_runner_api_parameter(combine_payload, context):
     return CombineValues(
@@ -1402,9 +1403,9 @@ class GroupByKey(PTransform):
               | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
   def to_runner_api_parameter(self, unused_context):
-    return common_urns.GROUP_BY_KEY_TRANSFORM, None
+    return common_urns.primitives.GROUP_BY_KEY.urn, None
 
-  @PTransform.register_urn(common_urns.GROUP_BY_KEY_TRANSFORM, None)
+  @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
 
@@ -1632,7 +1633,7 @@ class WindowInto(ParDo):
 
   def to_runner_api_parameter(self, context):
     return (
-        common_urns.WINDOW_INTO_TRANSFORM,
+        common_urns.primitives.ASSIGN_WINDOWS.urn,
         self.windowing.to_runner_api(context))
 
   @staticmethod
@@ -1646,7 +1647,7 @@ class WindowInto(ParDo):
 
 
 PTransform.register_urn(
-    common_urns.WINDOW_INTO_TRANSFORM,
+    common_urns.primitives.ASSIGN_WINDOWS.urn,
     # TODO(robertwb): Update WindowIntoPayload to include the full strategy.
     # (Right now only WindowFn is used, but we need this to reconstitute the
     # WindowInto transform, and in the future will need it at runtime to
@@ -1703,7 +1704,7 @@ class Flatten(PTransform):
     return super(Flatten, self).get_windowing(inputs)
 
   def to_runner_api_parameter(self, context):
-    return common_urns.FLATTEN_TRANSFORM, None
+    return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
   def from_runner_api_parameter(unused_parameter, unused_context):
@@ -1711,7 +1712,7 @@ class Flatten(PTransform):
 
 
 PTransform.register_urn(
-    common_urns.FLATTEN_TRANSFORM, None, Flatten.from_runner_api_parameter)
+    common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter)
 
 
 class Create(PTransform):

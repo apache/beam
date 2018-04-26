@@ -51,4 +51,6 @@ dependencies {
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadowTest")
 }
