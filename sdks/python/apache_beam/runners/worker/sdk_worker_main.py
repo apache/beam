@@ -16,7 +16,7 @@
 #
 """SDK Fn Harness entry point."""
 
-import BaseHTTPServer
+import six.moves.BaseHTTPServer
 import json
 import logging
 import os
@@ -57,7 +57,7 @@ class StatusServer(object):
         Default is 0 which means any free unsecured port
     """
 
-    class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    class StatusHttpHandler(six.moves.BaseHTTPServer.BaseHTTPRequestHandler):
       """HTTP handler for serving stacktraces of all threads."""
 
       def do_GET(self):  # pylint: disable=invalid-name
@@ -73,7 +73,7 @@ class StatusServer(object):
         """Do not log any messages."""
         pass
 
-    self.httpd = httpd = BaseHTTPServer.HTTPServer(
+    self.httpd = httpd = six.moves.BaseHTTPServer.HTTPServer(
         ('localhost', status_http_port), StatusHttpHandler)
     logging.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)

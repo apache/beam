@@ -22,7 +22,7 @@ Only those coders listed in __all__ are part of the public API of this module.
 from __future__ import absolute_import
 
 import base64
-import cPickle as pickle
+import six.moves.cPickle as pickle
 
 import google.protobuf
 from google.protobuf import wrappers_pb2

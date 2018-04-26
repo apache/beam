@@ -23,7 +23,7 @@ from __future__ import print_function
 import abc
 import contextlib
 import logging
-import Queue as queue
+import six.moves.queue as queue
 import sys
 import threading
 import traceback

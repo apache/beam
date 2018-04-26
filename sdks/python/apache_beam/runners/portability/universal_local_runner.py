@@ -18,7 +18,7 @@
 import functools
 import logging
 import os
-import Queue as queue
+import six.moves.queue as queue
 import socket
 import subprocess
 import sys

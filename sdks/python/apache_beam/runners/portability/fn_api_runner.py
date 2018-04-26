@@ -21,7 +21,7 @@ import collections
 import contextlib
 import copy
 import logging
-import Queue as queue
+import six.moves.queue as queue
 import threading
 import time
 from concurrent import futures

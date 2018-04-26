@@ -18,7 +18,7 @@
 
 import logging
 import math
-import Queue as queue
+import six.moves.queue as queue
 import threading
 
 import grpc
