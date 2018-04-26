@@ -66,6 +66,7 @@ mailing list, which is archived
 [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by
 emailing
 [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
+Anyone is welcome to join, and we'd love to hear what you're interested in.
 
 If interested, you can also join the other [mailing lists]({{ site.baseurl
 }}/get-started/support/).
@@ -74,10 +75,7 @@ If interested, you can also join the other [mailing lists]({{ site.baseurl
 
 We use the Apache Software Foundation's
 [JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and
-project management tool, as well as a way to communicate among a very diverse
-and distributed set of contributors. To be able to gather feedback, avoid
-frustration, and avoid duplicated efforts all Beam-related work should be
-tracked there.
+project management tool.
 
 If you do not already have an Apache JIRA account, sign up
 [here](https://issues.apache.org/jira/).
@@ -85,20 +83,19 @@ If you do not already have an Apache JIRA account, sign up
 If a quick
 [search](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20text%20~%20%22the%20thing%20I%20want%20to%20contribute%22)
 doesn’t turn up an existing JIRA issue for the work you want to contribute,
-create it. Please discuss your idea with a committer or the [component
-lead](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel)
-in JIRA or, alternatively, on the developer mailing list.
+feel free to create one.
 
 If there’s an existing JIRA issue for your intended contribution, please
-comment about your intended work. Once the work is understood, a committer will
+comment about your intended work. A committer can
 assign the issue to you. (If you don’t have a JIRA role yet, you’ll be added to
-the “contributor” role.) If an issue is currently assigned, please check with
-the current assignee before reassigning.
+the “contributor” role.) If an issue is currently assigned, it is generally
+good practice to at least reach out the current assignee before reassigning.
 
-For moderate or large contributions, you should not start coding or writing a
-design document unless there is a corresponding JIRA issue assigned to you for
-that work. Simple changes, like fixing typos, do not require an associated
-issue.
+For moderate or large contributions, we recommend engaging on the developer
+mailing list before investing significant effort to gather feedback,
+avoid frustration, and prevent duplicated work.
+Simple changes, like fixing typos, do not nead JIRA entries
+and are welcome via direct pull requests.
 
 ### Online discussions
 
@@ -121,10 +118,12 @@ To avoid potential frustration during the code review cycle, we encourage you
 to clearly scope and design non-trivial contributions with the Beam community
 before you start coding.
 
-Generally, the JIRA issue is the best place to gather relevant design docs,
-comments, or references. It’s great to explicitly include relevant stakeholders
-early in the conversation. For designs that may be generally interesting, we
-also encourage conversations on the developer’s mailing list.
+Generally, the developer mailing list is the best place to get help,
+solicit feedback, and communicate design docs.
+It’s great to explicitly include relevant stakeholders
+early in the conversation. JIRA is useful for keeping track of the current
+state of implementation and automatically gets updated for actions on pull
+requests that start with `[BEAM-JIRA_ID]`.
 
 We suggest using [Google Docs](https://docs.google.com/) for sharing designs
 that may benefit from diagrams or comments. Please remember to make the
@@ -301,7 +300,7 @@ $ python setup.py sdist > /dev/null && \
 ## Review
 
 Once the initial code is complete and the tests pass, it’s time to start the
-code review process. We review and discuss all code, no matter who authors it.
+code review process. All code is peer reviewed, no matter who authors it.
 It’s a great way to build community, since you can learn from other developers,
 and they become familiar with your contribution. It also builds a strong
 project by encouraging a high quality bar and keeping code consistent
