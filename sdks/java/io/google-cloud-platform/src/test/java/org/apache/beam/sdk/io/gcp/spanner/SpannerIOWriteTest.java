@@ -79,8 +79,8 @@ public class SpannerIOWriteTest implements Serializable {
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
     // Simplest schema: a table with int64 key
-    preparePkMetadata(tx, Arrays.asList(pkMetadata("test", "key", "ASC")));
-    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("test", "key", "INT64")));
+    preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
+    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64")));
   }
 
   private static Struct columnMetadata(String tableName, String columnName, String type) {
@@ -477,7 +477,7 @@ public class SpannerIOWriteTest implements Serializable {
       MutationGroupEncoder coder = new MutationGroupEncoder(schema);
       Map<String, List<byte[]>> map = new HashMap<>();
       for (Mutation m : mutations) {
-        String table = m.getTable();
+        String table = m.getTable().toLowerCase();
         List<byte[]> list = map.computeIfAbsent(table, k -> new ArrayList<>());
         list.add(coder.encodeKey(m));
       }

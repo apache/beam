@@ -55,7 +55,7 @@ class SpannerSchema implements Serializable {
     }
 
     public Builder addKeyPart(String table, String column, boolean desc) {
-      keyParts.put(table, KeyPart.create(column.toLowerCase(), desc));
+      keyParts.put(table.toLowerCase(), KeyPart.create(column.toLowerCase(), desc));
       return this;
     }
 
@@ -76,11 +76,11 @@ class SpannerSchema implements Serializable {
   }
 
   public List<Column> getColumns(String table) {
-    return columns.get(table);
+    return columns.get(table.toLowerCase());
   }
 
   public List<KeyPart> getKeyParts(String table) {
-    return keyParts.get(table);
+    return keyParts.get(table.toLowerCase());
   }
 
   @AutoValue
