@@ -74,14 +74,14 @@ type DataManager interface {
 // we handle the top GBK/CoGBK layer in the processing node directly.
 
 // ElementEncoder handles FullValue serialization to a byte stream. The encoder
-// can be reused, even if an error is encountered.
+// can be reused, even if an error is encountered. Concurrency-safe.
 type ElementEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode(FullValue, io.Writer) error
 }
 
 // ElementDecoder handles FullValue deserialization from a byte stream. The decoder
-// can be reused, even if an error is encountered.
+// can be reused, even if an error is encountered.  Concurrency-safe.
 type ElementDecoder interface {
 	// Decode deserializes a value from the given reader.
 	Decode(io.Reader) (FullValue, error)
@@ -278,14 +278,14 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 }
 
 // WindowEncoder handles Window serialization to a byte stream. The encoder
-// can be reused, even if an error is encountered.
+// can be reused, even if an error is encountered. Concurrency-safe.
 type WindowEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode([]typex.Window, io.Writer) error
 }
 
 // WindowDecoder handles Window deserialization from a byte stream. The decoder
-// can be reused, even if an error is encountered.
+// can be reused, even if an error is encountered. Concurrency-safe.
 type WindowDecoder interface {
 	// Decode deserializes a value from the given reader.
 	Decode(io.Reader) ([]typex.Window, error)

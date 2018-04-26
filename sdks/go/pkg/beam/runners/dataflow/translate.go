@@ -473,36 +473,12 @@ func translateWindowingStrategy(w *window.WindowingStrategy) proto.Message {
 }
 
 func encodeSerializedFn(in proto.Message) (string, error) {
-	// The Beam Runner API uses special escaping for serialized fn messages.
+	// The Beam Runner API uses percent-encoding for serialized fn messages.
+	// See: https://en.wikipedia.org/wiki/Percent-encoding
 
 	data, err := proto.Marshal(in)
 	if err != nil {
 		return "", err
 	}
-	return encodeString(data), nil
-}
-
-// encodeString is a custom encoding used in some cases by Dataflow.
-//
-// Uses a simple strategy of converting each byte to a single char,
-// except for non-printable chars, non-ASCII chars, and '%', '\',
-// and '"', which are encoded as three chars in '%xx' format, where
-//'xx' is the hexadecimal encoding of the byte.
-//
-// Matches the Java function StringUtils.byteArrayToJsonString.
-func encodeString(bytes []byte) string {
-	var ret []byte
-	for _, b := range bytes {
-		if b >= 32 && b < 127 {
-			if b != '%' && b != '\\' && b != '"' {
-				// Not an escape prefix or special character, either.
-				// Send through unchanged.
-				ret = append(ret, b)
-				continue
-			}
-		}
-		// Send through escaped.  Use '%xx' format.
-		ret = append(ret, []byte(fmt.Sprintf("%%%02x", b))...)
-	}
-	return string(ret)
+	return url.PathEscape(string(data)), nil
 }
