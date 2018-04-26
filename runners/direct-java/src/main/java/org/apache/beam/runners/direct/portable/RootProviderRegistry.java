@@ -34,10 +34,12 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 class RootProviderRegistry {
   /** Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive. */
-  public static RootProviderRegistry impulseRegistry(EvaluationContext context) {
+  public static RootProviderRegistry impulseRegistry(BundleFactory bundleFactory) {
     return new RootProviderRegistry(
         ImmutableMap.<String, RootInputProvider<?>>builder()
-            .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory.ImpulseRootProvider(context))
+            .put(
+                IMPULSE_TRANSFORM_URN,
+                new ImpulseEvaluatorFactory.ImpulseRootProvider(bundleFactory))
             .build());
   }
 
