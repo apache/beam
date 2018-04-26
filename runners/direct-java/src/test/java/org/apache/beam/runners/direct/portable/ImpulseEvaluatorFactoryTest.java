@@ -23,17 +23,18 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.direct.portable.ImpulseEvaluatorFactory.ImpulseRootProvider;
 import org.apache.beam.runners.direct.portable.ImpulseEvaluatorFactory.ImpulseShard;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -41,16 +42,13 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ImpulseEvaluatorFactory}. */
 @RunWith(JUnit4.class)
-@Ignore("Not yet migrated")
 public class ImpulseEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
@@ -62,9 +60,20 @@ public class ImpulseEvaluatorFactoryTest {
                   FunctionSpec.newBuilder()
                       .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
                       .build())
+              .putOutputs("output", "impulse.out")
               .build());
-
-  @Mock private EvaluationContext context;
+  private PCollectionNode impulseOut =
+      PipelineNode.pCollection(
+          "impulse.out", RunnerApi.PCollection.newBuilder().setUniqueName("impulse.out").build());
+  private ExecutableGraph<PTransformNode, PCollectionNode> graph =
+      PortableGraph.forPipeline(
+          RunnerApi.Pipeline.newBuilder()
+              .addRootTransformIds("impulse")
+              .setComponents(
+                  Components.newBuilder()
+                      .putTransforms("impulse", impulseApplication.getTransform())
+                      .putPcollections("impulse.out", impulseOut.getPCollection()))
+              .build());
 
   @Before
   public void setup() {
@@ -73,17 +82,13 @@ public class ImpulseEvaluatorFactoryTest {
 
   @Test
   public void testImpulse() throws Exception {
-    PCollectionNode impulseOut =
-        PipelineNode.pCollection(
-            "impulse.out", RunnerApi.PCollection.newBuilder().setUniqueName("impulse.out").build());
 
-    ImpulseEvaluatorFactory factory = new ImpulseEvaluatorFactory(context);
+    ImpulseEvaluatorFactory factory = new ImpulseEvaluatorFactory(bundleFactory, graph);
 
     WindowedValue<ImpulseShard> inputShard = WindowedValue.valueInGlobalWindow(new ImpulseShard());
     CommittedBundle<ImpulseShard> inputShardBundle =
         bundleFactory.<ImpulseShard>createRootBundle().add(inputShard).commit(Instant.now());
 
-    when(context.createBundle(impulseOut)).thenReturn(bundleFactory.createBundle(impulseOut));
     TransformEvaluator<ImpulseShard> evaluator =
         factory.forApplication(impulseApplication, inputShardBundle);
     evaluator.processElement(inputShard);
@@ -112,8 +117,7 @@ public class ImpulseEvaluatorFactoryTest {
 
   @Test
   public void testRootProvider() {
-    ImpulseRootProvider rootProvider = new ImpulseRootProvider(context);
-    when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
+    ImpulseRootProvider rootProvider = new ImpulseRootProvider(bundleFactory);
 
     Collection<? extends CommittedBundle<?>> inputs =
         rootProvider.getInitialInputs(impulseApplication, 100);
