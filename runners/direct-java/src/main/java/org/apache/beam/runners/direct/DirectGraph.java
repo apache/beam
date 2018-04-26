@@ -48,8 +48,7 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
       ListMultimap<PInput, AppliedPTransform<?, ?, ?>> perElementConsumers,
       Set<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames) {
-    return new DirectGraph(
-        producers, viewWriters, perElementConsumers, rootTransforms, stepNames);
+    return new DirectGraph(producers, viewWriters, perElementConsumers, rootTransforms, stepNames);
   }
 
   private DirectGraph(
