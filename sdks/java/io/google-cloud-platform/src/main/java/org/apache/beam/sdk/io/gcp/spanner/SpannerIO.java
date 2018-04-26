@@ -885,11 +885,11 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) {
       SerializedMutation m = c.element();
-      c.output(KV.of(m.getTableName(), m.getEncodedKey()));
+      String lower = m.getTableName().toLowerCase();
+      KV<String, byte[]> kv = KV.of(lower, m.getEncodedKey());
+      c.output(kv);
     }
   }
-
-
 
   private static boolean isPointDelete(Mutation m) {
     return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
@@ -911,7 +911,7 @@ public class SpannerIO {
     @ProcessElement public void processElement(ProcessContext c) {
       Map<String, List<byte[]>> sample = c.sideInput(sampleView);
       SerializedMutation g = c.element();
-      String table = g.getTableName();
+      String table = g.getTableName().toLowerCase();
       byte[] key = g.getEncodedKey();
       String groupKey;
       if (key.length == 0) {
