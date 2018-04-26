@@ -21,12 +21,7 @@ import (
 )
 
 // Option is an optional value or context to a transformation, used at pipeline
-// construction time. The primary use case is providing side inputs. For
-// example:
-//
-//     words := textio.Read(s, "...")
-//     sample := textio.Read(s, "...")
-//     smallWords := beam.ParDo(s, analyzeFn, words, beam.SideInput{Input: sample})
+// construction time. The primary use case is providing side inputs.
 type Option interface {
 	private()
 }

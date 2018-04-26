@@ -26,13 +26,6 @@ import (
 // all the input PCollections. The name "Flatten" suggests taking a list of lists
 // and flattening them into a single list.
 //
-// Example of use:
-//
-//    a := textio.Read(s, "...")
-//    b := textio.Read(s, "...")
-//    c := textio.Read(s, "...")
-//    merged := beam.Flatten(s, a, b, c)
-//
 // By default, the Coder of the output PCollection is the same as the Coder
 // of the first PCollection.
 func Flatten(s Scope, cols ...PCollection) PCollection {

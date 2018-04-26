@@ -83,12 +83,6 @@ func swapKVFn(x X, y Y) (Y, X) {
 
 // Explode is a PTransform that takes a single PCollection<[]A> and returns a
 // PCollection<A> containing all the elements for each incoming slice.
-//
-// Example of use:
-//
-//    d := top.Top(s, merged, 5, ...)    // PCollection<[]A>
-//    top5 := beam.Explode(s, d)
-//
 func Explode(s Scope, col PCollection) PCollection {
 	s = s.Scope("beam.Explode")
 	return ParDo(s, explodeFn, col)
