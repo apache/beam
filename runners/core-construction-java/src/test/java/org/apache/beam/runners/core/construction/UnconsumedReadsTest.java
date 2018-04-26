@@ -49,7 +49,7 @@ public class UnconsumedReadsTest {
   @Test
   public void matcherProducesUnconsumedValueBoundedRead() {
     Bounded<Long> transform = Read.from(CountingSource.upTo(20L));
-    PCollection<Long> output = pipeline.apply(transform);
+    pipeline.apply(transform);
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     validateConsumed();
   }
@@ -57,7 +57,7 @@ public class UnconsumedReadsTest {
   @Test
   public void matcherProducesUnconsumedValueUnboundedRead() {
     Unbounded<Long> transform = Read.from(CountingSource.unbounded());
-    PCollection<Long> output = pipeline.apply(transform);
+    pipeline.apply(transform);
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     validateConsumed();
   }

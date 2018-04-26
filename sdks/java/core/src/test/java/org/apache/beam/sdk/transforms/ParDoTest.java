@@ -3003,7 +3003,7 @@ public class ParDoTest implements Serializable {
           public void onTimer() {}
         };
 
-    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
     thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
@@ -3033,7 +3033,7 @@ public class ParDoTest implements Serializable {
           public void onTimer() {}
         };
 
-    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
     thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.

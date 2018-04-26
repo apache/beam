@@ -86,24 +86,23 @@ public class PCollectionTranslationTest {
         pipeline
             .apply("counts with alternative coder", GenerateSequence.from(0).to(10))
             .setCoder(BigEndianLongCoder.of());
-    PCollection<Integer> allCustomInts =
-        pipeline
-            .apply(
-                "intsWithCustomCoder",
-                Create.of(1, 2)
-                    .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
-            .apply(
-                "into custom windows",
-                Window.into(new CustomWindows())
-                    .triggering(
-                        AfterWatermark.pastEndOfWindow()
-                            .withEarlyFirings(
-                                AfterFirst.of(
-                                    AfterPane.elementCountAtLeast(5),
-                                    AfterProcessingTime.pastFirstElementInPane()
-                                        .plusDelayOf(Duration.millis(227L)))))
-                    .accumulatingFiredPanes()
-                    .withAllowedLateness(Duration.standardMinutes(12L)));
+    pipeline
+        .apply(
+            "intsWithCustomCoder",
+            Create.of(1, 2)
+                .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
+        .apply(
+            "into custom windows",
+            Window.into(new CustomWindows())
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withEarlyFirings(
+                            AfterFirst.of(
+                                AfterPane.elementCountAtLeast(5),
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(Duration.millis(227L)))))
+                .accumulatingFiredPanes()
+                .withAllowedLateness(Duration.standardMinutes(12L)));
     return ImmutableList.of(ints, longs, windowedLongs, coderLongs, groupedStrings);
   }
 
