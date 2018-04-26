@@ -277,6 +277,185 @@ class Stager(object):
     logging.info('Executing command: %s', cmd_args)
     processes.check_call(cmd_args)
 
+  def _build_setup_package(self, setup_file, temp_dir, build_setup_args=None):
+    saved_current_directory = os.getcwd()
+    try:
+      os.chdir(os.path.dirname(setup_file))
+      if build_setup_args is None:
+        build_setup_args = [
+            self._get_python_executable(),
+            os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
+        ]
+      logging.info('Executing command: %s', build_setup_args)
+      processes.check_call(build_setup_args)
+      output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
+      if not output_files:
+        raise RuntimeError(
+            'File %s not found.' % os.path.join(temp_dir, '*.tar.gz'))
+      return output_files[0]
+    finally:
+      os.chdir(saved_current_directory)
+
+  def _desired_sdk_filename_in_staging_location(self, sdk_location):
+    """Returns the name that SDK file should have file in the staging location.
+    
+      Args:
+        sdk_location: Full path to SDK file.
+      """
+    if sdk_location.endswith('.whl'):
+      _, wheel_filename = FileSystems.split(sdk_location)
+      if wheel_filename.startswith('apache_beam'):
+        return wheel_filename
+      else:
+        raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
+    else:
+      return names.DATAFLOW_SDK_TARBALL_FILE
+
+  def _stage_beam_sdk(self, sdk_remote_location, staging_location, temp_dir):
+    """Stages a Beam SDK file with the appropriate version.
+
+      Args:
+        sdk_remote_location: A GCS path to a SDK file or a URL from which the
+          file can be downloaded. The SDK file can be a tarball or a wheel. Set
+          to 'pypi' to download and stage a wheel and source SDK from PyPi.
+        staging_location: A GCS bucket where the SDK file should be copied.
+        temp_dir: path to temporary location where the file should be
+          downloaded.
+
+      Returns:
+        A list of SDK files that were staged to the staging location.
+
+      Raises:
+        RuntimeError: if staging was not successful.
+      """
+    if (sdk_remote_location.startswith('http://') or
+        sdk_remote_location.startswith('https://')):
+      local_download_file = FileHandler()._dependency_file_download(
+          sdk_remote_location, temp_dir)
+      staged_name = self._desired_sdk_filename_in_staging_location(
+          local_download_file)
+      staged_path = FileSystems.join(staging_location, staged_name)
+      logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
+                   staged_path)
+      FileHandler()._dependency_file_copy(local_download_file, staged_path)
+      return [staged_name]
+    elif sdk_remote_location.startswith('gs://'):
+      # Stage the file to the GCS staging area.
+      staged_name = self._desired_sdk_filename_in_staging_location(
+          sdk_remote_location)
+      staged_path = FileSystems.join(staging_location, staged_name)
+      logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
+                   staged_path)
+      FileHandler()._dependency_file_copy(sdk_remote_location, staged_path)
+      return [staged_name]
+    elif sdk_remote_location == 'pypi':
+      sdk_local_file = self._download_pypi_sdk_package(temp_dir)
+      sdk_sources_staged_name = self._desired_sdk_filename_in_staging_location(
+          sdk_local_file)
+      staged_path = FileSystems.join(staging_location, sdk_sources_staged_name)
+      logging.info('Staging SDK sources from PyPI to %s', staged_path)
+      FileHandler()._dependency_file_copy(sdk_local_file, staged_path)
+      staged_sdk_files = [sdk_sources_staged_name]
+      try:
+        # Stage binary distribution of the SDK, for now on a best-effort basis.
+        sdk_local_file = self._download_pypi_sdk_package(
+            temp_dir, fetch_binary=True)
+        sdk_binary_staged_name = self._desired_sdk_filename_in_staging_location(
+            sdk_local_file)
+        staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
+        logging.info('Staging binary distribution of the SDK from PyPI to %s',
+                     staged_path)
+        FileHandler()._dependency_file_copy(sdk_local_file, staged_path)
+        staged_sdk_files.append(sdk_binary_staged_name)
+      except RuntimeError as e:
+        logging.warn(
+            'Failed to download requested binary distribution '
+            'of the SDK: %s', repr(e))
+
+      return staged_sdk_files
+    else:
+      raise RuntimeError(
+          'The --sdk_location option was used with an unsupported '
+          'type of location: %s' % sdk_remote_location)
+
+  def _get_required_container_version(self, job_type=None):
+    """For internal use only; no backwards-compatibility guarantees.
+    
+      Args:
+        job_type (str, optional): BEAM job type. Defaults to None.
+    
+      Returns:
+        str: The tag of worker container images in GCR that corresponds to
+          current version of the SDK.
+      """
+    if 'dev' in beam_version.__version__:
+      if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+        return BEAM_FNAPI_CONTAINER_VERSION
+      else:
+        return BEAM_CONTAINER_VERSION
+    else:
+      return beam_version.__version__
+
+  def _download_pypi_sdk_package(self,
+                                 temp_dir,
+                                 fetch_binary=False,
+                                 language_version_tag='27',
+                                 language_implementation_tag='cp',
+                                 abi_tag='cp27mu',
+                                 platform_tag='manylinux1_x86_64'):
+    """Downloads SDK package from PyPI and returns path to local path."""
+    package_name = self.get_sdk_package_name()
+    try:
+      version = pkg_resources.get_distribution(package_name).version
+    except pkg_resources.DistributionNotFound:
+      raise RuntimeError('Please set --sdk_location command-line option '
+                         'or install a valid {} distribution.'
+                         .format(package_name))
+    cmd_args = [
+        self._get_python_executable(), '-m', 'pip', 'download', '--dest',
+        temp_dir,
+        '%s==%s' % (package_name, version), '--no-deps'
+    ]
+
+    if fetch_binary:
+      logging.info('Downloading binary distribtution of the SDK from PyPi')
+      # Get a wheel distribution for the SDK from PyPI.
+      cmd_args.extend([
+          '--only-binary', ':all:', '--python-version', language_version_tag,
+          '--implementation', language_implementation_tag, '--abi', abi_tag,
+          '--platform', platform_tag
+      ])
+      # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
+      expected_files = [
+          os.path.join(
+              temp_dir, '%s-%s-%s%s-%s-%s.whl' % (package_name.replace(
+                  '-', '_'), version, language_implementation_tag,
+                                                  language_version_tag, abi_tag,
+                                                  platform_tag))
+      ]
+    else:
+      logging.info('Downloading source distribtution of the SDK from PyPi')
+      cmd_args.extend(['--no-binary', ':all:'])
+      expected_files = [
+          os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),
+          os.path.join(temp_dir, '%s-%s.tar.gz' % (package_name, version))
+      ]
+
+    logging.info('Executing command: %s', cmd_args)
+    try:
+      processes.check_call(cmd_args)
+    except subprocess.CalledProcessError as e:
+      raise RuntimeError(repr(e))
+
+    for sdk_file in expected_files:
+      if os.path.exists(sdk_file):
+        return sdk_file
+
+    raise RuntimeError(
+        'Failed to download a distribution for the running SDK. '
+        'Expected either one of %s to be found in the download folder.' %
+        (expected_files))
+
   def stage_job_resources(
       self,
       options,
@@ -461,106 +640,25 @@ class Stager(object):
     shutil.rmtree(temp_dir)
     return resources
 
-  def _build_setup_package(self, setup_file, temp_dir, build_setup_args=None):
-    saved_current_directory = os.getcwd()
-    try:
-      os.chdir(os.path.dirname(setup_file))
-      if build_setup_args is None:
-        build_setup_args = [
-            self._get_python_executable(),
-            os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
-        ]
-      logging.info('Executing command: %s', build_setup_args)
-      processes.check_call(build_setup_args)
-      output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
-      if not output_files:
-        raise RuntimeError(
-            'File %s not found.' % os.path.join(temp_dir, '*.tar.gz'))
-      return output_files[0]
-    finally:
-      os.chdir(saved_current_directory)
-
-  def _desired_sdk_filename_in_staging_location(self, sdk_location):
-    """Returns the name that SDK file should have file in the staging location.
+  def get_sdk_name_and_version(self):
+    """For internal use only; no backwards-compatibility guarantees.
     
-      Args:
-        sdk_location: Full path to SDK file.
-      """
-    if sdk_location.endswith('.whl'):
-      _, wheel_filename = FileSystems.split(sdk_location)
-      if wheel_filename.startswith('apache_beam'):
-        return wheel_filename
-      else:
-        raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
+      Returns name and version of SDK reported to Google Cloud Dataflow."""
+    try:
+      pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME)
+      return (GOOGLE_SDK_NAME, beam_version.__version__)
+    except pkg_resources.DistributionNotFound:
+      return (BEAM_SDK_NAME, beam_version.__version__)
+
+  def get_sdk_package_name(self):
+    """For internal use only; no backwards-compatibility guarantees.
+    
+      Returns the PyPI package name to be staged to Google Cloud Dataflow."""
+    sdk_name, _ = self.get_sdk_name_and_version()
+    if sdk_name == GOOGLE_SDK_NAME:
+      return GOOGLE_PACKAGE_NAME
     else:
-      return names.DATAFLOW_SDK_TARBALL_FILE
-
-  def _stage_beam_sdk(self, sdk_remote_location, staging_location, temp_dir):
-    """Stages a Beam SDK file with the appropriate version.
-
-      Args:
-        sdk_remote_location: A GCS path to a SDK file or a URL from which the
-          file can be downloaded. The SDK file can be a tarball or a wheel. Set
-          to 'pypi' to download and stage a wheel and source SDK from PyPi.
-        staging_location: A GCS bucket where the SDK file should be copied.
-        temp_dir: path to temporary location where the file should be
-          downloaded.
-
-      Returns:
-        A list of SDK files that were staged to the staging location.
-
-      Raises:
-        RuntimeError: if staging was not successful.
-      """
-    if (sdk_remote_location.startswith('http://') or
-        sdk_remote_location.startswith('https://')):
-      local_download_file = FileHandler()._dependency_file_download(
-          sdk_remote_location, temp_dir)
-      staged_name = self._desired_sdk_filename_in_staging_location(
-          local_download_file)
-      staged_path = FileSystems.join(staging_location, staged_name)
-      logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
-                   staged_path)
-      FileHandler()._dependency_file_copy(local_download_file, staged_path)
-      return [staged_name]
-    elif sdk_remote_location.startswith('gs://'):
-      # Stage the file to the GCS staging area.
-      staged_name = self._desired_sdk_filename_in_staging_location(
-          sdk_remote_location)
-      staged_path = FileSystems.join(staging_location, staged_name)
-      logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
-                   staged_path)
-      FileHandler()._dependency_file_copy(sdk_remote_location, staged_path)
-      return [staged_name]
-    elif sdk_remote_location == 'pypi':
-      sdk_local_file = self._download_pypi_sdk_package(temp_dir)
-      sdk_sources_staged_name = self._desired_sdk_filename_in_staging_location(
-          sdk_local_file)
-      staged_path = FileSystems.join(staging_location, sdk_sources_staged_name)
-      logging.info('Staging SDK sources from PyPI to %s', staged_path)
-      FileHandler()._dependency_file_copy(sdk_local_file, staged_path)
-      staged_sdk_files = [sdk_sources_staged_name]
-      try:
-        # Stage binary distribution of the SDK, for now on a best-effort basis.
-        sdk_local_file = self._download_pypi_sdk_package(
-            temp_dir, fetch_binary=True)
-        sdk_binary_staged_name = self._desired_sdk_filename_in_staging_location(
-            sdk_local_file)
-        staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
-        logging.info('Staging binary distribution of the SDK from PyPI to %s',
-                     staged_path)
-        FileHandler()._dependency_file_copy(sdk_local_file, staged_path)
-        staged_sdk_files.append(sdk_binary_staged_name)
-      except RuntimeError as e:
-        logging.warn(
-            'Failed to download requested binary distribution '
-            'of the SDK: %s', repr(e))
-
-      return staged_sdk_files
-    else:
-      raise RuntimeError(
-          'The --sdk_location option was used with an unsupported '
-          'type of location: %s' % sdk_remote_location)
+      return BEAM_PACKAGE_NAME
 
   def get_runner_harness_container_image(self):
     """For internal use only; no backwards-compatibility guarantees.
@@ -594,101 +692,3 @@ class Stager(object):
       image_name = DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
     image_tag = self._get_required_container_version(job_type)
     return image_name + ':' + image_tag
-
-  def _get_required_container_version(self, job_type=None):
-    """For internal use only; no backwards-compatibility guarantees.
-    
-      Args:
-        job_type (str, optional): BEAM job type. Defaults to None.
-    
-      Returns:
-        str: The tag of worker container images in GCR that corresponds to
-          current version of the SDK.
-      """
-    if 'dev' in beam_version.__version__:
-      if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
-        return BEAM_FNAPI_CONTAINER_VERSION
-      else:
-        return BEAM_CONTAINER_VERSION
-    else:
-      return beam_version.__version__
-
-  def get_sdk_name_and_version(self):
-    """For internal use only; no backwards-compatibility guarantees.
-    
-      Returns name and version of SDK reported to Google Cloud Dataflow."""
-    try:
-      pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME)
-      return (GOOGLE_SDK_NAME, beam_version.__version__)
-    except pkg_resources.DistributionNotFound:
-      return (BEAM_SDK_NAME, beam_version.__version__)
-
-  def get_sdk_package_name(self):
-    """For internal use only; no backwards-compatibility guarantees.
-    
-      Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-    sdk_name, _ = self.get_sdk_name_and_version()
-    if sdk_name == GOOGLE_SDK_NAME:
-      return GOOGLE_PACKAGE_NAME
-    else:
-      return BEAM_PACKAGE_NAME
-
-  def _download_pypi_sdk_package(self,
-                                 temp_dir,
-                                 fetch_binary=False,
-                                 language_version_tag='27',
-                                 language_implementation_tag='cp',
-                                 abi_tag='cp27mu',
-                                 platform_tag='manylinux1_x86_64'):
-    """Downloads SDK package from PyPI and returns path to local path."""
-    package_name = self.get_sdk_package_name()
-    try:
-      version = pkg_resources.get_distribution(package_name).version
-    except pkg_resources.DistributionNotFound:
-      raise RuntimeError('Please set --sdk_location command-line option '
-                         'or install a valid {} distribution.'
-                         .format(package_name))
-    cmd_args = [
-        self._get_python_executable(), '-m', 'pip', 'download', '--dest',
-        temp_dir,
-        '%s==%s' % (package_name, version), '--no-deps'
-    ]
-
-    if fetch_binary:
-      logging.info('Downloading binary distribtution of the SDK from PyPi')
-      # Get a wheel distribution for the SDK from PyPI.
-      cmd_args.extend([
-          '--only-binary', ':all:', '--python-version', language_version_tag,
-          '--implementation', language_implementation_tag, '--abi', abi_tag,
-          '--platform', platform_tag
-      ])
-      # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
-      expected_files = [
-          os.path.join(
-              temp_dir, '%s-%s-%s%s-%s-%s.whl' % (package_name.replace(
-                  '-', '_'), version, language_implementation_tag,
-                                                  language_version_tag, abi_tag,
-                                                  platform_tag))
-      ]
-    else:
-      logging.info('Downloading source distribtution of the SDK from PyPi')
-      cmd_args.extend(['--no-binary', ':all:'])
-      expected_files = [
-          os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),
-          os.path.join(temp_dir, '%s-%s.tar.gz' % (package_name, version))
-      ]
-
-    logging.info('Executing command: %s', cmd_args)
-    try:
-      processes.check_call(cmd_args)
-    except subprocess.CalledProcessError as e:
-      raise RuntimeError(repr(e))
-
-    for sdk_file in expected_files:
-      if os.path.exists(sdk_file):
-        return sdk_file
-
-    raise RuntimeError(
-        'Failed to download a distribution for the running SDK. '
-        'Expected either one of %s to be found in the download folder.' %
-        (expected_files))
