@@ -333,7 +333,10 @@ public class SpannerIO {
       return toBuilder().setTimestampBound(timestampBound).build();
     }
 
-    /** If true the uses Cloud Spanner batch API. */
+    /**
+     * By default Batch API is used to read data from Cloud Spanner.
+     * It is useful to disable batching when the underlying query is not root-partitionable.
+     */
     public ReadAll withBatching(boolean batching) {
       return toBuilder().setBatching(batching).build();
     }

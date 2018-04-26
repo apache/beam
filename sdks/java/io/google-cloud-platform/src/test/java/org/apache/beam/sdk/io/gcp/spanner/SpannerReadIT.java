@@ -111,24 +111,11 @@ public class SpannerReadIT {
                     + "  Value         STRING(MAX),"
                     + ") PRIMARY KEY (Key)"));
     op.waitFor();
+    makeTestData();
   }
 
   @Test
   public void testRead() throws Exception {
-    DatabaseClient databaseClient = getDatabaseClient();
-
-    List<Mutation> mutations = new ArrayList<>();
-    for (int i = 0; i < 5L; i++) {
-      mutations.add(
-          Mutation.newInsertOrUpdateBuilder(options.getTable())
-              .set("key")
-              .to((long) i)
-              .set("value")
-              .to(RandomUtils.randomAlphaNumeric(100))
-              .build());
-    }
-
-    databaseClient.writeAtLeastOnce(mutations);
 
     SpannerConfig spannerConfig = createSpannerConfig();
 
@@ -151,21 +138,6 @@ public class SpannerReadIT {
 
   @Test
   public void testQuery() throws Exception {
-    DatabaseClient databaseClient = getDatabaseClient();
-
-    List<Mutation> mutations = new ArrayList<>();
-    for (int i = 0; i < 5L; i++) {
-      mutations.add(
-          Mutation.newInsertOrUpdateBuilder(options.getTable())
-              .set("key")
-              .to((long) i)
-              .set("value")
-              .to(RandomUtils.randomAlphaNumeric(100))
-              .build());
-    }
-
-    databaseClient.writeAtLeastOnce(mutations);
-
     SpannerConfig spannerConfig = createSpannerConfig();
 
     PCollectionView<Transaction> tx =
@@ -184,30 +156,8 @@ public class SpannerReadIT {
     p.run();
   }
 
-  private SpannerConfig createSpannerConfig() {
-    return SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(databaseName);
-  }
-
   @Test
   public void testReadAllRecordsInDb() throws Exception {
-    DatabaseClient databaseClient = getDatabaseClient();
-
-    List<Mutation> mutations = new ArrayList<>();
-    for (int i = 0; i < 5L; i++) {
-      mutations.add(
-          Mutation.newInsertOrUpdateBuilder(options.getTable())
-              .set("key")
-              .to((long) i)
-              .set("value")
-              .to(RandomUtils.randomAlphaNumeric(100))
-              .build());
-    }
-
-    databaseClient.writeAtLeastOnce(mutations);
-
     SpannerConfig spannerConfig = createSpannerConfig();
 
     PCollectionView<Transaction> tx =
@@ -230,6 +180,31 @@ public class SpannerReadIT {
     PAssert.thatSingleton(allRecords.apply("Count rows", Count.globally())).isEqualTo(5L);
     p.run();
   }
+
+  private void makeTestData() {
+    DatabaseClient databaseClient = getDatabaseClient();
+
+    List<Mutation> mutations = new ArrayList<>();
+    for (int i = 0; i < 5L; i++) {
+      mutations.add(
+          Mutation.newInsertOrUpdateBuilder(options.getTable())
+              .set("key")
+              .to((long) i)
+              .set("value")
+              .to(RandomUtils.randomAlphaNumeric(100))
+              .build());
+    }
+
+    databaseClient.writeAtLeastOnce(mutations);
+  }
+
+  private SpannerConfig createSpannerConfig() {
+    return SpannerConfig.create()
+        .withProjectId(project)
+        .withInstanceId(options.getInstanceId())
+        .withDatabaseId(databaseName);
+  }
+
 
   private DatabaseClient getDatabaseClient() {
     return spanner.getDatabaseClient(
