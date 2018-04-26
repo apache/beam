@@ -19,33 +19,36 @@ package org.apache.beam.runners.direct.portable;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.local.StructuralKey;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.joda.time.Instant;
-import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -55,31 +58,53 @@ import org.junit.runners.JUnit4;
 public class GroupByKeyOnlyEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
-
   @Test
-  @Ignore("TODO: BEAM-4240 Not yet migrated")
   public void testInMemoryEvaluator() throws Exception {
-    KV<String, Integer> firstFoo = KV.of("foo", -1);
-    KV<String, Integer> secondFoo = KV.of("foo", 1);
-    KV<String, Integer> thirdFoo = KV.of("foo", 3);
-    KV<String, Integer> firstBar = KV.of("bar", 22);
-    KV<String, Integer> secondBar = KV.of("bar", 12);
-    KV<String, Integer> firstBaz = KV.of("baz", Integer.MAX_VALUE);
+    KvCoder<String, Integer> javaCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
+    SdkComponents components = SdkComponents.create();
+    String windowingStrategyId =
+        components.registerWindowingStrategy(WindowingStrategy.globalDefault());
+    String coderId = components.registerCoder(javaCoder);
+    MessageWithComponents javaWireCoderAndComponents =
+        LengthPrefixUnknownCoders.forCoder(coderId, components.toComponents(), false);
+    Coder<KV<String, Integer>> javaWireCoder =
+        (Coder<KV<String, Integer>>)
+            CoderTranslation.fromProto(
+                javaWireCoderAndComponents.getCoder(),
+                RehydratedComponents.forComponents(javaWireCoderAndComponents.getComponents()));
 
-    KvCoder<String, Integer> kvCoder =
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of());
+    MessageWithComponents runnerWireCoderAndComponents =
+        LengthPrefixUnknownCoders.forCoder(coderId, components.toComponents(), true);
+    Coder<KV<?, ?>> runnerWireCoder =
+        (Coder<KV<?, ?>>)
+            CoderTranslation.fromProto(
+                runnerWireCoderAndComponents.getCoder(),
+                RehydratedComponents.forComponents(runnerWireCoderAndComponents.getComponents()));
 
+    KV<?, ?> firstFoo = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("foo", -1));
+    KV<?, ?> secondFoo = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("foo", 1));
+    KV<?, ?> thirdFoo = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("foo", 3));
+    KV<?, ?> firstBar = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("bar", 22));
+    KV<?, ?> secondBar = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("bar", 12));
+    KV<?, ?> firstBaz = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("baz", Integer.MAX_VALUE));
+
+    PTransformNode inputTransform =
+        PipelineNode.pTransform(
+            "source", PTransform.newBuilder().putOutputs("out", "values").build());
     PCollectionNode values =
         PipelineNode.pCollection(
             "values",
             RunnerApi.PCollection.newBuilder()
                 .setUniqueName("values")
-                .setCoderId("kvCoder")
+                .setCoderId(coderId)
+                .setWindowingStrategyId(windowingStrategyId)
                 .build());
     PCollectionNode groupedKvs =
         PipelineNode.pCollection(
-            "groupedKvs", RunnerApi.PCollection.newBuilder().setUniqueName("groupedKvs").build());
+            "groupedKvs",
+            RunnerApi.PCollection.newBuilder()
+                .setUniqueName("groupedKvs")
+                .build());
     PTransformNode groupByKeyOnly =
         PipelineNode.pTransform(
             "gbko",
@@ -88,36 +113,27 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
                 .putOutputs("output", "groupedKvs")
                 .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GBKO_URN).build())
                 .build());
+    Pipeline pipeline =
+        Pipeline.newBuilder()
+            .addRootTransformIds(inputTransform.getId())
+            .addRootTransformIds(groupByKeyOnly.getId())
+            .setComponents(
+                components
+                    .toComponents()
+                    .toBuilder()
+                    .putTransforms(inputTransform.getId(), inputTransform.getTransform())
+                    .putTransforms(groupByKeyOnly.getId(), groupByKeyOnly.getTransform())
+                    .putPcollections(values.getId(), values.getPCollection())
+                    .putPcollections(groupedKvs.getId(), groupedKvs.getPCollection()))
+            .build();
+
+    PortableGraph graph = PortableGraph.forPipeline(pipeline);
 
     CommittedBundle<KV<String, Integer>> inputBundle =
         bundleFactory.<KV<String, Integer>>createBundle(values).commit(Instant.now());
-    EvaluationContext evaluationContext = mock(EvaluationContext.class);
 
-    StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
-    UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
-        bundleFactory.createKeyedBundle(fooKey, groupedKvs);
-    StructuralKey<String> barKey = StructuralKey.of("bar", StringUtf8Coder.of());
-    UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
-        bundleFactory.createKeyedBundle(barKey, groupedKvs);
-    StructuralKey<String> bazKey = StructuralKey.of("baz", StringUtf8Coder.of());
-    UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
-        bundleFactory.createKeyedBundle(bazKey, groupedKvs);
-
-    when(evaluationContext.<String, KeyedWorkItem<String, Integer>>createKeyedBundle(
-            fooKey, groupedKvs))
-        .thenReturn(fooBundle);
-    when(evaluationContext.<String, KeyedWorkItem<String, Integer>>createKeyedBundle(
-            barKey, groupedKvs))
-        .thenReturn(barBundle);
-    when(evaluationContext.<String, KeyedWorkItem<String, Integer>>createKeyedBundle(
-            bazKey, groupedKvs))
-        .thenReturn(bazBundle);
-
-    // The input to a GroupByKey is assumed to be a KvCoder
-    @SuppressWarnings("unchecked")
-    Coder<String> keyCoder = kvCoder.getKeyCoder();
-    TransformEvaluator<KV<String, Integer>> evaluator =
-        new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
+    TransformEvaluator<KV<?, ?>> evaluator =
+        new GroupByKeyOnlyEvaluatorFactory(pipeline.getComponents(), bundleFactory, graph)
             .forApplication(groupByKeyOnly, inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow(firstFoo));
@@ -127,36 +143,68 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
     evaluator.processElement(WindowedValue.valueInGlobalWindow(secondBar));
     evaluator.processElement(WindowedValue.valueInGlobalWindow(firstBaz));
 
-    evaluator.finishBundle();
+    TransformResult<KV<?, ?>> result = evaluator.finishBundle();
 
+    // The input to a GroupByKey is assumed to be a KvCoder
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    Coder runnerKeyCoder = ((KvCoder) runnerWireCoder).getKeyCoder();
+    CommittedBundle<?> fooBundle = null;
+    CommittedBundle<?> barBundle = null;
+    CommittedBundle<?> bazBundle = null;
+    StructuralKey fooKey = StructuralKey.of(firstFoo.getKey(), runnerKeyCoder);
+    StructuralKey barKey = StructuralKey.of(firstBar.getKey(), runnerKeyCoder);
+    StructuralKey bazKey = StructuralKey.of(firstBaz.getKey(), runnerKeyCoder);
+    for (UncommittedBundle<?> groupedBundle : result.getOutputBundles()) {
+      CommittedBundle<?> groupedCommitted = groupedBundle.commit(Instant.now());
+      if (fooKey.equals(groupedCommitted.getKey())) {
+        fooBundle = groupedCommitted;
+      } else if (barKey.equals(groupedCommitted.getKey())) {
+        barBundle = groupedCommitted;
+      } else if (bazKey.equals(groupedCommitted.getKey())) {
+        bazBundle = groupedCommitted;
+      } else {
+        throw new IllegalArgumentException(
+            String.format("Unknown Key %s", groupedCommitted.getKey()));
+      }
+    }
     assertThat(
-        fooBundle.commit(Instant.now()).getElements(),
+        fooBundle,
         contains(
-            new KeyedWorkItemMatcher<>(
+            new KeyedWorkItemMatcher(
                 KeyedWorkItems.elementsWorkItem(
-                    "foo",
+                    fooKey.getKey(),
                     ImmutableSet.of(
-                        WindowedValue.valueInGlobalWindow(-1),
-                        WindowedValue.valueInGlobalWindow(1),
-                        WindowedValue.valueInGlobalWindow(3))),
-                keyCoder)));
+                        WindowedValue.valueInGlobalWindow(firstFoo.getValue()),
+                        WindowedValue.valueInGlobalWindow(secondFoo.getValue()),
+                        WindowedValue.valueInGlobalWindow(thirdFoo.getValue()))),
+                runnerKeyCoder)));
     assertThat(
-        barBundle.commit(Instant.now()).getElements(),
+        barBundle,
         contains(
             new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
-                    "bar",
+                    barKey.getKey(),
                     ImmutableSet.of(
-                        WindowedValue.valueInGlobalWindow(12),
-                        WindowedValue.valueInGlobalWindow(22))),
-                keyCoder)));
+                        WindowedValue.valueInGlobalWindow(firstBar.getValue()),
+                        WindowedValue.valueInGlobalWindow(secondBar.getValue()))),
+                runnerKeyCoder)));
     assertThat(
-        bazBundle.commit(Instant.now()).getElements(),
+        bazBundle,
         contains(
             new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
-                    "baz", ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
-                keyCoder)));
+                    bazKey.getKey(),
+                    ImmutableSet.of(WindowedValue.valueInGlobalWindow(firstBaz.getValue()))),
+                runnerKeyCoder)));
+  }
+
+  private KV<?, ?> asRunnerKV(
+      Coder<KV<String, Integer>> javaWireCoder,
+      Coder<KV<?, ?>> runnerWireCoder,
+      KV<String, Integer> value)
+      throws org.apache.beam.sdk.coders.CoderException {
+    return CoderUtils.decodeFromByteArray(
+        runnerWireCoder, CoderUtils.encodeToByteArray(javaWireCoder, value));
   }
 
   private <K, V> KV<K, WindowedValue<V>> gwValue(KV<K, V> kv) {
