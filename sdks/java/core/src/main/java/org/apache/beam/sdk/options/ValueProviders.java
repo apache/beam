@@ -80,7 +80,7 @@ public class ValueProviders {
   }
 
   /**
-   * Helper Method to provide {@link Class} using the Class Name provided as a {@link String}
+   * Helper Method to provide {@link Class} using the Class Name provided as a {@link String}.
    * @param className
    * @return {@link Class}
    */
