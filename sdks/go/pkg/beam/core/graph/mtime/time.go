@@ -28,7 +28,7 @@ const (
 	// MinTimestamp is the minimum value for any Beam timestamp. Often referred to
 	// as "-infinity". This value and MaxTimestamp are chosen so that their
 	// microseconds-since-epoch can be safely represented with an int64 and boundary
-	// values can be represented correctly with milli-second precision.
+	// values can be represented correctly with millisecond precision.
 	MinTimestamp Time = math.MinInt64 / 1000
 
 	// MaxTimestamp is the maximum value for any Beam timestamp. Often referred to

@@ -982,7 +982,7 @@ func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {
 	return ref2.Components, true
 }
 
-// encodeWindow translates the preprocessed representation of a Beam coder
+// encodeWindowCoder translates the preprocessed representation of a Beam coder
 // into the wire representation, capturing the underlying types used by
 // the coder.
 func encodeWindowCoder(w *coder.WindowCoder) (*CoderRef, error) {
@@ -996,7 +996,7 @@ func encodeWindowCoder(w *coder.WindowCoder) (*CoderRef, error) {
 	}
 }
 
-// decodeWindow receives the wire representation of a Beam coder, extracting
+// decodeWindowCoder receives the wire representation of a Beam coder, extracting
 // the preprocessed representation, expanding all types used by the coder.
 func decodeWindowCoder(w *CoderRef) (*coder.WindowCoder, error) {
 	switch w.Type {

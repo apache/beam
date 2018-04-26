@@ -73,16 +73,16 @@ func UnmarshalCoders(ids []string, m map[string]*pb.Coder) ([]*coder.Coder, erro
 type CoderUnmarshaller struct {
 	models map[string]*pb.Coder
 
-	coders  map[string]*coder.Coder
-	windows map[string]*coder.WindowCoder
+	coders       map[string]*coder.Coder
+	windowCoders map[string]*coder.WindowCoder
 }
 
 // NewCoderUnmarshaller returns a new CoderUnmarshaller.
 func NewCoderUnmarshaller(m map[string]*pb.Coder) *CoderUnmarshaller {
 	return &CoderUnmarshaller{
-		models:  m,
-		coders:  make(map[string]*coder.Coder),
-		windows: make(map[string]*coder.WindowCoder),
+		models:       m,
+		coders:       make(map[string]*coder.Coder),
+		windowCoders: make(map[string]*coder.WindowCoder),
 	}
 }
 
@@ -119,7 +119,7 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 
 // WindowCoder unmarshals a window coder with the given id.
 func (b *CoderUnmarshaller) WindowCoder(id string) (*coder.WindowCoder, error) {
-	if w, exists := b.windows[id]; exists {
+	if w, exists := b.windowCoders[id]; exists {
 		return w, nil
 	}
 
@@ -129,7 +129,7 @@ func (b *CoderUnmarshaller) WindowCoder(id string) (*coder.WindowCoder, error) {
 	}
 
 	w := urnToWindowCoder(c.GetSpec().GetSpec().GetUrn())
-	b.windows[id] = w
+	b.windowCoders[id] = w
 	return w, nil
 }
 
