@@ -385,7 +385,7 @@ public class CreateTest {
   @Test
   public void testCreateGetName() {
     assertEquals("Create.Values", Create.of(1, 2, 3).getName());
-    assertEquals("Create.TimestampedValues", Create.timestamped(Collections.EMPTY_LIST).getName());
+    assertEquals("Create.TimestampedValues", Create.timestamped(Collections.emptyList()).getName());
   }
 
 
