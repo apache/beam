@@ -176,13 +176,13 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 // the FnHarness.
 
 // ProtoEnc marshals the supplied proto.Message.
-func ProtoEnc(in typex.T) ([]byte, error) {
+func ProtoEnc(in T) ([]byte, error) {
 	return proto.Marshal(in.(proto.Message))
 }
 
 // ProtoDec unmarshals the supplied bytes into an instance of the supplied
 // proto.Message type.
-func ProtoDec(t reflect.Type, in []byte) (typex.T, error) {
+func ProtoDec(t reflect.Type, in []byte) (T, error) {
 	val := reflect.New(t.Elem()).Interface().(proto.Message)
 	if err := proto.Unmarshal(in, val); err != nil {
 		return nil, err
@@ -202,7 +202,7 @@ func newProtoCoder(t reflect.Type) (*coder.CustomCoder, error) {
 // Conversion is handled by reflection.
 
 // JSONEnc encodes the supplied value in JSON.
-func JSONEnc(in typex.T) ([]byte, error) {
+func JSONEnc(in T) ([]byte, error) {
 	return json.Marshal(in)
 }
 

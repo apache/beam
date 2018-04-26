@@ -41,6 +41,7 @@ type EncodedType struct {
 	T reflect.Type
 }
 
+// MarshalJSON returns the JSON encoding this value.
 func (w EncodedType) MarshalJSON() ([]byte, error) {
 	str, err := EncodeType(w.T)
 	if err != nil {
@@ -49,6 +50,7 @@ func (w EncodedType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(str)
 }
 
+// UnmarshalJSON sets the state of this instance from the passed in JSON.
 func (w *EncodedType) UnmarshalJSON(buf []byte) error {
 	var s string
 	if err := json.Unmarshal(buf, &s); err != nil {
@@ -82,6 +84,7 @@ type EncodedFunc struct {
 	Fn reflectx.Func
 }
 
+// MarshalJSON returns the JSON encoding this value.
 func (w EncodedFunc) MarshalJSON() ([]byte, error) {
 	str, err := EncodeFunc(w.Fn)
 	if err != nil {
@@ -90,6 +93,7 @@ func (w EncodedFunc) MarshalJSON() ([]byte, error) {
 	return json.Marshal(str)
 }
 
+// UnmarshalJSON sets the state of this instance from the passed in JSON.
 func (w *EncodedFunc) UnmarshalJSON(buf []byte) error {
 	var s string
 	if err := json.Unmarshal(buf, &s); err != nil {
@@ -126,6 +130,7 @@ type EncodedCoder struct {
 	Coder Coder
 }
 
+// MarshalJSON returns the JSON encoding this value.
 func (w EncodedCoder) MarshalJSON() ([]byte, error) {
 	str, err := EncodeCoder(w.Coder)
 	if err != nil {
@@ -134,6 +139,7 @@ func (w EncodedCoder) MarshalJSON() ([]byte, error) {
 	return json.Marshal(str)
 }
 
+// UnmarshalJSON sets the state of this instance from the passed in JSON.
 func (w *EncodedCoder) UnmarshalJSON(buf []byte) error {
 	var s string
 	if err := json.Unmarshal(buf, &s); err != nil {

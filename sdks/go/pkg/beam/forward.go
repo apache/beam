@@ -28,7 +28,8 @@ import (
 //
 //         PLEASE DO NOT ADD NON-FORWARDING FUNCTIONALITY HERE.
 //
-// Instead, add such functionality in the core packages.
+// Instead, add such functionality in the core packages and add pipeline author
+// oriented documentation.
 
 // TODO(herohde) 7/13/2017: these forwards alone pull in runtime. Is there a use
 // case for separate package?
@@ -71,24 +72,55 @@ var PipelineOptions = runtime.GlobalOptions
 // We forward typex types used in UserFn signatures to avoid having such code
 // depend on the typex package directly.
 
+// FullType represents the tree structure of data types processed by the graph.
+// It allows representation of composite types, such as KV<int, string> or
+// CoGBK<int, int>, as well as "generic" such types, KV<int,T> or CoGBK<X,Y>,
+// where the free "type variables" are the fixed universal types: T, X, etc.
 type FullType = typex.FullType
 
+// T is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type T = typex.T
+
+// U is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type U = typex.U
+
+// V is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type V = typex.V
+
+// W is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type W = typex.W
+
+// X is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type X = typex.X
+
+// Y is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type Y = typex.Y
+
+// Z is a Universal Type used to represent "generic" types in DoFn and
+// PCollection signatures. Each universal type is distinct from all others.
 type Z = typex.Z
 
+// EventTime represents the time of the event that generated an element.
+// This is distinct from the time when an element is processed.
 type EventTime = typex.EventTime
 
-var TType = typex.TType
-var UType = typex.UType
-var VType = typex.VType
-var WType = typex.WType
-var XType = typex.XType
-var YType = typex.YType
-var ZType = typex.ZType
+// These are the reflect.Type instances of the universal types, which are used
+// when binding actual types to "generic" DoFns that use Universal Types.
+var (
+	TType = typex.TType
+	UType = typex.UType
+	VType = typex.VType
+	WType = typex.WType
+	XType = typex.XType
+	YType = typex.YType
+	ZType = typex.ZType
+)
 
+// EventTimeType is the reflect.Type of EventTime.
 var EventTimeType = typex.EventTimeType
