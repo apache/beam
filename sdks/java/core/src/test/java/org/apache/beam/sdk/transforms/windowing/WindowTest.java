@@ -35,12 +35,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -416,12 +414,11 @@ public class WindowTest implements Serializable {
     // same windows with the updated timestamps. If we try to apply the original WindowFn, the type
     // will not be appropriate and the runner should crash, as a Boolean cannot be converted into
     // a long.
-    PCollection<Boolean> updatedTrigger =
-        upOne.apply(
-            "UpdateWindowingStrategy",
-            Window.<Boolean>configure().triggering(Never.ever())
-                .withAllowedLateness(Duration.ZERO)
-                .accumulatingFiredPanes());
+    upOne.apply(
+        "UpdateWindowingStrategy",
+        Window.<Boolean>configure().triggering(Never.ever())
+            .withAllowedLateness(Duration.ZERO)
+            .accumulatingFiredPanes());
     pipeline.run();
   }
 
@@ -600,7 +597,6 @@ public class WindowTest implements Serializable {
   @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
   public void testMergingCustomWindows() {
     Instant startInstant = new Instant(0L);
-    List<TimestampedValue<String>> input = new ArrayList<>();
     PCollection<String> inputCollection =
         pipeline.apply(
             Create.timestamped(
