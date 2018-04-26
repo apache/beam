@@ -100,7 +100,7 @@ DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
 
 class FileHandler(object):
 
-  def _dependency_file_copy(self, from_path, to_path):
+  def file_copy(self, from_path, to_path):
     """Copies a local file to a GCS file or vice versa."""
     logging.info('file copy from %s to %s.', from_path, to_path)
     if from_path.startswith('gs://') or to_path.startswith('gs://'):
@@ -132,7 +132,7 @@ class FileHandler(object):
         os.mkdir(os.path.dirname(to_path))
       shutil.copyfile(from_path, to_path)
 
-  def _dependency_file_download(self, from_url, to_folder):
+  def file_download(self, from_url, to_folder):
     """Downloads a file from a URL and returns path to the local file."""
     # TODO(silviuc): We should cache downloads so we do not do it for every job.
     try:
@@ -154,11 +154,13 @@ class FileHandler(object):
 
 class Stager(object):
 
+  def __init__(self, file_handler=FileHandler()):
+    self.file_handler = file_handler
+
   def _stage_extra_packages(self,
                             extra_packages,
                             staging_location,
-                            temp_dir,
-                            file_copy=FileHandler()._dependency_file_copy):
+                            temp_dir):
     """Stages a list of local extra packages.
 
       Args:
@@ -168,9 +170,6 @@ class Stager(object):
         temp_dir: Temporary folder where the resource building can happen.
           Caller is responsible for cleaning up this folder after this function
           returns.
-        file_copy: Callable for copying files. The default version will copy
-          from a local file to a GCS location using the gsutil tool available in
-          the Google Cloud SDK package.
 
       Returns:
         A list of file names (no paths) for the resources staged. All the files
@@ -210,7 +209,7 @@ class Stager(object):
           else:
             _, last_component = FileSystems.split(package)
             local_file_path = FileSystems.join(staging_temp_dir, last_component)
-          FileHandler()._dependency_file_copy(package, local_file_path)
+          self.file_handler.file_copy(package, local_file_path)
         else:
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
@@ -227,7 +226,7 @@ class Stager(object):
     for package in local_packages:
       basename = os.path.basename(package)
       staged_path = FileSystems.join(staging_location, basename)
-      file_copy(package, staged_path)
+      self.file_handler.file_copy(package, staged_path)
       resources.append(basename)
     # Create a file containing the list of extra packages and stage it.
     # The file is important so that in the worker the packages are installed
@@ -242,7 +241,7 @@ class Stager(object):
     staged_path = FileSystems.join(staging_location, EXTRA_PACKAGES_FILE)
     # Note that the caller of this function is responsible for deleting the
     # temporary folder where all temp files are created, including this one.
-    file_copy(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
+    self.file_handler.file_copy(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
     resources.append(EXTRA_PACKAGES_FILE)
 
     return resources
@@ -330,14 +329,14 @@ class Stager(object):
       """
     if (sdk_remote_location.startswith('http://') or
         sdk_remote_location.startswith('https://')):
-      local_download_file = FileHandler()._dependency_file_download(
-          sdk_remote_location, temp_dir)
+      local_download_file = self.file_handler.file_download(sdk_remote_location,
+                                                        temp_dir)
       staged_name = self._desired_sdk_filename_in_staging_location(
           local_download_file)
       staged_path = FileSystems.join(staging_location, staged_name)
       logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
                    staged_path)
-      FileHandler()._dependency_file_copy(local_download_file, staged_path)
+      self.file_handler.file_copy(local_download_file, staged_path)
       return [staged_name]
     elif sdk_remote_location.startswith('gs://'):
       # Stage the file to the GCS staging area.
@@ -346,7 +345,7 @@ class Stager(object):
       staged_path = FileSystems.join(staging_location, staged_name)
       logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
                    staged_path)
-      FileHandler()._dependency_file_copy(sdk_remote_location, staged_path)
+      self.file_handler.file_copy(sdk_remote_location, staged_path)
       return [staged_name]
     elif sdk_remote_location == 'pypi':
       sdk_local_file = self._download_pypi_sdk_package(temp_dir)
@@ -354,7 +353,7 @@ class Stager(object):
           sdk_local_file)
       staged_path = FileSystems.join(staging_location, sdk_sources_staged_name)
       logging.info('Staging SDK sources from PyPI to %s', staged_path)
-      FileHandler()._dependency_file_copy(sdk_local_file, staged_path)
+      self.file_handler.file_copy(sdk_local_file, staged_path)
       staged_sdk_files = [sdk_sources_staged_name]
       try:
         # Stage binary distribution of the SDK, for now on a best-effort basis.
@@ -365,7 +364,7 @@ class Stager(object):
         staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
         logging.info('Staging binary distribution of the SDK from PyPI to %s',
                      staged_path)
-        FileHandler()._dependency_file_copy(sdk_local_file, staged_path)
+        self.file_handler.file_copy(sdk_local_file, staged_path)
         staged_sdk_files.append(sdk_binary_staged_name)
       except RuntimeError as e:
         logging.warn(
@@ -459,7 +458,6 @@ class Stager(object):
   def stage_job_resources(
       self,
       options,
-      file_copy=FileHandler()._dependency_file_copy,
       build_setup_args=None,
       temp_dir=None,
       populate_requirements_cache=_populate_requirements_cache):
@@ -471,9 +469,6 @@ class Stager(object):
         options: Command line options. More specifically the function will
           expect staging_location, requirements_file, setup_file, and
           save_main_session options to be present.
-        file_copy: Callable for copying files. The default version will copy
-          from a local file to a GCS location using the gsutil tool available in
-          the Google Cloud SDK package.
         build_setup_args: A list of command line arguments used to build a setup
           package. Used only if options.setup_file is not None. Used only for
           testing.
@@ -513,7 +508,7 @@ class Stager(object):
             setup_options.requirements_file)
       staged_path = FileSystems.join(google_cloud_options.staging_location,
                                      REQUIREMENTS_FILE)
-      file_copy(setup_options.requirements_file, staged_path)
+      self.file_handler.file_copy(setup_options.requirements_file, staged_path)
       resources.append(REQUIREMENTS_FILE)
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
@@ -526,7 +521,7 @@ class Stager(object):
       populate_requirements_cache(setup_options.requirements_file,
                                   requirements_cache_path)
       for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-        file_copy(
+        self.file_handler.file_copy(
             pkg,
             FileSystems.join(google_cloud_options.staging_location,
                              os.path.basename(pkg)))
@@ -549,7 +544,7 @@ class Stager(object):
                                                temp_dir, build_setup_args)
       staged_path = FileSystems.join(google_cloud_options.staging_location,
                                      WORKFLOW_TARBALL_FILE)
-      file_copy(tarball_file, staged_path)
+      self.file_handler.file_copy(tarball_file, staged_path)
       resources.append(WORKFLOW_TARBALL_FILE)
 
     # Handle extra local packages that should be staged.
@@ -558,8 +553,7 @@ class Stager(object):
           self._stage_extra_packages(
               setup_options.extra_packages,
               google_cloud_options.staging_location,
-              temp_dir=temp_dir,
-              file_copy=file_copy))
+              temp_dir=temp_dir))
 
     # Pickle the main session if requested.
     # We will create the pickled main session locally and then copy it to the
@@ -571,7 +565,7 @@ class Stager(object):
       pickler.dump_session(pickled_session_file)
       staged_path = FileSystems.join(google_cloud_options.staging_location,
                                      names.PICKLED_MAIN_SESSION_FILE)
-      file_copy(pickled_session_file, staged_path)
+      self.file_handler.file_copy(pickled_session_file, staged_path)
       resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
     if hasattr(setup_options, 'sdk_location'):
@@ -621,7 +615,7 @@ class Stager(object):
               google_cloud_options.staging_location,
               self._desired_sdk_filename_in_staging_location(
                   setup_options.sdk_location))
-          file_copy(sdk_path, staged_path)
+          self.file_handler.file_copy(sdk_path, staged_path)
           _, sdk_staged_filename = FileSystems.split(staged_path)
           resources.append(sdk_staged_filename)
         else:
