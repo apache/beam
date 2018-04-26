@@ -60,25 +60,34 @@ public class KryoCoder<T> extends CustomCoder<T> {
 
   @Override
   public void encode(T t, OutputStream out) throws IOException {
-    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    final Output output = new Output(baos);
-    kryo.get().writeClassAndObject(output, t);
-    output.flush();
+    final byte[] bytes;
+
+    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         final Output output = new Output(baos)) {
+      kryo.get().writeClassAndObject(output, t);
+      output.flush();
+      bytes = baos.toByteArray();
+    }
     final DataOutputStream dos = new DataOutputStream(out);
-    dos.writeInt(baos.toByteArray().length);
-    dos.write(baos.toByteArray());
+    dos.writeInt(bytes.length);
+    dos.write(bytes);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public T decode(InputStream is) throws IOException {
+
     final DataInputStream dis = new DataInputStream(is);
     final int size = dis.readInt();
     final byte[] buffer = new byte[size];
     if (size != dis.read(buffer, 0, size)) {
       throw new IllegalStateException("This should never happen.");
     }
-    return (T) kryo.get().readClassAndObject(new Input(new ByteArrayInputStream(buffer)));
+    try (final InputStream in = new ByteArrayInputStream(buffer);
+         final Input input = new Input(in)) {
+
+      return (T) kryo.get().readClassAndObject(input);
+    }
   }
 
   @Override

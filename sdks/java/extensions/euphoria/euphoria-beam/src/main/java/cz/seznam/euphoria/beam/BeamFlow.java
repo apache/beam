@@ -48,9 +48,19 @@ public class BeamFlow extends Flow {
    * @return constructed flow
    */
   public static BeamFlow create(Pipeline pipeline) {
-    return new BeamFlow(pipeline);
+    return new BeamFlow(null, pipeline);
   }
 
+  /**
+   * Create flow from pipeline.
+   * @param name name of the flow
+   * @param pipeline the pipeline to wrap into new flow
+   * @return constructed flow
+   */
+  public static BeamFlow create(String name, Pipeline pipeline) {
+    return new BeamFlow(name, pipeline);
+  }
+  
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
   private Duration allowedLateness = Duration.ZERO;
   private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
@@ -61,8 +71,8 @@ public class BeamFlow extends Flow {
    * Construct the {@link BeamFlow}.
    * @param pipeline pipeline to wrap into this flow
    */
-  private BeamFlow(Pipeline pipeline) {
-    super(null, new Settings());
+  private BeamFlow(String name, Pipeline pipeline) {
+    super(name, new Settings());
     this.pipeline = pipeline;
     this.context = new BeamExecutorContext(
           DAG.empty(), accumulatorFactory, pipeline, getSettings(),
