@@ -22,11 +22,11 @@ Only those coders listed in __all__ are part of the public API of this module.
 from __future__ import absolute_import
 
 import base64
-import six.moves.cPickle as pickle
 
 import google.protobuf
 from google.protobuf import wrappers_pb2
 
+import six.moves.cPickle as pickle  # pylint: disable=wrong-import-order
 from apache_beam.coders import coder_impl
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns

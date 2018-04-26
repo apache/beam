@@ -19,10 +19,10 @@
 
 import collections
 import logging
-import six.moves.queue
 import threading
 import traceback
 
+import six.moves.queue  # pylint: disable=wrong-import-order
 from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.options.value_provider import RuntimeValueProvider

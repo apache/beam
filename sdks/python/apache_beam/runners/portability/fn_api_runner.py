@@ -21,7 +21,6 @@ import collections
 import contextlib
 import copy
 import logging
-import six.moves.queue as queue
 import threading
 import time
 from concurrent import futures
@@ -29,6 +28,7 @@ from concurrent import futures
 import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
+import six.moves.queue as queue  # pylint: disable=wrong-import-order
 from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.coders import WindowedValueCoder

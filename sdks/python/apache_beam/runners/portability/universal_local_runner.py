@@ -18,7 +18,6 @@
 import functools
 import logging
 import os
-import six.moves.queue as queue
 import socket
 import subprocess
 import sys
@@ -31,6 +30,7 @@ from concurrent import futures
 import grpc
 from google.protobuf import text_format
 
+import six.moves.queue as queue  # pylint: disable=wrong-import-order
 from apache_beam import coders
 from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2_grpc

@@ -16,7 +16,6 @@
 #
 """SDK Fn Harness entry point."""
 
-import six.moves.BaseHTTPServer
 import json
 import logging
 import os
@@ -27,6 +26,7 @@ import traceback
 
 from google.protobuf import text_format
 
+import six.moves.BaseHTTPServer  # pylint: disable=wrong-import-order
 from apache_beam.internal import pickler
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.dataflow.internal import names
