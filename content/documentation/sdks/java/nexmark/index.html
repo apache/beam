@@ -180,13 +180,15 @@
 <h2 id="what-it-is">What it is</h2>
 
 <p>Nexmark is a suite of pipelines inspired by the ‘continuous data stream’
-queries in <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">Nexmark research paper</a></p>
+queries in <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">Nexmark research
+paper</a></p>
 
-<p>These are multiple queries over a three entities model representing on online auction system:</p>
+<p>These are multiple queries over a three entities model representing on online
+auction system:</p>
 
 <ul>
-  <li><strong>Person</strong> represents a person submitting an item for auction and/or making a bid
- on an auction.</li>
+  <li><strong>Person</strong> represents a person submitting an item for auction and/or making
+a bid on an auction.</li>
   <li><strong>Auction</strong> represents an item under auction.</li>
   <li><strong>Bid</strong> represents a bid for an item under auction.</li>
 </ul>
@@ -239,11 +241,14 @@ queries.</li>
 </ul>
 
 <h2 id="benchmark-workload-configuration">Benchmark workload configuration</h2>
-<p>Here are some of the knobs of the benchmark workload (see <a href="https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java">NexmarkConfiguration.java</a>).</p>
+
+<p>Here are some of the knobs of the benchmark workload (see
+<a href="https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java">NexmarkConfiguration.java</a>).</p>
 
 <p>These configuration items can be passed to the launch command line.</p>
 
 <h3 id="events-generation-defaults">Events generation (defaults)</h3>
+
 <ul>
   <li>100 000 events generated</li>
   <li>100 generator threads</li>
@@ -255,6 +260,7 @@ queries.</li>
 </ul>
 
 <h3 id="windows-defaults">Windows (defaults)</h3>
+
 <ul>
   <li>size 10s</li>
   <li>sliding period 5s</li>
@@ -262,6 +268,7 @@ queries.</li>
 </ul>
 
 <h3 id="events-proportions-defaults">Events Proportions (defaults)</h3>
+
 <ul>
   <li>Hot Auctions = ½</li>
   <li>Hot Bidders =¼</li>
@@ -269,13 +276,16 @@ queries.</li>
 </ul>
 
 <h3 id="technical">Technical</h3>
+
 <ul>
   <li>Artificial CPU load</li>
   <li>Artificial IO load</li>
 </ul>
 
 <h2 id="nexmark-output">Nexmark output</h2>
-<p>Here is an example output of the Nexmark benchmark run in streaming mode with the SMOKE suite on the (local) direct runner:</p>
+
+<p>Here is an example output of the Nexmark benchmark run in streaming mode with
+the SMOKE suite on the (local) direct runner:</p>
 
 <pre>
 Performance:
@@ -297,18 +307,19 @@ Performance:
 
 <h2 id="benchmark-launch-configuration">Benchmark launch configuration</h2>
 
-<p>We can specify the Beam runner to use with maven profiles, available profiles are:</p>
+<p>The Nexmark launcher accepts the <code class="highlighter-rouge">--runner</code> argument as usual for programs that
+use Beam PipelineOptions to manage their command line arguments. In addition
+to this, the necessary dependencies must be configured.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>direct-runner
-spark-runner
-flink-runner
-apex-runner
-</code></pre>
-</div>
+<p>When running via Gradle, the following two parameters control the execution:</p>
 
-<p>The runner must also be specified like in any other Beam pipeline using:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>-P nexmark.args
+    The command line to pass to the Nexmark main program.
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--runner
+-P nexmark.runner
+The Gradle project name of the runner, such as ":beam-runners-direct-java" or
+":beam-runners-flink. The project names can be found in the root
+    `settings.gradle`.
 </code></pre>
 </div>
 
@@ -625,29 +636,76 @@ or may be published to Pub/Sub.</p>
 
 <h3 id="running-smoke-suite-on-the-directrunner-local">Running SMOKE suite on the DirectRunner (local)</h3>
 
+<p>The DirectRunner is default, so it is not required to pass <code class="highlighter-rouge">-Pnexmark.runner</code>.
+Here we do it for maximum clarity.</p>
+
+<p>The direct runner does not have separate batch and streaming modes, but the
+Nexmark launch does.</p>
+
+<p>These parameters leave on many of the DirectRunner’s extra safety checks so the
+SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
+
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=false --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-direct-java" \
+    -Pnexmark.args="
+        --runner=DirectRunner
+        --streaming=false
+        --suite=SMOKE
+        --manageResources=false
+        --monitorJobs=true
+        --enforceEncodability=true
+        --enforceImmutability=true"
 </code></pre>
 </div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=true --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-direct-java" \
+    -Pnexmark.args="
+        --runner=DirectRunner
+        --streaming=true
+        --suite=SMOKE
+        --manageResources=false
+        --monitorJobs=true
+        --enforceEncodability=true
+        --enforceImmutability=true"
 </code></pre>
 </div>
 
 <h3 id="running-smoke-suite-on-the-sparkrunner-local">Running SMOKE suite on the SparkRunner (local)</h3>
 
+<p>The SparkRunner is special-cased in the Nexmark gradle launch. The task will
+provide the version of Spark that the SparkRunner is built against, and
+configure logging.</p>
+
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-spark" \
+    -Pnexmark.args="
+        --runner=SparkRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=false
+        --manageResources=false
+        --monitorJobs=true"
 </code></pre>
 </div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-spark" \
+    -Pnexmark.args="
+        --runner=SparkRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=true
+        --manageResources=false
+        --monitorJobs=true"
 </code></pre>
 </div>
 
@@ -655,13 +713,31 @@ or may be published to Pub/Sub.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true  --flinkMaster=local"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-flink_2.11" \
+    -Pnexmark.args="
+        --runner=FlinkRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=false
+        --manageResources=false
+        --monitorJobs=true
+        --flinkMaster=local"
 </code></pre>
 </div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true  --flinkMaster=local"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-flink_2.11" \
+    -Pnexmark.args="
+        --runner=FlinkRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=true
+        --manageResources=false
+        --monitorJobs=true
+        --flinkMaster=local"
 </code></pre>
 </div>
 
@@ -669,83 +745,82 @@ or may be published to Pub/Sub.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=false"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-apex" \
+    -Pnexmark.args="
+        --runner=ApexRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=false
+        --manageResources=false
+        --monitorJobs=true"
 </code></pre>
 </div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=false"
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-apex" \
+    -Pnexmark.args="
+        --runner=ApexRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=true
+        --manageResources=false
+        --monitorJobs=true"
 </code></pre>
 </div>
 
 <h3 id="running-smoke-suite-on-google-cloud-dataflow">Running SMOKE suite on Google Cloud Dataflow</h3>
 
-<p>Building package:</p>
+<p>Set these up first so the below command is valid</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn clean package -Pdataflow-runner
+<div class="highlighter-rouge"><pre class="highlight"><code>PROJECT=&lt;your project&gt;
+ZONE=&lt;your zone&gt;
+STAGING_LOCATION=gs://&lt;a GCS path for staging&gt;
+PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
 </code></pre>
 </div>
 
-<p>Submit to Google Dataflow service:</p>
+<p>Launch:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.4.0.jar \
-  org.apache.beam.sdk.nexmark.Main \
-  --runner=DataflowRunner
-  --project=&lt;your project&gt; \
-  --zone=&lt;your zone&gt; \
-  --workerMachineType=n1-highmem-8 \
-  --stagingLocation=gs://&lt;a gs path for staging&gt; \
-  --streaming=true \
-  --sourceType=PUBSUB \
-  --pubSubMode=PUBLISH_ONLY \
-  --pubsubTopic=&lt;an existing Pubsub topic&gt; \
-  --resourceNameMode=VERBATIM \
-  --manageResources=false \
-  --monitorJobs=false \
-  --numEventGenerators=64 \
-  --numWorkers=16 \
-  --maxNumWorkers=16 \
-  --suite=SMOKE \
-  --firstEventRate=100000 \
-  --nextEventRate=100000 \
-  --ratePeriodSec=3600 \
-  --isRateLimited=true \
-  --avgPersonByteSize=500 \
-  --avgAuctionByteSize=500 \
-  --avgBidByteSize=500 \
-  --probDelayedEvent=0.000001 \
-  --occasionalDelaySec=3600 \
-  --numEvents=0 \
-  --useWallclockEventTime=true \
-  --usePubsubPublishTime=true \
-  --experiments=enable_custom_pubsub_sink
-</code></pre>
-</div>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.4.0.jar \
-  org.apache.beam.sdk.nexmark.Main \
-  --runner=DataflowRunner
-  --project=&lt;your project&gt; \
-  --zone=&lt;your zone&gt; \
-  --workerMachineType=n1-highmem-8 \
-  --stagingLocation=gs://&lt;a gs path for staging&gt; \
-  --streaming=true \
-  --sourceType=PUBSUB \
-  --pubSubMode=SUBSCRIBE_ONLY \
-  --pubsubSubscription=&lt;an existing Pubsub subscription to above topic&gt; \
-  --resourceNameMode=VERBATIM \
-  --manageResources=false \
-  --monitorJobs=false \
-  --numWorkers=64 \
-  --maxNumWorkers=64 \
-  --suite=SMOKE \
-  --usePubsubPublishTime=true \
-  --outputPath=gs://&lt;a gs path under which log files will be written&gt; \
-  --windowSizeSec=600 \
-  --occasionalDelaySec=3600 \
-  --maxLogEvents=10000 \
-  --experiments=enable_custom_pubsub_source
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:run \
+    -Pnexmark.runner=":beam-runners-google-cloud-dataflow" \
+    -Pnexmark.args="
+        --runner=DataflowRunner
+        --suite=SMOKE
+        --streamTimeout=60
+        --streaming=true
+        --manageResources=false
+        --monitorJobs=true
+        --project=${PROJECT}
+        --zone=${ZONE}
+        --workerMachineType=n1-highmem-8
+        --stagingLocation=${STAGING_LOCATION}
+        --streaming=true
+        --sourceType=PUBSUB
+        --pubSubMode=PUBLISH_ONLY
+        --pubsubTopic=${PUBSUB_TOPIC}
+        --resourceNameMode=VERBATIM
+        --manageResources=false
+        --monitorJobs=false
+        --numEventGenerators=64
+        --numWorkers=16
+        --maxNumWorkers=16
+        --suite=SMOKE
+        --firstEventRate=100000
+        --nextEventRate=100000
+        --ratePeriodSec=3600
+        --isRateLimited=true
+        --avgPersonByteSize=500
+        --avgAuctionByteSize=500
+        --avgBidByteSize=500
+        --probDelayedEvent=0.000001
+        --occasionalDelaySec=3600
+        --numEvents=0
+        --useWallclockEventTime=true
+        --usePubsubPublishTime=true
+        --experiments=enable_custom_pubsub_sink"
 </code></pre>
 </div>
 
@@ -753,13 +828,25 @@ or may be published to Pub/Sub.</p>
 
 <p>Building package:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn clean package -Pspark-runner
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :beam-sdks-java-nexmark:assemble
 </code></pre>
 </div>
 
 <p>Submit to the cluster:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.4.0.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
+<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit \
+    --class org.apache.beam.sdk.nexmark.Main \
+    --master yarn-client \
+    --driver-memory 512m \
+    --executor-memory 512m \
+    --executor-cores 1 \
+    sdks/java/nexmark/build/libs/beam-sdks-java-nexmark-2.4.0-spark.jar \
+        --runner=SparkRunner \
+        --query=0 \
+        --streamTimeout=60 \
+        --streaming=false \
+        --manageResources=false \
+        --monitorJobs=true"
 </code></pre>
 </div>
 
