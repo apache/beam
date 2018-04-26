@@ -53,8 +53,8 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   private final StateInternals stateInternals;
   private final ActiveWindowSet<W> activeWindows;
   private final TimerInternals timerInternals;
-  private final SideInputReader sideInputReader;
-  private final PipelineOptions options;
+  @Nullable private final SideInputReader sideInputReader;
+  @Nullable private final PipelineOptions options;
 
   ReduceFnContextFactory(
       K key,
@@ -63,8 +63,8 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       StateInternals stateInternals,
       ActiveWindowSet<W> activeWindows,
       TimerInternals timerInternals,
-      SideInputReader sideInputReader,
-      PipelineOptions options) {
+      @Nullable SideInputReader sideInputReader,
+      @Nullable PipelineOptions options) {
     this.key = key;
     this.reduceFn = reduceFn;
     this.windowingStrategy = windowingStrategy;
@@ -513,9 +513,9 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
   private static <W extends BoundedWindow> StateContext<W> stateContextFromComponents(
       @Nullable final PipelineOptions options,
-      final SideInputReader sideInputReader,
+      @Nullable final SideInputReader sideInputReader,
       final W mainInputWindow) {
-    if (options == null) {
+    if (options == null || sideInputReader == null) {
       return StateContexts.nullContext();
     } else {
       return new StateContext<W>() {
@@ -528,9 +528,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
         @Override
         public <T> T sideInput(PCollectionView<T> view) {
           return sideInputReader.get(
-              view,
-              view.getWindowMappingFn()
-                  .getSideInputWindow(mainInputWindow));
+              view, view.getWindowMappingFn().getSideInputWindow(mainInputWindow));
         }
 
         @Override
