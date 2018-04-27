@@ -777,6 +777,7 @@ public class WatermarkManagerTest implements Serializable {
     manager.refreshAll();
   }
 
+  @Test
   public void updateWatermarkWithDifferentWindowedValueInstances() {
     manager.updateWatermarks(
         null,
