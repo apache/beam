@@ -83,7 +83,7 @@ public class CategoryPrice implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + 8 + 1;
+    return 8L + 8L + 1L;
   }
 
   @Override

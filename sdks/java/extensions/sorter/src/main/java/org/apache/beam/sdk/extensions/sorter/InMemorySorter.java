@@ -100,7 +100,7 @@ class InMemorySorter implements Sorter {
     checkState(!sortCalled, "Records can only be added before sort()");
 
     long recordBytes = estimateRecordBytes(record);
-    if (roomInBuffer(numBytes + recordBytes, records.size() + 1)) {
+    if (roomInBuffer(numBytes + recordBytes, records.size() + 1L)) {
       records.add(record);
       numBytes += recordBytes;
       return true;

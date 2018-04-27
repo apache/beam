@@ -84,7 +84,7 @@ public class IdNameReserve implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + name.length() + 1 + 8;
+    return 8L + name.length() + 1L + 8L;
   }
 
   @Override
