@@ -16,10 +16,6 @@
 #
 
 import bz2
-try:
-  import cStringIO
-except ImportError:
-  from io import BytesIO as cStringIO
 import gzip
 import logging
 import math
@@ -46,6 +42,11 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 
 
 class LineSource(FileBasedSource):

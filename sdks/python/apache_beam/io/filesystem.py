@@ -20,10 +20,6 @@ from __future__ import absolute_import
 
 import abc
 import bz2
-try:
-  import cStringIO
-except ImportError:
-  from io import BytesIO as cStringIO
 import fnmatch
 import logging
 import os
@@ -36,6 +32,11 @@ from six import integer_types
 from six import string_types
 
 from apache_beam.utils.plugin import BeamPlugin
+
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 
 logger = logging.getLogger(__name__)
 

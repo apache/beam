@@ -20,10 +20,6 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-try:
-  import cStringIO
-except ImportError:
-  from io import BytesIO as cStringIO
 import errno
 import io
 import logging
@@ -42,6 +38,11 @@ from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
+
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO  # pylint: disable=ungrouped-imports
 
 __all__ = ['GcsIO']
 

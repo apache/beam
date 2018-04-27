@@ -16,10 +16,6 @@
 #
 
 import binascii
-try:
-  import cStringIO
-except ImportError:
-  from io import BytesIO as cStringIO
 import glob
 import gzip
 import logging
@@ -44,6 +40,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 
 try:
   import tensorflow as tf  # pylint: disable=import-error
