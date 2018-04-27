@@ -408,6 +408,10 @@ class AnyTypeConstraint(TypeConstraint):
   def __eq__(self, other):
     return type(self) == type(other)
 
+  def __hash__(self):
+    # TODO(BEAM-3730): TypeVariable incorrect functionality with valid hash fn
+    return id(self)
+
   def __repr__(self):
     return 'Any'
 
