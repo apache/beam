@@ -194,4 +194,10 @@ members:
     organization: Alipay
     roles: committer
     time_zone: "+8"
+  - name: Pablo Estrada
+    apache_id: pabloem
+    email: pabloem [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
 ---
