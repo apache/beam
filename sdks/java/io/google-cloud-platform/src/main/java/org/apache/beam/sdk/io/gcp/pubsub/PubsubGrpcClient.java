@@ -69,7 +69,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
  * <p>CAUTION: Currently uses the application default credentials and does not respect any
  * credentials-related arguments in {@link GcpOptions}.
  */
-class PubsubGrpcClient extends PubsubClient {
+public class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
   private static final int LIST_BATCH_SIZE = 1000;
