@@ -16,7 +16,10 @@
 #
 
 import binascii
-import cStringIO
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 import glob
 import gzip
 import logging

@@ -20,7 +20,10 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-import cStringIO
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 import errno
 import io
 import logging

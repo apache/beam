@@ -42,7 +42,10 @@ that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
 
-import cStringIO
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 import os
 import zlib
 from functools import partial

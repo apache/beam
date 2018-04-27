@@ -20,7 +20,10 @@ from __future__ import absolute_import
 
 import abc
 import bz2
-import cStringIO
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 import fnmatch
 import logging
 import os

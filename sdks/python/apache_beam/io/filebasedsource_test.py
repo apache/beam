@@ -16,7 +16,10 @@
 #
 
 import bz2
-import cStringIO
+try:
+  import cStringIO
+except ImportError:
+  from io import BytesIO as cStringIO
 import gzip
 import logging
 import math
