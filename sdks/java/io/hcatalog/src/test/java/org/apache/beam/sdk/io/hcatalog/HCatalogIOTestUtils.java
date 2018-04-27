@@ -34,7 +34,7 @@ import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
 
-/** Utility class for HCatalogIOTest. */
+/** Utility class for HCatalogIOTest and HCatalogIOIT. */
 class HCatalogIOTestUtils {
   static final String TEST_DATABASE = "default";
   static final String TEST_TABLE = "mytable";
@@ -58,7 +58,8 @@ class HCatalogIOTestUtils {
 
   /** Writes records to the table using the passed WriterContext. */
   private static void writeRecords(WriterContext context) throws HCatException {
-    DataTransferFactory.getHCatWriter(context).write(getHCatRecords(TEST_RECORDS_COUNT).iterator());
+    DataTransferFactory.getHCatWriter(context)
+        .write(buildHCatRecords(TEST_RECORDS_COUNT).iterator());
   }
 
   /** Commits the pending writes to the database. */
@@ -77,7 +78,7 @@ class HCatalogIOTestUtils {
   }
 
   /** Returns a list of HCatRecords of passed size. */
-  static List<HCatRecord> getHCatRecords(int size) {
+  static List<HCatRecord> buildHCatRecords(int size) {
     List<HCatRecord> expected = new ArrayList<>();
     for (int i = 0; i < size; i++) {
       expected.add(toHCatRecord(i));
