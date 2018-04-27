@@ -92,6 +92,7 @@ public class CassandraIOIT implements Serializable {
     PCollection<Scientist> output = pipeline.apply(CassandraIO.<Scientist>read()
         .withHosts(Collections.singletonList(options.getCassandraHost()))
         .withPort(options.getCassandraPort())
+        .withMinNumberOfSplits(20)
         .withKeyspace(CassandraTestDataSet.KEYSPACE)
         .withTable(CassandraTestDataSet.TABLE_READ_NAME)
         .withEntity(Scientist.class)
