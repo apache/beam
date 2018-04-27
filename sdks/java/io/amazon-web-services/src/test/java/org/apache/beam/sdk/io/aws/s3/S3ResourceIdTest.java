@@ -274,16 +274,19 @@ public class S3ResourceIdTest {
     assertNotEquals(b, a);
   }
 
+  @Test
   public void testInvalidS3ResourceId() {
     thrown.expect(IllegalArgumentException.class);
     S3ResourceId.fromUri("file://invalid/s3/path");
   }
 
+  @Test
   public void testInvalidBucket() {
     thrown.expect(IllegalArgumentException.class);
     S3ResourceId.fromComponents("invalid/", "");
   }
 
+  @Test
   public void testInvalidBucketWithUnderscore() {
     thrown.expect(IllegalArgumentException.class);
     S3ResourceId.fromComponents("invalid_bucket", "");
