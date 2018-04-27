@@ -557,7 +557,7 @@ class DoFnRunner(Receiver):
     # TODO(BEAM-3937): Remove if block after output counter released.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
     # Experimental flag format: experimental-name_version-number.
-    if 'per_element_instrumentation' in experiments:
+    if 'outputs_per_element_counter' in experiments:
       # TODO(BEAM-3955): Make step_name and operation_name less confused.
       output_counter_name = (CounterName('per-element-output-count',
                                          step_name=operation_name))
