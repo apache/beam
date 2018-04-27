@@ -138,7 +138,7 @@ class WriteWithShardingFactory<InputT, DestinationT>
         return (int) totalRecords;
       }
       // 100mil records before >7 output files
-      int floorLogRecs = Double.valueOf(Math.log10(totalRecords)).intValue();
+      int floorLogRecs = (int) Math.log10(totalRecords);
       return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + extraShards;
     }
   }
