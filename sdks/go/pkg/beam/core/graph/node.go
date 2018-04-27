@@ -38,7 +38,10 @@ type Node struct {
 	Coder *coder.Coder
 
 	// w defines the kind of windowing used.
-	w *window.Window
+	w *window.WindowingStrategy
+
+	// bounded defines whether the collection is bounded.
+	bounded bool
 }
 
 // ID returns the graph-local identifier for the node.
@@ -51,13 +54,25 @@ func (n *Node) Type() typex.FullType {
 	return n.t
 }
 
-// Window returns the window applied to the data.
-func (n *Node) Window() *window.Window {
+// WindowingStrategy returns the window applied to the data.
+func (n *Node) WindowingStrategy() *window.WindowingStrategy {
 	return n.w
 }
 
+// Bounded returns true iff the collection is bounded.
+func (n *Node) Bounded() bool {
+	return n.bounded
+}
+
 func (n *Node) String() string {
-	return fmt.Sprintf("{%v: %v/%v/%v}", n.id, n.t, n.w, n.Coder)
+	return fmt.Sprintf("{%v: %v/%v %v%v}", n.id, n.t, n.Coder, n.w, printUnbounded(n.bounded))
+}
+
+func printUnbounded(b bool) string {
+	if b {
+		return ""
+	}
+	return ":unbounded"
 }
 
 // NodeTypes returns the fulltypes of the supplied slice of nodes.

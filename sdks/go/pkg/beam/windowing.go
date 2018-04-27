@@ -13,31 +13,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package coder
+package beam
 
 import (
-	"io"
-	"math"
+	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 )
 
-// EncodeEventTime encodes an EventTime as an uint64. The encoding is
-// millis-since-epoch, but shifted so that the byte representation of negative
-// values are lexicographically ordered before the byte representation of
-// positive values.
-func EncodeEventTime(et typex.EventTime, w io.Writer) error {
-	millis := mtime.Time(et).Milliseconds()
-	return EncodeUint64((uint64)(millis-math.MinInt64), w)
+// WindowInto applies the windowing strategy to each element.
+func WindowInto(s Scope, ws *window.Fn, col PCollection) PCollection {
+	return Must(TryWindowInto(s, ws, col))
 }
 
-// DecodeEventTime decodes an EventTime.
-func DecodeEventTime(r io.Reader) (typex.EventTime, error) {
-	unix, err := DecodeUint64(r)
-	if err != nil {
-		return mtime.ZeroTimestamp, err
+// TryWindowInto attempts to insert a WindowInto transform.
+func TryWindowInto(s Scope, ws *window.Fn, col PCollection) (PCollection, error) {
+	if !s.IsValid() {
+		return PCollection{}, fmt.Errorf("invalid scope")
 	}
-	millis := (int64)(unix) + math.MinInt64
-	return typex.EventTime(millis), nil
+	if !col.IsValid() {
+		return PCollection{}, fmt.Errorf("invalid input pcollection")
+	}
+
+	edge := graph.NewWindowInto(s.real, s.scope, ws, col.n)
+	ret := PCollection{edge.Output[0].To}
+	return ret, nil
 }

@@ -31,13 +31,10 @@ import (
 
 // Combine is a Combine executor. Combiners do not have side inputs (or output).
 type Combine struct {
-	UID               UnitID
-	Fn                *graph.CombineFn
-	IsPerKey, UsesKey bool
-	Out               Node
-
-	accum interface{} // global accumulator, only used/valid if isPerKey == false
-	first bool
+	UID     UnitID
+	Fn      *graph.CombineFn
+	UsesKey bool
+	Out     Node
 
 	mergeFn reflectx.Func2x1 // optimized caller in the case of binary merge accumulators
 
@@ -55,7 +52,7 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := Invoke(ctx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -74,17 +71,6 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) 
 	if err := n.Out.StartBundle(ctx, id, data); err != nil {
 		return n.fail(err)
 	}
-
-	if n.IsPerKey {
-		return nil
-	}
-
-	a, err := n.newAccum(ctx, nil)
-	if err != nil {
-		return n.fail(err)
-	}
-	n.accum = a
-	n.first = true
 	return nil
 }
 
@@ -93,51 +79,38 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 
-	if n.IsPerKey {
-		// For per-key combine, all processing can be done here. Note that
-		// we do not explicitly call merge, although it may be called implicitly
-		// when adding input.
+	// Note that we do not explicitly call merge, although it may
+	// be called implicitly when adding input.
 
-		a, err := n.newAccum(ctx, value.Elm)
-		if err != nil {
-			return n.fail(err)
-		}
-		first := true
-
-		stream := values[0].Open()
-		for {
-			v, err := stream.Read()
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return n.fail(err)
-			}
-
-			a, err = n.addInput(ctx, a, value.Elm, v.Elm, value.Timestamp, first)
-			if err != nil {
-				return n.fail(err)
-			}
-			first = false
-		}
-		stream.Close()
-
-		out, err := n.extract(ctx, a)
-		if err != nil {
-			return n.fail(err)
-		}
-		return n.Out.ProcessElement(ctx, FullValue{Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
-	}
-
-	// Accumulate globally
-
-	a, err := n.addInput(ctx, n.accum, reflect.Value{}, value.Elm, value.Timestamp, n.first)
+	a, err := n.newAccum(ctx, value.Elm)
 	if err != nil {
 		return n.fail(err)
 	}
-	n.accum = a
-	n.first = false
-	return nil
+	first := true
+
+	stream := values[0].Open()
+	defer stream.Close()
+	for {
+		v, err := stream.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return n.fail(err)
+		}
+
+		a, err = n.addInput(ctx, a, value.Elm, v.Elm, value.Timestamp, first)
+		if err != nil {
+			return n.fail(err)
+		}
+		first = false
+	}
+
+	out, err := n.extract(ctx, a)
+	if err != nil {
+		return n.fail(err)
+	}
+	return n.Out.ProcessElement(ctx, FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
 }
 
 func (n *Combine) FinishBundle(ctx context.Context) error {
@@ -145,17 +118,6 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 	n.status = Up
-
-	if !n.IsPerKey {
-		out, err := n.extract(ctx, n.accum)
-		if err != nil {
-			return n.fail(err)
-		}
-		// TODO(herohde) 6/1/2017: populate FullValue.Timestamp
-		if err := n.Out.ProcessElement(ctx, FullValue{Elm: out}); err != nil {
-			return n.fail(err)
-		}
-	}
 
 	if err := n.Out.FinishBundle(ctx); err != nil {
 		return n.fail(err)
@@ -169,7 +131,7 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := Invoke(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -186,7 +148,7 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
-	val, err := Invoke(ctx, fn, opt)
+	val, err := InvokeWithoutEventTime(ctx, fn, opt)
 	if err != nil {
 		return nil, fmt.Errorf("CreateAccumulator failed: %v", err)
 	}
@@ -225,7 +187,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	}
 	v := Convert(value, fn.Param[i].T)
 
-	val, err := Invoke(ctx, n.Fn.AddInputFn(), opt, v)
+	val, err := InvokeWithoutEventTime(ctx, n.Fn.AddInputFn(), opt, v)
 	if err != nil {
 		return nil, n.fail(fmt.Errorf("AddInput failed: %v", err))
 	}
@@ -239,7 +201,7 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 		return accum, nil
 	}
 
-	val, err := Invoke(ctx, n.Fn.ExtractOutputFn(), nil, accum)
+	val, err := InvokeWithoutEventTime(ctx, n.Fn.ExtractOutputFn(), nil, accum)
 	if err != nil {
 		return nil, n.fail(fmt.Errorf("ExtractOutput failed: %v", err))
 	}
@@ -253,5 +215,5 @@ func (n *Combine) fail(err error) error {
 }
 
 func (n *Combine) String() string {
-	return fmt.Sprintf("Combine[%v] Keyed:%v (Use:%v) Out:%v", path.Base(n.Fn.Name()), n.IsPerKey, n.UsesKey, n.Out.ID())
+	return fmt.Sprintf("Combine[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
 }

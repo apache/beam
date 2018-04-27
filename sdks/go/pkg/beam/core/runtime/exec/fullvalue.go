@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -36,15 +35,14 @@ type FullValue struct {
 	Elm2 interface{} // KV value, if not invalid
 
 	Timestamp typex.EventTime
-	// TODO: Window, pane
+	Windows   []typex.Window
 }
 
 func (v FullValue) String() string {
-
 	if v.Elm2 == nil {
-		return fmt.Sprintf("%v [@%v]", v.Elm, time.Time(v.Timestamp).Unix())
+		return fmt.Sprintf("%v [@%v:%v]", v.Elm, v.Timestamp, v.Windows)
 	}
-	return fmt.Sprintf("KV<%v,%v> [@%v]", v.Elm, v.Elm2, time.Time(v.Timestamp).Unix())
+	return fmt.Sprintf("KV<%v,%v> [@%v:%v]", v.Elm, v.Elm2, v.Timestamp, v.Windows)
 }
 
 // Stream is a FullValue reader. It returns io.EOF when complete, but can be
