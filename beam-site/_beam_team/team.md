@@ -98,6 +98,12 @@ members:
     organization: data Artisans
     roles: committer, PMC
     time_zone: "+1"
+  - name: Jason Kuster
+    apache_id: jaku
+    email: jaku [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Reuven Lax
     apache_id: reuvenlax
     email: reuvenlax [at] apache [dot] org
