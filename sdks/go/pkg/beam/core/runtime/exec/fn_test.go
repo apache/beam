@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -93,9 +95,15 @@ func TestInvoke(t *testing.T) {
 		},
 		{
 			// EventTime
-			Fn:       func(ts typex.EventTime, a int) int { return time.Time(ts).Nanosecond() + a },
-			Opt:      &MainInput{Key: FullValue{Timestamp: typex.EventTime(time.Unix(0, 2)), Elm: 1}},
+			Fn:       func(ts typex.EventTime, a int) int { return int(ts.Milliseconds()) + a },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
 			Expected: 3,
+		},
+		{
+			// Window
+			Fn:       func(w typex.Window, a int) int64 { return w.MaxTimestamp().Milliseconds() },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Expected: mtime.EndOfGlobalWindowTime.Milliseconds(),
 		},
 	}
 
@@ -105,7 +113,9 @@ func TestInvoke(t *testing.T) {
 			t.Fatalf("function not valid: %v", err)
 		}
 
-		val, err := Invoke(context.Background(), fn, test.Opt, test.Args...)
+		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
+
+		val, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
 		if err != nil {
 			t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 		}
@@ -201,7 +211,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := Invoke(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -212,7 +222,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := Invoke(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -238,7 +248,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := Invoke(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -249,7 +259,7 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := Invoke(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)

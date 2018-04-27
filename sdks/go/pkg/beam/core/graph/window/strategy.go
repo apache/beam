@@ -13,33 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package protox
+// Package window contains window representation, windowing strategies and utilities.
+package window
 
-import (
-	"net/url"
+// WindowingStrategy defines the types of windowing used in a pipeline and contains
+// the data to support executing a windowing strategy.
+type WindowingStrategy struct {
+	Fn *Fn
 
-	"github.com/golang/protobuf/proto"
-)
-
-// Some Beam data types use URL query escaping to transmit byte strings
-// in JSON fields. These utility functions support encoding and decoding
-// those message types.
-
-// EncodeQueryEscaped encodes the supplied message using URL query escaping.
-func EncodeQueryEscaped(msg proto.Message) (string, error) {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return "", err
-	}
-	return url.QueryEscape(string(data)), nil
+	// TODO(BEAM-3304): trigger support
 }
 
-// DecodeQueryEscaped recovers a protocol buffer message from the supplied
-// URL query escaped string.
-func DecodeQueryEscaped(data string, ret proto.Message) error {
-	decoded, err := url.QueryUnescape(data)
-	if err != nil {
-		return err
-	}
-	return proto.Unmarshal([]byte(decoded), ret)
+func (ws *WindowingStrategy) Equals(o *WindowingStrategy) bool {
+	return ws.Fn.Equals(o.Fn)
+}
+
+func (ws *WindowingStrategy) String() string {
+	return ws.Fn.String()
+}
+
+// DefaultWindowingStrategy returns the default windowing strategy.
+func DefaultWindowingStrategy() *WindowingStrategy {
+	return &WindowingStrategy{Fn: NewGlobalWindows()}
 }

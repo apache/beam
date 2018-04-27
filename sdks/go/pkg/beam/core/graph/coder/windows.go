@@ -15,29 +15,33 @@
 
 package coder
 
-import (
-	"io"
-	"math"
+// WindowKind represents a kind of window coder.
+type WindowKind string
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+const (
+	GlobalWindow   WindowKind = "GWC"
+	IntervalWindow WindowKind = "IWC"
 )
 
-// EncodeEventTime encodes an EventTime as an uint64. The encoding is
-// millis-since-epoch, but shifted so that the byte representation of negative
-// values are lexicographically ordered before the byte representation of
-// positive values.
-func EncodeEventTime(et typex.EventTime, w io.Writer) error {
-	millis := mtime.Time(et).Milliseconds()
-	return EncodeUint64((uint64)(millis-math.MinInt64), w)
+// WindowCoder represents a Window coder.
+type WindowCoder struct {
+	Kind WindowKind
 }
 
-// DecodeEventTime decodes an EventTime.
-func DecodeEventTime(r io.Reader) (typex.EventTime, error) {
-	unix, err := DecodeUint64(r)
-	if err != nil {
-		return mtime.ZeroTimestamp, err
-	}
-	millis := (int64)(unix) + math.MinInt64
-	return typex.EventTime(millis), nil
+func (w *WindowCoder) Equals(o *WindowCoder) bool {
+	return w.Kind == o.Kind
+}
+
+func (w *WindowCoder) String() string {
+	return string(w.Kind)
+}
+
+// NewGlobalWindow returns a window coder for the global window.
+func NewGlobalWindow() *WindowCoder {
+	return &WindowCoder{Kind: GlobalWindow}
+}
+
+// NewIntervalWindow returns a window coder for interval windows.
+func NewIntervalWindow() *WindowCoder {
+	return &WindowCoder{Kind: IntervalWindow}
 }

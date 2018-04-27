@@ -109,6 +109,7 @@ type Z = typex.Z
 // EventTime represents the time of the event that generated an element.
 // This is distinct from the time when an element is processed.
 type EventTime = typex.EventTime
+type Window = typex.Window
 
 // These are the reflect.Type instances of the universal types, which are used
 // when binding actual types to "generic" DoFns that use Universal Types.

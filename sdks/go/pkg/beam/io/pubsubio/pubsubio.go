@@ -62,7 +62,7 @@ func Read(s beam.Scope, project, topic string, opts *ReadOptions) beam.PCollecti
 		payload.WithAttributes = opts.WithAttributes
 	}
 
-	out := beam.External(s, v1.PubSubPayloadURN, protox.MustEncode(payload), nil, []beam.FullType{typex.New(reflectx.ByteSlice)})
+	out := beam.External(s, v1.PubSubPayloadURN, protox.MustEncode(payload), nil, []beam.FullType{typex.New(reflectx.ByteSlice)}, false)
 	if opts.WithAttributes {
 		return beam.ParDo(s, unmarshalMessageFn, out[0])
 	}
@@ -91,5 +91,5 @@ func Write(s beam.Scope, project, topic string, col beam.PCollection) {
 		out = beam.ParDo(s, proto.Marshal, col)
 		payload.WithAttributes = true
 	}
-	beam.External(s, v1.PubSubPayloadURN, protox.MustEncode(payload), []beam.PCollection{out}, nil)
+	beam.External(s, v1.PubSubPayloadURN, protox.MustEncode(payload), []beam.PCollection{out}, nil, false)
 }
