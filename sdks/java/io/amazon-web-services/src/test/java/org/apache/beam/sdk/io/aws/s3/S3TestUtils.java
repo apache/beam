@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws.s3;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.amazonaws.util.Base64;
 import javax.annotation.Nullable;
@@ -44,6 +45,22 @@ class S3TestUtils {
 
   static S3Options s3OptionsWithSSECustomerKey() {
     S3Options options = s3Options();
+    options.setSSECustomerKey(new SSECustomerKey("86glyTlCNZgccSxW8JxMa6ZdjdK3N141glAysPUZ3AA="));
+    return options;
+  }
+
+  static S3Options s3OptionsWithSSEAwsKeyManagementParams() {
+    S3Options options = s3Options();
+    String awsKmsKeyId =
+            "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
+    SSEAwsKeyManagementParams sseAwsKeyManagementParams =
+        new SSEAwsKeyManagementParams(awsKmsKeyId);
+    options.setSSEAwsKeyManagementParams(sseAwsKeyManagementParams);
+    return options;
+  }
+
+  static S3Options s3OptionsWithMultipleSSEOptions() {
+    S3Options options = s3OptionsWithSSEAwsKeyManagementParams();
     options.setSSECustomerKey(new SSECustomerKey("86glyTlCNZgccSxW8JxMa6ZdjdK3N141glAysPUZ3AA="));
     return options;
   }

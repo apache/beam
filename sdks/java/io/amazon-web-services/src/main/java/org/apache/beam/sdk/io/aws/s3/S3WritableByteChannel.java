@@ -29,6 +29,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -59,8 +60,12 @@ class S3WritableByteChannel implements WritableByteChannel {
     this.options = checkNotNull(options);
     this.path = checkNotNull(path, "path");
     checkArgument(
-        !(options.getSSECustomerKey() != null && options.getSSEAlgorithm() != null),
-        "Either SSECustomerKey (SSE-C) or SSEAlgorithm (SSE-S3) must not be set at the same time.");
+        atMostOne(
+            options.getSSECustomerKey() != null,
+            options.getSSEAlgorithm() != null,
+            options.getSSEAwsKeyManagementParams() != null),
+        "Either SSECustomerKey (SSE-C) or SSEAlgorithm (SSE-S3)"
+            + " or SSEAwsKeyManagementParams (SSE-KMS) must not be set at the same time.");
     // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
     checkArgument(
         options.getS3UploadBufferSizeBytes()
@@ -80,6 +85,7 @@ class S3WritableByteChannel implements WritableByteChannel {
             .withStorageClass(options.getS3StorageClass())
             .withObjectMetadata(objectMetadata);
     request.setSSECustomerKey(options.getSSECustomerKey());
+    request.setSSEAwsKeyManagementParams(options.getSSEAwsKeyManagementParams());
     InitiateMultipartUploadResult result;
     try {
       result = amazonS3.initiateMultipartUpload(request);
@@ -158,5 +164,18 @@ class S3WritableByteChannel implements WritableByteChannel {
     } catch (AmazonClientException e) {
       throw new IOException(e);
     }
+  }
+
+  @VisibleForTesting
+  static boolean atMostOne(boolean... values) {
+    boolean one = false;
+    for (boolean value : values) {
+      if (!one && value) {
+        one = true;
+      } else if (value) {
+        return false;
+      }
+    }
+    return true;
   }
 }

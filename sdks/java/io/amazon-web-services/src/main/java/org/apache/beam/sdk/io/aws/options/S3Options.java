@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
@@ -52,10 +53,15 @@ public interface S3Options extends AwsOptions {
   String getSSEAlgorithm();
   void setSSEAlgorithm(String value);
 
-  @Description("SSE key for SSE-C encryption.")
+  @Description("SSE key for SSE-C encryption, e.g. a base64 encoded key and the algorithm.")
   @Nullable
   SSECustomerKey getSSECustomerKey();
   void setSSECustomerKey(SSECustomerKey value);
+
+  @Description("KMS key id for SSE-KMS encryption, e.g. \"arn:aws:kms:...\".")
+  @Nullable
+  SSEAwsKeyManagementParams getSSEAwsKeyManagementParams();
+  void setSSEAwsKeyManagementParams(SSEAwsKeyManagementParams value);
 
   /**
    * Provide the default s3 upload buffer size in bytes: 64MB if more than 512MB in RAM are
