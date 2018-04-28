@@ -47,6 +47,11 @@ public interface S3Options extends AwsOptions {
   int getS3ThreadPoolSize();
   void setS3ThreadPoolSize(int value);
 
+  @Description("Algorithm for SSE-S3 encryption, e.g. AES256.")
+  @Nullable
+  String getSSEAlgorithm();
+  void setSSEAlgorithm(String value);
+
   @Description("SSE key for SSE-C encryption.")
   @Nullable
   SSECustomerKey getSSECustomerKey();
