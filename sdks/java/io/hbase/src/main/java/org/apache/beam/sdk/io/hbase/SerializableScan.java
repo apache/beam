@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
 
 /** This is just a wrapper class to serialize HBase {@link Scan} using Protobuf. */
-class SerializableScan implements Serializable {
+public class SerializableScan implements Serializable {
   private transient Scan scan;
 
   public SerializableScan() {}
