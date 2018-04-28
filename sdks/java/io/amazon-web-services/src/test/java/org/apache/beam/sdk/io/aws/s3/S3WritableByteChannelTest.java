@@ -19,21 +19,23 @@ package org.apache.beam.sdk.io.aws.s3;
 
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.getSSECustomerKeyMd5;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSEAlgorithm;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.UploadPartRequest;
@@ -52,42 +54,62 @@ public class S3WritableByteChannelTest {
   @Test
   public void write() throws IOException {
     writeFromOptions(s3Options());
+    writeFromOptions(s3OptionsWithSSEAlgorithm());
     writeFromOptions(s3OptionsWithSSECustomerKey());
   }
 
   private void writeFromOptions(S3Options options) throws IOException {
     AmazonS3 mockAmazonS3 = mock(AmazonS3.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
+    int numInitiateMultipartUploadinvocations = 0;
 
     InitiateMultipartUploadResult initiateMultipartUploadResult =
         new InitiateMultipartUploadResult();
     initiateMultipartUploadResult.setUploadId("upload-id");
+    if (options.getSSEAlgorithm() != null) {
+      initiateMultipartUploadResult.setSSEAlgorithm(options.getSSEAlgorithm());
+    }
     if (getSSECustomerKeyMd5(options) != null) {
       initiateMultipartUploadResult.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));
     }
-    when(mockAmazonS3.initiateMultipartUpload(
-            argThat(notNullValue(InitiateMultipartUploadRequest.class))))
-        .thenReturn(initiateMultipartUploadResult);
+    doReturn(initiateMultipartUploadResult)
+        .when(mockAmazonS3)
+        .initiateMultipartUpload(argThat(notNullValue(InitiateMultipartUploadRequest.class)));
     assertEquals(
         getSSECustomerKeyMd5(options),
         mockAmazonS3
             .initiateMultipartUpload(
                 new InitiateMultipartUploadRequest(path.getBucket(), path.getKey()))
             .getSSECustomerKeyMd5());
+    numInitiateMultipartUploadinvocations++;
 
+    int numUploadPartinvocations = 0;
     UploadPartResult result = new UploadPartResult();
     result.setETag("etag");
+    if (options.getSSEAlgorithm() != null) {
+      result.setSSEAlgorithm(options.getSSEAlgorithm());
+    }
     if (getSSECustomerKeyMd5(options) != null) {
       result.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));
     }
-    when(mockAmazonS3.uploadPart(argThat(notNullValue(UploadPartRequest.class))))
-        .thenReturn(result);
-    assertEquals(
-        getSSECustomerKeyMd5(options),
-        mockAmazonS3.uploadPart(new UploadPartRequest()).getSSECustomerKeyMd5());
+    doReturn(result).when(mockAmazonS3).uploadPart(argThat(notNullValue(UploadPartRequest.class)));
+
+    if (getSSECustomerKeyMd5(options) != null) {
+      assertEquals(
+          getSSECustomerKeyMd5(options),
+          mockAmazonS3.uploadPart(new UploadPartRequest()).getSSECustomerKeyMd5());
+      numUploadPartinvocations++;
+    }
+    if (options.getSSEAlgorithm() != null) {
+      assertEquals(
+          options.getSSEAlgorithm(),
+          mockAmazonS3.uploadPart(new UploadPartRequest()).getSSEAlgorithm());
+      numUploadPartinvocations++;
+    }
 
     S3WritableByteChannel channel =
         new S3WritableByteChannel(mockAmazonS3, path, "text/plain", options);
+    numInitiateMultipartUploadinvocations++;
     int contentSize = 34_078_720;
     ByteBuffer uploadContent = ByteBuffer.allocate((int) (contentSize * 2.5));
     for (int i = 0; i < contentSize; i++) {
@@ -98,12 +120,19 @@ public class S3WritableByteChannelTest {
     int uploadedSize = channel.write(uploadContent);
     assertEquals(contentSize, uploadedSize);
 
+    CompleteMultipartUploadResult completeMultipartUploadResult =
+        new CompleteMultipartUploadResult();
+    doReturn(completeMultipartUploadResult)
+        .when(mockAmazonS3)
+        .completeMultipartUpload(argThat(notNullValue(CompleteMultipartUploadRequest.class)));
+
     channel.close();
 
-    verify(mockAmazonS3, times(2))
+    verify(mockAmazonS3, times(numInitiateMultipartUploadinvocations))
         .initiateMultipartUpload(notNull(InitiateMultipartUploadRequest.class));
     int partQuantity =
-        ((int) Math.ceil((double) contentSize / options.getS3UploadBufferSizeBytes())) + 1;
+        ((int) Math.ceil((double) contentSize / options.getS3UploadBufferSizeBytes())
+            + numUploadPartinvocations);
     verify(mockAmazonS3, times(partQuantity)).uploadPart(notNull(UploadPartRequest.class));
     verify(mockAmazonS3, times(1))
         .completeMultipartUpload(notNull(CompleteMultipartUploadRequest.class));

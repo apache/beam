@@ -58,6 +58,9 @@ class S3WritableByteChannel implements WritableByteChannel {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     this.options = checkNotNull(options);
     this.path = checkNotNull(path, "path");
+    checkArgument(
+        !(options.getSSECustomerKey() != null && options.getSSEAlgorithm() != null),
+        "Either SSECustomerKey (SSE-C) or SSEAlgorithm (SSE-S3) must not be set at the same time.");
     // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
     checkArgument(
         options.getS3UploadBufferSizeBytes()
@@ -69,6 +72,9 @@ class S3WritableByteChannel implements WritableByteChannel {
 
     ObjectMetadata objectMetadata = new ObjectMetadata();
     objectMetadata.setContentType(contentType);
+    if (options.getSSEAlgorithm() != null) {
+      objectMetadata.setSSEAlgorithm(options.getSSEAlgorithm());
+    }
     InitiateMultipartUploadRequest request =
         new InitiateMultipartUploadRequest(path.getBucket(), path.getKey())
             .withStorageClass(options.getS3StorageClass())

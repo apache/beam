@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws.s3;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.amazonaws.util.Base64;
 import javax.annotation.Nullable;
@@ -32,6 +33,12 @@ class S3TestUtils {
     S3Options options = PipelineOptionsFactory.as(S3Options.class);
     options.setAwsRegion("us-west-1");
     options.setS3UploadBufferSizeBytes(5_242_880);
+    return options;
+  }
+
+  static S3Options s3OptionsWithSSEAlgorithm() {
+    S3Options options = s3Options();
+    options.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
     return options;
   }
 
