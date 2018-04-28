@@ -39,7 +39,7 @@ except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-
+#TODO(angoenka): Clean test cases and mock Stager.
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class SetupTest(unittest.TestCase):
 
@@ -418,8 +418,11 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    with mock.patch('apache_beam.runners.dataflow.internal.'
-                    'dependency._dependency_file_copy'):
+    with mock.patch('.'.join([
+        dependency.DataflowFileHandle.__module__,
+        dependency.DataflowFileHandle.__name__,
+        dependency.DataflowFileHandle.file_copy.__name__
+    ])):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        dependency.stage_job_resources(options))
 
@@ -433,8 +436,11 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    with mock.patch('apache_beam.runners.dataflow.internal.'
-                    'dependency._dependency_file_copy'):
+    with mock.patch('.'.join([
+        dependency.DataflowFileHandle.__module__,
+        dependency.DataflowFileHandle.__name__,
+        dependency.DataflowFileHandle.file_copy.__name__
+    ])):
       self.assertEqual([sdk_filename], dependency.stage_job_resources(options))
 
   def test_sdk_location_http(self):
@@ -446,15 +452,16 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    def file_download(_, to_folder):
-      tarball_path = os.path.join(to_folder, 'sdk-tarball')
-      with open(tarball_path, 'w') as f:
+    def file_download(dummy_self, _, to_path):
+      with open(to_path, 'w') as f:
         f.write('Package content.')
-      return tarball_path
+      return to_path
 
-    with mock.patch(
-        'apache_beam.runners.dataflow.internal.'
-        'dependency._dependency_file_download', file_download):
+    with mock.patch('.'.join([
+        dependency.DataflowFileHandle.__module__,
+        dependency.DataflowFileHandle.__name__,
+        dependency.DataflowFileHandle.file_download.__name__
+    ]), file_download):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        dependency.stage_job_resources(options))
 
@@ -484,7 +491,7 @@ class SetupTest(unittest.TestCase):
 
     gcs_copied_files = []
 
-    def file_copy(from_path, to_path):
+    def file_copy(dummy_self, from_path, to_path):
       if from_path.startswith('gs://'):
         gcs_copied_files.append(from_path)
         _, from_name = os.path.split(from_path)
@@ -497,12 +504,16 @@ class SetupTest(unittest.TestCase):
       else:
         shutil.copyfile(from_path, to_path)
 
-    dependency._dependency_file_copy = file_copy
-
-    self.assertEqual([
-        'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl', 'gcs.tar.gz',
-        dependency.EXTRA_PACKAGES_FILE
-    ], dependency.stage_job_resources(options))
+    with mock.patch(
+        '.'.join([
+            dependency.DataflowFileHandle.__module__,
+            dependency.DataflowFileHandle.__name__,
+            dependency.DataflowFileHandle.file_copy.__name__
+        ]), file_copy):
+      self.assertEqual([
+          'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl', 'gcs.tar.gz',
+          dependency.EXTRA_PACKAGES_FILE
+      ], dependency.stage_job_resources(options))
     with open(os.path.join(staging_dir, dependency.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual([
           'abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n', 'whl.whl\n',

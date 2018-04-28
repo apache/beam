@@ -400,7 +400,7 @@ class SetupTest(unittest.TestCase):
                        self.stager.stage_job_resources(
                            options, staging_location=staging_dir))
 
-  def test_sdk_location_gcs_wheel_file(self):
+  def test_sdk_location_remote_wheel_file(self):
     staging_dir = self.make_temp_dir()
     sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
     sdk_location = '/tmp/remote/my-bucket/' + sdk_filename
@@ -435,7 +435,7 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    def file_download(self, _, to_path):
+    def file_download(dummy_self, _, to_path):
       with open(to_path, 'w') as f:
         f.write('Package content.')
       return to_path

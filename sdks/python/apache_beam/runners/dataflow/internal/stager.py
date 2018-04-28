@@ -63,6 +63,7 @@ import pkg_resources
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
+# TODO(angoenka): Remove reference to dataflow internal names
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
 
