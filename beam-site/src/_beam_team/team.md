@@ -50,6 +50,12 @@ members:
     organization: Google
     roles: committer, PMC
     time_zone: "-8"
+  - name: Pablo Estrada
+    apache_id: pabloem
+    email: pabloem [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Stephan Ewen
     apache_id: sewen
     email: sewen [at] apache [dot] org
@@ -194,10 +200,4 @@ members:
     organization: Alipay
     roles: committer
     time_zone: "+8"
-  - name: Pablo Estrada
-    apache_id: pabloem
-    email: pabloem [at] apache [dot] org
-    organization: Google
-    roles: committer
-    time_zone: "-8"
 ---
