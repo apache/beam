@@ -22,7 +22,7 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
-def aws_java_sdk_version = "1.11.255"
+def aws_java_sdk_version = "1.11.319"
 
 dependencies {
   compile library.java.guava
