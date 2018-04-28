@@ -321,7 +321,7 @@ class Stager(object):
       local_download_file = os.path.join(temp_dir, 'beam-sdk.tar.gz')
       self.file_handler.file_download(sdk_remote_location, local_download_file)
       staged_name = self._desired_sdk_filename_in_staging_location(
-          local_download_file)
+          sdk_remote_location)
       staged_path = FileSystems.join(staging_location, staged_name)
       logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
                    staged_path)
@@ -392,13 +392,12 @@ class Stager(object):
         'Expected either one of %s to be found in the download folder.' %
         (expected_files))
 
-  def stage_job_resources(
-      self,
-      options,
-      build_setup_args=None,
-      temp_dir=None,
-      populate_requirements_cache=_populate_requirements_cache,
-      staging_location=None):
+  def stage_job_resources(self,
+                          options,
+                          build_setup_args=None,
+                          temp_dir=None,
+                          populate_requirements_cache=None,
+                          staging_location=None):
     """For internal use only; no backwards-compatibility guarantees.
 
       Creates (if needed) and stages job resources to options.staging_location.
@@ -451,8 +450,9 @@ class Stager(object):
       # in the cache.
       if not os.path.exists(requirements_cache_path):
         os.makedirs(requirements_cache_path)
-      populate_requirements_cache(setup_options.requirements_file,
-                                  requirements_cache_path)
+      (populate_requirements_cache if populate_requirements_cache else
+       self._populate_requirements_cache)(setup_options.requirements_file,
+                                          requirements_cache_path)
       for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
         self.file_handler.file_copy(
             pkg, FileSystems.join(staging_location, os.path.basename(pkg)))
