@@ -40,9 +40,9 @@ from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
 
 try:
-  import cStringIO
+  from cStringIO import StringIO as BytesIO
 except ImportError:
-  from io import BytesIO as cStringIO  # pylint: disable=ungrouped-imports
+  from io import BytesIO  # pylint: disable=ungrouped-imports
 
 __all__ = ['GcsIO']
 
@@ -472,7 +472,7 @@ class GcsDownloader(Downloader):
     self._get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self._download_stream = cStringIO.StringIO()
+    self._download_stream = BytesIO()
     self._downloader = transfer.Download(
         self._download_stream, auto_transfer=False, chunksize=self._buffer_size)
     self._client.objects.Get(self._get_request, download=self._downloader)

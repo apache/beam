@@ -60,9 +60,9 @@ from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
 try:
-  import cStringIO
+  from cStringIO import StringIO as BytesIO
 except ImportError:
-  from io import BytesIO as cStringIO
+  from io import BytesIO
 
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 
@@ -315,7 +315,7 @@ class _AvroBlock(object):
       # We take care to avoid extra copies of data while slicing large objects
       # by use of a buffer.
       result = snappy.decompress(buffer(data)[:-4])
-      avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
+      avroio.BinaryDecoder(BytesIO(data[-4:])).check_crc32(result)
       return result
     else:
       raise ValueError('Unknown codec: %r', codec)
@@ -324,8 +324,7 @@ class _AvroBlock(object):
     return self._num_records
 
   def records(self):
-    decoder = avroio.BinaryDecoder(
-        cStringIO.StringIO(self._decompressed_block_bytes))
+    decoder = avroio.BinaryDecoder(BytesIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 

@@ -42,9 +42,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import cStringIO
+  from cStringIO import StringIO as BytesIO
 except ImportError:
-  from io import BytesIO as cStringIO
+  from io import BytesIO
 
 try:
   import tensorflow as tf  # pylint: disable=import-error
@@ -85,7 +85,7 @@ class TestTFRecordUtil(unittest.TestCase):
     self.record = binascii.a2b_base64(FOO_RECORD_BASE64)
 
   def _as_file_handle(self, contents):
-    result = cStringIO.StringIO()
+    result = BytesIO()
     result.write(contents)
     result.reset()
     return result
@@ -126,7 +126,7 @@ class TestTFRecordUtil(unittest.TestCase):
             '\x03\x00\x00\x00\x00\x00\x00\x00', crc32c_fn=crc32c_fn))
 
   def test_write_record(self):
-    file_handle = cStringIO.StringIO()
+    file_handle = BytesIO()
     _TFRecordUtil.write_record(file_handle, 'foo')
     self.assertEqual(self.record, file_handle.getvalue())
 
@@ -147,7 +147,7 @@ class TestTFRecordUtil(unittest.TestCase):
 
   def test_compatibility_read_write(self):
     for record in ['', 'blah', 'another blah']:
-      file_handle = cStringIO.StringIO()
+      file_handle = BytesIO()
       _TFRecordUtil.write_record(file_handle, record)
       file_handle.reset()
       actual = _TFRecordUtil.read_record(file_handle)
@@ -395,7 +395,7 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
   def create_inputs(self):
     input_array = [[random.random() - 0.5 for _ in range(15)]
                    for _ in range(12)]
-    memfile = cStringIO.StringIO()
+    memfile = BytesIO()
     pickle.dump(input_array, memfile)
     return memfile.getvalue()
 
