@@ -96,7 +96,7 @@ func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k
 	defer client.Close()
 
 	splits := []*datastore.Key{}
-	iter := client.Run(ctx, datastore.NewQuery(s.Kind).Order(scatterPropertyName).Limit((s.Shards - 1) * 32).KeysOnly())
+	iter := client.Run(ctx, datastore.NewQuery(s.Kind).Order(scatterPropertyName).Limit((s.Shards-1)*32).KeysOnly())
 	for {
 		k, err := iter.Next(nil)
 		if err != nil {
@@ -209,7 +209,7 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) 
 	// lookup type
 	t, ok := runtime.LookupType(f.Type)
 	if !ok {
-		fmt.Errorf("No type registered %s", f.Type)
+		return fmt.Errorf("No type registered %s", f.Type)
 	}
 
 	// Translate BoundedQuery to datastore.Query
