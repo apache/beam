@@ -49,7 +49,6 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
-import functools
 import glob
 import logging
 import os
@@ -96,7 +95,8 @@ class FileHandler(object):
     """Downloads a file over http/https from a or copy them from a remote
     location."""
     if from_url.startswith('http://') or from_url.startswith('https://'):
-      # TODO(silviuc): We should cache downloads so we do not do it for every job.
+      # TODO(silviuc): We should cache downloads so we do not do it for every
+      # job.
       try:
         # We check if the file is actually there because wget returns a file
         # even for a 404 response (file will contain the contents of the 404
@@ -116,7 +116,7 @@ class FileHandler(object):
       self.file_copy(from_url, to_path)
 
   def is_remote_path(self, path):
-    return path.find('://') is not -1
+    return path.find('://') != -1
 
 
 class Stager(object):
@@ -263,7 +263,6 @@ class Stager(object):
 
   def _desired_sdk_filename_in_staging_location(self, sdk_location):
     """Returns the name that SDK file should have in the staging location.
-    
       Args:
         sdk_location: Full path to SDK file.
       """
@@ -553,6 +552,5 @@ class Stager(object):
 
   def get_sdk_package_name(self):
     """For internal use only; no backwards-compatibility guarantees.
-    
       Returns the PyPI package name to be staged."""
     return BEAM_PACKAGE_NAME

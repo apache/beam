@@ -40,6 +40,8 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 #TODO(angoenka): Clean test cases and mock Stager.
+
+
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class SetupTest(unittest.TestCase):
 
@@ -457,11 +459,12 @@ class SetupTest(unittest.TestCase):
         f.write('Package content.')
       return to_path
 
-    with mock.patch('.'.join([
-        dependency.DataflowFileHandle.__module__,
-        dependency.DataflowFileHandle.__name__,
-        dependency.DataflowFileHandle.file_download.__name__
-    ]), file_download):
+    with mock.patch(
+        '.'.join([
+            dependency.DataflowFileHandle.__module__,
+            dependency.DataflowFileHandle.__name__,
+            dependency.DataflowFileHandle.file_download.__name__
+        ]), file_download):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        dependency.stage_job_resources(options))
 
