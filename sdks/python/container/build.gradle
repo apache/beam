@@ -44,7 +44,6 @@ dependencies {
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
-  rename "apache-beam.*\\.tar.gz", "apache-beam.tar.gz"
   into "build/target"
   configurations.dockerDependency.stopExecutionIfEmpty()
 }
