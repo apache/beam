@@ -72,6 +72,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -777,6 +778,7 @@ public class WatermarkManagerTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4191")
   public void updateWatermarkWithDifferentWindowedValueInstances() {
     manager.updateWatermarks(
         null,
