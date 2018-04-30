@@ -44,6 +44,12 @@ members:
     organization: Talend
     roles: committer
     time_zone: "+1"
+  - name: Griselda Cuevas
+    apache_id: gris
+    email: gris [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Luke Cwik
     apache_id: lcwik
     email: lcwik [at] apache [dot] org
