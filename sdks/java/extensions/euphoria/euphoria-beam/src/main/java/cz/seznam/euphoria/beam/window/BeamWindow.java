@@ -24,6 +24,7 @@ import org.joda.time.Instant;
  */
 public class BeamWindow<W extends Window<W>> extends BoundedWindow {
 
+  private static final Instant MAX_TIMESTAMP = BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1);
   private final W wrapped;
 
   private BeamWindow(W wrap) {
@@ -32,7 +33,15 @@ public class BeamWindow<W extends Window<W>> extends BoundedWindow {
 
   @Override
   public Instant maxTimestamp() {
-    return new Instant(wrapped.maxTimestamp());
+    // We cannot return more than MAX_TIMESTAMP-1 since beam's WatermarkManager checks every
+    // window max timestamp to be smaller than BoundedWindow.TIMESTAMP_MAX_VALUE.
+
+    long wrappedWindowMaxTimestamp = wrapped.maxTimestamp();
+    if(wrappedWindowMaxTimestamp > MAX_TIMESTAMP.getMillis()){
+      return MAX_TIMESTAMP;
+    }
+
+    return new Instant(wrappedWindowMaxTimestamp);
   }
 
   @Override
