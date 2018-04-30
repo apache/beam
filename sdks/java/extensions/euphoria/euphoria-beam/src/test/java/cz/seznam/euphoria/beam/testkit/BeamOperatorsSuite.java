@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.beam.testkit;
 
 import cz.seznam.euphoria.operator.test.FlatMapTest;
+import cz.seznam.euphoria.operator.test.ReduceByKeyTest;
 import cz.seznam.euphoria.operator.test.UnionTest;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProviderRunner;
@@ -36,7 +37,7 @@ import org.junit.runners.Suite;
 //    JoinTest.class,
 //    JoinWindowEnforcementTest.class,
 //    MapElementsTest.class,
-//    ReduceByKeyTest.class,
+    ReduceByKeyTest.class,
 //    ReduceStateByKeyTest.class,
 //    SumByKeyTest.class,
 //    TopPerKeyTest.class,
