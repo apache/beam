@@ -62,7 +62,7 @@ public class ReduceByKeyTest {
   }
 
   @Test
-  public void tsetSimpleRBK() {
+  public void testSimpleRBK() {
     final Flow flow = Flow.create();
 
     final ListDataSource<Integer> input = ListDataSource.unbounded(
