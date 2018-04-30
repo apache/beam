@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.commons.lang3.SystemUtils;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -261,6 +262,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4110")
   public void testResourceIdTester() throws Exception {
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }

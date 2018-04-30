@@ -239,7 +239,7 @@ public class RetryHttpRequestInitializerTest {
     try {
       result.executeUnparsed();
       fail();
-    } catch (Throwable t) {
+    } catch (IOException e) {
     }
 
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
