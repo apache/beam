@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.Strings;
 import java.util.Arrays;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * An exception that was thrown in user-code. Sets the stack trace
@@ -29,11 +31,18 @@ import java.util.Objects;
 public class UserCodeException extends RuntimeException {
 
   public static UserCodeException wrap(Throwable t) {
-    if (t instanceof UserCodeException) {
-      return (UserCodeException) t;
-    }
+    return wrap("", t);
+  }
 
-    return new UserCodeException(t);
+  public static UserCodeException wrap(@Nullable String stepName, Throwable t) {
+    if (t instanceof UserCodeException) {
+      UserCodeException underlying = (UserCodeException) t;
+      if (stepName == null) {
+        return underlying;
+      }
+      return new UserCodeException(stepName, underlying.getCause());
+    }
+    return new UserCodeException(stepName, t);
   }
 
   public static RuntimeException wrapIf(boolean condition, Throwable t) {
@@ -48,8 +57,11 @@ public class UserCodeException extends RuntimeException {
     return new RuntimeException(t);
   }
 
-  private UserCodeException(Throwable t) {
+  private final String transformName;
+
+  private UserCodeException(String transformName, Throwable t) {
     super(t);
+    this.transformName = transformName;
     truncateStackTrace(t);
   }
 
@@ -85,6 +97,10 @@ public class UserCodeException extends RuntimeException {
     StackTraceElement[] truncatedStack = Arrays.copyOfRange(throwableStack, 0,
         throwableStackSize - commonFrames);
     t.setStackTrace(truncatedStack);
+  }
+
+  public String getTransformName() {
+    return transformName;
   }
 
   /**
