@@ -68,12 +68,14 @@ import com.google.datastore.v1.client.DatastoreException;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
 import com.google.rpc.Code;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DatastoreWriterFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
@@ -609,7 +611,8 @@ public class DatastoreV1Test {
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, numSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn =
+        new SplitQueryFn(V_1_OPTIONS, numSplits, null, mockDatastoreFactory);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
@@ -660,7 +663,8 @@ public class DatastoreV1Test {
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn =
+        new SplitQueryFn(V_1_OPTIONS, numSplits, null, mockDatastoreFactory);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Query> queries = doFnTester.processBundle(QUERY);
@@ -681,7 +685,7 @@ public class DatastoreV1Test {
         .setLimit(Int32Value.newBuilder().setValue(1))
         .build();
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, null, mockDatastoreFactory);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Query> queries = doFnTester.processBundle(queryWithLimit);
@@ -690,6 +694,47 @@ public class DatastoreV1Test {
     verifyNoMoreInteractions(mockDatastore);
     verifyNoMoreInteractions(mockQuerySplitter);
   }
+
+  /**
+   * Tests {@link SplitQueryFn} when an alternative Query Splitter is specified.
+   */
+  @Test
+  public void testSplitQueryFnWithAlternateSplitter() throws Exception {
+    AtomicInteger callCount = new AtomicInteger();
+    int numSplits = 100;
+
+    QuerySplitter fakeQuerySplitter = (QuerySplitter & Serializable)
+        (query, partition, shards, datastore) -> {
+           assertEquals(QUERY, query);
+           assertEquals(shards, numSplits);
+           callCount.incrementAndGet();
+           return splitQuery(query, shards);
+         };
+
+    SplitQueryFn splitQueryFn =
+        new SplitQueryFn(V_1_OPTIONS, numSplits, fakeQuerySplitter, mockDatastoreFactory);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
+    /**
+     * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
+     * mock factory using a when clause for unit testing purposes, it is not serializable
+     * because it doesn't have a no-arg constructor. Thus disabling the cloning to prevent the
+     * doFn from being serialized.
+     */
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<Query> queries = doFnTester.processBundle(QUERY);
+
+    assertEquals(queries.size(), numSplits);
+    assertEquals(callCount.get(),  1);
+
+    // Confirms that sub-queries are not equal to original when there is more than one split.
+    for (Query subQuery : queries) {
+      assertNotEquals(subQuery, QUERY);
+    }
+
+    verifyZeroInteractions(mockQuerySplitter);
+    verifyZeroInteractions(mockDatastore);
+  }
+
 
   /** Tests {@link ReadFn} with a query limit less than one batch. */
   @Test

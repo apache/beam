@@ -223,7 +223,7 @@ public class DatastoreV1 {
   /**
    * When choosing the number of updates in a single RPC, do not go below this value.  The actual
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
-   * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
+   * {@link #DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
   @VisibleForTesting
   static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
@@ -286,6 +286,7 @@ public class DatastoreV1 {
     @Nullable public abstract ValueProvider<String> getNamespace();
     public abstract int getNumQuerySplits();
     @Nullable public abstract String getLocalhost();
+    @Nullable public abstract QuerySplitter getQuerySplitter();
 
     @Override
     public abstract String toString();
@@ -300,6 +301,7 @@ public class DatastoreV1 {
       abstract Builder setNamespace(ValueProvider<String> namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
       abstract Builder setLocalhost(String localhost);
+      abstract Builder setQuerySplitter(QuerySplitter querySplitter);
       abstract Read build();
     }
 
@@ -506,6 +508,21 @@ public class DatastoreV1 {
     }
 
     /**
+     * Returns a new {@link DatastoreV1.Read} that uses the specified {@link QuerySplitter} to
+     * split the query rather than the default one.
+     * The user-specified query splitter must be {@link Serializable}.
+     *
+     * <p><b>Note:</b>When the {@link Query} is configured with a limit using
+     * {@link Query.Builder#setLimit}, the query splitter will not be called, as decribed in
+     * {@link #withQuery(Query) withQuery}.
+     */
+    public DatastoreV1.Read withQuerySplitter(QuerySplitter querySplitter) {
+      checkArgument(querySplitter != null, "querySplitter can not be null");
+      checkArgument(querySplitter instanceof Serializable, "querySplitter must be serializable");
+      return toBuilder().setQuerySplitter(querySplitter).build();
+    }
+
+    /**
      * Returns a new {@link DatastoreV1.Read} that reads the results of the specified GQL query.
      * See <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference
      * </a> to know more about GQL grammar.
@@ -630,7 +647,8 @@ public class DatastoreV1 {
       }
 
       return inputQuery
-          .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())))
+          .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits(),
+              getQuerySplitter())))
           .apply("Reshuffle", Reshuffle.viaRandomKey())
           .apply("Read", ParDo.of(new ReadFn(v1Options)));
     }
@@ -753,28 +771,34 @@ public class DatastoreV1 {
       private final int numSplits;
 
       private final V1DatastoreFactory datastoreFactory;
+
+      // If not null, a query splitter to use instead of the default one.
+      private final QuerySplitter userQuerySplitter;
+
       // Datastore client
       private transient Datastore datastore;
       // Query splitter
       private transient QuerySplitter querySplitter;
 
-      public SplitQueryFn(V1Options options, int numSplits) {
-        this(options, numSplits, new V1DatastoreFactory());
+      public SplitQueryFn(V1Options options, int numSplits, QuerySplitter querySplitter) {
+        this(options, numSplits, querySplitter, new V1DatastoreFactory());
       }
 
       @VisibleForTesting
       SplitQueryFn(V1Options options, int numSplits,
-          V1DatastoreFactory datastoreFactory) {
+          @Nullable QuerySplitter querySplitter, V1DatastoreFactory datastoreFactory) {
         this.options = options;
         this.numSplits = numSplits;
         this.datastoreFactory = datastoreFactory;
+        this.userQuerySplitter = querySplitter;
       }
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
-        querySplitter = datastoreFactory.getQuerySplitter();
+        querySplitter = userQuerySplitter != null
+            ? userQuerySplitter : datastoreFactory.getQuerySplitter();
       }
 
       @ProcessElement
