@@ -37,7 +37,7 @@ import org.junit.runners.Suite;
 //    JoinTest.class,
 //    JoinWindowEnforcementTest.class,
 //    MapElementsTest.class,
-    ReduceByKeyTest.class,
+//    ReduceByKeyTest.class,
 //    ReduceStateByKeyTest.class,
 //    SumByKeyTest.class,
 //    TopPerKeyTest.class,
