@@ -505,6 +505,13 @@ public class Schema implements Serializable {
   }
 
   /**
+   * Returns true if {@code fieldName} exists in the schema, false otherwise.
+   */
+  public boolean hasField(String fieldName) {
+    return fieldIndices.containsKey(fieldName);
+  }
+
+  /**
    * Return the name of field by index.
    */
   public String nameOf(int fieldIndex) {
