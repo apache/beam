@@ -109,7 +109,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 
 		// Forward direct output, if any. It is always a main output.
 		if val != nil {
-			return n.Out[0].ProcessElement(ctx, *val, values...)
+			return n.Out[0].ProcessElement(ctx, *val)
 		}
 	} else {
 		for _, w := range elm.Windows {
@@ -122,7 +122,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 
 			// Forward direct output, if any. It is always a main output.
 			if val != nil {
-				return n.Out[0].ProcessElement(ctx, *val, values...)
+				return n.Out[0].ProcessElement(ctx, *val)
 			}
 		}
 	}
