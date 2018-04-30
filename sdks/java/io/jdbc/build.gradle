@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(enableFindbugs: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

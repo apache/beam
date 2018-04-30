@@ -336,6 +336,8 @@ ext.DEFAULT_SHADOW_CLOSURE = {
 class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
+  boolean enableErrorProne = true // Controls whether the errorprone plugin is enabled and configured
+
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
   // DEFAULT_SHADOW_CLOSURE << {
@@ -498,6 +500,11 @@ ext.applyJavaNature = {
         xml.enabled = false
       }
     }
+  }
+
+  // Enable errorprone, not by default right now
+  if (configuration.enableErrorProne) {
+    apply plugin: 'net.ltgt.errorprone'
   }
 
   // Enables a plugin which can perform shading of classes. See the general comments
@@ -813,9 +820,13 @@ ext.applyJavaNature = {
   //
   // TODO: Figure out whether we should force all dependency conflict resolution
   // to occur in the "shadow" and "shadowTest" configurations.
-  configurations.all {
-    resolutionStrategy {
-      force library.java.values()
+  configurations.all { config ->
+    // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
+    // has different dependencies than our project.
+    if (config.getName() != "errorprone") {
+      config.resolutionStrategy {
+        force library.java.values()
+      }
     }
   }
 

@@ -208,7 +208,7 @@ public class CassandraIOIT implements Serializable {
     }
 
     public Scientist(int id) {
-      this(0, "");
+      this(id, "");
     }
 
     public Scientist(int id, String name) {
