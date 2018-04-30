@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.JsonToRowUtils.jsonToRow;
+import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
@@ -87,18 +88,10 @@ public class JsonToRow {
                   new DoFn<String, Row>() {
                     @ProcessElement
                     public void processElement(ProcessContext context) {
-                      context.output(jsonToRow(context.element()));
+                      context.output(jsonToRow(objectMapper(), context.element()));
                     }
                   }))
           .setCoder(schema.getRowCoder());
-    }
-
-    private Row jsonToRow(String jsonString) {
-      try {
-        return objectMapper().readValue(jsonString, Row.class);
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Unable to parse json object: " + jsonString, e);
-      }
     }
 
     private ObjectMapper objectMapper() {
@@ -111,16 +104,6 @@ public class JsonToRow {
       }
 
       return this.objectMapper;
-    }
-
-    private static ObjectMapper newObjectMapperWith(RowJsonDeserializer deserializer) {
-      SimpleModule module = new SimpleModule("rowDeserializationModule");
-      module.addDeserializer(Row.class, deserializer);
-
-      ObjectMapper objectMapper = new ObjectMapper();
-      objectMapper.registerModule(module);
-
-      return objectMapper;
     }
   }
 }
