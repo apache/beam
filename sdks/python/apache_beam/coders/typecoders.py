@@ -63,11 +63,17 @@ example, the above function can be decorated::
 
 See apache_beam.typehints.decorators module for more details.
 """
+from __future__ import absolute_import
 
-import six
+from builtins import object
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 __all__ = ['registry']
 
@@ -84,9 +90,8 @@ class CoderRegistry(object):
     """Register coders for all basic and composite types."""
     self._register_coder_internal(int, coders.VarIntCoder)
     self._register_coder_internal(float, coders.FloatCoder)
-    self._register_coder_internal(str, coders.BytesCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
-    self._register_coder_internal(six.text_type, coders.StrUtf8Coder)
+    self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
