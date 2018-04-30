@@ -79,7 +79,7 @@ public abstract class Trigger implements Serializable {
   }
 
   protected Trigger() {
-    this(Collections.EMPTY_LIST);
+    this(Collections.emptyList());
   }
 
   public List<Trigger> subTriggers() {

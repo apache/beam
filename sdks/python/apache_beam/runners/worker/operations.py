@@ -120,7 +120,6 @@ class Operation(object):
       # sampling.
       self.name_context = name_context
     else:
-      logging.info('Creating namecontext within operation')
       self.name_context = common.NameContext(name_context)
 
     # TODO(BEAM-4028): Remove following two lines. Rely on name context.
@@ -133,24 +132,27 @@ class Operation(object):
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
-    self.scoped_metrics_container = ScopedMetricsContainer(
-        self.metrics_container)
+    # TODO(BEAM-4094): Remove ScopedMetricsContainer after Dataflow no longer
+    # depends on it.
+    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start')
+        self.name_context.metrics_name(), 'start',
+        metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process')
+        self.name_context.metrics_name(), 'process',
+        metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish')
+        self.name_context.metrics_name(), 'finish',
+        metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(
-        logging.DEBUG)
+    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
     # Everything except WorkerSideInputSource, which is not a
     # top-level operation, should have output_coders
     #TODO(pabloem): Define better what step name is used here.
@@ -240,16 +242,15 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      with self.scoped_metrics_container:
-        super(ReadOperation, self).start()
-        range_tracker = self.spec.source.source.get_range_tracker(
-            self.spec.source.start_position, self.spec.source.stop_position)
-        for value in self.spec.source.source.read(range_tracker):
-          if isinstance(value, WindowedValue):
-            windowed_value = value
-          else:
-            windowed_value = _globally_windowed_value.with_value(value)
-          self.output(windowed_value)
+      super(ReadOperation, self).start()
+      range_tracker = self.spec.source.source.get_range_tracker(
+          self.spec.source.start_position, self.spec.source.stop_position)
+      for value in self.spec.source.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -390,7 +391,7 @@ class DoOperation(Operation):
           logging_context=logger.PerThreadLoggingContext(
               step_name=self.name_context.logging_name()),
           state=state,
-          scoped_metrics_container=self.scoped_metrics_container)
+          scoped_metrics_container=None)
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
@@ -444,9 +445,8 @@ class CombineOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     key, values = o.value
-    with self.scoped_metrics_container:
-      self.output(
-          o.with_value((key, self.phased_combine_fn.apply(values))))
+    self.output(
+        o.with_value((key, self.phased_combine_fn.apply(values))))
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -700,13 +700,9 @@ class SimpleMapTaskExecutor(object):
     # operations is a list of operation_specs.Worker* instances.
     # The order of the elements is important because the inputs use
     # list indexes as references.
-
-    for ix, spec in enumerate(self._map_task.operations):
+    for name_context, spec in zip(self._map_task.name_contexts,
+                                  self._map_task.operations):
       # This is used for logging and assigning names to counters.
-      name_context = common.DataflowNameContext(
-          step_name=self._map_task.original_names[ix],
-          user_name=self._map_task.step_names[ix],
-          system_name=self._map_task.system_names[ix])
       op = create_operation(
           name_context, spec, self._counter_factory, None,
           self._state_sampler,
@@ -725,8 +721,6 @@ class SimpleMapTaskExecutor(object):
 
     for ix, op in reversed(list(enumerate(self._ops))):
       logging.debug('Starting op %d %s', ix, op)
-      with op.scoped_metrics_container:
-        op.start()
+      op.start()
     for op in self._ops:
-      with op.scoped_metrics_container:
-        op.finish()
+      op.finish()

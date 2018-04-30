@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -47,7 +48,7 @@ func TestBind(t *testing.T) {
 		},
 		{ // Direct with optionals time/error
 			[]typex.FullType{typex.New(reflectx.Int)},
-			func(typex.EventTime, int) (typex.EventTime, int, error) { return typex.EventTime{}, 0, nil },
+			func(typex.EventTime, int) (typex.EventTime, int, error) { return mtime.ZeroTimestamp, 0, nil },
 			[]typex.FullType{typex.New(reflectx.Int)},
 		},
 		{ // Emitter w/ optionals

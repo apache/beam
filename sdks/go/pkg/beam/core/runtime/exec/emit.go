@@ -30,7 +30,7 @@ import (
 // emit event time.
 type ReusableEmitter interface {
 	// Init resets the value. Can be called multiple times.
-	Init(ctx context.Context, t typex.EventTime) error
+	Init(ctx context.Context, ws []typex.Window, t typex.EventTime) error
 	// Value returns the side input value. Constant value.
 	Value() interface{}
 }
@@ -84,11 +84,13 @@ type emitValue struct {
 	types []reflect.Type
 
 	ctx context.Context
+	ws  []typex.Window
 	et  typex.EventTime
 }
 
-func (e *emitValue) Init(ctx context.Context, et typex.EventTime) error {
+func (e *emitValue) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
+	e.ws = ws
 	e.et = et
 	return nil
 }
@@ -98,7 +100,7 @@ func (e *emitValue) Value() interface{} {
 }
 
 func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
-	value := FullValue{Timestamp: e.et}
+	value := FullValue{Windows: e.ws, Timestamp: e.et}
 	isKey := true
 	for i, t := range e.types {
 		switch {

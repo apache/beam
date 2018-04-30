@@ -32,6 +32,53 @@
 
   <packaging>jar</packaging>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <!-- Do not run Docker tests with unit tests. -->
+              <excludedGroups>
+                org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker
+              </excludedGroups>
+            </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>docker-tests</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>docker-tests</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>
+                    org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker
+                  </groups>
+                  <!-- TODO: Enable this when we figure out how to run the tests
+                  <failIfNoTests>true</failIfNoTests>
+                   -->
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>

@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 type group struct {
@@ -35,8 +36,9 @@ type CoGBK struct {
 	Edge *graph.MultiEdge
 	Out  exec.Node
 
-	enc exec.ElementEncoder // key encoder for coder-equality
-	m   map[string]*group
+	enc  exec.ElementEncoder // key encoder for coder-equality
+	wEnc exec.WindowEncoder  // window encoder for windowing
+	m    map[string]*group
 }
 
 func (n *CoGBK) ID() exec.UnitID {
@@ -45,6 +47,7 @@ func (n *CoGBK) ID() exec.UnitID {
 
 func (n *CoGBK) Up(ctx context.Context) error {
 	n.enc = exec.MakeElementEncoder(n.Edge.Input[0].From.Coder.Components[0])
+	n.wEnc = exec.MakeWindowEncoder(n.Edge.Input[0].From.WindowingStrategy().Fn.Coder())
 	n.m = make(map[string]*group)
 	return nil
 }
@@ -57,21 +60,28 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exe
 	index := elm.Elm.(int)
 	value := elm.Elm2.(exec.FullValue)
 
-	var buf bytes.Buffer
-	if err := n.enc.Encode(exec.FullValue{Elm: value.Elm}, &buf); err != nil {
-		return fmt.Errorf("failed to encode key %v for CoGBK: %v", elm, err)
-	}
-	key := buf.String()
+	for _, w := range elm.Windows {
+		ws := []typex.Window{w}
 
-	g, ok := n.m[key]
-	if !ok {
-		g = &group{
-			key:    exec.FullValue{Elm: value.Elm, Timestamp: value.Timestamp},
-			values: make([][]exec.FullValue, len(n.Edge.Input)),
+		var buf bytes.Buffer
+		if err := n.enc.Encode(exec.FullValue{Elm: value.Elm}, &buf); err != nil {
+			return fmt.Errorf("failed to encode key %v for CoGBK: %v", elm, err)
 		}
-		n.m[key] = g
+		if err := n.wEnc.Encode(ws, &buf); err != nil {
+			return fmt.Errorf("failed to encode window %v for CoGBK: %v", w, err)
+		}
+		key := buf.String()
+
+		g, ok := n.m[key]
+		if !ok {
+			g = &group{
+				key:    exec.FullValue{Elm: value.Elm, Timestamp: value.Timestamp, Windows: ws},
+				values: make([][]exec.FullValue, len(n.Edge.Input)),
+			}
+			n.m[key] = g
+		}
+		g.values[index] = append(g.values[index], exec.FullValue{Elm: value.Elm2, Timestamp: value.Timestamp})
 	}
-	g.values[index] = append(g.values[index], exec.FullValue{Elm: value.Elm2, Timestamp: value.Timestamp})
 	return nil
 }
 
@@ -118,7 +128,7 @@ func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataManag
 }
 
 func (n *Inject) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
-	return n.Out.ProcessElement(ctx, exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp}, values...)
+	return n.Out.ProcessElement(ctx, exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows}, values...)
 }
 
 func (n *Inject) FinishBundle(ctx context.Context) error {

@@ -20,9 +20,7 @@ import (
 )
 
 // Impulse emits a single empty []byte into the global window. The resulting
-// PCollection is a singleton of type []byte. For example:
-//
-//   foo := beam.Impulse(p)  // foo : []byte
+// PCollection is a singleton of type []byte.
 //
 // The purpose of Impulse is to trigger another transform, such as
 // ones that take all information as side inputs.
@@ -31,10 +29,7 @@ func Impulse(s Scope) PCollection {
 }
 
 // ImpulseValue emits the supplied byte slice into the global window. The resulting
-// PCollection is a singleton of type []byte. For example:
-//
-//   foo := beam.ImpulseValue(s, []byte{})  // foo : []byte
-//
+// PCollection is a singleton of type []byte.
 func ImpulseValue(s Scope, value []byte) PCollection {
 	if !s.IsValid() {
 		panic("Invalid scope")

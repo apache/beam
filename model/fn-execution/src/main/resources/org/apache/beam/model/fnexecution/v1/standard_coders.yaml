@@ -38,7 +38,7 @@
 
 
 coder:
-  urn: "urn:beam:coders:bytes:0.1"
+  urn: "beam:coder:bytes:v1"
 nested: false
 examples:
   "abc": abc
@@ -47,7 +47,7 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:bytes:0.1"
+  urn: "beam:coder:bytes:v1"
 nested: true
 examples:
   "\u0003abc": abc
@@ -58,7 +58,7 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:varint:0.1"
+  urn: "beam:coder:varint:v1"
 examples:
   "\0": 0
   "\u0001": 1
@@ -70,9 +70,9 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:kv:0.1"
-  components: [{urn: "urn:beam:coders:bytes:0.1"},
-               {urn: "urn:beam:coders:varint:0.1"}]
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:varint:v1"}]
 examples:
   "\u0003abc\0": {key: abc, value: 0}
   "\u0004ab\0c\u000A": {key: "ab\0c", value: 10}
@@ -80,9 +80,9 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:kv:0.1"
-  components: [{urn: "urn:beam:coders:bytes:0.1"},
-               {urn: "urn:beam:coders:bytes:0.1"}]
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:bytes:v1"}]
 nested: false
 examples:
   "\u0003abcdef": {key: abc, value: def}
@@ -91,9 +91,9 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:kv:0.1"
-  components: [{urn: "urn:beam:coders:bytes:0.1"},
-               {urn: "urn:beam:coders:bytes:0.1"}]
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:bytes:v1"}]
 nested: true
 examples:
   "\u0003abc\u0003def": {key: abc, value: def}
@@ -102,7 +102,7 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:interval_window:0.1"
+  urn: "beam:coder:interval_window:v1"
 examples:
   "\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0068\u0080\u00dd\u00db\u0001" : {end: 1454293425000, span: 3600000}
   "\u0080\u0000\u0001\u0053\u0034\u00ec\u0074\u00e8\u0080\u0090\u00fb\u00d3\u0009" : {end: 1456881825000, span: 2592000000}
@@ -112,8 +112,8 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:stream:0.1"
-  components: [{urn: "urn:beam:coders:varint:0.1"}]
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:varint:v1"}]
 examples:
   "\0\0\0\u0001\0": [0]
   "\0\0\0\u0004\u0001\n\u00c8\u0001\u00e8\u0007": [1, 10, 200, 1000]
@@ -122,8 +122,8 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:stream:0.1"
-  components: [{urn: "urn:beam:coders:bytes:0.1"}]
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
 examples:
   "\0\0\0\u0001\u0003abc": ["abc"]
   "\0\0\0\u0002\u0004ab\0c\u0004de\0f": ["ab\0c", "de\0f"]
@@ -132,8 +132,8 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:stream:0.1"
-  components: [{urn: "urn:beam:coders:bytes:0.1"}]
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
   # This is for iterables of unknown length, where the encoding is not
   # deterministic.
   non_deterministic: True
@@ -145,15 +145,15 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:stream:0.1"
-  components: [{urn: "urn:beam:coders:global_window:0.1"}]
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:global_window:v1"}]
 examples:
   "\0\0\0\u0001": [""]
 
 ---
 
 coder:
-  urn: "urn:beam:coders:global_window:0.1"
+  urn: "beam:coder:global_window:v1"
 examples:
   "": ""
 
@@ -162,9 +162,9 @@ examples:
 # All windowed values consist of pane infos that represent NO_FIRING until full support is added
 # in the Python SDK (BEAM-1522).
 coder:
-  urn: "urn:beam:coders:windowed_value:0.1"
-  components: [{urn: "urn:beam:coders:varint:0.1"},
-               {urn: "urn:beam:coders:global_window:0.1"}]
+  urn: "beam:coder:windowed_value:v1"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:global_window:v1"}]
 examples:
   "\u0080\0\u0001R\u009a\u00a4\u009bh\0\0\0\u0001\u000f\u0002": {
     value: 2,
@@ -176,9 +176,9 @@ examples:
 ---
 
 coder:
-  urn: "urn:beam:coders:windowed_value:0.1"
-  components: [{urn: "urn:beam:coders:varint:0.1"},
-               {urn: "urn:beam:coders:interval_window:0.1"}]
+  urn: "beam:coder:windowed_value:v1"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:interval_window:v1"}]
 examples:
   "\u007f\u00ff\u00ff\u00ff\u00ff\u00f9\u00e5\u0080\0\0\0\u0001\u0080\0\u0001R\u009a\u00a4\u009bh\u00c0\u008b\u0011\u000f\u0004": {
     value: 4,

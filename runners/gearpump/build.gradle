@@ -86,3 +86,5 @@ task validatesRunner {
   description "Validates Gearpump runner"
   dependsOn validatesRunnerStreaming
 }
+
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Gearpump')

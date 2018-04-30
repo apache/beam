@@ -54,10 +54,7 @@ func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollect
 	if err != nil {
 		return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
 	}
-	return combine(s, combinefn, col)
-}
 
-func combine(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
 	fn, err := graph.NewCombineFn(combinefn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)

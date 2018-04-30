@@ -49,12 +49,12 @@ func init() {
 		enabled := len(enabledProfCaptureHooks) > 0
 		var cpuProfBuf bytes.Buffer
 		return hooks.Hook{
-			Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
+			Req: func(ctx context.Context, _ *fnpb.InstructionRequest) (context.Context, error) {
 				if !enabled {
-					return nil
+					return ctx, nil
 				}
 				cpuProfBuf.Reset()
-				return pprof.StartCPUProfile(&cpuProfBuf)
+				return ctx, pprof.StartCPUProfile(&cpuProfBuf)
 			},
 			Resp: func(ctx context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
 				if !enabled {
@@ -78,12 +78,12 @@ func init() {
 		enabledTraceCaptureHooks = opts
 		enabled := len(enabledTraceCaptureHooks) > 0
 		return hooks.Hook{
-			Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
+			Req: func(ctx context.Context, _ *fnpb.InstructionRequest) (context.Context, error) {
 				if !enabled {
-					return nil
+					return ctx, nil
 				}
 				traceProfBuf.Reset()
-				return trace.Start(&traceProfBuf)
+				return ctx, trace.Start(&traceProfBuf)
 			},
 			Resp: func(ctx context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
 				if !enabled {

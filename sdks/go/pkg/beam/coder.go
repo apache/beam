@@ -21,7 +21,6 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -148,7 +147,10 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 		case typex.CoGBKType:
 			return &coder.Coder{Kind: coder.CoGBK, T: t, Components: c}, nil
 		case typex.WindowedValueType:
-			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: window.NewGlobalWindow()}, nil
+			// TODO(herohde) 4/15/2018: do we ever infer W types now that PCollections
+			// are non-windowed? We either need to know the windowing strategy or
+			// we should remove this case.
+			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: coder.NewGlobalWindow()}, nil
 
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))
@@ -176,13 +178,13 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 // the FnHarness.
 
 // ProtoEnc marshals the supplied proto.Message.
-func ProtoEnc(in typex.T) ([]byte, error) {
+func ProtoEnc(in T) ([]byte, error) {
 	return proto.Marshal(in.(proto.Message))
 }
 
 // ProtoDec unmarshals the supplied bytes into an instance of the supplied
 // proto.Message type.
-func ProtoDec(t reflect.Type, in []byte) (typex.T, error) {
+func ProtoDec(t reflect.Type, in []byte) (T, error) {
 	val := reflect.New(t.Elem()).Interface().(proto.Message)
 	if err := proto.Unmarshal(in, val); err != nil {
 		return nil, err
@@ -202,7 +204,7 @@ func newProtoCoder(t reflect.Type) (*coder.CustomCoder, error) {
 // Conversion is handled by reflection.
 
 // JSONEnc encodes the supplied value in JSON.
-func JSONEnc(in typex.T) ([]byte, error) {
+func JSONEnc(in T) ([]byte, error) {
 	return json.Marshal(in)
 }
 

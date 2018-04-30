@@ -1122,6 +1122,12 @@
 
       <dependency>
         <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-bigquery</artifactId>
+        <version>${google-clients.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud</groupId>
         <artifactId>google-cloud-core-grpc</artifactId>
         <version>${grpc.version}</version>
       </dependency>
@@ -2075,7 +2081,6 @@
                   <include>**/sdks/python/NOTICE</include>
                   <include>**/sdks/python/README.md</include>
                   <include>**/sdks/python/apache_beam/portability/api/*pb2*.*</include>
-                  <include>**/sdks/python/apache_beam/portability/common_urns.py</include>
                   <include>**/sdks/python/**/*.c</include>
                   <include>**/sdks/python/**/*.so</include>
                   <include>**/sdks/python/**/*.egg</include>

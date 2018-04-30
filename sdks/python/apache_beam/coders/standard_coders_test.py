@@ -54,29 +54,29 @@ def _load_test_cases(test_yaml):
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_coder_class = {
-      'urn:beam:coders:bytes:0.1': coders.BytesCoder,
-      'urn:beam:coders:varint:0.1': coders.VarIntCoder,
-      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
-      'urn:beam:coders:interval_window:0.1': coders.IntervalWindowCoder,
-      'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
-      'urn:beam:coders:global_window:0.1': coders.GlobalWindowCoder,
-      'urn:beam:coders:windowed_value:0.1':
+      'beam:coder:bytes:v1': coders.BytesCoder,
+      'beam:coder:varint:v1': coders.VarIntCoder,
+      'beam:coder:kv:v1': lambda k, v: coders.TupleCoder((k, v)),
+      'beam:coder:interval_window:v1': coders.IntervalWindowCoder,
+      'beam:coder:iterable:v1': lambda t: coders.IterableCoder(t),
+      'beam:coder:global_window:v1': coders.GlobalWindowCoder,
+      'beam:coder:windowed_value:v1':
           lambda v, w: coders.WindowedValueCoder(v, w)
   }
 
   _urn_to_json_value_parser = {
-      'urn:beam:coders:bytes:0.1': lambda x: x,
-      'urn:beam:coders:varint:0.1': lambda x: x,
-      'urn:beam:coders:kv:0.1':
+      'beam:coder:bytes:v1': lambda x: x,
+      'beam:coder:varint:v1': lambda x: x,
+      'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value'])),
-      'urn:beam:coders:interval_window:0.1':
+      'beam:coder:interval_window:v1':
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
-      'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
-      'urn:beam:coders:windowed_value:0.1':
+      'beam:coder:iterable:v1': lambda x, parser: map(parser, x),
+      'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
+      'beam:coder:windowed_value:v1':
           lambda x, value_parser, window_parser: windowed_value.create(
               value_parser(x['value']), x['timestamp'] * 1000,
               tuple([window_parser(w) for w in x['windows']]))

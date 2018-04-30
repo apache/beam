@@ -28,7 +28,6 @@ import traceback
 import six
 
 from apache_beam.internal import util
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
@@ -57,7 +56,7 @@ class NameContext(object):
     return not self == other
 
   def __repr__(self):
-    return 'NameContext(%s)' % self.__dict__()
+    return 'NameContext(%s)' % self.__dict__
 
   def __hash__(self):
     return hash(self.step_name)
@@ -102,7 +101,7 @@ class DataflowNameContext(NameContext):
     return hash((self.step_name, self.user_name, self.system_name))
 
   def __repr__(self):
-    return 'DataflowNameContext(%s)' % self.__dict__()
+    return 'DataflowNameContext(%s)' % self.__dict__
 
   def logging_name(self):
     """Stackdriver logging relies on user-given step names (e.g. Foo/Bar)."""
@@ -536,6 +535,8 @@ class DoFnRunner(Receiver):
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
+
+    from apache_beam.metrics.execution import ScopedMetricsContainer
 
     self.scoped_metrics_container = (
         scoped_metrics_container or ScopedMetricsContainer())

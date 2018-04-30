@@ -53,11 +53,11 @@ func TestParDo(t *testing.T) {
 	}
 
 	g := graph.New()
-	nN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
-	aN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
-	bN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
-	cN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
-	dN := g.NewNode(typex.New(reflectx.Int), window.NewGlobalWindow())
+	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	aN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	bN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	cN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	dN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
 
 	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil)
 	if err != nil {
@@ -72,7 +72,7 @@ func TestParDo(t *testing.T) {
 		&FixedReStream{Buf: makeValues(5, 6)},    // c
 		&FixedReStream{Buf: makeValues(7, 8, 9)}, // d
 	}}
-	n := &FixedRoot{UID: 4, Elements: makeValues(10, 20, 30), Out: pardo}
+	n := &FixedRoot{UID: 4, Elements: makeInput(10, 20, 30), Out: pardo}
 
 	p, err := NewPlan("a", []Unit{n, pardo, out, sum})
 	if err != nil {

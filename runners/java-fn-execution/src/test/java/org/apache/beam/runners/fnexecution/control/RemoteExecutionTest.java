@@ -23,9 +23,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,7 +37,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
-import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -62,8 +60,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -106,7 +104,7 @@ public class RemoteExecutionTest implements Serializable {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
-    ControlClientPool<FnApiControlClient> clientPool = QueueControlClientPool.createSynchronous();
+    ControlClientPool clientPool = MapControlClientPool.create();
     controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
@@ -121,14 +119,11 @@ public class RemoteExecutionTest implements Serializable {
                 PipelineOptionsFactory.create(),
                 loggingServer.getApiServiceDescriptor(),
                 controlServer.getApiServiceDescriptor(),
-                new ManagedChannelFactory() {
-                  @Override
-                  public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-                    return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
-                  }
-                },
+                new InProcessManagedChannelFactory(),
                 StreamObserverFactory.direct()));
-    FnApiControlClient controlClient = clientPool.getSource().get();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
+    InstructionRequestHandler controlClient =
+        clientPool.getSource().take("", Duration.ofSeconds(2));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 

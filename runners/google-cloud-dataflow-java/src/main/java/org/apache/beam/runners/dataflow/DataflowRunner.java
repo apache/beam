@@ -1687,7 +1687,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
-      return Collections.emptyMap();
+      return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
 

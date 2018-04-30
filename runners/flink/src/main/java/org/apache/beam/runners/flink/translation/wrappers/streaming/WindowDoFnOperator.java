@@ -98,17 +98,14 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   @Override
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
+    // this will implicitly be keyed by the key of the incoming
+    // element or by the key of a firing timer
     StateInternalsFactory<K> stateInternalsFactory =
-        key -> {
-          // this will implicitly be keyed by the key of the incoming
-          // element or by the key of a firing timer
-          return (StateInternals) keyedStateInternals;
-        };
+        key -> (StateInternals) keyedStateInternals;
+
+    // this will implicitly be keyed like the StateInternalsFactory
     TimerInternalsFactory<K> timerInternalsFactory =
-        key -> {
-          // this will implicitly be keyed like the StateInternalsFactory
-          return timerInternals;
-        };
+        key -> timerInternals;
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always

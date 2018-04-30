@@ -858,7 +858,7 @@ class Read(ptransform.PTransform):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
-    return (common_urns.READ_TRANSFORM,
+    return (common_urns.deprecated_primitives.READ.urn,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
                 is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
@@ -871,7 +871,7 @@ class Read(ptransform.PTransform):
 
 
 ptransform.PTransform.register_urn(
-    common_urns.READ_TRANSFORM,
+    common_urns.deprecated_primitives.READ.urn,
     beam_runner_api_pb2.ReadPayload,
     Read.from_runner_api_parameter)
 

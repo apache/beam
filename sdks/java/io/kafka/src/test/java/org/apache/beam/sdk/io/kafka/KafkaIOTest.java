@@ -120,6 +120,7 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -614,6 +615,7 @@ public class KafkaIOTest {
   }
 
   @Test
+  @Ignore // TODO : BEAM-4086 : enable once flakiness is fixed.
   public void testUnboundedSourceWithoutBoundedWrapper() {
     // This is same as testUnboundedSource() without the BoundedSource wrapper.
     // Most of the tests in this file set 'maxNumRecords' on the source, which wraps

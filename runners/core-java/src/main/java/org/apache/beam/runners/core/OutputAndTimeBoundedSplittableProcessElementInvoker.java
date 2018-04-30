@@ -29,10 +29,14 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -113,6 +117,33 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
+          public InputT element(DoFn<InputT, OutputT> doFn) {
+            return processContext.element();
+          }
+
+          @Override
+          public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+            return processContext.timestamp();
+          }
+
+          @Override
+          public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Access to time domain not supported in ProcessElement"
+            );
+          }
+
+          @Override
+          public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+            return DoFnOutputReceivers.windowedReceiver(processContext, null);
+          }
+
+          @Override
+          public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+            return DoFnOutputReceivers.windowedMultiReceiver(processContext);
+          }
+
+          @Override
           public RestrictionTracker<?, ?> restrictionTracker() {
             return tracker;
           }
@@ -123,6 +154,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           public BoundedWindow window() {
             throw new UnsupportedOperationException(
                 "Access to window of the element not supported in Splittable DoFn");
+          }
+
+          @Override
+          public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Access to pane of the element not supported in Splittable DoFn");
           }
 
           @Override

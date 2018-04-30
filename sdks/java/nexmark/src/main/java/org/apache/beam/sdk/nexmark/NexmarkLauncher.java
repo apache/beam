@@ -810,9 +810,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
 
-    return p
-      .apply(queryName + ".ReadPubsubEvents", io)
-      .apply(queryName + ".PubsubMessageToEvent", ParDo.of(PUBSUB_MESSAGE_TO_EVENT));
+    return p.apply(queryName + ".ReadPubsubEvents", io)
+        .apply(queryName + ".PubsubMessageToEvent", ParDo.of(new PubsubMessageEventDoFn()));
   }
 
   static final DoFn<Event, byte[]> EVENT_TO_BYTEARRAY =
@@ -898,7 +897,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
 
     events
-        .apply(queryName + ".EventToPubsubMessage", ParDo.of(EVENT_TO_PUBSUB_MESSAGE))
+        .apply(queryName + ".EventToPubsubMessage", ParDo.of(new EventPubsubMessageDoFn()))
         .apply(queryName + ".WritePubsubEvents", io);
   }
 
@@ -1378,5 +1377,22 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         new Query10(configuration),
         new Query11(configuration),
         new Query12(configuration));
+  }
+
+  private static class PubsubMessageEventDoFn extends DoFn<PubsubMessage, Event> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws IOException {
+      byte[] payload = c.element().getPayload();
+      Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+      c.output(event);
+    }
+  }
+
+  private static class EventPubsubMessageDoFn extends DoFn<Event, PubsubMessage> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws IOException {
+      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+      c.output(new PubsubMessage(payload, new HashMap<>()));
+    }
   }
 }

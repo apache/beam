@@ -44,6 +44,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -55,7 +56,8 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 final class ExecutorServiceParallelExecutor
-    implements PipelineExecutor, BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
+    implements PipelineExecutor,
+        BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final int targetParallelism;
@@ -71,23 +73,28 @@ final class ExecutorServiceParallelExecutor
 
   private final QueueMessageReceiver visibleUpdates;
 
+  private final ExecutorService metricsExecutor;
+
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     return new ExecutorServiceParallelExecutor(
-        targetParallelism, registry, transformEnforcements, context);
+        targetParallelism, registry, transformEnforcements, context, metricsExecutor);
   }
 
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     this.targetParallelism = targetParallelism;
+    this.metricsExecutor = metricsExecutor;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
     this.executorService =
@@ -295,6 +302,11 @@ final class ExecutorServiceParallelExecutor
     }
     try {
       executorService.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+        metricsExecutor.shutdown();
     } catch (final RuntimeException re) {
       errors.add(re);
     }

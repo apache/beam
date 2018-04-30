@@ -34,6 +34,7 @@ type Hook struct {
 	// TODO(wcn): expose other hooks here.
 }
 
+// HookFactory is a function that creates hooks from supplied arguments.
 type HookFactory func([]string) Hook
 
 var hookRegistry = make(map[string]HookFactory)
@@ -49,9 +50,9 @@ func RegisterHook(name string, c HookFactory) {
 
 	hf := func(opts []string) hooks.Hook {
 		return hooks.Hook{
-			Init: func(_ context.Context) error {
+			Init: func(ctx context.Context) (context.Context, error) {
 				if len(opts) == 0 {
-					return nil
+					return ctx, nil
 				}
 
 				name, opts := hooks.Decode(opts[0])
@@ -59,7 +60,7 @@ func RegisterHook(name string, c HookFactory) {
 				if grpcHook.Dialer != nil {
 					Dial = grpcHook.Dialer
 				}
-				return nil
+				return ctx, nil
 			},
 		}
 	}

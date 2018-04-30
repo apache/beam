@@ -17,7 +17,7 @@ package typex
 
 import (
 	"reflect"
-	"time"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 )
 
 // This file defines data types that programs use to indicate a
@@ -33,6 +33,7 @@ var (
 	ZType = reflect.TypeOf((*Z)(nil)).Elem()
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
+	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
 
 	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
 	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
@@ -50,25 +51,23 @@ type X interface{}
 type Y interface{}
 type Z interface{}
 
-// EventTime is a time.Time that Beam understands as attached to an element.
-type EventTime time.Time
+// EventTime is a timestamp that Beam understands as attached to an element.
+type EventTime = mtime.Time
 
-// KV, CoGBK, WindowedValue are composite generic types. They are not used
-// directly in user code signatures, but only in FullTypes. The fields below
-// are for documentation only.
+// Window represents a concrete Window.
+type Window interface {
+	// MaxTimestamp returns the the inclusive upper bound of timestamps for values in this window.
+	MaxTimestamp() EventTime
 
-type KV struct {
-	Key   T
-	Value U
+	// Equals returns true iff the windows are identical.
+	Equals(o Window) bool
 }
 
-type CoGBK struct {
-	Key    T
-	Values []interface{}
-}
+// KV, CoGBK, WindowedValue represent composite generic types. They are not used
+// directly in user code signatures, but only in FullTypes.
 
-type WindowedValue struct {
-	Timestamp EventTime
-	// TODO: Window, pane?
-	Value T
-}
+type KV struct{}
+
+type CoGBK struct{}
+
+type WindowedValue struct{}

@@ -22,6 +22,8 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -34,7 +36,7 @@ type MainInput struct {
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
@@ -46,6 +48,15 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 	if index, ok := fn.Context(); ok {
 		args[index] = ctx
 	}
+	if index, ok := fn.Window(); ok {
+		if len(ws) != 1 {
+			return nil, fmt.Errorf("DoFns that observe windows must be invoked with single window: %v", opt.Key.Windows)
+		}
+		args[index] = ws[0]
+	}
+	if index, ok := fn.EventTime(); ok {
+		args[index] = ts
+	}
 
 	// (2) Main input from value, if any.
 
@@ -53,10 +64,6 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 	i := 0
 
 	if opt != nil {
-		if index, ok := fn.EventTime(); ok {
-			args[index] = opt.Key.Timestamp
-		}
-
 		args[in[i]] = Convert(opt.Key.Elm, fn.Param[in[i]].T)
 		i++
 		if opt.Key.Elm2 != nil {
@@ -97,14 +104,16 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 		return nil, ret[index].(error)
 	}
 
-	// (5) Return direct output, if any.
+	// (5) Return direct output, if any. Input timestamp and windows are implicitly
+	// propagated.
 
 	out := fn.Returns(funcx.RetValue)
 	if len(out) > 0 {
-		value := &FullValue{}
+		value := &FullValue{Windows: ws, Timestamp: ts}
 		if index, ok := fn.OutEventTime(); ok {
 			value.Timestamp = ret[index].(typex.EventTime)
 		}
+		// TODO(herohde) 4/16/2018: apply windowing function to elements with explicit timestamp?
 
 		value.Elm = ret[out[0]]
 		if len(out) > 1 {
@@ -114,6 +123,10 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 	}
 
 	return nil, nil
+}
+
+func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	return Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, fn, opt, extra...)
 }
 
 func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]ReusableInput, error) {

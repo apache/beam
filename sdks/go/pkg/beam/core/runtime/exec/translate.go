@@ -31,6 +31,7 @@ import (
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 )
 
 const (
@@ -68,14 +69,18 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			}
 
 			if cid == "" {
-				u.Coder, err = b.makeCoderForPCollection(pid)
+				c, wc, err := b.makeCoderForPCollection(pid)
 				if err != nil {
 					return nil, err
 				}
+				u.Coder = coder.NewW(c, wc)
 			} else {
 				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
 				if err != nil {
 					return nil, err
+				}
+				if !coder.IsW(u.Coder) {
+					return nil, fmt.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
 				}
 			}
 		}
@@ -92,7 +97,7 @@ type builder struct {
 	prev map[string]int      // PCollectionID -> #incoming
 	succ map[string][]linkID // PCollectionID -> []linkID
 
-	windowing map[string]*window.Window
+	windowing map[string]*window.WindowingStrategy
 	nodes     map[string]Node // PCollectionID -> Node (cache)
 	links     map[linkID]Node // linkID -> Node (cache)
 
@@ -135,7 +140,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		prev: prev,
 		succ: succ,
 
-		windowing: make(map[string]*window.Window),
+		windowing: make(map[string]*window.WindowingStrategy),
 		nodes:     make(map[string]Node),
 		links:     make(map[linkID]Node),
 
@@ -148,7 +153,7 @@ func (b *builder) build() (*Plan, error) {
 	return NewPlan(b.desc.GetId(), b.units)
 }
 
-func (b *builder) makeWindow(id string) (*window.Window, error) {
+func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, error) {
 	if w, exists := b.windowing[id]; exists {
 		return w, nil
 	}
@@ -157,13 +162,60 @@ func (b *builder) makeWindow(id string) (*window.Window, error) {
 	if !ok {
 		return nil, fmt.Errorf("windowing strategy %v not found", id)
 	}
-	if urn := ws.GetWindowFn().GetSpec().GetUrn(); urn != graphx.URNGlobalWindowsWindowFn {
-		return nil, fmt.Errorf("unsupported window type: %v", urn)
+	wfn, err := unmarshalWindowFn(ws.GetWindowFn().GetSpec())
+	if err != nil {
+		return nil, err
 	}
-
-	w := window.NewGlobalWindow()
+	w := &window.WindowingStrategy{Fn: wfn}
 	b.windowing[id] = w
 	return w, nil
+}
+
+func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
+	switch urn := wfn.GetUrn(); urn {
+	case graphx.URNGlobalWindowsWindowFn:
+		return window.NewGlobalWindows(), nil
+
+	case graphx.URNFixedWindowsWindowFn:
+		var payload pb.FixedWindowsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewFixedWindows(size), nil
+
+	case graphx.URNSlidingWindowsWindowFn:
+		var payload pb.SlidingWindowsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		period, err := ptypes.Duration(payload.GetPeriod())
+		if err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewSlidingWindows(period, size), nil
+
+	case graphx.URNSessionsWindowFn:
+		var payload pb.SessionsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		gap, err := ptypes.Duration(payload.GetGapSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewSessions(gap), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported window type: %v", urn)
+	}
 }
 
 func (b *builder) makePCollections(out []string) ([]Node, error) {
@@ -178,17 +230,32 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 	return ret, nil
 }
 
-func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, error) {
+func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.WindowCoder, error) {
 	col, ok := b.desc.GetPcollections()[id]
 	if !ok {
-		return nil, fmt.Errorf("pcollection %v not found", id)
+		return nil, nil, fmt.Errorf("pcollection %v not found", id)
 	}
 	c, err := b.coders.Coder(col.CoderId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
-	return coder.SkipW(c), nil
+	if coder.IsW(c) {
+		// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
+		// However, windowing strategies are not yet passed through, so the main
+		// path always gives us GlobalWindows.
+
+		return coder.SkipW(c), c.Window, nil
+	}
+
+	ws, ok := b.desc.GetWindowingStrategies()[col.GetWindowingStrategyId()]
+	if !ok {
+		return nil, nil, fmt.Errorf("windowing strategy %v not found", id)
+	}
+	wc, err := b.coders.WindowCoder(ws.GetWindowCoderId())
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, wc, nil
 }
 
 func (b *builder) makePCollection(id string) (Node, error) {
@@ -289,7 +356,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 		switch tp.GetUrn() {
 		case graphx.URNDoFn:
-			op, fn, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
+			op, fn, _, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
 			if err != nil {
 				return nil, err
 			}
@@ -316,16 +383,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				if err != nil {
 					return nil, err
 				}
-
-				// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
-				// instead of inferring it here?
-
-				c, err := b.makeCoderForPCollection(from)
-				if err != nil {
-					return nil, err
-				}
-
-				n.IsPerKey = coder.IsCoGBK(c)
 				n.UsesKey = typex.IsKV(in[0].Type)
 
 				u = n
@@ -335,7 +392,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 
 		case graphx.URNInject:
-			c, err := b.makeCoderForPCollection(from)
+			c, _, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
@@ -349,7 +406,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, id := range transform.GetOutputs() {
 				pid = id
 			}
-			c, err := b.makeCoderForPCollection(pid)
+			c, _, err := b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
@@ -367,6 +424,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, fmt.Errorf("unexpected payload: %v", tp)
 		}
 
+	case graphx.URNWindow:
+		var wp pb.WindowIntoPayload
+		if err := proto.Unmarshal(payload, &wp); err != nil {
+			return nil, fmt.Errorf("invalid WindowInto payload for %v: %v", transform, err)
+		}
+		wfn, err := unmarshalWindowFn(wp.GetWindowFn().GetSpec())
+		if err != nil {
+			return nil, err
+		}
+		u = &WindowInto{UID: b.idgen.New(), Fn: wfn, Out: out[0]}
+
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
 		if err != nil {
@@ -379,14 +447,18 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			sink.Target = Target{ID: id.to, Name: key}
 
 			if cid == "" {
-				sink.Coder, err = b.makeCoderForPCollection(pid)
+				c, wc, err := b.makeCoderForPCollection(pid)
 				if err != nil {
 					return nil, err
 				}
+				sink.Coder = coder.NewW(c, wc)
 			} else {
 				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
 				if err != nil {
 					return nil, err
+				}
+				if !coder.IsW(sink.Coder) {
+					return nil, fmt.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 				}
 			}
 		}

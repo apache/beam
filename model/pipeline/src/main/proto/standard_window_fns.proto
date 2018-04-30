@@ -29,26 +29,41 @@ option go_package = "pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "StandardWindowFns";
 
+import "beam_runner_api.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-// beam:windowfn:global_windows:v0.1
-// empty payload
+message GlobalWindowsPayload {
+  enum Enum {
+    // TODO(BEAM-3595): Change this to beam:windowfn:global_windows:v1
+    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:global_windows:v0.1"];
+  }
+  // Empty payload
+}
 
-// beam:windowfn:fixed_windows:v0.1
 message FixedWindowsPayload {
+  enum Enum {
+    // TODO(BEAM-3595): Change this to beam:windowfn:fixed_windows:v1
+    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:fixed_windows:v0.1"];
+  }
   google.protobuf.Duration size = 1;
   google.protobuf.Timestamp offset = 2;
 }
 
-// beam:windowfn:sliding_windows:v0.1
 message SlidingWindowsPayload {
+  enum Enum {
+    // TODO(BEAM-3595): Change this to beam:windowfn:sliding_windows:v1
+    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:sliding_windows:v0.1"];
+  }
   google.protobuf.Duration size = 1;
   google.protobuf.Timestamp offset = 2;
   google.protobuf.Duration period = 3;
 }
 
-// beam:windowfn:session_windows:v0.1
 message SessionsPayload {
+  enum Enum {
+    // TODO(BEAM-3595): Change this to beam:windowfn:session_windows:v1
+    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:session_windows:v0.1"];
+  }
   google.protobuf.Duration gap_size = 1;
 }

@@ -76,7 +76,7 @@ func ClassOf(t reflect.Type) Class {
 // data must be fully serializable. Functions and channels are examples of invalid
 // types. Aggregate types with no universals are considered concrete here.
 func IsConcrete(t reflect.Type) bool {
-	if t == nil || t == EventTimeType {
+	if t == nil || t == EventTimeType || t.Implements(WindowType) {
 		return false
 	}
 
