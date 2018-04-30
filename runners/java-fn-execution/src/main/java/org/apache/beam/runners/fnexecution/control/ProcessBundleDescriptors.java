@@ -19,6 +19,7 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
@@ -102,7 +103,7 @@ public class ProcessBundleDescriptors {
             .setCoderId(inputWireCoderId)
             .build();
     String inputId =
-        uniquifyId(
+        uniqueId(
             String.format("fn/read/%s", inputPCollection.getId()),
             bundleDescriptorBuilder::containsTransforms);
     PTransform inputTransform =
@@ -132,7 +133,7 @@ public class ProcessBundleDescriptors {
     RemoteGrpcPortWrite outputWrite =
         RemoteGrpcPortWrite.writeToPort(outputPCollection.getId(), outputPort);
     String outputId =
-        uniquifyId(
+        uniqueId(
             String.format("fn/write/%s", outputPCollection.getId()),
             bundleDescriptorBuilder::containsTransforms);
     PTransform outputTransform = outputWrite.toPTransform();
@@ -164,7 +165,7 @@ public class ProcessBundleDescriptors {
         getWireCoder(pCollection, components, bundleDescriptorBuilder::containsCoders);
     bundleDescriptorBuilder.putAllCoders(wireCoder.getComponents().getCodersMap());
     String wireCoderId =
-        uniquifyId(
+        uniqueId(
             String.format("fn/wire/%s", pCollection.getId()),
             bundleDescriptorBuilder::containsCoders);
     bundleDescriptorBuilder.putCoders(wireCoderId, wireCoder.getCoder());
@@ -181,22 +182,11 @@ public class ProcessBundleDescriptors {
         ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
-        uniquifyId(String.format("fn/wire/%s", pCollectionNode.getId()), usedIds);
+        uniqueId(String.format("fn/wire/%s", pCollectionNode.getId()), usedIds);
     return LengthPrefixUnknownCoders.forCoder(
         windowedValueId,
         components.toBuilder().putCoders(windowedValueId, windowedValueCoder).build(),
         false);
-  }
-
-  private static String uniquifyId(String idBase, Predicate<String> idUsed) {
-    if (!idUsed.test(idBase)) {
-      return idBase;
-    }
-    int i = 0;
-    while (idUsed.test(String.format("%s_%s", idBase, i))) {
-      i++;
-    }
-    return String.format("%s_%s", idBase, i);
   }
 
   private static Coder<WindowedValue<?>> instantiateWireCoder(

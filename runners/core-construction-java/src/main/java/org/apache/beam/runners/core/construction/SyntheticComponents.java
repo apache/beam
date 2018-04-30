@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.construction.graph;
+package org.apache.beam.runners.core.construction;
 
 import java.util.function.Predicate;
 
 /**
- * A utility class to interact with synthetic {@link PipelineNode Pipeline Nodes}.
+ * A utility class to interact with synthetic pipeline components.
  */
-class SyntheticNodes {
-  private SyntheticNodes() {}
+public class SyntheticComponents {
+  private SyntheticComponents() {}
 
   /**
    * Generate an ID which does not collide with any existing ID, as determined by the input

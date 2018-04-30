@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
 /** A {@link Pipeline} which has been separated into collections of executable components. */
@@ -106,7 +107,7 @@ public abstract class FusedPipeline {
       Set<String> usedNames =
           Sets.union(topLevelTransforms.keySet(), getComponents().getTransformsMap().keySet());
       topLevelTransforms.put(
-          SyntheticNodes.uniqueId(baseName, usedNames::contains), stage.toPTransform());
+          SyntheticComponents.uniqueId(baseName, usedNames::contains), stage.toPTransform());
     }
     return topLevelTransforms;
   }
