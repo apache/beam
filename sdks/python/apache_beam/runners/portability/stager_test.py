@@ -28,10 +28,10 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.dataflow.internal import names
-from apache_beam.runners.dataflow.internal import stager
+from apache_beam.runners.portability import stager
 
 
-class SetupTest(unittest.TestCase):
+class StagerTest(unittest.TestCase):
 
   def setUp(self):
     self._temp_dir = None
