@@ -65,6 +65,7 @@ dependencies {
   shadow library.java.joda_time
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
