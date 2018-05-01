@@ -1281,7 +1281,7 @@ Some other serializability factors you should keep in mind are:
 #### 4.3.2. Thread-compatibility {#user-code-thread-compatibility}
 
 Your function object should be thread-compatible. Each instance of your function
-object is accessed by a single thread on a worker instance, unless you
+object is accessed by a single thread at a time on a worker instance, unless you
 explicitly create your own threads. Note, however, that **the Beam SDKs are not
 thread-safe**. If you create your own threads in your user code, you must
 provide your own synchronization. Note that static members in your function
