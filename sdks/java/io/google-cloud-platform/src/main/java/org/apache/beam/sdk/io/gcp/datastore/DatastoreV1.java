@@ -223,7 +223,7 @@ public class DatastoreV1 {
   /**
    * When choosing the number of updates in a single RPC, do not go below this value.  The actual
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
-   * {@link #DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
+   * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
   @VisibleForTesting
   static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;

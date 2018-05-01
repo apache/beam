@@ -27,8 +27,8 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pbjob "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pbpipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pbjob "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"

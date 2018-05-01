@@ -16,116 +16,116 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"path/filepath"
-	"strings"
+  "bufio"
+  "bytes"
+  "errors"
+  "fmt"
+  "io/ioutil"
+  "log"
+  "path/filepath"
+  "strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
+  "github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 )
 
 const (
-	pip = "/usr/local/bin/pip"
+  pip = "/usr/local/bin/pip"
 )
 
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(files []string, dir, name string) error {
-	for _, file := range files {
-		if file == name {
-			// We run the install process in two rounds in order to avoid as much
-			// as possible PyPI downloads. In the first round the --find-links
-			// option will make sure that only things staged in the worker will be
-			// used without following their dependencies.
-			args := []string{"install", "-r", filepath.Join(dir, name), "--no-index", "--no-deps", "--find-links", dir}
-			if err := execx.Execute(pip, args...); err != nil {
-				return err
-			}
-			// The second install round opens up the search for packages on PyPI and
-			// also installs dependencies. The key is that if all the packages have
-			// been installed in the first round then this command will be a no-op.
-			args = []string{"install", "-r", filepath.Join(dir, name), "--find-links", dir}
-			return execx.Execute(pip, args...)
-		}
-	}
-	return nil
+  for _, file := range files {
+    if file == name {
+      // We run the install process in two rounds in order to avoid as much
+      // as possible PyPI downloads. In the first round the --find-links
+      // option will make sure that only things staged in the worker will be
+      // used without following their dependencies.
+      args := []string{"install", "-r", filepath.Join(dir, name), "--no-index", "--no-deps", "--find-links", dir}
+      if err := execx.Execute(pip, args...); err != nil {
+        return err
+      }
+      // The second install round opens up the search for packages on PyPI and
+      // also installs dependencies. The key is that if all the packages have
+      // been installed in the first round then this command will be a no-op.
+      args = []string{"install", "-r", filepath.Join(dir, name), "--find-links", dir}
+      return execx.Execute(pip, args...)
+    }
+  }
+  return nil
 }
 
 // pipInstallPackage installs the given package, if present.
 func pipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {
-	for _, file := range files {
-		if file == name {
-			var packageSpec = name
-			if extras != nil {
-				packageSpec += "[" + strings.Join(extras, ",") + "]"
-			}
-			if force {
-				// We only use force reinstallation for packages specified using the
-				// --extra_package flag.  In this case, we always want to use the
-				// user-specified package, overwriting any existing package already
-				// installed.  At the same time, we want to avoid reinstalling any
-				// dependencies.  The "pip install" command doesn't have a clean way to do
-				// this, so we do this in two steps.
-				//
-				// First, we use the three flags "--upgrade --force-reinstall --no-deps"
-				// to "pip install" so as to force the package to be reinstalled, while
-				// avoiding reinstallation of dependencies.  Note now that if any needed
-				// dependencies were not installed, they will still be missing.
-				//
-				// Next, we run "pip install" on the package without any flags.  Since the
-				// installed version will match the package specified, the package itself
-				// will not be reinstalled, but its dependencies will now be resolved and
-				// installed if necessary.  This achieves our goal outlined above.
-				args := []string{"install", "--upgrade", "--force-reinstall", "--no-deps",
-					filepath.Join(dir, packageSpec)}
-				err := execx.Execute(pip, args...)
-				if err != nil {
-					return err
-				}
-				args = []string{"install", filepath.Join(dir, packageSpec)}
-				return execx.Execute(pip, args...)
-			}
+  for _, file := range files {
+    if file == name {
+      var packageSpec = name
+      if extras != nil {
+        packageSpec += "[" + strings.Join(extras, ",") + "]"
+      }
+      if force {
+        // We only use force reinstallation for packages specified using the
+        // --extra_package flag.  In this case, we always want to use the
+        // user-specified package, overwriting any existing package already
+        // installed.  At the same time, we want to avoid reinstalling any
+        // dependencies.  The "pip install" command doesn't have a clean way to do
+        // this, so we do this in two steps.
+        //
+        // First, we use the three flags "--upgrade --force-reinstall --no-deps"
+        // to "pip install" so as to force the package to be reinstalled, while
+        // avoiding reinstallation of dependencies.  Note now that if any needed
+        // dependencies were not installed, they will still be missing.
+        //
+        // Next, we run "pip install" on the package without any flags.  Since the
+        // installed version will match the package specified, the package itself
+        // will not be reinstalled, but its dependencies will now be resolved and
+        // installed if necessary.  This achieves our goal outlined above.
+        args := []string{"install", "--upgrade", "--force-reinstall", "--no-deps",
+          filepath.Join(dir, packageSpec)}
+        err := execx.Execute(pip, args...)
+        if err != nil {
+          return err
+        }
+        args = []string{"install", filepath.Join(dir, packageSpec)}
+        return execx.Execute(pip, args...)
+      }
 
-			// Case when we do not perform a forced reinstall.
-			args := []string{"install", filepath.Join(dir, packageSpec)}
-			return execx.Execute(pip, args...)
-		}
-	}
-	if optional {
-		return nil
-	}
-	return errors.New("package '" + name + "' not found")
+      // Case when we do not perform a forced reinstall.
+      args := []string{"install", filepath.Join(dir, packageSpec)}
+      return execx.Execute(pip, args...)
+    }
+  }
+  if optional {
+    return nil
+  }
+  return errors.New("package '" + name + "' not found")
 }
 
 // installExtraPackages installs all the packages declared in the extra
 // packages manifest file.
 func installExtraPackages(files []string, extraPackagesFile, dir string) error {
-	// First check that extra packages manifest file is present.
-	for _, file := range files {
-		if file != extraPackagesFile {
-			continue
-		}
+  // First check that extra packages manifest file is present.
+  for _, file := range files {
+    if file != extraPackagesFile {
+      continue
+    }
 
-		// Found the manifest. Install extra packages.
-		manifest, err := ioutil.ReadFile(filepath.Join(dir, extraPackagesFile))
-		if err != nil {
-			return fmt.Errorf("failed to read extra packages manifest file: %v", err)
-		}
+    // Found the manifest. Install extra packages.
+    manifest, err := ioutil.ReadFile(filepath.Join(dir, extraPackagesFile))
+    if err != nil {
+      return fmt.Errorf("failed to read extra packages manifest file: %v", err)
+    }
 
-		s := bufio.NewScanner(bytes.NewReader(manifest))
-		s.Split(bufio.ScanLines)
+    s := bufio.NewScanner(bytes.NewReader(manifest))
+    s.Split(bufio.ScanLines)
 
-		for s.Scan() {
-			extraPackage := s.Text()
-			log.Printf("Installing extra package: %s", extraPackage)
-			if err = pipInstallPackage(files, dir, extraPackage, true, false, nil); err != nil {
-				return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
-			}
-		}
-		return nil
-	}
-	return nil
+    for s.Scan() {
+      extraPackage := s.Text()
+      log.Printf("Installing extra package: %s", extraPackage)
+      if err = pipInstallPackage(files, dir, extraPackage, true, false, nil); err != nil {
+        return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
+      }
+    }
+    return nil
+  }
+  return nil
 }
