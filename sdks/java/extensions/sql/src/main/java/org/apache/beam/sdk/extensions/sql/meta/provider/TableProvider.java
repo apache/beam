@@ -30,11 +30,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
  */
 public interface TableProvider {
   /**
-   * Init the provider.
-   */
-  void init();
-
-  /**
    * Gets the table type this provider handles.
    */
   String getTableType();
@@ -60,9 +55,4 @@ public interface TableProvider {
    * Build a {@link BeamSqlTable} using the given table meta info.
    */
   BeamSqlTable buildBeamSqlTable(Table table);
-
-  /**
-   * Close the provider.
-   */
-  void close();
 }
