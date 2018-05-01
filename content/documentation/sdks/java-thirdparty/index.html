@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Java SDK</title>
+  <title>Beam 3rd Party Java Extensions</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -15,7 +15,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/feature-comparison/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java-thirdparty/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -129,12 +129,132 @@
       <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
         
 
+<ul class="nav">
+  <li><a href="#parsing-httpdnginx-access-logs">Parsing HTTPD/NGINX access logs.</a>
+    <ul>
+      <li><a href="#summary">Summary</a></li>
+      <li><a href="#project-page">Project page</a></li>
+      <li><a href="#license">License</a></li>
+      <li><a href="#download">Download</a></li>
+      <li><a href="#code-example">Code example</a></li>
+    </ul>
+  </li>
+  <li><a href="#analyzing-the-useragent-string">Analyzing the Useragent string</a>
+    <ul>
+      <li><a href="#summary-1">Summary</a></li>
+      <li><a href="#project-page-1">Project page</a></li>
+      <li><a href="#license-1">License</a></li>
+      <li><a href="#download-1">Download</a></li>
+      <li><a href="#code-example-1">Code example</a></li>
+    </ul>
+  </li>
+</ul>
 
 
       </nav>
 
       <div class="body__contained body__section-nav">
-        <h1 id="beam-sdk-feature-comparison">Beam SDK feature comparison</h1>
+        <h1 id="apache-beam-3rd-party-java-extensions">Apache Beam 3rd Party Java Extensions</h1>
+
+<p>These are some of the 3rd party Java libaries that may be useful for specific applications.</p>
+
+<h2 id="parsing-httpdnginx-access-logs">Parsing HTTPD/NGINX access logs.</h2>
+
+<h3 id="summary">Summary</h3>
+<p>The Apache HTTPD webserver creates logfiles that contain valuable information about the requests that have been done to
+the webserver. The format of these log files is a configuration option in the Apache HTTPD server so parsing this
+into useful data elements is normally very hard to do.</p>
+
+<p>To solve this problem in an easy way a library was created that works in combination with Apache Beam
+and is capable of doing this for both the Apache HTTPD and NGINX.</p>
+
+<p>The basic idea is that the logformat specification is the schema used to create the line. 
+This parser is simply initialized with this schema and the list of fields you want to extract.</p>
+
+<h3 id="project-page">Project page</h3>
+<p><a href="https://github.com/nielsbasjes/logparser">https://github.com/nielsbasjes/logparser</a></p>
+
+<h3 id="license">License</h3>
+<p>Apache License 2.0</p>
+
+<h3 id="download">Download</h3>
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+  &lt;groupId&gt;nl.basjes.parse.httpdlog&lt;/groupId&gt;
+  &lt;artifactId&gt;httpdlog-parser&lt;/artifactId&gt;
+  &lt;version&gt;5.0&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre>
+</div>
+
+<h3 id="code-example">Code example</h3>
+
+<p>Assuming a WebEvent class that has a the setters setIP, setQueryImg and setQueryStringValues</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
+  .apply("Extract Elements from logline",
+    ParDo.of(new DoFn&lt;String, WebEvent&gt;() {
+      private Parser&lt;WebEvent&gt; parser;
+
+      @Setup
+      public void setup() throws NoSuchMethodException {
+        parser = new HttpdLoglineParser&lt;&gt;(WebEvent.class, 
+            "%h %l %u %t \"%r\" %&gt;s %b \"%{Referer}i\" \"%{User-Agent}i\" \"%{Cookie}i\"");
+        parser.addParseTarget("setIP",                  "IP:connection.client.host");
+        parser.addParseTarget("setQueryImg",            "STRING:request.firstline.uri.query.img");
+        parser.addParseTarget("setQueryStringValues",   "STRING:request.firstline.uri.query.*");
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) throws InvalidDissectorException, MissingDissectorsException, DissectionFailure {
+        c.output(parser.parse(c.element()));
+      }
+    })
+  );
+</code></pre>
+</div>
+
+<h2 id="analyzing-the-useragent-string">Analyzing the Useragent string</h2>
+
+<h3 id="summary-1">Summary</h3>
+<p>Parse and analyze the useragent string and extract as many relevant attributes as possible.</p>
+
+<h3 id="project-page-1">Project page</h3>
+<p><a href="https://github.com/nielsbasjes/yauaa">https://github.com/nielsbasjes/yauaa</a></p>
+
+<h3 id="license-1">License</h3>
+<p>Apache License 2.0</p>
+
+<h3 id="download-1">Download</h3>
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+  &lt;groupId&gt;nl.basjes.parse.useragent&lt;/groupId&gt;
+  &lt;artifactId&gt;yauaa-beam&lt;/artifactId&gt;
+  &lt;version&gt;4.2&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre>
+</div>
+
+<h3 id="code-example-1">Code example</h3>
+<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
+    .apply("Extract Elements from Useragent",
+      ParDo.of(new UserAgentAnalysisDoFn&lt;WebEvent&gt;() {
+        @Override
+        public String getUserAgentString(WebEvent record) {
+          return record.useragent;
+        }
+
+        @YauaaField("DeviceClass")
+        public void setDC(WebEvent record, String value) {
+          record.deviceClass = value;
+        }
+
+        @YauaaField("AgentNameVersion")
+        public void setANV(WebEvent record, String value) {
+          record.agentNameVersion = value;
+        }
+    }));
+</code></pre>
+</div>
+
 
       </div>
     </div>
