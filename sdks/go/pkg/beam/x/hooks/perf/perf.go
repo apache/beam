@@ -49,15 +49,15 @@ func init() {
 		enabled := len(enabledProfCaptureHooks) > 0
 		var cpuProfBuf bytes.Buffer
 		return hooks.Hook{
-			Req: func(ctx context.Context, _ *fnpb.InstructionRequest) (context.Context, error) {
-				if !enabled {
+			Req: func(ctx context.Context,  req *fnpb.InstructionRequest) (context.Context, error) {
+				if !enabled || req.GetProcessBundle() == nil {
 					return ctx, nil
 				}
 				cpuProfBuf.Reset()
 				return ctx, pprof.StartCPUProfile(&cpuProfBuf)
 			},
 			Resp: func(ctx context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
-				if !enabled {
+				if !enabled || req.GetProcessBundle() == nil {
 					return nil
 				}
 				pprof.StopCPUProfile()
