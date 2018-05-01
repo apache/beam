@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -784,11 +785,13 @@ public class SpannerIO {
       if (sampler == null) {
         sampler = createDefaultSampler();
       }
+      PCollection<Void> create = input
+              .getPipeline()
+              .apply("Create seed", Create.of((Void) null));
+      create = create.apply(Wait.on(input));
       // First, read the Cloud Spanner schema.
       final PCollectionView<SpannerSchema> schemaView =
-          input
-              .getPipeline()
-              .apply(Create.of((Void) null))
+          create
               .apply(
                   "Read information schema",
                   ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
