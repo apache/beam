@@ -157,10 +157,6 @@ public class InMemoryMetaStoreTest {
       this.names = names;
     }
 
-    @Override public void init() {
-
-    }
-
     @Override public String getTableType() {
       return type;
     }
@@ -184,10 +180,6 @@ public class InMemoryMetaStoreTest {
 
     @Override public BeamSqlTable buildBeamSqlTable(Table table) {
       return null;
-    }
-
-    @Override public void close() {
-
     }
   }
 }
