@@ -73,16 +73,15 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
-    self.read_counter = read_counter or opcounters.TransformIOCounter()
-
+    self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
     self.reader_threads = []
     self._start_reader_threads()
 
   def add_byte_counter(self, reader):
     """Adds byte counter observer to a side input reader.
 
-    If the 'sideinput_io_metrics' experiment flag is not passed in, then nothing
-    is attached to the reader.
+    If the 'sideinput_io_metrics' experiment flag is not passed in, then
+    nothing is attached to the reader.
 
     Args:
       reader: A reader that should inherit from ObservableMixin to have
