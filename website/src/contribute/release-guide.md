@@ -158,12 +158,11 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Verify that a Release Build Works
 
-Run `mvn -Prelease clean install` to ensure that the build processes that are specific to that
-profile are in good shape.
+Run `./gradlew -PisRelease clean build` to ensure that the build processes that are specific to that profile are in good shape.
 
 ### Update and Verify Javadoc
 
-The build with `-Prelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
+The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
 
 The file `sdks/java/javadoc/ant.xml` file contains a list of modules to include
 in and exclude, plus a list of offline URLs that populate links from Beam's
@@ -209,11 +208,11 @@ Create a new branch, and update version files in the master branch.
 
     # Now change the version in existing gradle files, and Python files
     sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" build_rules.gradle
-    sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" gradle.properties
-    sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" sdks/python/apache_beam/version.py
+    sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
+    sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
 
     # Save changes in master branch
-    git add gradle.properties build_rules.gradle
+    git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
     git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
 
 Check out the release branch.
@@ -223,8 +222,6 @@ Check out the release branch.
 The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH_NAME}` with the above environment variables set.
 
 ### Update the Python SDK version
-
-In the master branch, update Python SDK [version](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) identifier to the next development version (e.g. `1.2.3.dev` to `1.3.0.dev`).
 
 In the release branch, update the Python SDK version to the release version (e.g. `1.2.3.dev` to `1.2.3`).
 
@@ -269,7 +266,8 @@ Set up a few environment variables to simplify the commands that follow. These i
     RC_NUM=1
 
 
-Use Gradle release plugin to build the release artifacts, as follows:
+Use Gradle release plugin to build the release artifacts, and push code and
+release tag to the origin repository (this would be the Apache Beam repo):
 
     ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
                   -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
@@ -277,7 +275,7 @@ Use Gradle release plugin to build the release artifacts, as follows:
 
 Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:
 
-    ./gradlew publish -Prelease
+    ./gradlew publish -PisRelease
 
 Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
 
