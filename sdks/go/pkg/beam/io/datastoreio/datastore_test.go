@@ -17,6 +17,7 @@ package datastoreio
 
 import (
 	"testing"
+
 	"cloud.google.com/go/datastore"
 )
 

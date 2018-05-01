@@ -120,7 +120,6 @@ class Operation(object):
       # sampling.
       self.name_context = name_context
     else:
-      logging.info('Creating namecontext within operation')
       self.name_context = common.NameContext(name_context)
 
     # TODO(BEAM-4028): Remove following two lines. Rely on name context.
@@ -337,7 +336,7 @@ class DoOperation(Operation):
               # Inputs are 1-indexed, so we add 1 to i in the side input id
               input_index=i + 1)
         else:
-          si_counter = opcounters.TransformIOCounter()
+          si_counter = opcounters.NoOpTransformIOCounter()
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
@@ -701,13 +700,9 @@ class SimpleMapTaskExecutor(object):
     # operations is a list of operation_specs.Worker* instances.
     # The order of the elements is important because the inputs use
     # list indexes as references.
-
-    for ix, spec in enumerate(self._map_task.operations):
+    for name_context, spec in zip(self._map_task.name_contexts,
+                                  self._map_task.operations):
       # This is used for logging and assigning names to counters.
-      name_context = common.DataflowNameContext(
-          step_name=self._map_task.original_names[ix],
-          user_name=self._map_task.step_names[ix],
-          system_name=self._map_task.system_names[ix])
       op = create_operation(
           name_context, spec, self._counter_factory, None,
           self._state_sampler,

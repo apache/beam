@@ -103,6 +103,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
@@ -125,6 +126,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
@@ -1376,6 +1378,15 @@ public class DataflowRunnerTest implements Serializable {
             factory.getReplacementTransform(originalApplication).getTransform();
     assertThat(replacement, not(equalTo((Object) original)));
     assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
+
+    WriteFilesResult<Void> originalResult = objs.apply(original);
+    WriteFilesResult<Void> replacementResult = objs.apply(replacement);
+    Map<PValue, ReplacementOutput> res = factory
+        .mapOutputs(originalResult.expand(), replacementResult);
+    assertEquals(1, res.size());
+    assertEquals(
+        originalResult.getPerDestinationOutputFilenames(),
+        res.get(replacementResult.getPerDestinationOutputFilenames()).getOriginal().getValue());
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
@@ -1409,7 +1420,12 @@ public class DataflowRunnerTest implements Serializable {
 
     @Override
     public WriteOperation<Void, Object> createWriteOperation() {
-      throw new IllegalArgumentException("Should not be used");
+      return new WriteOperation<Void, Object>(this) {
+        @Override
+        public Writer<Void, Object> createWriter() {
+          throw new UnsupportedOperationException();
+        }
+      };
     }
   }
 }

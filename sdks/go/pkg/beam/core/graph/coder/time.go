@@ -16,11 +16,10 @@
 package coder
 
 import (
-	"fmt"
 	"io"
 	"math"
-	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
@@ -29,11 +28,7 @@ import (
 // values are lexicographically ordered before the byte representation of
 // positive values.
 func EncodeEventTime(et typex.EventTime, w io.Writer) error {
-	t := (time.Time)(et)
-	if t.IsZero() {
-		return fmt.Errorf("received a zero EventTime, which is unencodable")
-	}
-	millis := time.Duration(t.UnixNano()) / time.Millisecond
+	millis := mtime.Time(et).Milliseconds()
 	return EncodeUint64((uint64)(millis-math.MinInt64), w)
 }
 
@@ -41,8 +36,8 @@ func EncodeEventTime(et typex.EventTime, w io.Writer) error {
 func DecodeEventTime(r io.Reader) (typex.EventTime, error) {
 	unix, err := DecodeUint64(r)
 	if err != nil {
-		return typex.EventTime(time.Time{}), err
+		return mtime.ZeroTimestamp, err
 	}
-	millis := time.Duration((int64)(unix)+math.MinInt64) * time.Millisecond
-	return typex.EventTime(time.Unix(0, millis.Nanoseconds())), nil
+	millis := (int64)(unix) + math.MinInt64
+	return typex.EventTime(millis), nil
 }

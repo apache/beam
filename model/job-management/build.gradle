@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false)
+applyJavaNature(enableFindbugs: false, enableErrorProne: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Job Management"

@@ -207,18 +207,23 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
     PCollection<Integer> output =
-        pipeline.apply("CreateMainInput", Create.of(29, 31))
-            .apply("OutputSideInputs",
-                ParDo.of(new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    checkArgument(c.sideInput(view).size() == 4);
-                    checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
-                    for (Integer i : c.sideInput(view)) {
-                      c.output(i);
-                    }
-                  }
-                }).withSideInputs(view));
+        pipeline
+            .apply("CreateMainInput", Create.of(29, 31))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            checkArgument(c.sideInput(view).size() == 4);
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                            for (Integer i : c.sideInput(view)) {
+                              c.output(i);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(11, 13, 17, 23, 11, 13, 17, 23);
 
@@ -260,7 +265,8 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             checkArgument(c.sideInput(view).size() == 4);
-                            checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
                             for (Integer i : c.sideInput(view)) {
                               c.output(i);
                             }

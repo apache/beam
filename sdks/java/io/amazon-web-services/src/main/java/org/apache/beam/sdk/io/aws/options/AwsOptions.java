@@ -47,14 +47,28 @@ public interface AwsOptions extends PipelineOptions {
   void setAwsServiceEndpoint(String value);
 
   /**
-   * The credential instance that should be used to authenticate against AWS services. Refer to
-   * {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help.
+   * The credential instance that should be used to authenticate against AWS services.
+   * The option value must contain a "@type" field and an AWS Credentials Provider class
+   * as the field value. Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for
+   * usage help.
+   * <p>
+   * For example, to specify the AWS key ID and secret, specify the following:
+   * <code>
+   * {"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value",
+   * "awsSecretKey" : "secret_value"}
+   * </code>
+   * </p>
    */
-  @Description("The credential instance that should be used to authenticate against AWS services. "
-      + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help.")
-  @Default.InstanceFactory(AwsUserCredentialsFactory.class)
-  AWSCredentialsProvider getAwsCredentialsProvider();
-  void setAwsCredentialsProvider(AWSCredentialsProvider value);
+   @Description("The credential instance that should be used to authenticate "
+           + "against AWS services. The option value must contain \"@type\" field "
+           + "and an AWS Credentials Provider class name as the field value. "
+           + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
+           + "For example, to specify the AWS key ID and secret, specify the following: "
+           + "{\"@type\": \"AWSStaticCredentialsProvider\", "
+           + "\"awsAccessKeyId\":\"<key_id>\", \"awsSecretKey\":\"<secret_key>\"}")
+   @Default.InstanceFactory(AwsUserCredentialsFactory.class)
+   AWSCredentialsProvider getAwsCredentialsProvider();
+   void setAwsCredentialsProvider(AWSCredentialsProvider value);
 
   /**
    * Attempts to load AWS credentials.

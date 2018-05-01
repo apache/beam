@@ -24,7 +24,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// TODO(herohde) 4/14/2017: various side input forms + aggregators/counters.
 // Note that we can't tell the difference between K, V and V, S before binding.
 
 // FnParamKind represents the kinds of parameters a user function may take.
@@ -65,6 +64,8 @@ const (
 	// FnType indicates a function input parameter that is a type for a coder. It
 	// is only valid for coders.
 	FnType FnParamKind = 0x40
+	// FnWindow indicates a function input parameter that implements typex.Window.
+	FnWindow FnParamKind = 0x80
 )
 
 func (k FnParamKind) String() string {
@@ -83,6 +84,8 @@ func (k FnParamKind) String() string {
 		return "Emit"
 	case FnType:
 		return "Type"
+	case FnWindow:
+		return "Window"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -164,6 +167,16 @@ func (u *Fn) EventTime() (pos int, exists bool) {
 	return -1, false
 }
 
+// Window returns (index, true) iff the function expects a window.
+func (u *Fn) Window() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnWindow {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // Error returns (index, true) iff the function returns an error.
 func (u *Fn) Error() (pos int, exists bool) {
 	for i, p := range u.Ret {
@@ -224,6 +237,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnContext
 		case t == typex.EventTimeType:
 			kind = FnEventTime
+		case t.Implements(typex.WindowType):
+			kind = FnWindow
 		case t == reflectx.Type:
 			kind = FnType
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
@@ -289,7 +304,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -314,10 +329,11 @@ func validateOrder(u *Fn) error {
 
 var (
 	errContextParam             = errors.New("may only have a single context.Context parameter and it must be the first parameter")
-	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must preceed the main input parameter")
-	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must preceed the main input parameter")
+	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
+	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
+	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
 	errSideInputPrecedence      = errors.New("side input parameters must follow main input parameter")
-	errInputPrecedence          = errors.New("inputs parameters must preceed emit function parameters")
+	errInputPrecedence          = errors.New("inputs parameters must precede emit function parameters")
 )
 
 type paramState int
@@ -325,6 +341,7 @@ type paramState int
 const (
 	psStart paramState = iota
 	psContext
+	psWindow
 	psEventTime
 	psType
 	psInput
@@ -337,12 +354,23 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		switch transition {
 		case FnContext:
 			return psContext, nil
+		case FnWindow:
+			return psWindow, nil
 		case FnEventTime:
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
 		}
 	case psContext:
+		switch transition {
+		case FnWindow:
+			return psWindow, nil
+		case FnEventTime:
+			return psEventTime, nil
+		case FnType:
+			return psType, nil
+		}
+	case psWindow:
 		switch transition {
 		case FnEventTime:
 			return psEventTime, nil
@@ -371,6 +399,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 	switch transition {
 	case FnContext:
 		return -1, errContextParam
+	case FnWindow:
+		return -1, errWindowParamPrecedence
 	case FnEventTime:
 		return -1, errEventTimeParamPrecedence
 	case FnType:

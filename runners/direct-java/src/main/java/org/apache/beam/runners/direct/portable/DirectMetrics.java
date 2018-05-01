@@ -79,9 +79,10 @@ class DirectMetrics extends MetricResults {
     private final AtomicReference<UpdateT> finishedCommitted;
 
     private final Object attemptedLock = new Object();
+
     @GuardedBy("attemptedLock")
     private volatile UpdateT finishedAttempted;
-    @GuardedBy("attemptedLock")
+
     private final ConcurrentMap<CommittedBundle<?>, UpdateT> inflightAttempted =
         new ConcurrentHashMap<>();
 

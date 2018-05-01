@@ -104,6 +104,7 @@ message Type {
 
         // Beam
         EVENTTIME = 10;
+        WINDOW = 22;
 
         KV = 11;
         COGBK = 13;
@@ -170,6 +171,14 @@ message Fn {
     DynFn dynfn = 4;
 }
 
+// WindowFn represents a window fn.
+message WindowFn {
+    string kind = 1;
+    int64 size_ms = 2;
+    int64 period_ms = 3;
+    int64 gap_ms = 4;
+}
+
 // CustomCoder
 message CustomCoder {
     // (Required) Name of the coder. For informational purposes only.
@@ -192,6 +201,7 @@ message CustomCoder {
 message MultiEdge {
     Fn fn = 1;
     string opcode = 4;
+    WindowFn window_fn = 5;
 
     message Inbound {
         enum InputKind {

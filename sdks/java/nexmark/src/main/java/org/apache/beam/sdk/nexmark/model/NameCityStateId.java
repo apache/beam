@@ -111,7 +111,7 @@ public class NameCityStateId implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return name.length() + 1 + city.length() + 1 + state.length() + 1 + 8;
+    return name.length() + 1L + city.length() + 1L + state.length() + 1L + 8L;
   }
 
   @Override

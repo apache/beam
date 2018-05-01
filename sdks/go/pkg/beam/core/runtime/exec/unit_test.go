@@ -77,7 +77,7 @@ func (n *CaptureNode) Down(ctx context.Context) error {
 // FixedRoot is a test Root that emits a fixed number of elements.
 type FixedRoot struct {
 	UID      UnitID
-	Elements []FullValue
+	Elements []MainInput
 	Out      Node
 }
 
@@ -95,7 +95,7 @@ func (n *FixedRoot) StartBundle(ctx context.Context, id string, data DataManager
 
 func (n *FixedRoot) Process(ctx context.Context) error {
 	for _, elm := range n.Elements {
-		if err := n.Out.ProcessElement(ctx, elm); err != nil {
+		if err := n.Out.ProcessElement(ctx, elm.Key, elm.Values...); err != nil {
 			return err
 		}
 	}

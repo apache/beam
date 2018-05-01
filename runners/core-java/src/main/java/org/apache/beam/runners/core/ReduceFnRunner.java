@@ -212,9 +212,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       StateInternals stateInternals,
       TimerInternals timerInternals,
       OutputWindowedValue<KV<K, OutputT>> outputter,
-      SideInputReader sideInputReader,
+      @Nullable SideInputReader sideInputReader,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
-      PipelineOptions options) {
+      @Nullable PipelineOptions options) {
     this.key = key;
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
@@ -235,8 +235,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.activeWindows = createActiveWindowSet();
 
     this.contextFactory =
-        new ReduceFnContextFactory<>(key, reduceFn, this.windowingStrategy,
-            stateInternals, this.activeWindows, timerInternals, sideInputReader, options);
+        new ReduceFnContextFactory<>(
+            key,
+            reduceFn,
+            this.windowingStrategy,
+            stateInternals,
+            this.activeWindows,
+            timerInternals,
+            sideInputReader,
+            options);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
     this.triggerRunner =

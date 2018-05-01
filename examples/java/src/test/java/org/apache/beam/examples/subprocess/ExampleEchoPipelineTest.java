@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
  * it is not factored or testable. This test file should be maintained with a copy of its
  * code for a basic smoke test.
  **/
+@RunWith(JUnit4.class)
 public class ExampleEchoPipelineTest {
 
   static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipelineTest.class);
@@ -124,7 +125,7 @@ public class ExampleEchoPipelineTest {
   /**
    * Simple DoFn that echos the element, used as an example of running a C++ library.
    */
-  @SuppressWarnings("serial") @RunWith(JUnit4.class) public static class EchoInputDoFn
+  @SuppressWarnings("serial") private static class EchoInputDoFn
       extends DoFn<KV<String, String>, KV<String, String>> {
 
     static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);

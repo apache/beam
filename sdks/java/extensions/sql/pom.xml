@@ -396,6 +396,12 @@
       <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- for tests  -->
     <dependency>
       <groupId>junit</groupId>
