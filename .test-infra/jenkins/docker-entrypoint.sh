@@ -16,11 +16,4 @@
 #    limitations under the License.
 #
 
-echo "-----------------start--------------"
-wget --no-verbose -O $SRC_FILE $URL
-unzip -q $SRC_FILE
-rm $SRC_FILE
-ln -s $HOME/$SRC_DIR $HOME/beam
-cd $HOME/beam
-echo "lalalla $@"
-exec "$@"
+echo 'lalalallalalalallalalalalallallalallalalal'

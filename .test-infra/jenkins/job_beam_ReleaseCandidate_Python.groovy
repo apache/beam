@@ -16,27 +16,16 @@
  * limitations under the License.
  */
 
-import common_job_properties
-
 job('beam_PostRelease_Python_Candidate') {
-    description('Runs verification of the Python release candidate.')
-
-    // Execute concurrent builds if necessary.
-    concurrentBuild()
-
-    // Set common parameters.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
-
-    // Allows triggering this build against pull requests.
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Python SDK Release Candidates Validation',
-            'Run Python ReleaseCandidate')
+    wrappers {
+        buildInDocker {
+            dockerfile('.test-infra/jenkins/', 'Dockerfile')
+        }
+    }
 
     // Execute shell command to test Python SDK.
+    // ./release/src/main/groovy/run_release_candidate_python_quickstart.sh
     steps {
-        shell('cd ' + common_job_properties.checkoutDir +
-                ' && bash release/src/main/groovy/run_release_candidate_python_quickstart.sh' +
-                ' && bash release/src/main/groovy/run_release_candidate_python_mobile_gaming.sh')
+        shell('./gradlew :pythonPreCommit --info --continue')
     }
 }
