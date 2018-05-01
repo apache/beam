@@ -113,7 +113,7 @@ public class BeamSqlCliTest {
     String plan = cli.explainQuery("select * from person");
     assertEquals(
         "BeamProjectRel(id=[$0], name=[$1], age=[$2])\n"
-        + "  BeamIOSourceRel(table=[[person]])\n",
+        + "  BeamIOSourceRel(table=[[beam, person]])\n",
         plan
     );
   }

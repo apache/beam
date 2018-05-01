@@ -87,7 +87,7 @@ public class BeamQueryPlanner {
     sqlOperatorTables.add(SqlStdOperatorTable.instance());
     sqlOperatorTables.add(
         new CalciteCatalogReader(
-            CalciteSchema.from(schema), Collections.emptyList(), TYPE_FACTORY, null));
+            CalciteSchema.from(schema).root(), Collections.emptyList(), TYPE_FACTORY, null));
 
     FrameworkConfig config =
         Frameworks.newConfigBuilder()

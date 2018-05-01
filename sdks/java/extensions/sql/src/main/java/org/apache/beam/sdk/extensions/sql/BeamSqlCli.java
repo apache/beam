@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -45,13 +44,7 @@ public class BeamSqlCli {
 
   public BeamSqlCli metaStore(MetaStore metaStore) {
     this.metaStore = metaStore;
-    this.env = new BeamSqlEnv();
-
-    // dump tables in metaStore into schema
-    Map<String, Table> tables = this.metaStore.getTables();
-    for (Map.Entry<String, Table> table : tables.entrySet()) {
-      env.registerTable(table.getKey(), metaStore.buildBeamSqlTable(table.getValue()));
-    }
+    this.env = new BeamSqlEnv(metaStore);
 
     return this;
   }
@@ -77,7 +70,7 @@ public class BeamSqlCli {
     SqlNode sqlNode = parser.impl().parseSqlStmtEof();
 
     if (sqlNode instanceof SqlCreateTable) {
-      handleCreateTable((SqlCreateTable) sqlNode, metaStore);
+      handleCreateTable((SqlCreateTable) sqlNode);
     } else if (sqlNode instanceof SqlDropTable) {
       handleDropTable((SqlDropTable) sqlNode);
     } else {
@@ -90,21 +83,17 @@ public class BeamSqlCli {
     }
   }
 
-  private void handleCreateTable(SqlCreateTable stmt, MetaStore store) {
+  private void handleCreateTable(SqlCreateTable stmt) {
     Table table = stmt.toTable();
     if (table.getType() == null) {
       throw new IllegalStateException("Table type is not specified and BeamSqlCli#defaultTableType"
           + "is not configured!");
     }
 
-    store.createTable(table);
-
-    // register the new table into the schema
-    env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table));
+    metaStore.createTable(table);
   }
 
   private void handleDropTable(SqlDropTable stmt) {
     metaStore.dropTable(stmt.getNameSimple());
-    env.deregisterTable(stmt.getNameSimple());
   }
 }

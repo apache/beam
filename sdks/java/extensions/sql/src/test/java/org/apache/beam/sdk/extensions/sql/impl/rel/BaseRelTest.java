@@ -18,9 +18,12 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
@@ -28,7 +31,8 @@ import org.apache.beam.sdk.values.Row;
  * Base class for rel test.
  */
 abstract class BaseRelTest {
-  private static BeamSqlEnv env = new BeamSqlEnv();
+  private static Map<String, BeamSqlTable> tables = new HashMap();
+  private static BeamSqlEnv env = new BeamSqlEnv(new BeamSqlTableProvider("test", tables));
 
   protected static PCollection<Row> compilePipeline (
       String sql, Pipeline pipeline) throws Exception {
@@ -36,6 +40,6 @@ abstract class BaseRelTest {
   }
 
   protected static void registerTable(String tableName, BeamSqlTable table) {
-    env.registerTable(tableName, table);
+    tables.put(tableName, table);
   }
 }
