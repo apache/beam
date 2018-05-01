@@ -279,7 +279,7 @@ Use Gradle publish plugin to stage these artifacts on the Apache Nexus repositor
 
     ./gradlew publish -Prelease
 
-Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, source, test source, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
+Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
 
 Close the staging repository on Apache Nexus. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
 
@@ -293,24 +293,22 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Make a directory for the new release:
 
-        mkdir beam/${VERSION}
-        cd beam/${VERSION}
+        mkdir beam/${RELEASE}
+        cd beam/${RELEASE}
 
-1. Copy and rename the Beam source distribution, hashes, and GPG signature:
+1. Download source zip from GitHub:
 
-        cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip .
-        cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip.asc .
-        cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip apache-beam-${VERSION}-python.zip
+    wget https://github.com/apache/beam/archive/release-${RELEASE}.zip \
+         -O apache-beam-${RELEASE}-source-release.zip
 
-1. Create hashes for source files and sign the python source file file
+1. Create hashes and sign the source distribution:
 
-        sha512sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.sha512
-        gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
-        sha512sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.sha512
+        gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
+        sha512sum apache-beam-${RELEASE}-source-release.zip > apache-beam-${RELEASE}-source-release.zip.sha512
 
 1. Add and commit all the files.
 
-        svn add beam/${VERSION}
+        svn add beam/${RELEASE}
         svn commit
 
 1. Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
@@ -338,14 +336,14 @@ candidate into the source tree of the website.
 Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
 
 * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
-* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${VERSION}`.
+* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${RELEASE}`.
 * Set up the necessary git commands to account for the new and deleted files from the javadoc.
 * Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
 #### Create Pydoc
 Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/pydoc/) page, as follows:
 
-* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${VERSION}`.
+* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${RELEASE}`.
 * Remove `.doctrees` directory.
 * Update the Pydoc link on this page to point to the new version (in `src/documentation/sdks/pydoc/current.md`).
 
@@ -454,9 +452,9 @@ Use the Apache Nexus repository to release the staged binary artifacts to the Ma
 ### Deploy Python artifacts to PyPI
 
 1. Create a new release and upload the Python zip file for the new release using the [PyPI UI] (https://pypi.python.org/pypi/apache-beam)
-1. Alternatively, use the command line tool to upload the new release `twine upload apache-beam-${VERSION}.zip`
+1. Alternatively, use the command line tool to upload the new release `twine upload apache-beam-${RELEASE}.zip`
 
-Note: It is important to rename `apache-beam-${VERSION}-python.zip` to `apache-beam-${VERSION}.zip` before uploading, because PyPI expects a filename in the `<package-name>-<package-version>` format.
+Note: It is important to rename `apache-beam-${RELEASE}-python.zip` to `apache-beam-${RELEASE}.zip` before uploading, because PyPI expects a filename in the `<package-name>-<package-version>` format.
 
 #### Deploy source release to dist.apache.org
 
@@ -466,7 +464,7 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
-    VERSION_TAG="v${VERSION}"
+    VERSION_TAG="v${RELEASE}"
     git tag -s "$VERSION_TAG" "$RC_TAG"
     git push github "$VERSION_TAG"
 
