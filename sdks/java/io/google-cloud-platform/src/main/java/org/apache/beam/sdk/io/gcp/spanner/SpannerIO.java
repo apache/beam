@@ -862,7 +862,8 @@ public class SpannerIO {
                   .withOutputTags(mainTag, TupleTagList.of(failedTag)));
       PCollection<MutationGroup> failedMutations = result.get(failedTag);
       failedMutations.setCoder(SerializableCoder.of(MutationGroup.class));
-      return new SpannerWriteResult(input.getPipeline(), result.get(mainTag), failedMutations);
+      return new SpannerWriteResult(input.getPipeline(), result.get(mainTag), failedMutations,
+          failedTag);
     }
 
     private PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
