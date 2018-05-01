@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import com.google.cloud.spanner.Mutation;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -30,18 +29,21 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A result of {@link SpannerIO#write()} transform. Use {@link #getFailedMutations} to access
- * failed Mutations.
+ * failed Mutations. {@link #getOutput()} can be used as a completion signal with the
+ * {@link org.apache.beam.sdk.transforms.Wait} transform.
  */
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;
   private final PCollection<Void> output;
   private final PCollection<MutationGroup> failedMutations;
+  private final TupleTag<MutationGroup> failedMutationsTag;
 
   public SpannerWriteResult(Pipeline pipeline, PCollection<Void> output,
-      PCollection<MutationGroup> failedMutations) {
+      PCollection<MutationGroup> failedMutations, TupleTag<MutationGroup> failedMutationsTag) {
     this.pipeline = pipeline;
     this.output = output;
     this.failedMutations = failedMutations;
+    this.failedMutationsTag = failedMutationsTag;
   }
 
   @Override
@@ -51,7 +53,7 @@ public class SpannerWriteResult implements POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.of(new TupleTag<Mutation>("failedMutation"), failedMutations);
+    return ImmutableMap.of(failedMutationsTag, failedMutations);
   }
 
   public PCollection<MutationGroup> getFailedMutations() {
