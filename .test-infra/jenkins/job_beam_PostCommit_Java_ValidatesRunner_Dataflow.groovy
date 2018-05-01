@@ -47,13 +47,12 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
-      common_job_properties.setGradleSwitches(delegate)
       // Increase parallel worker threads above processor limit since most time is
       // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
       // because each one launches a Dataflow job with about 3 mins of overhead.
       // 3 x num_cores strikes a good balance between maxing out parallelism without
       // overloading the machines.
-      switches("--max-workers=${3 * Runtime.runtime.availableProcessors()}")
+      common_job_properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }
 }
