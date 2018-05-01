@@ -87,18 +87,14 @@ public class InMemoryMetaStoreTest {
   }
 
   @Test public void testBuildBeamSqlTable() throws Exception {
-    store.createTable(mockTable("hello"));
-    BeamSqlTable actualSqlTable = store.buildBeamSqlTable("hello");
+    Table table = mockTable("hello");
+    store.createTable(table);
+    BeamSqlTable actualSqlTable = store.buildBeamSqlTable(table);
     assertNotNull(actualSqlTable);
     assertEquals(
         RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build(),
         actualSqlTable.getSchema()
     );
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testBuildBeamSqlTable_tableNotExist() throws Exception {
-    store.buildBeamSqlTable("world");
   }
 
   @Test
@@ -157,10 +153,6 @@ public class InMemoryMetaStoreTest {
       this.names = names;
     }
 
-    @Override public void init() {
-
-    }
-
     @Override public String getTableType() {
       return type;
     }
@@ -184,10 +176,6 @@ public class InMemoryMetaStoreTest {
 
     @Override public BeamSqlTable buildBeamSqlTable(Table table) {
       return null;
-    }
-
-    @Override public void close() {
-
     }
   }
 }

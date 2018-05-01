@@ -37,7 +37,8 @@ public class InMemoryMetaStore implements MetaStore {
   private Map<String, Table> tables = new HashMap<>();
   private Map<String, TableProvider> providers = new HashMap<>();
 
-  public InMemoryMetaStore() {
+  @Override public String getTableType() {
+    return "store";
   }
 
   @Override public void createTable(Table table) {
@@ -76,13 +77,7 @@ public class InMemoryMetaStore implements MetaStore {
     return new ArrayList<>(tables.values());
   }
 
-  @Override public BeamSqlTable buildBeamSqlTable(String tableName) {
-    Table table = getTable(tableName);
-
-    if (table == null) {
-      throw new IllegalArgumentException("The specified table: " + tableName + " does not exists!");
-    }
-
+  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
     TableProvider provider = providers.get(table.getType());
 
     return provider.buildBeamSqlTable(table);
@@ -95,7 +90,7 @@ public class InMemoryMetaStore implements MetaStore {
     }
   }
 
-  public void registerProvider(TableProvider provider) {
+  @Override public void registerProvider(TableProvider provider) {
     if (providers.containsKey(provider.getTableType())) {
       throw new IllegalArgumentException("Provider is already registered for table type: "
           + provider.getTableType());

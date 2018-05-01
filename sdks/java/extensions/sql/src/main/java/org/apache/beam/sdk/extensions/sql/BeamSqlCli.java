@@ -50,7 +50,7 @@ public class BeamSqlCli {
     // dump tables in metaStore into schema
     List<Table> tables = this.metaStore.listTables();
     for (Table table : tables) {
-      env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
+      env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table));
     }
 
     return this;
@@ -100,7 +100,7 @@ public class BeamSqlCli {
     store.createTable(table);
 
     // register the new table into the schema
-    env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
+    env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table));
   }
 
   private void handleDropTable(SqlDropTable stmt) {
