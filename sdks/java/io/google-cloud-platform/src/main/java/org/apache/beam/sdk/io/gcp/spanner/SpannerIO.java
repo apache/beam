@@ -785,13 +785,12 @@ public class SpannerIO {
       if (sampler == null) {
         sampler = createDefaultSampler();
       }
-      PCollection<Void> create = input
-              .getPipeline()
-              .apply("Create seed", Create.of((Void) null));
-      create = create.apply(Wait.on(input));
       // First, read the Cloud Spanner schema.
       final PCollectionView<SpannerSchema> schemaView =
-          create
+          input.getPipeline()
+              .apply("Create seed", Create.of((Void) null))
+              // Wait for input mutations so it is possible to chain transforms.
+              .apply(Wait.on(input))
               .apply(
                   "Read information schema",
                   ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
@@ -885,9 +884,7 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) {
       SerializedMutation m = c.element();
-      String lower = m.getTableName().toLowerCase();
-      KV<String, byte[]> kv = KV.of(lower, m.getEncodedKey());
-      c.output(kv);
+      c.output(KV.of(m.getTableName().toLowerCase(), m.getEncodedKey()));
     }
   }
 
