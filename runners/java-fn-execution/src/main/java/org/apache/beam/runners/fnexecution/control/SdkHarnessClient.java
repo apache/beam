@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.control;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -36,7 +35,6 @@ import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -189,7 +187,7 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /** An active bundle for a particular {@link BeamFnApi.ProcessBundleDescriptor}. */
-  public static class ActiveBundle<InputT> implements AutoCloseable {
+  public static class ActiveBundle<InputT> implements RemoteBundle<InputT> {
     private final String bundleId;
     private final CompletionStage<BeamFnApi.ProcessBundleResponse> response;
     private final CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver;
@@ -212,7 +210,7 @@ public class SdkHarnessClient implements AutoCloseable {
     /**
      * Returns an id used to represent this bundle.
      */
-    public String getBundleId() {
+    public String getId() {
       return bundleId;
     }
 
@@ -448,17 +446,4 @@ public class SdkHarnessClient implements AutoCloseable {
   @Override
   public void close() {}
 
-  /**
-   * A pair of {@link Coder} and {@link FnDataReceiver} which can be registered to receive elements
-   * for a {@link LogicalEndpoint}.
-   */
-  @AutoValue
-  public abstract static class RemoteOutputReceiver<T> {
-    public static <T> RemoteOutputReceiver of (Coder<T> coder, FnDataReceiver<T> receiver) {
-      return new AutoValue_SdkHarnessClient_RemoteOutputReceiver<>(coder, receiver);
-    }
-
-    public abstract Coder<T> getCoder();
-    public abstract FnDataReceiver<T> getReceiver();
-  }
 }
