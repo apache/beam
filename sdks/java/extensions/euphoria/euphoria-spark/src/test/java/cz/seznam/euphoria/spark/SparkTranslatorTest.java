@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -29,15 +28,15 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.testing.DatasetAssert;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.storage.StorageLevel;
 import org.junit.Test;
 
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -46,7 +45,7 @@ public class SparkTranslatorTest {
 
   /**
    * Dataset {@code mapped} and {@code reduced} are used twice in flow so they should be cached. In
-   * flow translation it corresponds with node 3 (mapped) and node 6 (reduced).
+   * flow translation it corresponds with node 3 (mapped) and node 8 (reduced).
    */
   @Test
   public void testRDDCaching() {
@@ -58,15 +57,16 @@ public class SparkTranslatorTest {
 
     final Dataset<Integer> input = flow.createInput(dataSource);
 
-    final Dataset<Integer> mapped = MapElements.of(input)
+    final Dataset<Integer> mapped = MapElements.named("first")
+        .of(input)
         .using(e -> e)
         .output(ComputationHint.EXPENSIVE);
 
     final Dataset<Pair<Integer, Long>> reduced =
-        ReduceByKey.of(mapped)
+        ReduceByKey.named("second")
+            .of(mapped)
             .keyBy(e -> e)
             .reduceBy(values -> 1L)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output(ComputationHint.EXPENSIVE);
 
     MapElements.of(mapped)
@@ -83,7 +83,6 @@ public class SparkTranslatorTest {
         .by(e -> e, Pair::getFirst)
         .using((Integer l, Pair<Integer, Long> r, Collector<Long> c) ->
             c.collect(r.getSecond()))
-        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output()
         .persist(new VoidSink<>());
 
@@ -101,11 +100,18 @@ public class SparkTranslatorTest {
         new SparkFlowTranslator(sparkContext, flow.getSettings(), mockedFactory);
     translator.translateInto(flow, StorageLevel.MEMORY_ONLY());
 
-    final List<Integer> expectedCachedNodeNumbers = new ArrayList<>(Arrays.asList(3, 6));
-
     assertEquals(2, sparkContext.getPersistentRDDs().size());
-    DatasetAssert.unorderedEquals(
-        expectedCachedNodeNumbers, new ArrayList<>(sparkContext.getPersistentRDDs().keySet()));
+
+    final List<String> expectedCachedRDDs = Arrays.asList(
+        "first-persisted", "second-persisted");
+
+    final List<String> cachedRDDs = sparkContext.getPersistentRDDs()
+        .values()
+        .stream()
+        .map(JavaRDD::name)
+        .collect(Collectors.toList());
+
+    DatasetAssert.unorderedEquals(expectedCachedRDDs, cachedRDDs);
 
     sparkContext.close();
   }
