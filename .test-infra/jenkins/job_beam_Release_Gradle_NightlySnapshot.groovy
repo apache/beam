@@ -37,9 +37,6 @@ job('beam_Release_Gradle_NightlySnapshot') {
       'dev@beam.apache.org')
 
 
-  def gradle_switches = [
-  ]
-
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
