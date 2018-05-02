@@ -29,7 +29,7 @@ public final class TimestampedElement<T> {
     return timestamp;
   }
 
-  public Object getElement() {
+  public T getElement() {
     return el;
   }
 }
