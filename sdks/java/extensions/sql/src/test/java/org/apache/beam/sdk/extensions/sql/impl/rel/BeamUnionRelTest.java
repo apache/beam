@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
@@ -34,14 +33,12 @@ import org.junit.Test;
  * Test for {@code BeamUnionRel}.
  */
 public class BeamUnionRelTest extends BaseRelTest {
-  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
-
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() {
-    sqlEnv.registerTable("ORDER_DETAILS",
+    registerTable("ORDER_DETAILS",
         MockedBoundedTable.of(
             TypeName.INT64, "order_id",
             TypeName.INT32, "site_id",
@@ -62,7 +59,7 @@ public class BeamUnionRelTest extends BaseRelTest {
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS ";
 
-    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             TypeName.INT64, "order_id",
@@ -85,7 +82,7 @@ public class BeamUnionRelTest extends BaseRelTest {
         + " SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS";
 
-    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             TypeName.INT64, "order_id",
