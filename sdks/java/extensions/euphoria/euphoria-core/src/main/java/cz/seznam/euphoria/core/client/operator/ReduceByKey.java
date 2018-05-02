@@ -431,6 +431,11 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     return valueExtractor;
   }
 
+  @Nullable
+  public BinaryFunction<VALUE, VALUE, Integer> getValueComparator() {
+    return valueComparator;
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
