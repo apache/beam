@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * <pre>{@code
  * events.apply(BigQueryIO.<UserEvent>write()
  *  .to(new DynamicDestinations<UserEvent, String>() {
- *        public String getDestination(ValueInSingleWindow<String> element) {
+ *        public String getDestination(ValueInSingleWindow<UserEvent> element) {
  *          return element.getValue().getUserId();
  *        }
  *        public TableDestination getTable(String user) {
