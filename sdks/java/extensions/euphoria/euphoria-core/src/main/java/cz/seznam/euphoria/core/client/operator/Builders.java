@@ -91,6 +91,7 @@ public class Builders {
     /**
      * Finalizes the operator and retrieves its output dataset.
      *
+     * @param outputHints output dataset description
      * @return the dataset representing the new operator's output
      */
     Dataset<T> output(OutputHint... outputHints);
@@ -103,6 +104,7 @@ public class Builders {
      * Using this output new operator {@link MapElements} is added
      * to the flow to extract values from pairs.
      *
+     * @param outputHints output dataset description
      * @return the dataset representing the new operator's output
      */
     default Dataset<V> outputValues(OutputHint... outputHints) {
