@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -26,9 +27,15 @@ import org.apache.beam.sdk.values.Row;
 /**
  * Base class for rel test.
  */
-public class BaseRelTest {
-  public PCollection<Row> compilePipeline (
-      String sql, Pipeline pipeline, BeamSqlEnv sqlEnv) throws Exception {
-    return sqlEnv.getPlanner().compileBeamPipeline(sql, pipeline);
+abstract class BaseRelTest {
+  private static BeamSqlEnv env = new BeamSqlEnv();
+
+  protected static PCollection<Row> compilePipeline (
+      String sql, Pipeline pipeline) throws Exception {
+    return env.getPlanner().compileBeamPipeline(sql, pipeline);
+  }
+
+  protected static void registerTable(String tableName, BeamSqlTable table) {
+    env.registerTable(tableName, table);
   }
 }
