@@ -19,7 +19,6 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 
 /**
  * A factory that has all job-scoped information, and can be combined with stage-scoped information
@@ -28,6 +27,5 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
  * <p>Releases all job-scoped resources when closed.
  */
 public interface JobBundleFactory extends AutoCloseable {
-  StageBundleFactory forStage(
-      ExecutableStage executableStage, StateRequestHandler stateRequestHandler);
+  StageBundleFactory forStage(ExecutableStage executableStage);
 }
