@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -786,9 +787,10 @@ public class SpannerIO {
       }
       // First, read the Cloud Spanner schema.
       final PCollectionView<SpannerSchema> schemaView =
-          input
-              .getPipeline()
-              .apply(Create.of((Void) null))
+          input.getPipeline()
+              .apply("Create seed", Create.of((Void) null))
+              // Wait for input mutations so it is possible to chain transforms.
+              .apply(Wait.on(input))
               .apply(
                   "Read information schema",
                   ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
@@ -882,11 +884,9 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) {
       SerializedMutation m = c.element();
-      c.output(KV.of(m.getTableName(), m.getEncodedKey()));
+      c.output(KV.of(m.getTableName().toLowerCase(), m.getEncodedKey()));
     }
   }
-
-
 
   private static boolean isPointDelete(Mutation m) {
     return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
@@ -908,7 +908,7 @@ public class SpannerIO {
     @ProcessElement public void processElement(ProcessContext c) {
       Map<String, List<byte[]>> sample = c.sideInput(sampleView);
       SerializedMutation g = c.element();
-      String table = g.getTableName();
+      String table = g.getTableName().toLowerCase();
       byte[] key = g.getEncodedKey();
       String groupKey;
       if (key.length == 0) {

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
@@ -42,16 +43,16 @@ public abstract class SpannerConfig implements Serializable {
   private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
 
   @Nullable
-  abstract ValueProvider<String> getProjectId();
+  public abstract ValueProvider<String> getProjectId();
 
   @Nullable
-  abstract ValueProvider<String> getInstanceId();
+  public abstract ValueProvider<String> getInstanceId();
 
   @Nullable
-  abstract ValueProvider<String> getDatabaseId();
+  public abstract ValueProvider<String> getDatabaseId();
 
   @Nullable
-  abstract String getHost();
+  public abstract String getHost();
 
   @Nullable
   @VisibleForTesting
@@ -158,7 +159,8 @@ public abstract class SpannerConfig implements Serializable {
         DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
     BatchClient batchClient = spanner.getBatchClient(
         DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    return new SpannerAccessor(spanner, databaseClient, batchClient);
+    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
   }
 
 }

@@ -61,7 +61,7 @@ class MutationGroupEncoder {
     tables = schema.getTables();
 
     for (int i = 0; i < tables.size(); i++) {
-      tablesIndexes.put(tables.get(i), i);
+      tablesIndexes.put(tables.get(i).toLowerCase(), i);
     }
   }
 
@@ -110,7 +110,7 @@ class MutationGroupEncoder {
   }
 
   private Integer getTableIndex(String table) {
-    Integer result = tablesIndexes.get(table);
+    Integer result = tablesIndexes.get(table.toLowerCase());
     checkArgument(result != null, "Unknown table '%s'", table);
     return result;
   }
