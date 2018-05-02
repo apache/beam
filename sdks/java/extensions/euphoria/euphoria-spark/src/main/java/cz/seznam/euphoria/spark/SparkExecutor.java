@@ -138,6 +138,7 @@ public class SparkExecutor implements Executor {
     /**
      * Storage level to be used for expensive computation graph splits.
      *
+     * @param storageLevel storage level to be used throughout the pipeline
      * @return builder
      */
     public Builder storageLevel(StorageLevel storageLevel) {

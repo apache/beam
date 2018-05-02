@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -89,8 +90,9 @@ public class SparkExecutorContext {
    *
    * @throws RuntimeException if the given operator has no or more than one inputs
    */
-  public JavaRDD<?> getSingleInput(Operator<?, ?> operator) {
-    return Iterables.getOnlyElement(getInputs(operator));
+  @SuppressWarnings("unchecked")
+  public <IN, OUT> JavaRDD<SparkElement<?, IN>> getSingleInput(Operator<IN, OUT> operator) {
+    return (JavaRDD<SparkElement<?, IN>>) Iterables.getOnlyElement(getInputs(operator));
   }
 
   /**
