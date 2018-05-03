@@ -32,9 +32,8 @@ job('beam_PreCommit_Go_GradleBuild') {
     'master',
     150)
 
-  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :goPreCommit'
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Go PreCommit')
+  common_job_properties.setPreCommit(delegate, './gradlew :goPreCommit', 'Run Go PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
