@@ -18,41 +18,27 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
+import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
- * A {@code TableProvider} handles the metadata CRUD of a specified kind of tables.
- *
- * <p>So there will be a provider to handle textfile(CSV) based tables, there is a provider to
- * handle MySQL based tables, a provider to handle Casandra based tables etc.
+ * A {@code InMemoryMetaTableProvider} is an abstract {@code TableProvider} for in-memory types.
  */
-public interface TableProvider {
-  /**
-   * Gets the table type this provider handles.
-   */
-  String getTableType();
+public abstract class InMemoryMetaTableProvider implements TableProvider {
 
-  /**
-   * Creates a table.
-   */
-  void createTable(Table table);
+  @Override
+  public void createTable(Table table) {
+    // No-op
+  }
 
-  /**
-   * Drops a table.
-   *
-   * @param tableName
-   */
-  void dropTable(String tableName);
+  @Override
+  public void dropTable(String tableName) {
+    // No-op
+  }
 
-  /**
-   * List all tables from this provider.
-   */
-  List<Table> listTables();
-
-  /**
-   * Build a {@link BeamSqlTable} using the given table meta info.
-   */
-  BeamSqlTable buildBeamSqlTable(Table table);
+  @Override
+  public List<Table> listTables() {
+    return Collections.emptyList();
+  }
 }
