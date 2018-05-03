@@ -179,8 +179,12 @@ class common_job_properties {
     context.switches("--max-workers=${maxWorkers}")
 
     // Ensure that parallel workers don't exceed total available memory.
-    def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
-    def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
+
+    // TODO(BEAM-4230): OperatingSystemMXBeam incorrectly reports total memory; hard-code for now
+    // Jenkins machines are GCE n1-highmem-16, with 104 GB of memory
+    // def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
+    // def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
+    def totalMemoryMb = 104 * 1024
     // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
     // machine memory.
     def totalExecutorMemoryMb = totalMemoryMb / 2
