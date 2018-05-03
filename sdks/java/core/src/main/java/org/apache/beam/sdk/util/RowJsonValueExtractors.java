@@ -137,7 +137,7 @@ class RowJsonValueExtractors {
                           // Or a decimal number which allows lossless conversion to float
                           || (jsonNode.isFloatingPointNumber()
                               && jsonNode.decimalValue()
-                                         .equals(new BigDecimal(jsonNode.doubleValue()))))
+                                         .equals(BigDecimal.valueOf(jsonNode.doubleValue()))))
         .build();
   }
 

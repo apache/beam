@@ -1422,7 +1422,7 @@ public class PipelineOptionsFactory {
       try {
         checkArgument(arg.startsWith("--"),
             "Argument '%s' does not begin with '--'", arg);
-        int index = arg.indexOf("=");
+        int index = arg.indexOf('=');
         // Make sure that '=' isn't the first character after '--' or the last character
         checkArgument(index != 2,
             "Argument '%s' starts with '--=', empty argument name not allowed", arg);
