@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 
 /**
  * Interface for portable Flink translators. This allows for a uniform invocation pattern for
@@ -32,7 +33,7 @@ public interface FlinkPortablePipelineTranslator<
 
   /** The context used for pipeline translation. */
   interface TranslationContext {
-    FlinkPipelineOptions getPipelineOptions();
+    JobInfo getJobInfo();
   }
 
   /** Translates the given pipeline. */

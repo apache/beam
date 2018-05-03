@@ -49,6 +49,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStagePruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
@@ -56,6 +57,7 @@ import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -63,6 +65,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -112,10 +115,17 @@ public class FlinkBatchPortablePipelineTranslator
    * Creates a batch translation context. The resulting Flink execution dag will live in a new
    * {@link ExecutionEnvironment}.
    */
-  public static BatchTranslationContext createTranslationContext(FlinkPipelineOptions options) {
+  public static BatchTranslationContext createTranslationContext(JobInfo jobInfo) {
+    PipelineOptions pipelineOptions;
+    try {
+      pipelineOptions = PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     ExecutionEnvironment executionEnvironment =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
-    return new BatchTranslationContext(options, executionEnvironment);
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            pipelineOptions.as(FlinkPipelineOptions.class));
+    return new BatchTranslationContext(jobInfo, executionEnvironment);
   }
 
   /** Creates a batch translator. */
@@ -152,22 +162,21 @@ public class FlinkBatchPortablePipelineTranslator
   public static class BatchTranslationContext
       implements FlinkPortablePipelineTranslator.TranslationContext {
 
-    private final FlinkPipelineOptions options;
+    private final JobInfo jobInfo;
     private final ExecutionEnvironment executionEnvironment;
     private final Map<String, DataSet<?>> dataSets;
     private final Set<String> danglingDataSets;
 
-    private BatchTranslationContext(
-        FlinkPipelineOptions options, ExecutionEnvironment executionEnvironment) {
-      this.options = options;
+    private BatchTranslationContext(JobInfo jobInfo, ExecutionEnvironment executionEnvironment) {
+      this.jobInfo = jobInfo;
       this.executionEnvironment = executionEnvironment;
       dataSets = new HashMap<>();
       danglingDataSets = new HashSet<>();
     }
 
     @Override
-    public FlinkPipelineOptions getPipelineOptions() {
-      return options;
+    public JobInfo getJobInfo() {
+      return jobInfo;
     }
 
     public ExecutionEnvironment getExecutionEnvironment() {
@@ -338,8 +347,9 @@ public class FlinkBatchPortablePipelineTranslator
     FlinkExecutableStageFunction<InputT> function =
         new FlinkExecutableStageFunction<>(
             stagePayload,
-            PipelineOptionsTranslation.toProto(context.getPipelineOptions()),
-            outputMap);
+            context.getJobInfo(),
+            outputMap,
+            FlinkExecutableStageContext.batchFactory());
 
     DataSet<WindowedValue<InputT>> inputDataSet =
         context.getDataSetOrThrow(stagePayload.getInput());
@@ -475,13 +485,18 @@ public class FlinkBatchPortablePipelineTranslator
     Grouping<WindowedValue<KV<K, V>>> inputGrouping =
         inputDataSet.groupBy(new KvKeySelector<>(inputElementCoder.getKeyCoder()));
 
+    PipelineOptions options;
+    try {
+      options = PipelineOptionsTranslation.fromProto(context.getJobInfo().pipelineOptions());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     FlinkPartialReduceFunction<K, V, List<V>, ?> partialReduceFunction =
         new FlinkPartialReduceFunction<>(
-            combineFn, windowingStrategy, Collections.emptyMap(), context.getPipelineOptions());
+            combineFn, windowingStrategy, Collections.emptyMap(), options);
 
     FlinkReduceFunction<K, List<V>, List<V>, ?> reduceFunction =
-        new FlinkReduceFunction<>(
-            combineFn, windowingStrategy, Collections.emptyMap(), context.getPipelineOptions());
+        new FlinkReduceFunction<>(combineFn, windowingStrategy, Collections.emptyMap(), options);
 
     // Partially GroupReduce the values into the intermediate format AccumT (combine)
     GroupCombineOperator<WindowedValue<KV<K, V>>, WindowedValue<KV<K, List<V>>>> groupCombine =
