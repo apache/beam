@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.auto.value.AutoValue;
@@ -38,19 +37,15 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
-import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
 // TODO: Rename to ExecutableStages?
@@ -96,6 +91,10 @@ public class ProcessBundleDescriptors {
       ProcessBundleDescriptor.Builder bundleDescriptorBuilder)
       throws IOException {
     String inputWireCoderId = addWireCoder(inputPCollection, components, bundleDescriptorBuilder);
+    @SuppressWarnings("unchecked")
+    Coder<WindowedValue<?>> wireCoder =
+        (Coder) WireCoders.instantiateRunnerWireCoder(inputPCollection, components);
+
     RemoteGrpcPort inputPort =
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(dataEndpoint)
@@ -109,7 +108,7 @@ public class ProcessBundleDescriptors {
         RemoteGrpcPortRead.readFromPort(inputPort, inputPCollection.getId()).toPTransform();
     bundleDescriptorBuilder.putTransforms(inputId, inputTransform);
     return RemoteInputDestination.of(
-        instantiateWireCoder(inputPort, bundleDescriptorBuilder.getCodersMap()),
+        wireCoder,
         Target.newBuilder()
             .setPrimitiveTransformReference(inputId)
             .setName(Iterables.getOnlyElement(inputTransform.getOutputsMap().keySet()))
@@ -123,7 +122,9 @@ public class ProcessBundleDescriptors {
       PCollectionNode outputPCollection)
       throws IOException {
     String outputWireCoderId = addWireCoder(outputPCollection, components, bundleDescriptorBuilder);
-
+    @SuppressWarnings("unchecked")
+    Coder<WindowedValue<?>> wireCoder =
+        (Coder) WireCoders.instantiateRunnerWireCoder(outputPCollection, components);
     RemoteGrpcPort outputPort =
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(dataEndpoint)
@@ -142,7 +143,7 @@ public class ProcessBundleDescriptors {
             .setPrimitiveTransformReference(outputId)
             .setName(Iterables.getOnlyElement(outputTransform.getInputsMap().keySet()))
             .build(),
-        instantiateWireCoder(outputPort, bundleDescriptorBuilder.getCodersMap()));
+        wireCoder);
   }
 
   @AutoValue
@@ -170,24 +171,6 @@ public class ProcessBundleDescriptors {
             bundleDescriptorBuilder::containsCoders);
     bundleDescriptorBuilder.putCoders(wireCoderId, wireCoder.getCoder());
     return wireCoderId;
-  }
-
-  private static Coder<WindowedValue<?>> instantiateWireCoder(
-      RemoteGrpcPort port, Map<String, RunnerApi.Coder> components) throws IOException {
-    MessageWithComponents byteArrayCoder =
-        LengthPrefixUnknownCoders.forCoder(
-            port.getCoderId(), Components.newBuilder().putAllCoders(components).build(), true);
-    Coder<?> javaCoder =
-        CoderTranslation.fromProto(
-            byteArrayCoder.getCoder(),
-            RehydratedComponents.forComponents(byteArrayCoder.getComponents()));
-    checkArgument(
-        javaCoder instanceof WindowedValue.FullWindowedValueCoder,
-        "Unexpected Deserialized %s type, expected %s, got %s",
-        RunnerApi.Coder.class.getSimpleName(),
-        FullWindowedValueCoder.class.getSimpleName(),
-        javaCoder.getClass());
-    return (Coder<WindowedValue<?>>) javaCoder;
   }
 
   /** */
