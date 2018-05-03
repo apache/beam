@@ -19,7 +19,6 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
@@ -37,12 +36,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -96,7 +93,8 @@ public class ProcessBundleDescriptors {
       PCollectionNode inputPCollection,
       Components components,
       ApiServiceDescriptor dataEndpoint,
-      ProcessBundleDescriptor.Builder bundleDescriptorBuilder) throws IOException {
+      ProcessBundleDescriptor.Builder bundleDescriptorBuilder)
+      throws IOException {
     String inputWireCoderId = addWireCoder(inputPCollection, components, bundleDescriptorBuilder);
     RemoteGrpcPort inputPort =
         RemoteGrpcPort.newBuilder()
@@ -122,7 +120,8 @@ public class ProcessBundleDescriptors {
       Components components,
       ApiServiceDescriptor dataEndpoint,
       Builder bundleDescriptorBuilder,
-      PCollectionNode outputPCollection) throws IOException {
+      PCollectionNode outputPCollection)
+      throws IOException {
     String outputWireCoderId = addWireCoder(outputPCollection, components, bundleDescriptorBuilder);
 
     RemoteGrpcPort outputPort =
@@ -178,17 +177,8 @@ public class ProcessBundleDescriptors {
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
     String windowCoderId =
         components.getWindowingStrategiesOrThrow(windowingStrategyId).getWindowCoderId();
-    // TODO: This is the wrong place to hand-construct a coder.
     RunnerApi.Coder windowedValueCoder =
-        RunnerApi.Coder.newBuilder()
-            .addComponentCoderIds(elementCoderId)
-            .addComponentCoderIds(windowCoderId)
-            .setSpec(
-                SdkFunctionSpec.newBuilder()
-                    .setSpec(
-                        FunctionSpec.newBuilder()
-                            .setUrn(getUrn(StandardCoders.Enum.WINDOWED_VALUE))))
-            .build();
+        ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
         uniquifyId(String.format("fn/wire/%s", pCollectionNode.getId()), usedIds);

@@ -533,15 +533,25 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
+    // Components: None
     TIMESTAMP = 4 [(beam_urn) = "beam:coder:timestamp:v1"];
     /*
      * The following coders are typically not specified by manually by the user,
      * but are used at runtime and must be supported by every SDK.
      */
 
+    // Components: None
     INTERVAL_WINDOW = 5 [(beam_urn) = "beam:coder:interval_window:v1"];
+
+    // Components: The coder to attach a length prefix to
     LENGTH_PREFIX = 6 [(beam_urn) = "beam:coder:length_prefix:v1"];
+
+    // Components: None
     GLOBAL_WINDOW = 7 [(beam_urn) = "beam:coder:global_window:v1"];
+
+    // Encodes an element, the window the value is in, the timestamp of the element, and the pane
+    // of the element
+    // Components: The element coder and the window coder, in that order
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
   }
 }
