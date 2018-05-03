@@ -40,7 +40,7 @@ class HadoopResourceId implements ResourceId {
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
     if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
       if (!other.endsWith("/")) {
-        other += '/';
+        other += "/";
       }
       return new HadoopResourceId(uri.resolve(other));
     } else if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
