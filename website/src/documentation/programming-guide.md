@@ -246,7 +246,7 @@ testing and debugging purposes.
 
 To read from an external source, you use one of the [Beam-provided I/O
 adapters](#pipeline-io). The adapters vary in their exact usage, but all of them
-from some external data source and return a `PCollection` whose elements
+read from some external data source and return a `PCollection` whose elements
 represent the data records in that source.
 
 Each data source adapter has a `Read` transform; to read, you must apply that
