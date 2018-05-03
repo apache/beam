@@ -172,6 +172,8 @@ Schema.FieldType FieldType() :
 }
 {
     (
+        fieldType = Array()
+    |
         fieldType = Row()
     |
         fieldType = SimpleType()
@@ -187,6 +189,22 @@ Schema.FieldType FieldType() :
         return fieldType;
     }
 }
+
+Schema.FieldType Array() :
+
+{
+    final Span s = Span.of();
+    final Schema.FieldType arrayElementType;
+}
+{
+    <ARRAY> <LT> arrayElementType = FieldType() <GT>
+    {
+        return Schema.TypeName.ARRAY.type()
+            .withCollectionElementType(arrayElementType);
+    }
+
+}
+
 
 Schema.FieldType Row() :
 {

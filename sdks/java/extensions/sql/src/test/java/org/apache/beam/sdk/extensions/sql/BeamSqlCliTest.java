@@ -98,6 +98,41 @@ public class BeamSqlCliTest {
   }
 
   @Test
+  public void testExecute_createTableWithPrefixArrayField() throws Exception {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli()
+        .metaStore(metaStore);
+    cli.execute(
+        "create table person (\n"
+        + "id int COMMENT 'id', \n"
+        + "name varchar COMMENT 'name', \n"
+        + "age int COMMENT 'age', \n"
+        + "tags ARRAY<VARCHAR>, \n"
+        + "matrix ARRAY<ARRAY<INTEGER>> \n"
+        + ") \n"
+        + "TYPE 'text' \n"
+        + "COMMENT '' LOCATION '/home/admin/orders'"
+    );
+    Table table = metaStore.getTable("person");
+    assertNotNull(table);
+    assertEquals(
+        Stream
+            .of(
+                Field.of("id", INTEGER).withDescription("id").withNullable(true),
+                Field.of("name", VARCHAR).withDescription("name").withNullable(true),
+                Field.of("age", INTEGER).withDescription("age").withNullable(true),
+                Field.of("tags",
+                         ARRAY.type().withCollectionElementType(VARCHAR)).withNullable(true),
+                Field.of("matrix",
+                         ARRAY.type().withCollectionElementType(
+                             ARRAY.type().withCollectionElementType(INTEGER))).withNullable(true))
+            .collect(toSchema()),
+        table.getSchema());
+  }
+
+  @Test
   public void testExecute_createTableWithRowField() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
