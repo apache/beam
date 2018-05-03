@@ -47,7 +47,6 @@ import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer}
@@ -75,7 +74,8 @@ public class AwsModule extends SimpleModule {
 
   }
 
-  static class AWSCredentialsProviderDeserializer extends JsonDeserializer<AWSCredentialsProvider> {
+  private static class AWSCredentialsProviderDeserializer
+      extends JsonDeserializer<AWSCredentialsProvider> {
 
     @Override
     public AWSCredentialsProvider deserialize(
@@ -123,15 +123,14 @@ public class AwsModule extends SimpleModule {
   }
 
   static class AWSCredentialsProviderSerializer extends JsonSerializer<AWSCredentialsProvider> {
-
     // These providers are singletons, so don't require any serialization, other than type.
-    private static final Set<Object> SINGLETON_CREDENTIAL_PROVIDERS = ImmutableSet.of(
-        DefaultAWSCredentialsProviderChain.class,
-        EnvironmentVariableCredentialsProvider.class,
-        SystemPropertiesCredentialsProvider.class,
-        ProfileCredentialsProvider.class,
-        EC2ContainerCredentialsProviderWrapper.class
-    );
+    private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS =
+        ImmutableSet.of(
+            DefaultAWSCredentialsProviderChain.class,
+            EnvironmentVariableCredentialsProvider.class,
+            SystemPropertiesCredentialsProvider.class,
+            ProfileCredentialsProvider.class,
+            EC2ContainerCredentialsProviderWrapper.class);
 
     @Override
     public void serialize(AWSCredentialsProvider credentialsProvider, JsonGenerator jsonGenerator,

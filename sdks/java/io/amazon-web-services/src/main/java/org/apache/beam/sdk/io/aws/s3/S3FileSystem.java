@@ -63,7 +63,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -92,7 +91,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   // S3 API, delete-objects: "You may specify up to 1000 keys."
   private static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
 
-  private static final Set<String> NON_READ_SEEK_EFFICIENT_ENCODINGS = ImmutableSet.of("gzip");
+  private static final ImmutableSet<String> NON_READ_SEEK_EFFICIENT_ENCODINGS =
+      ImmutableSet.of("gzip");
 
   // Non-final for testing.
   private AmazonS3 amazonS3;
@@ -147,7 +147,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
     List<S3ResourceId> paths =
-        specs.stream().map(spec -> S3ResourceId.fromUri(spec)).collect(Collectors.toList());
+        specs.stream().map(S3ResourceId::fromUri).collect(Collectors.toList());
     List<S3ResourceId> globs = new ArrayList<>();
     List<S3ResourceId> nonGlobs = new ArrayList<>();
     List<Boolean> isGlobBooleans = new ArrayList<>();
@@ -359,8 +359,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     return callTasks(tasks);
   }
 
-  @VisibleForTesting
-  ObjectMetadata getObjectMetadata(S3ResourceId s3ResourceId) throws AmazonClientException {
+  private ObjectMetadata getObjectMetadata(S3ResourceId s3ResourceId) throws AmazonClientException {
     GetObjectMetadataRequest request =
         new GetObjectMetadataRequest(s3ResourceId.getBucket(), s3ResourceId.getKey());
     request.setSSECustomerKey(options.getSSECustomerKey());
@@ -633,11 +632,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private void delete(String bucket, Collection<String> keys) throws IOException {
     checkArgument(
         keys.size() <= MAX_DELETE_OBJECTS_PER_REQUEST,
-        "only %d keys can be deleted per request, but got %d",
+        "only %s keys can be deleted per request, but got %s",
         MAX_DELETE_OBJECTS_PER_REQUEST,
         keys.size());
     List<KeyVersion> deleteKeyVersions =
-        keys.stream().map(key -> new KeyVersion(key)).collect(Collectors.toList());
+        keys.stream().map(KeyVersion::new).collect(Collectors.toList());
     DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
     try {
       amazonS3.deleteObjects(request);
@@ -671,7 +670,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     try {
       List<CompletionStage<T>> futures = new ArrayList<>(tasks.size());
       for (Callable<T> task : tasks) {
-        futures.add(MoreFutures.supplyAsync(() -> task.call(), executorService));
+        futures.add(MoreFutures.supplyAsync(task::call, executorService));
       }
       return MoreFutures.get(MoreFutures.allAsList(futures));
 
