@@ -103,7 +103,7 @@ public class BigQueryUtils {
 
       TableFieldSchema field = new TableFieldSchema()
         .setName(schemaField.getName());
-      if (schemaField.getDescription() != null && !schemaField.getDescription().equals("")) {
+      if (schemaField.getDescription() != null && !"".equals(schemaField.getDescription())) {
         field.setDescription(schemaField.getDescription());
       }
 

@@ -133,7 +133,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected GcsResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
     if (isDirectory) {
       if (!singleResourceSpec.endsWith("/")) {
-        singleResourceSpec += '/';
+        singleResourceSpec += "/";
       }
     } else {
       checkArgument(
