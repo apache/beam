@@ -19,6 +19,7 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
@@ -26,7 +27,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
@@ -39,13 +39,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
-import org.apache.beam.runners.fnexecution.graph.LengthPrefixUnknownCoders;
+import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
+import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
@@ -102,7 +102,7 @@ public class ProcessBundleDescriptors {
             .setCoderId(inputWireCoderId)
             .build();
     String inputId =
-        uniquifyId(
+        uniqueId(
             String.format("fn/read/%s", inputPCollection.getId()),
             bundleDescriptorBuilder::containsTransforms);
     PTransform inputTransform =
@@ -132,7 +132,7 @@ public class ProcessBundleDescriptors {
     RemoteGrpcPortWrite outputWrite =
         RemoteGrpcPortWrite.writeToPort(outputPCollection.getId(), outputPort);
     String outputId =
-        uniquifyId(
+        uniqueId(
             String.format("fn/write/%s", outputPCollection.getId()),
             bundleDescriptorBuilder::containsTransforms);
     PTransform outputTransform = outputWrite.toPTransform();
@@ -161,42 +161,15 @@ public class ProcessBundleDescriptors {
       Components components,
       ProcessBundleDescriptor.Builder bundleDescriptorBuilder) {
     MessageWithComponents wireCoder =
-        getWireCoder(pCollection, components, bundleDescriptorBuilder::containsCoders);
+        WireCoders.createSdkWireCoder(
+            pCollection, components, bundleDescriptorBuilder::containsCoders);
     bundleDescriptorBuilder.putAllCoders(wireCoder.getComponents().getCodersMap());
     String wireCoderId =
-        uniquifyId(
+        uniqueId(
             String.format("fn/wire/%s", pCollection.getId()),
             bundleDescriptorBuilder::containsCoders);
     bundleDescriptorBuilder.putCoders(wireCoderId, wireCoder.getCoder());
     return wireCoderId;
-  }
-
-  private static MessageWithComponents getWireCoder(
-      PCollectionNode pCollectionNode, Components components, Predicate<String> usedIds) {
-    String elementCoderId = pCollectionNode.getPCollection().getCoderId();
-    String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
-    String windowCoderId =
-        components.getWindowingStrategiesOrThrow(windowingStrategyId).getWindowCoderId();
-    RunnerApi.Coder windowedValueCoder =
-        ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
-    // Add the original WindowedValue<T, W> coder to the components;
-    String windowedValueId =
-        uniquifyId(String.format("fn/wire/%s", pCollectionNode.getId()), usedIds);
-    return LengthPrefixUnknownCoders.forCoder(
-        windowedValueId,
-        components.toBuilder().putCoders(windowedValueId, windowedValueCoder).build(),
-        false);
-  }
-
-  private static String uniquifyId(String idBase, Predicate<String> idUsed) {
-    if (!idUsed.test(idBase)) {
-      return idBase;
-    }
-    int i = 0;
-    while (idUsed.test(String.format("%s_%s", idBase, i))) {
-      i++;
-    }
-    return String.format("%s_%s", idBase, i);
   }
 
   private static Coder<WindowedValue<?>> instantiateWireCoder(
