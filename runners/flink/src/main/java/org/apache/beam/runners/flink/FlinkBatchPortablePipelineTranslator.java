@@ -39,7 +39,6 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -273,8 +272,15 @@ public class FlinkBatchPortablePipelineTranslator
         Iterables.getOnlyElement(transform.getTransform().getInputsMap().values());
     String outputCollectionId =
         Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
-    Coder<WindowedValue<T>> outputCoder =
-        instantiateRunnerWireCoder(outputCollectionId, components);
+    PCollectionNode collectionNode =
+        PipelineNode.pCollection(
+            outputCollectionId, components.getPcollectionsOrThrow(outputCollectionId));
+    Coder<WindowedValue<T>> outputCoder;
+    try {
+      outputCoder = WireCoders.instantiateRunnerWireCoder(collectionNode, components);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     TypeInformation<WindowedValue<T>> resultTypeInfo = new CoderTypeInformation<>(outputCoder);
 
     DataSet<WindowedValue<T>> inputDataSet = context.getDataSetOrThrow(inputCollectionId);
@@ -307,10 +313,16 @@ public class FlinkBatchPortablePipelineTranslator
     // Enforce tuple tag sorting by union tag index.
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     for (String collectionId : new TreeMap<>(outputMap.inverse()).values()) {
-      Coder<WindowedValue<?>> windowCoder =
-          (Coder) instantiateRunnerWireCoder(collectionId, components);
-      outputCoders.put(collectionId, windowCoder);
-      unionCoders.add(windowCoder);
+      PCollectionNode collectionNode =
+          PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
+      Coder<WindowedValue<?>> coder;
+      try {
+        coder = (Coder) WireCoders.instantiateRunnerWireCoder(collectionNode, components);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      outputCoders.put(collectionId, coder);
+      unionCoders.add(coder);
     }
     UnionCoder unionCoder = UnionCoder.of(unionCoders);
     TypeInformation<RawUnionValue> typeInformation = new CoderTypeInformation<>(unionCoder);
@@ -405,8 +417,12 @@ public class FlinkBatchPortablePipelineTranslator
 
   private static <K, V> void translateGroupByKey(
       PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
+    RunnerApi.Components components = pipeline.getComponents();
     String inputPCollectionId =
         Iterables.getOnlyElement(transform.getTransform().getInputsMap().values());
+    PCollectionNode inputCollection =
+        PipelineNode.pCollection(
+            inputPCollectionId, components.getPcollectionsOrThrow(inputPCollectionId));
     DataSet<WindowedValue<KV<K, V>>> inputDataSet = context.getDataSetOrThrow(inputPCollectionId);
     RunnerApi.WindowingStrategy windowingStrategyProto =
         pipeline
@@ -432,8 +448,14 @@ public class FlinkBatchPortablePipelineTranslator
           e);
     }
 
-    WindowedValueCoder<KV<K, V>> inputCoder =
-        instantiateRunnerWireCoder(inputPCollectionId, pipeline.getComponents());
+    WindowedValueCoder<KV<K, V>> inputCoder;
+    try {
+      inputCoder =
+          (WindowedValueCoder)
+              WireCoders.instantiateRunnerWireCoder(inputCollection, pipeline.getComponents());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
 
@@ -584,27 +606,5 @@ public class FlinkBatchPortablePipelineTranslator
       outputIndex++;
     }
     return builder.build();
-  }
-
-  /** Instantiates a Java coder for windowed values of the given PCollection id. */
-  private static <T> WindowedValueCoder<T> instantiateRunnerWireCoder(
-      String collectionId, RunnerApi.Components components) {
-    RunnerApi.PCollection collection = components.getPcollectionsOrThrow(collectionId);
-    PCollectionNode collectionNode = PipelineNode.pCollection(collectionId, collection);
-
-    // Instantiate the wire coder by length-prefixing unknown coders.
-    RunnerApi.MessageWithComponents protoCoder =
-        WireCoders.createRunnerWireCoder(collectionNode, components, components::containsCoders);
-    Coder<?> javaCoder;
-    try {
-      javaCoder =
-          CoderTranslation.fromProto(
-              protoCoder.getCoder(),
-              RehydratedComponents.forComponents(protoCoder.getComponents()));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    checkArgument(javaCoder instanceof WindowedValueCoder);
-    return (WindowedValueCoder<T>) javaCoder;
   }
 }
