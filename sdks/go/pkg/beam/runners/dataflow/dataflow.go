@@ -52,6 +52,7 @@ var (
 	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
 	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
+	labels          = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	zone            = flag.String("zone", "", "GCP zone (optional)")
 	region          = flag.String("region", "us-central1", "GCP Region (optional)")
@@ -92,6 +93,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *image == "" {
 		*image = jobopts.GetContainerImage(ctx)
+	}
+	var jobLabels map[string]string
+	if *labels != "" {
+		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
+			return err
+		}
 	}
 	jobName := jobopts.GetJobName()
 
@@ -201,6 +208,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			TempStoragePrefix: *stagingLocation + "/tmp",
 			Experiments:       append(jobopts.GetExperiments(), "beam_fn_api"),
 		},
+		Labels: jobLabels,
 		Steps: steps,
 	}
 
