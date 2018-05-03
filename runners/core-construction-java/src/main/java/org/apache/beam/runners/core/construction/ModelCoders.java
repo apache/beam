@@ -18,10 +18,15 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
@@ -62,5 +67,52 @@ public class ModelCoders {
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
+  }
+
+  public static WindowedValueCoderComponents getWindowedValueCoderComponents(Coder coder) {
+    checkArgument(WINDOWED_VALUE_CODER_URN.equals(coder.getSpec().getSpec().getUrn()));
+    return new AutoValue_ModelCoders_WindowedValueCoderComponents(
+        coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
+  }
+
+  public static Coder windowedValueCoder(String elementCoderId, String windowCoderId) {
+    return Coder.newBuilder()
+        .setSpec(
+            SdkFunctionSpec.newBuilder()
+                .setSpec(FunctionSpec.newBuilder().setUrn(WINDOWED_VALUE_CODER_URN)))
+        .addComponentCoderIds(elementCoderId)
+        .addComponentCoderIds(windowCoderId)
+        .build();
+  }
+
+  /** Components of a Windowed Value {@link Coder} with names. */
+  @AutoValue
+  public abstract static class WindowedValueCoderComponents {
+    public abstract String elementCoderId();
+
+    public abstract String windowCoderId();
+  }
+
+  public static KvCoderComponents getKvCoderComponents(Coder coder) {
+    checkArgument(KV_CODER_URN.equals(coder.getSpec().getSpec().getUrn()));
+    return new AutoValue_ModelCoders_KvCoderComponents(
+        coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
+  }
+
+  public static Coder kvCoder(String keyCoderId, String valueCoderId) {
+    return Coder.newBuilder()
+        .setSpec(
+            SdkFunctionSpec.newBuilder().setSpec(FunctionSpec.newBuilder().setUrn(KV_CODER_URN)))
+        .addComponentCoderIds(keyCoderId)
+        .addComponentCoderIds(valueCoderId)
+        .build();
+  }
+
+  /** Components of a KV {@link Coder} with names. */
+  @AutoValue
+  public abstract static class KvCoderComponents {
+    public abstract String keyCoderId();
+
+    public abstract String valueCoderId();
   }
 }
