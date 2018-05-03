@@ -46,7 +46,7 @@ public class BeamSqlParserTest {
     Table table = parseTable(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name') \n"
+            + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n"
@@ -63,7 +63,7 @@ public class BeamSqlParserTest {
     parseTable(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name') \n"
+            + "name varchar COMMENT 'name') \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
@@ -81,7 +81,7 @@ public class BeamSqlParserTest {
     Table table = parseTable(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name') \n"
+            + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
             + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
@@ -94,7 +94,7 @@ public class BeamSqlParserTest {
     Table table = parseTable(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name') \n"
+            + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n"
@@ -110,7 +110,7 @@ public class BeamSqlParserTest {
     Table table = parseTable(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name') \n"
+            + "name varchar COMMENT 'name') \n"
             + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
     );
