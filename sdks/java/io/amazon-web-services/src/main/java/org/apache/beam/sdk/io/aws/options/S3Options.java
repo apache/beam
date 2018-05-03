@@ -70,10 +70,11 @@ public interface S3Options extends AwsOptions {
   class S3UploadBufferSizeBytesFactory implements DefaultValueFactory<Integer> {
     public static final int MINIMUM_UPLOAD_BUFFER_SIZE_BYTES = 5_242_880;
 
+    @Override
     public Integer create(PipelineOptions options) {
       return Runtime.getRuntime().maxMemory() < 536_870_912
-              ? MINIMUM_UPLOAD_BUFFER_SIZE_BYTES
-              : 67_108_864;
+          ? MINIMUM_UPLOAD_BUFFER_SIZE_BYTES
+          : 67_108_864;
     }
   }
 }

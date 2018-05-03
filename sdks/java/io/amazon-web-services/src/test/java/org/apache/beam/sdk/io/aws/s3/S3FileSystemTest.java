@@ -150,12 +150,12 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void testAtomicCopy() throws IOException {
+  public void testAtomicCopy() {
     testAtomicCopy(s3Options());
     testAtomicCopy(s3OptionsWithSSECustomerKey());
   }
 
-  private void testAtomicCopy(S3Options options) throws IOException {
+  private void testAtomicCopy(S3Options options) {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(options);
 
     S3ResourceId sourcePath = S3ResourceId.fromUri("s3://bucket/from");
@@ -189,12 +189,12 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void testMultipartCopy() throws IOException {
+  public void testMultipartCopy() {
     testMultipartCopy(s3Options());
     testMultipartCopy(s3OptionsWithSSECustomerKey());
   }
 
-  private void testMultipartCopy(S3Options options) throws IOException {
+  private void testMultipartCopy(S3Options options) {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(options);
 
     S3ResourceId sourcePath = S3ResourceId.fromUri("s3://bucket/from");
@@ -363,7 +363,7 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void matchNonGlobNotFound() throws IOException {
+  public void matchNonGlobNotFound() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/nonexistentfile");
@@ -384,7 +384,7 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void matchNonGlobForbidden() throws IOException {
+  public void matchNonGlobForbidden() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     AmazonS3Exception exception = new AmazonS3Exception("mock exception");
@@ -412,7 +412,7 @@ public class S3FileSystemTest {
 
     @Override
     public boolean matches(Object argument) {
-      if (argument != null && argument instanceof ListObjectsV2Request) {
+      if (argument instanceof ListObjectsV2Request) {
         ListObjectsV2Request actual = (ListObjectsV2Request) argument;
         return expected.getBucketName().equals(actual.getBucketName())
             && expected.getPrefix().equals(actual.getPrefix())
@@ -640,10 +640,11 @@ public class S3FileSystemTest {
   }
 
   /** A mockito argument matcher to implement equality on GetObjectMetadataRequest. */
-  private class GetObjectMetadataRequestMatcher extends ArgumentMatcher<GetObjectMetadataRequest> {
+  private static class GetObjectMetadataRequestMatcher
+      extends ArgumentMatcher<GetObjectMetadataRequest> {
     private final GetObjectMetadataRequest expected;
 
-    public GetObjectMetadataRequestMatcher(GetObjectMetadataRequest expected) {
+    GetObjectMetadataRequestMatcher(GetObjectMetadataRequest expected) {
       this.expected = expected;
     }
 
