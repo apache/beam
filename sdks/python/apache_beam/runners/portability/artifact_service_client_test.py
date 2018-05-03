@@ -20,19 +20,20 @@ from __future__ import division
 from __future__ import print_function
 
 import filecmp
+import logging
 import os
 import random
 import shutil
 import string
 import tempfile
 import unittest
-
-import grpc
 from concurrent import futures
 
+import grpc
+
 from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.runners.portability import artifact_service_client
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
+from apache_beam.runners.portability import artifact_service_client
 
 
 class ArtifactStagingFileHandlerTest(unittest.TestCase):
@@ -50,7 +51,8 @@ class ArtifactStagingFileHandlerTest(unittest.TestCase):
   def copy_files(self, files):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
-        LocalFileSystemArtifactStagingServiceServicer(self._remote_dir), server)
+        TestLocalFileSystemArtifactStagingServiceServicer(self._remote_dir),
+        server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
     file_handler = artifact_service_client.ArtifactStagingFileHandler(
@@ -116,11 +118,11 @@ class ArtifactStagingFileHandlerTest(unittest.TestCase):
                      [manifest.name for manifest in copied_files])
 
 
-class LocalFileSystemArtifactStagingServiceServicer(
+class TestLocalFileSystemArtifactStagingServiceServicer(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
 
   def __init__(self, temp_dir):
-    super(LocalFileSystemArtifactStagingServiceServicer, self).__init__()
+    super(TestLocalFileSystemArtifactStagingServiceServicer, self).__init__()
     self.temp_dir = temp_dir
 
   def PutArtifact(self, request_iterator, context):
@@ -138,3 +140,8 @@ class LocalFileSystemArtifactStagingServiceServicer(
 
   def CommitManifest(self, request, context):
     return beam_artifact_api_pb2.CommitManifestResponse(staging_token='token')
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
