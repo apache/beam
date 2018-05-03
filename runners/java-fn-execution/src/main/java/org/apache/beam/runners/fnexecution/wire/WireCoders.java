@@ -18,9 +18,7 @@
 package org.apache.beam.runners.fnexecution.wire;
 
 import java.util.function.Predicate;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -28,8 +26,8 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 /** Helpers to construct coders for gRPC port reads and writes. */
 public class WireCoders {
   /** Creates an SDK-side wire coder for a port read/write for the given PCollection. */
-  public static MessageWithComponents createSdkWireCoder(
-      PCollectionNode pCollectionNode, Components components, Predicate<String> idUsed) {
+  public static RunnerApi.MessageWithComponents createSdkWireCoder(
+      PCollectionNode pCollectionNode, RunnerApi.Components components, Predicate<String> idUsed) {
     return createWireCoder(pCollectionNode, components, idUsed, false);
   }
 
@@ -37,21 +35,22 @@ public class WireCoders {
    * Creates a runner-side wire coder for a port read/write for the given PCollection. Returns a
    * windowed value coder. The element coder itself
    */
-  public static MessageWithComponents createRunnerWireCoder(
-      PCollectionNode pCollectionNode, Components components, Predicate<String> idUsed) {
+  public static RunnerApi.MessageWithComponents createRunnerWireCoder(
+      PCollectionNode pCollectionNode, RunnerApi.Components components, Predicate<String> idUsed) {
     return createWireCoder(pCollectionNode, components, idUsed, true);
   }
 
-  private static MessageWithComponents createWireCoder(
+  private static RunnerApi.MessageWithComponents createWireCoder(
       PCollectionNode pCollectionNode,
-      Components components,
+      RunnerApi.Components components,
       Predicate<String> idUsed,
       boolean useByteArrayCoder) {
     String elementCoderId = pCollectionNode.getPCollection().getCoderId();
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
     String windowCoderId =
         components.getWindowingStrategiesOrThrow(windowingStrategyId).getWindowCoderId();
-    Coder windowedValueCoder = ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
+    RunnerApi.Coder windowedValueCoder =
+        ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
         SyntheticComponents.uniqueId(String.format("fn/wire/%s", pCollectionNode.getId()), idUsed);
