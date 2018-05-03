@@ -40,19 +40,16 @@ public class ModelCoders {
 
   public static final String ITERABLE_CODER_URN = getUrn(StandardCoders.Enum.ITERABLE);
   public static final String KV_CODER_URN = getUrn(StandardCoders.Enum.KV);
-  public static final String LENGTH_PREFIX_CODER_URN =
-      getUrn(StandardCoders.Enum.LENGTH_PREFIX);
+  public static final String LENGTH_PREFIX_CODER_URN = getUrn(StandardCoders.Enum.LENGTH_PREFIX);
 
-  public static final String GLOBAL_WINDOW_CODER_URN =
-      getUrn(StandardCoders.Enum.GLOBAL_WINDOW);
+  public static final String GLOBAL_WINDOW_CODER_URN = getUrn(StandardCoders.Enum.GLOBAL_WINDOW);
   // This isn't strictly required once there's a way to represent an 'unknown window' (i.e. the
   // custom window encoding + the maximum timestamp of the window, this can be used for interval
   // windows.
   public static final String INTERVAL_WINDOW_CODER_URN =
       getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
 
-  public static final String WINDOWED_VALUE_CODER_URN =
-      getUrn(StandardCoders.Enum.WINDOWED_VALUE);
+  public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
 
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(

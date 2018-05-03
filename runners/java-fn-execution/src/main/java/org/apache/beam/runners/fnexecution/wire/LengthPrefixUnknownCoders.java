@@ -16,15 +16,12 @@
 
 package org.apache.beam.runners.fnexecution.wire;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-
 import com.google.common.collect.Sets;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -33,9 +30,6 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
  * Utilities for replacing or wrapping unknown coders with {@link LengthPrefixCoder}.
  */
 public class LengthPrefixUnknownCoders {
-  private static final String BYTES_CODER_TYPE = ModelCoders.BYTES_CODER_URN;
-  private static final String LENGTH_PREFIX_CODER_TYPE = ModelCoders.LENGTH_PREFIX_CODER_URN;
-
   /**
    * Recursively traverse the coder tree and wrap the first unknown coder in every branch with a
    * {@link LengthPrefixCoder} unless an ancestor coder is itself a {@link LengthPrefixCoder}. If
@@ -67,8 +61,7 @@ public class LengthPrefixUnknownCoders {
     //     rebuild the coder by recursively length prefixing any unknown component coders.
     //  3) the requested coder is an unknown coder. In this case we either wrap the requested coder
     //     with a length prefix coder or replace it with a length prefix byte array coder.
-    if (getUrn(StandardCoders.Enum.LENGTH_PREFIX)
-        .equals(currentCoder.getSpec().getSpec().getUrn())) {
+    if (ModelCoders.LENGTH_PREFIX_CODER_URN.equals(currentCoder.getSpec().getSpec().getUrn())) {
       if (replaceWithByteArrayCoder) {
         return createLengthPrefixByteArrayCoder(coderId, components);
       }
@@ -132,11 +125,12 @@ public class LengthPrefixUnknownCoders {
       rvalBuilder.getComponentsBuilder().putCoders(coderId, currentCoder);
     }
 
-    rvalBuilder.getCoderBuilder()
+    rvalBuilder
+        .getCoderBuilder()
         .addComponentCoderIds(lengthPrefixComponentCoderId)
         .getSpecBuilder()
         .getSpecBuilder()
-        .setUrn(getUrn(StandardCoders.Enum.LENGTH_PREFIX));
+        .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN);
     return rvalBuilder.build();
   }
 
@@ -153,14 +147,14 @@ public class LengthPrefixUnknownCoders {
     byteArrayCoder
         .getSpecBuilder()
         .getSpecBuilder()
-        .setUrn(getUrn(StandardCoders.Enum.BYTES));
+        .setUrn(ModelCoders.BYTES_CODER_URN);
     rvalBuilder.getComponentsBuilder().putCoders(byteArrayCoderId,
         byteArrayCoder.build());
     rvalBuilder.getCoderBuilder()
         .addComponentCoderIds(byteArrayCoderId)
         .getSpecBuilder()
         .getSpecBuilder()
-        .setUrn(getUrn(StandardCoders.Enum.LENGTH_PREFIX));
+        .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN);
 
     return rvalBuilder.build();
   }
