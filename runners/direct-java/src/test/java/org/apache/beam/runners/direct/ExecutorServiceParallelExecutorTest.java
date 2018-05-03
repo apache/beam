@@ -58,7 +58,8 @@ public class ExecutorServiceParallelExecutorTest {
   @Rule
   public final TestName testName = new TestName();
 
-  @Test
+  // sets a timeout to avoid infinite waiting for threads termination
+  @Test(timeout = 600_000L)
   public void ensureMetricsThreadDoesntLeak() {
     final DirectGraph graph = DirectGraph.create(
       emptyMap(), emptyMap(), LinkedListMultimap.create(),
@@ -83,7 +84,11 @@ public class ExecutorServiceParallelExecutorTest {
               metricsExecutorService)
       .stop();
     try {
-      metricsExecutorService.awaitTermination(10000L, TimeUnit.MILLISECONDS);
+      // waits until the threads are properly terminated. If the timeout elapsed, then keep waiting
+      boolean timerElapsed = false;
+      while (!timerElapsed){
+        timerElapsed = metricsExecutorService.awaitTermination(1L, TimeUnit.MINUTES);
+      }
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
