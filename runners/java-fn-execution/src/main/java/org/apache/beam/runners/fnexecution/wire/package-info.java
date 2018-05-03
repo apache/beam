@@ -16,29 +16,5 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.construction.graph;
-
-import java.util.function.Predicate;
-
-/**
- * A utility class to interact with synthetic {@link PipelineNode Pipeline Nodes}.
- */
-class SyntheticNodes {
-  private SyntheticNodes() {}
-
-  /**
-   * Generate an ID which does not collide with any existing ID, as determined by the input
-   * predicate.
-   *
-   * <p>The returned ID will be in the form "${baseName}:${number}".
-   */
-  public static String uniqueId(String baseName, Predicate<String> existingIds) {
-    int i = 0;
-    String name;
-    do {
-      name = String.format("%s:%s", baseName, i);
-      i++;
-    } while (existingIds.test(name));
-    return name;
-  }
-}
+/** Wire coders for communications between runner and SDK harness. */
+package org.apache.beam.runners.fnexecution.wire;

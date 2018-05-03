@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.runners.fnexecution.graph;
+package org.apache.beam.runners.fnexecution.wire;
 
 import static org.junit.Assert.assertEquals;
 

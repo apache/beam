@@ -39,6 +39,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
@@ -131,7 +132,7 @@ class OutputDeduplicator {
       PTransform flattenPartialPCollections =
           createFlattenOfPartials(partialFlattenTargets.getKey(), partialFlattenTargets.getValue());
       String flattenId =
-          SyntheticNodes.uniqueId("unzipped_flatten", unzippedComponents::containsTransforms);
+          SyntheticComponents.uniqueId("unzipped_flatten", unzippedComponents::containsTransforms);
       unzippedComponents.putTransforms(flattenId, flattenPartialPCollections);
       introducedFlattens.add(PipelineNode.pTransform(flattenId, flattenPartialPCollections));
     }
@@ -257,7 +258,7 @@ class OutputDeduplicator {
             id ->
                 unzippedOutputs.values().stream().map(PCollectionNode::getId).anyMatch(id::equals));
     for (PCollectionNode duplicateOutput : duplicates) {
-      String id = SyntheticNodes.uniqueId(duplicateOutput.getId(), existingOrNewIds);
+      String id = SyntheticComponents.uniqueId(duplicateOutput.getId(), existingOrNewIds);
       PCollection partial = duplicateOutput.getPCollection().toBuilder().setUniqueName(id).build();
       // Check to make sure there is only one duplicated output with the same id - which ensures we
       // only introduce one 'partial output' per producer of that output.
