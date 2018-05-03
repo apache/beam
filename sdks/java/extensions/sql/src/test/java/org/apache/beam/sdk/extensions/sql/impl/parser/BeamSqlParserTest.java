@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableList;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
-import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Test;
@@ -150,25 +151,23 @@ public class BeamSqlParserTest {
   private static Table mockTable(String name, String type, String comment, JSONObject properties,
       String location) {
 
-    return Table.builder()
+    return Table
+        .builder()
         .name(name)
         .type(type)
         .comment(comment)
         .location(location)
-        .columns(ImmutableList.of(
-            Column.builder()
-                .name("id")
-                .fieldType(TypeName.INT32.type())
-                .nullable(true)
-                .comment("id")
-                .build(),
-            Column.builder()
-                .name("name")
-                .fieldType(RowSqlTypes.VARCHAR)
-                .nullable(true)
-                .comment("name")
-                .build()
-        ))
+        .schema(
+            Stream.of(
+                Schema.Field
+                    .of("id", TypeName.INT32.type())
+                    .withNullable(true)
+                    .withDescription("id"),
+                Schema.Field
+                    .of("name", RowSqlTypes.VARCHAR)
+                    .withNullable(true)
+                    .withDescription("name"))
+                  .collect(toSchema()))
         .properties(properties)
         .build();
   }

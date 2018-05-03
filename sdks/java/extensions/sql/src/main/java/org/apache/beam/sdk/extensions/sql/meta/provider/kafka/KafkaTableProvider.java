@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
@@ -46,7 +44,7 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema schema = getRowTypeFromTable(table);
+    Schema schema = table.getSchema();
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");

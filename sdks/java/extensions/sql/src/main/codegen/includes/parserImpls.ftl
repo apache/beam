@@ -79,37 +79,35 @@ Schema.Field Field() :
     final String name;
     final Schema.FieldType type;
     final boolean nullable;
-    SqlNode comment = null;
     Schema.Field field = null;
+    SqlNode comment = null;
 }
 {
     name = Identifier()
+    type = FieldType()
+    {
+        field = Schema.Field.of(name.toLowerCase(), type);
+    }
     (
-        type = FieldType()
-        {
-            field = Schema.Field.of(name, type);
-        }
-        (
-            <NULL> { field = field.withNullable(true); }
-        |
-            <NOT> <NULL> { field = field.withNullable(false); }
-        |
-            { field = field.withNullable(true); }
-        )
-        [
-            <COMMENT> comment = StringLiteral()
-            {
-                if (comment != null) {
-                    String commentString =
-                        ((NlsString) SqlLiteral.value(comment)).getValue();
-                    field = field.withDescription(commentString);
-                }
-            }
-        ]
-        {
-            return field;
-        }
+        <NULL> { field = field.withNullable(true); }
+    |
+        <NOT> <NULL> { field = field.withNullable(false); }
+    |
+        { field = field.withNullable(true); }
     )
+    [
+        <COMMENT> comment = StringLiteral()
+        {
+            if (comment != null) {
+                String commentString =
+                    ((NlsString) SqlLiteral.value(comment)).getValue();
+                field = field.withDescription(commentString);
+            }
+        }
+    ]
+    {
+        return field;
+    }
 }
 
 /**
