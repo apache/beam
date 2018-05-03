@@ -97,7 +97,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return err
+			return fmt.Errorf("Error reading --label flag as JSON: %v", err)
 		}
 	}
 	jobName := jobopts.GetJobName()
