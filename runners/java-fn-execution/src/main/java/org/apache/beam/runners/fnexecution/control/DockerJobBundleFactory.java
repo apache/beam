@@ -167,7 +167,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
           ProcessBundleDescriptors.fromExecutableStage(
               stageIdGenerator.getId(),
               executableStage,
-              wrappedClient.getDataServer().getApiServiceDescriptor());
+              wrappedClient.getDataServer().getApiServiceDescriptor(),
+              wrappedClient.getStateServer().getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
