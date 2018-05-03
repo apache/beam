@@ -17,28 +17,24 @@
  */
 package org.apache.beam.runners.fnexecution.wire;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-
 import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 
 /** Helpers to construct coders for gRPC port reads and writes. */
 public class WireCoders {
-  /** Create an SDK-side wire coder for a port read/write for the given PCollection. */
+  /** Creates an SDK-side wire coder for a port read/write for the given PCollection. */
   public static MessageWithComponents createSdkWireCoder(
       PCollectionNode pCollectionNode, Components components, Predicate<String> idUsed) {
     return createWireCoder(pCollectionNode, components, idUsed, false);
   }
 
   /**
-   * Create a runner-side wire coder for a port read/write for the given PCollection. Returns a
+   * Creates a runner-side wire coder for a port read/write for the given PCollection. Returns a
    * windowed value coder. The element coder itself
    */
   public static MessageWithComponents createRunnerWireCoder(
@@ -55,16 +51,7 @@ public class WireCoders {
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
     String windowCoderId =
         components.getWindowingStrategiesOrThrow(windowingStrategyId).getWindowCoderId();
-    Coder windowedValueCoder =
-        Coder.newBuilder()
-            .addComponentCoderIds(elementCoderId)
-            .addComponentCoderIds(windowCoderId)
-            .setSpec(
-                SdkFunctionSpec.newBuilder()
-                    .setSpec(
-                        FunctionSpec.newBuilder()
-                            .setUrn(getUrn(StandardCoders.Enum.WINDOWED_VALUE))))
-            .build();
+    Coder windowedValueCoder = ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
         SyntheticComponents.uniqueId(String.format("fn/wire/%s", pCollectionNode.getId()), idUsed);
