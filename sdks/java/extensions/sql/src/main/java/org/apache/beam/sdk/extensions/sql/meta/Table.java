@@ -21,8 +21,8 @@ package org.apache.beam.sdk.extensions.sql.meta;
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Represents the metadata of a {@code BeamSqlTable}.
@@ -32,7 +32,7 @@ public abstract class Table implements Serializable {
   /** type of the table. */
   public abstract String getType();
   public abstract String getName();
-  public abstract List<Column> getColumns();
+  public abstract Schema getSchema();
   @Nullable
   public abstract String getComment();
   @Nullable
@@ -51,7 +51,7 @@ public abstract class Table implements Serializable {
   public abstract static class Builder {
     public abstract Builder type(String type);
     public abstract Builder name(String name);
-    public abstract Builder columns(List<Column> columns);
+    public abstract Builder schema(Schema getSchema);
     public abstract Builder comment(String name);
     public abstract Builder location(String location);
     public abstract Builder properties(JSONObject properties);
