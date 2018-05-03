@@ -72,6 +72,32 @@ public class BeamSqlCliTest {
   }
 
   @Test
+  public void testExecute_createTableWithRowField() throws Exception {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli()
+        .metaStore(metaStore);
+    cli.execute(
+        "create table person (\n"
+        + "id int COMMENT 'id', \n"
+        + "name varchar COMMENT 'name', \n"
+        + "age int COMMENT 'age', \n"
+        + "tags VARCHAR ARRAY, \n"
+        + "address ROW ( \n"
+        + "  street VARCHAR, \n"
+        + "  country VARCHAR \n"
+        + "  ), \n"
+        + "isRobot BOOLEAN"
+        + ") \n"
+        + "TYPE 'text' \n"
+        + "COMMENT '' LOCATION '/home/admin/orders'"
+    );
+    Table table = metaStore.getTable("person");
+    assertNotNull(table);
+  }
+
+  @Test
   public void testExecute_dropTable() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());

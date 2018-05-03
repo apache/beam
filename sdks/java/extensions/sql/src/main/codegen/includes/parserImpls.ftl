@@ -168,29 +168,52 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 
 Schema.FieldType FieldType() :
 {
-    final SqlTypeName simpleTypeName;
     final SqlTypeName collectionTypeName;
     Schema.FieldType fieldType;
     final Span s = Span.of();
 }
 {
-    simpleTypeName = SqlTypeName(s)
-    {
-        s.end(this);
-        fieldType = CalciteUtils.toFieldType(simpleTypeName);
-    }
+    (
+        fieldType = Row()
+    |
+        fieldType = SimpleType()
+    )
     [
         collectionTypeName = CollectionTypeName()
         {
-            if (collectionTypeName != null) {
-
-                Schema.FieldType collectionType = CalciteUtils.toFieldType(collectionTypeName);
-                fieldType = collectionType.withCollectionElementType(fieldType);
-            }
+            Schema.FieldType collectionType = CalciteUtils.toFieldType(collectionTypeName);
+            fieldType = collectionType.withCollectionElementType(fieldType);
         }
     ]
     {
         return fieldType;
+    }
+}
+
+Schema.FieldType Row() :
+{
+    final Span s = Span.of();
+    final List<Schema.Field> fields;
+}
+{
+    <ROW> fields = FieldList()
+    {
+        Schema rowSchema = Schema.builder().addFields(fields).build();
+        return Schema.TypeName.ROW.type()
+            .withRowSchema(rowSchema);
+    }
+}
+
+Schema.FieldType SimpleType() :
+{
+    final Span s = Span.of();
+    final SqlTypeName simpleTypeName;
+}
+{
+    simpleTypeName = SqlTypeName(s)
+    {
+        s.end(this);
+        return CalciteUtils.toFieldType(simpleTypeName);
     }
 }
 
