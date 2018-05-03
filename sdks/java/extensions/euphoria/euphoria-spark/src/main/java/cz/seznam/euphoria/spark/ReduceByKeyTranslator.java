@@ -73,7 +73,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
         !windowing.getTrigger().isStateful(), "Stateful triggers not supported!");
 
     // ~ extract key/value + timestamp from input elements and assign windows
-    final JavaPairRDD<KeyedWindow<W, KEY>, TimestampedElement<VALUE>> tuples =
+    final JavaPairRDD<KeyedWindow<W, KEY>, VALUE> tuples =
         input.flatMapToPair(new CompositeKeyExtractor<>(keyExtractor, valueExtractor, windowing));
 
     final AccumulatorProvider accumulatorProvider =
@@ -83,33 +83,25 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     if (operator.isCombinable()) {
       @SuppressWarnings("unchecked")
       final ReduceFunctor<VALUE, VALUE> combiner = (ReduceFunctor<VALUE, VALUE>) reducer;
-      final JavaPairRDD<KeyedWindow<W, KEY>, TimestampedElement<VALUE>> combined =
+      final JavaPairRDD<KeyedWindow<W, KEY>, VALUE> combined =
           tuples.reduceByKey(new CombinableReducer<>(combiner));
 
       return combined.map(
           t -> {
             final KeyedWindow<W, KEY> kw = t._1();
             @SuppressWarnings("unchecked")
-            final TimestampedElement<OUT> el = (TimestampedElement<OUT>) t._2();
-            // ~ extract timestamp from element rather than from KeyedWindow
-            // because in KeyedWindow there is the original timestamp from
-            // pre-reduce age
-            final long timestamp = el.getTimestamp();
-            return new SparkElement<>(kw.window(), timestamp, Pair.of(kw.key(), el.getElement()));
+            final OUT el = (OUT) t._2();
+            return new SparkElement<>(kw.window(), kw.timestamp(), Pair.of(kw.key(), el));
           });
     } else {
-      final JavaPairRDD<KeyedWindow<W, KEY>, TimestampedElement<OUT>> reduced =
+      final JavaPairRDD<KeyedWindow<W, KEY>, OUT> reduced =
           tuples.groupByKey().flatMapValues(new Reducer<>(reducer, accumulatorProvider));
 
       return reduced.map(
           t -> {
             final KeyedWindow<W, KEY> kw = t._1();
-            final TimestampedElement<OUT> el = t._2();
-            // ~ extract timestamp from element rather than from KeyedWindow
-            // because in KeyedWindow there is the original timestamp from
-            // pre-reduce age
-            final long timestamp = el.getTimestamp();
-            return new SparkElement<>(kw.window(), timestamp, Pair.of(kw.key(), el.getElement()));
+            final OUT el = t._2();
+            return new SparkElement<>(kw.window(), kw.timestamp(), Pair.of(kw.key(), el));
           });
     }
   }
@@ -119,8 +111,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
    * (optional) eventTimeAssigner.
    */
   private static class CompositeKeyExtractor<IN, KEY, VALUE, W extends Window>
-      implements PairFlatMapFunction<
-          SparkElement<?, IN>, KeyedWindow<W, KEY>, TimestampedElement<VALUE>> {
+      implements PairFlatMapFunction<SparkElement<?, IN>, KeyedWindow<W, KEY>, VALUE> {
 
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
@@ -136,8 +127,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     }
 
     @Override
-    public Iterator<Tuple2<KeyedWindow<W, KEY>, TimestampedElement<VALUE>>> call(
-        SparkElement<?, IN> wel) {
+    public Iterator<Tuple2<KeyedWindow<W, KEY>, VALUE>> call(SparkElement<?, IN> wel) {
       final Iterable<W> windows = windowing.assignWindowsToElement(wel);
       return Iterators.transform(
           windows.iterator(),
@@ -145,13 +135,12 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
             final long stamp = Objects.requireNonNull(wid).maxTimestamp() - 1;
             return new Tuple2<>(
                 new KeyedWindow<>(wid, stamp, keyExtractor.apply(wel.getElement())),
-                new TimestampedElement<>(stamp, valueExtractor.apply(wel.getElement())));
+                valueExtractor.apply(wel.getElement()));
           });
     }
   }
 
-  private static class Reducer<IN, OUT>
-      implements Function<Iterable<TimestampedElement<IN>>, Iterable<TimestampedElement<OUT>>> {
+  private static class Reducer<IN, OUT> implements Function<Iterable<IN>, Iterable<OUT>> {
 
     private final ReduceFunctor<IN, OUT> reducer;
     private final AccumulatorProvider accumulatorProvider;
@@ -164,74 +153,32 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     }
 
     @Override
-    public Iterable<TimestampedElement<OUT>> call(Iterable<TimestampedElement<IN>> input) {
+    public Iterable<OUT> call(Iterable<IN> input) {
       if (collector == null) {
         collector = new FunctionCollectorMem<>(accumulatorProvider);
       }
-      final MaxTracker maxTimestamp = new MaxTracker();
-      final Stream<IN> stream =
-          StreamSupport.stream(input.spliterator(), false)
-              .map(
-                  (e) -> {
-                    maxTimestamp.add(e.getTimestamp());
-                    return e.getElement();
-                  });
-
       collector.clear();
-
-      reducer.apply(stream, collector);
-
-      return () ->
-          Iterators.transform(
-              collector.getOutputIterator(),
-              el -> new TimestampedElement<>(maxTimestamp.get(), el));
+      reducer.apply(StreamSupport.stream(input.spliterator(), false), collector);
+      return () -> collector.getOutputIterator();
     }
   }
 
-  /** Track max value in {@link TimestampedElement} stream */
-  private static class MaxTracker {
-
-    private long maxValue = 0;
-
-    void add(long value) {
-      synchronized (this) {
-        maxValue = Math.max(maxValue, value);
-      }
-    }
-
-    long get() {
-      synchronized (this) {
-        return maxValue;
-      }
-    }
-  }
-
-  private static class CombinableReducer<IN>
-      implements Function2<TimestampedElement<IN>, TimestampedElement<IN>, TimestampedElement<IN>> {
+  private static class CombinableReducer<IN> implements Function2<IN, IN, IN> {
 
     private final ReduceFunctor<IN, IN> reducer;
-
-    @SuppressWarnings("unchecked")
-    private final IN[] iterable = (IN[]) new Object[2];
-
-    private SingleValueContext<IN> context;
+    private transient SingleValueContext<IN> context;
 
     private CombinableReducer(ReduceFunctor<IN, IN> reducer) {
       this.reducer = reducer;
     }
 
     @Override
-    public TimestampedElement<IN> call(TimestampedElement<IN> o1, TimestampedElement<IN> o2) {
+    public IN call(IN o1, IN o2) {
       if (context == null) {
         context = new SingleValueContext<>();
       }
-      iterable[0] = o1.getElement();
-      iterable[1] = o2.getElement();
-
-      reducer.apply(Stream.of(iterable), context);
-
-      return new TimestampedElement<>(
-          Math.max(o1.getTimestamp(), o2.getTimestamp()), context.getAndResetValue());
+      reducer.apply(Stream.of(o1, o2), context);
+      return context.getAndResetValue();
     }
   }
 }

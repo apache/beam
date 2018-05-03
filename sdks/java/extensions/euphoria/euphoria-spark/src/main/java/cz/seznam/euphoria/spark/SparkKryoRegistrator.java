@@ -41,7 +41,6 @@ public abstract class SparkKryoRegistrator implements KryoRegistrator {
 
     // element wrappers
     kryo.register(SparkElement.class);
-    kryo.register(TimestampedElement.class);
     kryo.register(Either.class);
 
     // broadcast hash join
