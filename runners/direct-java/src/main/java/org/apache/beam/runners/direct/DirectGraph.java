@@ -81,10 +81,10 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
   }
 
   @Override
-  public Collection<PValue> getProduced(AppliedPTransform<?, ?, ?> toRefresh) {
+  public Collection<PValue> getProduced(AppliedPTransform<?, ?, ?> producer) {
     // TODO: This must only be called on primitive transforms; composites should return empty
     // values.
-    return toRefresh.getOutputs().values();
+    return producer.getOutputs().values();
   }
 
   @Override
