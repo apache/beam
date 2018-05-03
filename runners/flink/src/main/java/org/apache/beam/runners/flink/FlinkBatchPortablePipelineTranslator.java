@@ -352,7 +352,7 @@ public class FlinkBatchPortablePipelineTranslator
           taggedDataset,
           context,
           outputMap.get(collectionId),
-          (Coder) outputCoders.get(collectionId),
+          outputCoders.get(collectionId),
           transform.getTransform().getUniqueName(),
           collectionId);
     }
@@ -560,13 +560,13 @@ public class FlinkBatchPortablePipelineTranslator
       DataSet<RawUnionValue> taggedDataset,
       BatchTranslationContext context,
       int unionTag,
-      Coder<WindowedValue<Object>> outputCoder,
+      Coder<WindowedValue<?>> outputCoder,
       String transformName,
       String collectionId) {
-    TypeInformation<WindowedValue<Object>> outputType = new CoderTypeInformation<>(outputCoder);
-    FlinkExecutableStagePruningFunction<Object> pruningFunction =
-        new FlinkExecutableStagePruningFunction<>(unionTag);
-    FlatMapOperator<RawUnionValue, WindowedValue<Object>> pruningOperator =
+    TypeInformation<WindowedValue<?>> outputType = new CoderTypeInformation<>(outputCoder);
+    FlinkExecutableStagePruningFunction pruningFunction =
+        new FlinkExecutableStagePruningFunction(unionTag);
+    FlatMapOperator<RawUnionValue, WindowedValue<?>> pruningOperator =
         new FlatMapOperator<>(
             taggedDataset,
             outputType,
