@@ -305,9 +305,13 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public ReadAll withHost(String host) {
+    public ReadAll withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
+    }
+
+    public ReadAll withHost(String host) {
+      return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
     /** Specifies the Cloud Spanner database. */
@@ -439,9 +443,13 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public Read withHost(String host) {
+    public Read withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
+    }
+
+    public Read withHost(String host) {
+      return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -604,9 +612,13 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public CreateTransaction withHost(String host) {
+    public CreateTransaction withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
+    }
+
+    public CreateTransaction withHost(String host) {
+      return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
     @VisibleForTesting
@@ -708,9 +720,14 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public Write withHost(String host) {
+    public Write withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
+    }
+
+    /** Specifies the Cloud Spanner host. */
+    public Write withHost(String host) {
+      return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
     @VisibleForTesting

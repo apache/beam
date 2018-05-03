@@ -52,7 +52,7 @@ public abstract class SpannerConfig implements Serializable {
   public abstract ValueProvider<String> getDatabaseId();
 
   @Nullable
-  public abstract String getHost();
+  public abstract ValueProvider<String> getHost();
 
   @Nullable
   @VisibleForTesting
@@ -61,7 +61,7 @@ public abstract class SpannerConfig implements Serializable {
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
-    return builder().setHost(DEFAULT_HOST).build();
+    return builder().setHost(ValueProvider.StaticValueProvider.of(DEFAULT_HOST)).build();
   }
 
   static Builder builder() {
@@ -100,7 +100,7 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setDatabaseId(ValueProvider<String> databaseId);
 
-    abstract Builder setHost(String host);
+    abstract Builder setHost(ValueProvider<String> host);
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
@@ -131,7 +131,7 @@ public abstract class SpannerConfig implements Serializable {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
 
-  public SpannerConfig withHost(String host) {
+  public SpannerConfig withHost(ValueProvider<String> host) {
     return toBuilder().setHost(host).build();
   }
 
@@ -149,7 +149,7 @@ public abstract class SpannerConfig implements Serializable {
       builder.setServiceFactory(this.getServiceFactory());
     }
     if (getHost() != null) {
-      builder.setHost(getHost());
+      builder.setHost(getHost().get());
     }
     ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
     builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
