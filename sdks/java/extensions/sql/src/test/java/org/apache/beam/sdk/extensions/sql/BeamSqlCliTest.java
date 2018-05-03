@@ -41,7 +41,7 @@ public class BeamSqlCliTest {
     cli.execute(
         "create table person (\n"
         + "id int COMMENT 'id', \n"
-        + "name varchar(31) COMMENT 'name', \n"
+        + "name varchar COMMENT 'name', \n"
         + "age int COMMENT 'age') \n"
         + "TYPE 'text' \n"
         + "COMMENT '' LOCATION '/home/admin/orders'"
@@ -60,7 +60,7 @@ public class BeamSqlCliTest {
     cli.execute(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name', \n"
+            + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'"
@@ -83,7 +83,7 @@ public class BeamSqlCliTest {
     cli.execute(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name', \n"
+            + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'"
@@ -104,7 +104,7 @@ public class BeamSqlCliTest {
     cli.execute(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
-            + "name varchar(31) COMMENT 'name', \n"
+            + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'"
