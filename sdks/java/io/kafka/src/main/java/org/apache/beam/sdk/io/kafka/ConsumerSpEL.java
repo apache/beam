@@ -61,12 +61,12 @@ class ConsumerSpEL {
   static {
     try {
       // It is supported by Kafka Client 0.11.0.0 onwards.
-      hasHeaders = ConsumerRecord
+      hasHeaders = "org.apache.kafka.common.header.Headers".equals(
+          ConsumerRecord
           .class
           .getMethod("headers", (Class<?>[]) null)
           .getReturnType()
-          .getName()
-          .equals("org.apache.kafka.common.header.Headers");
+          .getName());
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Headers is not available");
     }
