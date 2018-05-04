@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
@@ -38,7 +38,7 @@ public abstract class InMemoryMetaTableProvider implements TableProvider {
   }
 
   @Override
-  public List<Table> listTables() {
-    return Collections.emptyList();
+  public Map<String, Table> getTables() {
+    return Collections.emptyMap();
   }
 }

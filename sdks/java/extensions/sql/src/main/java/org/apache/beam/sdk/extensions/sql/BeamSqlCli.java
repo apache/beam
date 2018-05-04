@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -48,9 +48,9 @@ public class BeamSqlCli {
     this.env = new BeamSqlEnv();
 
     // dump tables in metaStore into schema
-    List<Table> tables = this.metaStore.listTables();
-    for (Table table : tables) {
-      env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table));
+    Map<String, Table> tables = this.metaStore.getTables();
+    for (Map.Entry<String, Table> table : tables.entrySet()) {
+      env.registerTable(table.getKey(), metaStore.buildBeamSqlTable(table.getValue()));
     }
 
     return this;
