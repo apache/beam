@@ -39,9 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 import java.util.stream.StreamSupport;
 
-/**
- * Translator for {@code ReduceByKey} operator.
- */
+/** Translator for {@code ReduceByKey} operator. */
 class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @Override
@@ -68,53 +66,56 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     if (operator.getWindowing() == null) {
       input = context.getInput(operator);
     } else {
-      input = context.getInput(operator)
-          .apply(org.apache.beam.sdk.transforms.windowing.Window.into(
-              BeamWindowFn.wrap(operator.getWindowing()))
-          // FIXME: trigger
-          .triggering(AfterWatermark.pastEndOfWindow())
-          .discardingFiredPanes()
-          .withAllowedLateness(context.getAllowedLateness(operator)));
+      input =
+          context
+              .getInput(operator)
+              .apply(
+                  org.apache.beam.sdk.transforms.windowing.Window.into(
+                          BeamWindowFn.wrap(operator.getWindowing()))
+                      // FIXME: trigger
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .discardingFiredPanes()
+                      .withAllowedLateness(context.getAllowedLateness(operator)));
     }
 
     // ~ create key & value extractor
-    final MapElements<IN, KV<KEY, VALUE>> extractor = MapElements
-        .via(new SimpleFunction<IN, KV<KEY, VALUE>>() {
-          @Override
-          public KV<KEY, VALUE> apply(IN in) {
-            return KV.of(keyExtractor.apply(in), valueExtractor.apply(in));
-          }
-        });
-    final PCollection<KV<KEY, VALUE>> extracted = input.apply(extractor)
-        .setCoder(KvCoder.of(keyCoder, valueCoder));
-
+    final MapElements<IN, KV<KEY, VALUE>> extractor =
+        MapElements.via(
+            new SimpleFunction<IN, KV<KEY, VALUE>>() {
+              @Override
+              public KV<KEY, VALUE> apply(IN in) {
+                return KV.of(keyExtractor.apply(in), valueExtractor.apply(in));
+              }
+            });
+    final PCollection<KV<KEY, VALUE>> extracted =
+        input.apply(extractor).setCoder(KvCoder.of(keyCoder, valueCoder));
 
     if (operator.isCombinable()) {
-      final PCollection<KV<KEY, VALUE>> combined = extracted.apply(
-          Combine.perKey(asCombiner(reducer)));
+      final PCollection<KV<KEY, VALUE>> combined =
+          extracted.apply(Combine.perKey(asCombiner(reducer)));
 
       // remap from KVs to Pairs
-      PCollection<Pair<KEY, VALUE>> kvs = combined.apply(
-          MapElements
-              .via(new SimpleFunction<KV<KEY, VALUE>, Pair<KEY, VALUE>>() {
-                @Override
-                public Pair<KEY, VALUE> apply(KV<KEY, VALUE> in) {
-                  return Pair.of(in.getKey(), in.getValue());
-                }
-              }));
+      PCollection<Pair<KEY, VALUE>> kvs =
+          combined.apply(
+              MapElements.via(
+                  new SimpleFunction<KV<KEY, VALUE>, Pair<KEY, VALUE>>() {
+                    @Override
+                    public Pair<KEY, VALUE> apply(KV<KEY, VALUE> in) {
+                      return Pair.of(in.getKey(), in.getValue());
+                    }
+                  }));
       return (PCollection) kvs;
     } else {
       // reduce
-      final AccumulatorProvider accumulators = new LazyAccumulatorProvider(
-        context.getAccumulatorFactory(),
-        context.getSettings());
+      final AccumulatorProvider accumulators =
+          new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
 
-      final PCollection<KV<KEY, Iterable<VALUE>>> grouped = extracted
-        .apply(GroupByKey.create())
-        .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
+      final PCollection<KV<KEY, Iterable<VALUE>>> grouped =
+          extracted
+              .apply(GroupByKey.create())
+              .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
 
-      return grouped
-          .apply(ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
+      return grouped.apply(ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
     }
   }
 
@@ -133,21 +134,27 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static class ReduceDoFn<K, V, O> extends DoFn<KV<K, Iterable<V>>, Pair<K, O>> {
 
     private final ReduceFunctor<V, O> reducer;
-    private final DoFnCollector<O> doFnCollector;
+    private final DoFnCollector<KV<K, Iterable<V>>, Pair<K, O>, O> collector;
 
     ReduceDoFn(ReduceFunctor<V, O> reducer, AccumulatorProvider accumulators) {
       this.reducer = reducer;
-      this.doFnCollector = new DoFnCollector<>(accumulators);
-
+      this.collector = new DoFnCollector<>(accumulators, new Collector<>());
     }
 
     @ProcessElement
+    @SuppressWarnings("unused")
     public void processElement(ProcessContext ctx) {
-      doFnCollector.setOutputConsumer(out -> ctx.output(Pair.of(ctx.element().getKey(), out)));
-
-      reducer.apply(StreamSupport.stream(ctx.element().getValue().spliterator(), false),
-          doFnCollector);
+      collector.setProcessContext(ctx);
+      reducer.apply(StreamSupport.stream(ctx.element().getValue().spliterator(), false), collector);
     }
   }
 
+  private static class Collector<K, V, O>
+      implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, O>, O> {
+
+    @Override
+    public void collect(DoFn<KV<K, Iterable<V>>, Pair<K, O>>.ProcessContext ctx, O out) {
+      ctx.output(Pair.of(ctx.element().getKey(), out));
+    }
+  }
 }
