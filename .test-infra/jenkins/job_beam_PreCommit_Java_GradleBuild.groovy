@@ -16,34 +16,39 @@
  * limitations under the License.
  */
 
-import common_job_properties
+//import common_job_properties
 
 // This is the Java precommit which runs a Gradle build, and the current set
 // of precommit tests.
 job('beam_PreCommit_Java_GradleBuild') {
-  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
+//  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
+//
+//  // Execute concurrent builds if necessary.
+//  concurrentBuild()
+//
+//  // Set common parameters.
+//  common_job_properties.setTopLevelMainJobProperties(
+//    delegate,
+//    'master',
+//    90)
+//
+//  // Publish all test results to Jenkins
+//  publishers {
+//    archiveJunit('**/build/test-results/**/*.xml')
+//  }
+//
+//  // Sets that this is a PreCommit job.
+//  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
+    wrappers {
+        buildInDocker {
+            dockerfile('.test-infra/jenkins/', 'Dockerfile')
+        }
+    }
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    90)
-
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit')
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':javaPreCommit')
-      common_job_properties.setGradleSwitches(delegate)
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
       switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
     }

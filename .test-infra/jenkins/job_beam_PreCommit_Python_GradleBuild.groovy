@@ -16,36 +16,44 @@
  * limitations under the License.
  */
 
-import common_job_properties
+//import common_job_properties
 
 // This is the Python precommit which runs a Gradle build, and the current set
 // of precommit tests.
 job('beam_PreCommit_Python_GradleBuild') {
-  description('Runs Python PreCommit tests for the current GitHub Pull Request.')
+//  description('Runs Python PreCommit tests for the current GitHub Pull Request.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
+//  // Execute concurrent builds if necessary.
+//  concurrentBuild()
+//
+//  // Set common parameters.
+//  common_job_properties.setTopLevelMainJobProperties(
+//    delegate,
+//    'master',
+//    90)
+//
+//  // Publish all test results to Jenkins. Note that Nose documentation
+//  // specifically mentions that it produces JUnit compatible test results.
+//  publishers {
+//    archiveJunit('**/nosetests.xml')
+//  }
+//
+//  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :pythonPreCommit'
+  // Sets that this is a PreCommit job.
+//  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python PreCommit')
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    90)
 
-  // Publish all test results to Jenkins. Note that Nose documentation
-  // specifically mentions that it produces JUnit compatible test results.
-  publishers {
-    archiveJunit('**/nosetests.xml')
+  wrappers {
+    buildInDocker {
+      dockerfile('.test-infra/jenkins/', 'Dockerfile')
+    }
   }
 
-  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :pythonPreCommit'
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python PreCommit')
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+//      rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':pythonPreCommit')
-      common_job_properties.setGradleSwitches(delegate)
+//      common_job_properties.setGradleSwitches(delegate)
     }
   }
 }

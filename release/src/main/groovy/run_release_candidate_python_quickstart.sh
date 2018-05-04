@@ -91,7 +91,6 @@ pushd $TMPDIR
 # 1. Download files from RC staging location
 #
 
-wget $CANDIDATE_URL$SHA1_FILE_NAME
 wget $CANDIDATE_URL$ASC_FILE_NAME
 wget $CANDIDATE_URL$BEAM_PYTHON_SDK
 
@@ -99,19 +98,10 @@ wget $CANDIDATE_URL$BEAM_PYTHON_SDK
 # 2. Verify sha1, md5 hashes and gpg signature
 #
 
-print_separator "Checking sha1 and md5 hashes"
-hash_check=$(sha1sum -c $SHA1_FILE_NAME | head -1 |awk '{print $2}')
-if [[ "$hash_check" != "OK" ]]
-then
-  echo "ERROR: The sha1 hash doesn't match."
-  complete "The sha1 hash doesn't match."
-  exit 1
-fi
-echo "SUCCEED: Hashes verification completed."
 
-wget https://dist.apache.org/repos/dist/dev/beam/KEYS
-gpg --import KEYS
-gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
+#wget https://dist.apache.org/repos/dist/dev/beam/KEYS
+#gpg --import KEYS
+#gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
 
 
 #
@@ -121,10 +111,10 @@ gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
 print_separator "Creating new virtualenv and installing the SDK"
 virtualenv temp_virtualenv
 . temp_virtualenv/bin/activate
-gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
-if [[ "$gcloud_version" < "189" ]]; then
-  update_gcloud
-fi
+#gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
+#if [[ "$gcloud_version" < "189" ]]; then
+#  update_gcloud
+#fi
 pip install $BEAM_PYTHON_SDK[gcp]
 
 

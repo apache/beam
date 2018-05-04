@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
@@ -16,11 +16,7 @@
 #    limitations under the License.
 #
 
-echo "-----------------start--------------"
-wget --no-verbose -O $SRC_FILE $URL
-unzip -q $SRC_FILE
-rm $SRC_FILE
-ln -s $HOME/$SRC_DIR $HOME/beam
-cd $HOME/beam
-echo "lalalla $@"
-exec "$@"
+pwd
+ls
+
+echo 'I am running within a docker image'
