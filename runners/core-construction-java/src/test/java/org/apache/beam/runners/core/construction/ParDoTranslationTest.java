@@ -118,7 +118,7 @@ public class ParDoTranslationTest {
     @Test
     public void testToAndFromProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, components);
+      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), Matchers.equalTo(parDo.getFn()));
       assertThat(

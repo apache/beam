@@ -267,7 +267,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             .add(
                 PTransformOverride.of(
                     PTransformMatchers.urnEqualTo(
-                        SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
+                        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
                     new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
             .add(
                 PTransformOverride.of(
