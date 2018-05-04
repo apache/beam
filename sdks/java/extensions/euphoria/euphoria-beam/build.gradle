@@ -10,7 +10,7 @@ dependencies {
   testCompile project(':euphoria-operator-testkit')
   testCompile project(':euphoria-testing')
   testCompile "org.apache.beam:beam-runners-direct-java:${beamVersion}"
-  testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version: slf4jVersion
+  testCompile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
   testCompile "org.hamcrest:hamcrest-all:${beamHamcrestVersion}"
   compileOnly "com.google.code.findbugs:annotations:${beamFindbugsVersion}"
 }
