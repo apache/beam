@@ -38,10 +38,10 @@ To contribute code on a feature branch, use the same process as in the
 replace `master` with the name of the feature branch.
 
 Since feature branches are often used for new components, you may find that
-there is no [committer]({{ site.baseurl }}/contribute/team/) familiar with all
-the details of the new language or runner. In that case, consider asking
-someone else familiar with the technology to do an initial review before
-looping in a committer for a final review and merge.
+there is no committer familiar with all the details of the new language or
+runner. In that case, consider asking someone else familiar with the technology
+to do an initial review before looping in a committer for a final review and
+merge.
 
 If you are working on a feature branch, you'll also want to frequently merge in
 changes from `master`. This prevents the feature branch from

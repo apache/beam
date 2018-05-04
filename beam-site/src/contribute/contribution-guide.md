@@ -385,33 +385,3 @@ healthy. A pull request becomes stale after its author fails to respond to
 actionable comments for 60 days.  Author of a closed pull request is welcome to
 reopen the same pull request again in the future. The associated JIRAs will be
 unassigned from the author but will stay open.
-
-## Granting more rights to a contributor
-
-The project management committee (PMC) can grant more rights to a contributor,
-such as commit access or decision power, and recognize them as new [committers
-or PMC members]({{ site.baseurl }}/contribute/team/).
-
-The PMC periodically discusses this topic and privately votes to grant more
-rights to a contributor. If the vote passes, the contributor is invited to
-accept or reject the nomination. Once accepted, the PMC announces the decision
-publicly and updates the list of team member accordingly.
-
-The key to the selection process is
-[Meritocracy](http://apache.org/foundation/how-it-works.html#meritocracy),
-literally government by merit. Contributors earn merit in many ways:
-contributing code, testing releases, participating in documentation effort,
-answering user questions, debating design proposals, triaging issues,
-evangelizing the project, growing user base, and any other action that benefits
-the project as a whole.
-
-Therefore, there isn’t a single committer bar, e.g., a specific number of
-commits. In most cases, new committers will have a combination of different
-types of contributions that are hard to compare to each other. Similarly, there
-isn’t a single PMC bar either. The PMC discusses all contributions from an
-individual, and evaluates the overall impact across all the dimensions above.
-
-Nothing gives us greater joy than recognizing new committers or PMC members --
-that's the only way we can grow. If there’s ever any doubt about this topic,
-please email dev@ or private@ and we’ll gladly discuss.
-
