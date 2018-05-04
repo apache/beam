@@ -35,12 +35,10 @@ job('beam_PostCommit_Go_GradleBuild') {
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate, '15 */6 * * *', false)
 
-  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :goPostCommit'
-
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      gradle_command_line,
+      './gradlew :goPostCommit',
       'Run Go PostCommit')
 
   steps {

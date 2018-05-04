@@ -38,9 +38,8 @@ job('beam_PreCommit_Python_GradleBuild') {
     archiveJunit('**/nosetests.xml')
   }
 
-  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :pythonPreCommit'
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python PreCommit')
+  common_job_properties.setPreCommit(delegate, './gradlew :pythonPreCommit', 'Run Python PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)

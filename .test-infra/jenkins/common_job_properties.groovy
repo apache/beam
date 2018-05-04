@@ -165,21 +165,31 @@ class common_job_properties {
     }
   }
 
-  static String[] gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Limit background number of workers to prevent exhausting machine memory.
-    // Jenkins machines have 15GB memory, and run 2 jobs in parallel; workers are configured with
-    // JVM max heap size 3.5GB. So 2 jobs * 2 workers * 3.5GB heap = 14GB
-    '--max-workers=2',
-  ]
+  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
+    def defaultSwitches = [
+      // Gradle log verbosity enough to diagnose basic build issues
+      "--info",
+      // Continue the build even if there is a failure to show as many potential failures as possible.
+      '--continue',
+    ]
 
-  static void setGradleSwitches(context) {
-    for (String gradle_switch : gradle_switches) {
+    for (String gradle_switch : defaultSwitches) {
       context.switches(gradle_switch)
     }
+    context.switches("--max-workers=${maxWorkers}")
+
+    // Ensure that parallel workers don't exceed total available memory.
+
+    // TODO(BEAM-4230): OperatingSystemMXBeam incorrectly reports total memory; hard-code for now
+    // Jenkins machines are GCE n1-highmem-16, with 104 GB of memory
+    // def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
+    // def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
+    def totalMemoryMb = 104 * 1024
+    // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
+    // machine memory.
+    def totalExecutorMemoryMb = totalMemoryMb / 2
+    def perWorkerMemoryMb = totalExecutorMemoryMb / maxWorkers
+    context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
   }
 
   // Sets common config for PreCommit jobs.
