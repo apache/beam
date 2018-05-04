@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.values.PCollection;
@@ -91,7 +92,10 @@ public class BeamQueryPlanner {
 
     FrameworkConfig config =
         Frameworks.newConfigBuilder()
-            .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())
+            .parserConfig(SqlParser.configBuilder()
+                .setLex(Lex.MYSQL)
+                .setParserFactory(BeamSqlParserImpl.FACTORY)
+                .build())
             .defaultSchema(schema)
             .traitDefs(traitDefs)
             .context(Contexts.EMPTY_CONTEXT)

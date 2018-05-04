@@ -48,7 +48,8 @@ def calcite_version = "1.16.0"
 def avatica_version = "1.11.0"
 
 dependencies {
-  fmppTask "net.sourceforge.fmpp:fmpp:0.9.15"
+  javacc "net.java.dev.javacc:javacc:4.0"
+  fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.25-incubating"
   fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
   compile library.java.guava
