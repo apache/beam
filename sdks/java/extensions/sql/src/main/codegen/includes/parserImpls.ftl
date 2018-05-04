@@ -59,17 +59,43 @@ void Option(List<SqlNode> list) :
     }
 }
 
-List<Schema.Field> FieldList() :
+List<Schema.Field> FieldListParens() :
 {
-    final Span s;
-    final List<Schema.Field> fields = Lists.newArrayList();
+    final List<Schema.Field> fields;
 }
 {
-    <LPAREN>  { fields.add(Field()); }
+    <LPAREN>
+        fields = FieldListBody()
+    <RPAREN>
+    {
+        return fields;
+    }
+}
+
+List<Schema.Field> FieldListAngular() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    <LT>
+        fields = FieldListBody()
+    <GT>
+    {
+        return fields;
+    }
+}
+
+List<Schema.Field> FieldListBody() :
+{
+    final List<Schema.Field> fields = Lists.newArrayList();
+    Schema.Field field = null;
+}
+{
+    field = Field() { fields.add(field); }
     (
-        <COMMA> { fields.add(Field()); }
+        <COMMA> field = Field() { fields.add(field); }
     )*
-    <RPAREN> {
+    {
         return fields;
     }
 }
@@ -133,7 +159,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     <TABLE> ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
-    fieldList = FieldList()
+    fieldList = FieldListParens()
     <TYPE> type = StringLiteral()
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
@@ -225,15 +251,29 @@ Schema.FieldType Map() :
 
 Schema.FieldType Row() :
 {
-    final Span s = Span.of();
     final List<Schema.Field> fields;
 }
 {
-    <ROW> fields = FieldList()
+    <ROW> fields = RowFields()
     {
         Schema rowSchema = Schema.builder().addFields(fields).build();
         return Schema.TypeName.ROW.type()
             .withRowSchema(rowSchema);
+    }
+}
+
+List<Schema.Field> RowFields() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    (
+        fields = FieldListParens()
+    |
+        fields = FieldListAngular()
+    )
+    {
+        return fields;
     }
 }
 
