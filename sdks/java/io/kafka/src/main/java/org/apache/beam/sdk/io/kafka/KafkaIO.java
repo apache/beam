@@ -103,8 +103,8 @@ import org.slf4j.LoggerFactory;
  *    .apply(KafkaIO.<Long, String>read()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
  *       .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
- *       .withKeyDeserializerClassName(LongDeserializer.class)
- *       .withValueDeserializerClassName(StringDeserializer.class)
+ *       .withKeyDeserializer(LongDeserializer.class)
+ *       .withValueDeserializer(StringDeserializer.class)
  *
  *       // Above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
  *
@@ -175,8 +175,8 @@ import org.slf4j.LoggerFactory;
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
  *       .withTopic("results")
  *
- *       .withKeySerializerClassName(LongSerializer.class)
- *       .withValueSerializerClassName(StringSerializer.class)
+ *       .withKeySerializer(LongSerializer.class)
+ *       .withValueSerializer(StringSerializer.class)
  *
  *       // You can further customize KafkaProducer used to write the records by adding more
  *       // settings for ProducerConfig. e.g, to enable compression :
@@ -200,7 +200,7 @@ import org.slf4j.LoggerFactory;
  *  strings.apply(KafkaIO.<Void, String>write()
  *      .withBootstrapServers("broker_1:9092,broker_2:9092")
  *      .withTopic("results")
- *      .withValueSerializerClassName(StringSerializer.class) // just need serializer for value
+ *      .withValueSerializer(StringSerializer.class) // just need serializer for value
  *      .values()
  *    );
  * }</pre>
@@ -235,8 +235,8 @@ public class KafkaIO {
    */
   public static Read<byte[], byte[]> readBytes() {
     return KafkaIO.<byte[], byte[]>read()
-      .withKeyDeserializerClassName(ByteArrayDeserializer.class)
-      .withValueDeserializerClassName(ByteArrayDeserializer.class);
+      .withKeyDeserializer(ByteArrayDeserializer.class)
+      .withValueDeserializer(ByteArrayDeserializer.class);
   }
 
   /**
@@ -445,14 +445,14 @@ public class KafkaIO {
      * Sets a Kafka {@link Deserializer Deserializer&lt;K&gt;} for interpreting key bytes read.
      * This uses the {@link String} provided to set the Deserializer
      */
-    public Read<K, V> withKeyDeserializerClassName(String keyDeserializer) {
-      return withKeyDeserializerClassName(ValueProvider.StaticValueProvider.of(keyDeserializer));
+    public Read<K, V> withKeyDeserializer(String keyDeserializer) {
+      return withKeyDeserializer(ValueProvider.StaticValueProvider.of(keyDeserializer));
     }
 
     /**
      * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
      */
-    public Read<K, V> withKeyDeserializerClassName(ValueProvider<String> keyDeserializer) {
+    public Read<K, V> withKeyDeserializer(ValueProvider<String> keyDeserializer) {
       return toBuilder().setKeyDeserializer(ValueProvider
               .NestedValueProvider.of(keyDeserializer, new KeyDeserializerTranslator())).build();
     }
@@ -465,7 +465,7 @@ public class KafkaIO {
      * however in case that fails, you can use {@link #withKeyDeserializerAndCoder(Class, Coder)} to
      * provide the key coder explicitly.
      */
-    public Read<K, V> withKeyDeserializerClassName(
+    public Read<K, V> withKeyDeserializer(
         Class<? extends Deserializer<K>> keyDeserializer) {
       return toBuilder().setKeyDeserializer(
           ValueProvider.StaticValueProvider.of(keyDeserializer)).build();
@@ -500,7 +500,7 @@ public class KafkaIO {
      * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
      *
      * <p>Use this method only if your pipeline doesn't work with plain {@link
-     * #withKeyDeserializerClassName(Class)}.
+     * #withKeyDeserializer(Class)}.
      */
     public Read<K, V> withKeyDeserializerAndCoder(
         Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
@@ -516,7 +516,7 @@ public class KafkaIO {
      * class, however in case that fails, you can use {@link #withValueDeserializerAndCoder(Class,
      * Coder)} to provide the value coder explicitly.
      */
-    public Read<K, V> withValueDeserializerClassName(
+    public Read<K, V> withValueDeserializer(
         Class<? extends Deserializer<V>> valueDeserializer) {
       return toBuilder()
           .setValueDeserializer(ValueProvider.StaticValueProvider.of(valueDeserializer)).build();
@@ -525,15 +525,15 @@ public class KafkaIO {
     /**
      * Sets a Kafka {@link Deserializer} for interpreting value bytes using the provided String.
      */
-    public Read<K, V> withValueDeserializerClassName(String valueDeserializer) {
-      return withValueDeserializerClassName(
+    public Read<K, V> withValueDeserializer(String valueDeserializer) {
+      return withValueDeserializer(
           ValueProvider.StaticValueProvider.of(valueDeserializer));
     }
 
     /**
      * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
      */
-    public Read<K, V> withValueDeserializerClassName(ValueProvider<String> valueDeserializer) {
+    public Read<K, V> withValueDeserializer(ValueProvider<String> valueDeserializer) {
       return toBuilder()
           .setValueDeserializer(ValueProvider.NestedValueProvider
           .of(valueDeserializer, new ValueDeserializerTranslator())).build();
@@ -545,7 +545,7 @@ public class KafkaIO {
      * at runtime if necessary.
      *
      * <p>Use this method only if your pipeline doesn't work with plain
-     * {@link #withValueDeserializerClassName(Class)}.
+     * {@link #withValueDeserializer(Class)}.
      */
     public Read<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
@@ -794,9 +794,9 @@ public class KafkaIO {
       checkArgument((getTopics().get().size() > 0) || (getTopicPartitions().get().size() > 0),
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer().get() != null,
-          "withKeyDeserializerClassName() is required");
+          "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer().get() != null,
-          "withValueDeserializerClassName() is required");
+          "withValueDeserializer() is required");
       ConsumerSpEL consumerSpEL = new ConsumerSpEL();
 
       if (!consumerSpEL.hasOffsetsForTimes()) {
@@ -1097,7 +1097,7 @@ public class KafkaIO {
      * <p>A key is optional while writing to Kafka. Note when a key is set, its hash is used to
      * determine partition in Kafka (see {@link ProducerRecord} for more details).
      */
-    public Write<K, V> withKeySerializerClassName(Class<? extends Serializer<K>> keySerializer) {
+    public Write<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
       return toBuilder()
           .setKeySerializer(ValueProvider.StaticValueProvider.of(keySerializer)).build();
     }
@@ -1105,14 +1105,14 @@ public class KafkaIO {
     /**
      * Sets a {@link Serializer} for serializing key (if any) to bytes using a String.
      */
-    public Write<K, V> withKeySerializerClassName(String keySerializer) {
-      return withKeySerializerClassName(ValueProvider.StaticValueProvider.of(keySerializer));
+    public Write<K, V> withKeySerializer(String keySerializer) {
+      return withKeySerializer(ValueProvider.StaticValueProvider.of(keySerializer));
     }
 
     /**
      * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
      */
-    public Write<K, V> withKeySerializerClassName(ValueProvider<String> keySerializer) {
+    public Write<K, V> withKeySerializer(ValueProvider<String> keySerializer) {
       return toBuilder().setKeySerializer(ValueProvider.
               NestedValueProvider.of(keySerializer, new SerializerKeyTranslator())).build();
     }
@@ -1120,7 +1120,7 @@ public class KafkaIO {
     /**
      * Sets a {@link Serializer Serializer&lt;V&gt;} for serializing value to bytes.
      */
-    public Write<K, V> withValueSerializerClassName(
+    public Write<K, V> withValueSerializer(
         Class<? extends Serializer<V>> valueSerializer) {
       return toBuilder().setValueSerializer(
           ValueProvider.StaticValueProvider.of(valueSerializer)).build();
@@ -1129,14 +1129,14 @@ public class KafkaIO {
     /**
      * Like above but with a class name provided as a {@link String}.
      */
-    public Write<K, V> withValueSerializerClassName(String valueSerializer) {
-      return withValueSerializerClassName(ValueProvider.StaticValueProvider.of(valueSerializer));
+    public Write<K, V> withValueSerializer(String valueSerializer) {
+      return withValueSerializer(ValueProvider.StaticValueProvider.of(valueSerializer));
     }
 
     /**
      * Like above but with a {@link ValueProvider ValueProvider&lt;String&gt;}.
      */
-    public Write<K, V> withValueSerializerClassName(ValueProvider<String> valueSerializer) {
+    public Write<K, V> withValueSerializer(ValueProvider<String> valueSerializer) {
       return toBuilder().setValueSerializer(ValueProvider
               .NestedValueProvider.of(valueSerializer, new SerializerValueTranslator())).build();
     }
@@ -1321,9 +1321,9 @@ public class KafkaIO {
         getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
         "withBootstrapServers() is required");
       checkArgument(getTopic().get() != null, "withTopic() is required");
-      checkArgument(getKeySerializer().get() != null, "withKeySerializerClassName() is required");
+      checkArgument(getKeySerializer().get() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer().get() != null,
-          "withValueSerializerClassName() is required");
+          "withValueSerializer() is required");
 
       if (isEOS()) {
         KafkaExactlyOnceSink.ensureEOSSupport();
@@ -1365,8 +1365,8 @@ public class KafkaIO {
      * A set of properties that are not required or don't make sense for our producer.
      */
     private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializerClassName instead",
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializerClassName instead"
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead"
      );
 
     @Override

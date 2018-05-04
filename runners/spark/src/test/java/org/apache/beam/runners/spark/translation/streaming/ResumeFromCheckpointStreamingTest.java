@@ -237,8 +237,8 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
         KafkaIO.<String, Instant>read()
             .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
             .withTopics(Collections.singletonList(TOPIC))
-            .withKeyDeserializerClassName(StringDeserializer.class)
-            .withValueDeserializerClassName(InstantDeserializer.class)
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(InstantDeserializer.class)
             .updateConsumerProperties(ImmutableMap.of("auto.offset.reset", "earliest"))
             .withTimestampFn(KV::getValue)
             .withWatermarkFn(

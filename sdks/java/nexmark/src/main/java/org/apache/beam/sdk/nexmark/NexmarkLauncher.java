@@ -782,7 +782,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     eventToBytes.apply(KafkaIO.<Void, byte[]>write()
                     .withBootstrapServers(options.getBootstrapServers())
                     .withTopic(options.getKafkaSinkTopic())
-                    .withValueSerializerClassName(ByteArraySerializer.class)
+                    .withValueSerializer(ByteArraySerializer.class)
                     .values());
 
   }
@@ -814,8 +814,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     KafkaIO.Read<Long, byte[]> read = KafkaIO.<Long, byte[]>read()
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaSourceTopic())
-            .withKeyDeserializerClassName(LongDeserializer.class)
-            .withValueDeserializerClassName(ByteArrayDeserializer.class);
+            .withKeyDeserializer(LongDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class);
 
     return p
       .apply(queryName + ".ReadKafkaEvents", read.withoutMetadata())
@@ -868,7 +868,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         KafkaIO.<Void, String>write()
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaSinkTopic())
-            .withValueSerializerClassName(StringSerializer.class)
+            .withValueSerializer(StringSerializer.class)
             .values());
   }
 
