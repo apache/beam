@@ -40,8 +40,9 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
     final Mapper<IN, OUT> mapper =
         new Mapper<>(operator.getFunctor(), accumulators, operator.getEventTimeExtractor());
-    return context.getInput(operator).apply(ParDo.of(mapper));
+    return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
   }
+
 
   private static class Mapper<IN, OUT> extends DoFn<IN, OUT> {
 

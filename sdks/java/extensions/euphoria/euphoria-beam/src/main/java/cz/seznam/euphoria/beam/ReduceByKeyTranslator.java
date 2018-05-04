@@ -70,6 +70,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
           context
               .getInput(operator)
               .apply(
+                  operator.getName() + "::windowing",
                   org.apache.beam.sdk.transforms.windowing.Window.into(
                           BeamWindowFn.wrap(operator.getWindowing()))
                       // FIXME: trigger
@@ -88,15 +89,18 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
               }
             });
     final PCollection<KV<KEY, VALUE>> extracted =
-        input.apply(extractor).setCoder(KvCoder.of(keyCoder, valueCoder));
+        input
+            .apply(operator.getName() + "::extract-keys", extractor)
+            .setCoder(KvCoder.of(keyCoder, valueCoder));
 
     if (operator.isCombinable()) {
       final PCollection<KV<KEY, VALUE>> combined =
-          extracted.apply(Combine.perKey(asCombiner(reducer)));
+          extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
 
       // remap from KVs to Pairs
-      PCollection<Pair<KEY, VALUE>> kvs =
+      return (PCollection)
           combined.apply(
+              operator.getName() + "::map-to-pairs",
               MapElements.via(
                   new SimpleFunction<KV<KEY, VALUE>, Pair<KEY, VALUE>>() {
                     @Override
@@ -104,7 +108,6 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
                       return Pair.of(in.getKey(), in.getValue());
                     }
                   }));
-      return (PCollection) kvs;
     } else {
       // reduce
       final AccumulatorProvider accumulators =
@@ -112,10 +115,11 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
       final PCollection<KV<KEY, Iterable<VALUE>>> grouped =
           extracted
-              .apply(GroupByKey.create())
+              .apply(operator.getName() + "::group", GroupByKey.create())
               .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
 
-      return grouped.apply(ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
+      return grouped.apply(
+          operator.getName() + "::reduce", ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
     }
   }
 
