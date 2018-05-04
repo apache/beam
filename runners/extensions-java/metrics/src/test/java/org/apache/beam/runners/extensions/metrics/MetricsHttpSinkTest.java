@@ -40,7 +40,7 @@ public class MetricsHttpSinkTest {
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
     String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
     assertEquals(
-        "Errror in serialization",
+        "Error in serialization",
         "{\"counters\":[{\"attempted\":20,\"committed\":10,\"name\":{\"name\":\"n1\","
             + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
             + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"committed\":"
@@ -58,7 +58,7 @@ public class MetricsHttpSinkTest {
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
     String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
     assertEquals(
-        "Errror in serialization",
+        "Error in serialization",
         "{\"counters\":[{\"attempted\":20,\"name\":{\"name\":\"n1\","
             + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
             + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"name\":{\"name\":\"n2\""
@@ -70,7 +70,7 @@ public class MetricsHttpSinkTest {
 
   private static class CustomMetricQueryResults implements MetricQueryResults {
 
-    private boolean isCommittedSupported;
+    private final boolean isCommittedSupported;
 
     private CustomMetricQueryResults(boolean isCommittedSupported) {
       this.isCommittedSupported = isCommittedSupported;
@@ -79,23 +79,11 @@ public class MetricsHttpSinkTest {
     @Override
     public List<MetricResult<Long>> getCounters() {
       return Collections.singletonList(
-          (MetricResult<Long>)
               new MetricResult<Long>() {
 
                 @Override
                 public MetricName getName() {
-                  return new MetricName() {
-
-                    @Override
-                    public String getNamespace() {
-                      return "ns1";
-                    }
-
-                    @Override
-                    public String getName() {
-                      return "n1";
-                    }
-                  };
+                  return MetricName.named("ns1", "n1");
                 }
 
                 @Override
@@ -125,23 +113,11 @@ public class MetricsHttpSinkTest {
     @Override
     public List<MetricResult<DistributionResult>> getDistributions() {
       return Collections.singletonList(
-          (MetricResult<DistributionResult>)
               new MetricResult<DistributionResult>() {
 
                 @Override
                 public MetricName getName() {
-                  return new MetricName() {
-
-                    @Override
-                    public String getNamespace() {
-                      return "ns1";
-                    }
-
-                    @Override
-                    public String getName() {
-                      return "n2";
-                    }
-                  };
+                  return MetricName.named("ns1", "n2");
                 }
 
                 @Override
@@ -158,54 +134,12 @@ public class MetricsHttpSinkTest {
                         "This runner does not currently support committed"
                             + " metrics results. Please use 'attempted' instead.");
                   }
-                  return new DistributionResult() {
-
-                    @Override
-                    public long getSum() {
-                      return 10L;
-                    }
-
-                    @Override
-                    public long getCount() {
-                      return 2L;
-                    }
-
-                    @Override
-                    public long getMin() {
-                      return 5L;
-                    }
-
-                    @Override
-                    public long getMax() {
-                      return 8L;
-                    }
-                  };
+                  return DistributionResult.create(10L, 2L, 5L, 8L);
                 }
 
                 @Override
                 public DistributionResult getAttempted() {
-                  return new DistributionResult() {
-
-                    @Override
-                    public long getSum() {
-                      return 25L;
-                    }
-
-                    @Override
-                    public long getCount() {
-                      return 4L;
-                    }
-
-                    @Override
-                    public long getMin() {
-                      return 3L;
-                    }
-
-                    @Override
-                    public long getMax() {
-                      return 9L;
-                    }
-                  };
+                  return DistributionResult.create(25L, 4L, 3L, 9L);
                 }
               });
     }
@@ -213,23 +147,11 @@ public class MetricsHttpSinkTest {
     @Override
     public List<MetricResult<GaugeResult>> getGauges() {
       return Collections.singletonList(
-          (MetricResult<GaugeResult>)
               new MetricResult<GaugeResult>() {
 
                 @Override
                 public MetricName getName() {
-                  return new MetricName() {
-
-                    @Override
-                    public String getNamespace() {
-                      return "ns1";
-                    }
-
-                    @Override
-                    public String getName() {
-                      return "n3";
-                    }
-                  };
+                  return MetricName.named("ns1", "n3");
                 }
 
                 @Override
@@ -246,34 +168,12 @@ public class MetricsHttpSinkTest {
                         "This runner does not currently support committed"
                             + " metrics results. Please use 'attempted' instead.");
                   }
-                  return new GaugeResult() {
-
-                    @Override
-                    public long getValue() {
-                      return 100L;
-                    }
-
-                    @Override
-                    public Instant getTimestamp() {
-                      return new Instant(0L);
-                    }
-                  };
+                  return GaugeResult.create(100L, new Instant(0L));
                 }
 
                 @Override
                 public GaugeResult getAttempted() {
-                  return new GaugeResult() {
-
-                    @Override
-                    public long getValue() {
-                      return 120L;
-                    }
-
-                    @Override
-                    public Instant getTimestamp() {
-                      return new Instant(0L);
-                    }
-                  };
+                  return GaugeResult.create(120L, new Instant(0L));
                 }
               });
     }
