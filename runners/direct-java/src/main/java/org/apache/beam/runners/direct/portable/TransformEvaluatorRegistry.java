@@ -20,12 +20,18 @@ package org.apache.beam.runners.direct.portable;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +42,33 @@ import org.slf4j.LoggerFactory;
  */
 class TransformEvaluatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
+
+  static TransformEvaluatorRegistry portableRegistry(
+      Components components,
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
+      BundleFactory bundleFactory,
+      JobBundleFactory jobBundleFactory,
+      StateAndTimerProvider stateAndTimerProvider) {
+    return new TransformEvaluatorRegistry(
+        ImmutableMap.<String, TransformEvaluatorFactory>builder()
+            .put(
+                PTransformTranslation.IMPULSE_TRANSFORM_URN,
+                new ImpulseEvaluatorFactory(bundleFactory, graph))
+            .put(
+                PTransformTranslation.FLATTEN_TRANSFORM_URN,
+                new FlattenEvaluatorFactory(bundleFactory, graph))
+            .put(
+                DirectGroupByKey.DIRECT_GBKO_URN,
+                new GroupByKeyOnlyEvaluatorFactory(components, bundleFactory, graph))
+            .put(
+                DirectGroupByKey.DIRECT_GABW_URN,
+                new GroupAlsoByWindowEvaluatorFactory(
+                    bundleFactory, graph, components, stateAndTimerProvider))
+            .put(
+                ExecutableStage.URN,
+                new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
+            .build());
+  }
 
   // the TransformEvaluatorFactories can construct instances of all generic types of transform,
   // so all instances of a primitive can be handled with the same evaluator factory.
