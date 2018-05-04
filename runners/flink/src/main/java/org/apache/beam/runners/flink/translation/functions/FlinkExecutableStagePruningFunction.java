@@ -23,8 +23,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
 /** A Flink function that demultiplexes output from a {@link FlinkExecutableStageFunction}. */
-public class FlinkExecutableStagePruningFunction<T>
-    implements FlatMapFunction<RawUnionValue, WindowedValue<T>> {
+public class FlinkExecutableStagePruningFunction
+    implements FlatMapFunction<RawUnionValue, WindowedValue<?>> {
 
   private final int unionTag;
 
@@ -37,9 +37,9 @@ public class FlinkExecutableStagePruningFunction<T>
   }
 
   @Override
-  public void flatMap(RawUnionValue rawUnionValue, Collector<WindowedValue<T>> collector) {
+  public void flatMap(RawUnionValue rawUnionValue, Collector<WindowedValue<?>> collector) {
     if (rawUnionValue.getUnionTag() == unionTag) {
-      collector.collect((WindowedValue<T>) rawUnionValue.getValue());
+      collector.collect((WindowedValue<?>) rawUnionValue.getValue());
     }
   }
 }
