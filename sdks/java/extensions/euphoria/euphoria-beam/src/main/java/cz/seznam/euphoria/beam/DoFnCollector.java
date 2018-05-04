@@ -22,30 +22,40 @@ import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.functional.Consumer;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
+import org.apache.beam.sdk.transforms.DoFn;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
- * A context adding values to list.
+ * Collector that outputs elements to {@link BeamCollector}.
  */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
-public class DoFnCollector<OUT> implements Collector<OUT>, Context, Serializable {
+public class DoFnCollector<IN, OUT, ELEM> implements Collector<ELEM>, Context, Serializable {
+
+  public interface BeamCollector<IN, OUT, ELEM> extends Serializable {
+
+    void collect(DoFn<IN, OUT>.ProcessContext ctx, ELEM elem);
+  }
 
   private final AccumulatorProvider accumulators;
-  private Consumer<OUT> outputConsumer;
 
-  DoFnCollector(AccumulatorProvider accumulators) {
+  private final BeamCollector<IN, OUT, ELEM> beamCollector;
+
+  private transient DoFn<IN, OUT>.ProcessContext context;
+
+  DoFnCollector(AccumulatorProvider accumulators, BeamCollector<IN, OUT, ELEM> beamCollector) {
     this.accumulators = accumulators;
+    this.beamCollector = beamCollector;
   }
 
   @Override
-  public void collect(OUT elem) {
-    outputConsumer.accept(elem);
+  public void collect(ELEM elem) {
+    beamCollector.collect(Objects.requireNonNull(context), elem);
   }
 
   @Override
@@ -74,7 +84,7 @@ public class DoFnCollector<OUT> implements Collector<OUT>, Context, Serializable
     return accumulators.getTimer(name);
   }
 
-  public void setOutputConsumer(Consumer<OUT> outputConsumer) {
-    this.outputConsumer = outputConsumer;
+  void setProcessContext(DoFn<IN, OUT>.ProcessContext context) {
+    this.context = context;
   }
 }
