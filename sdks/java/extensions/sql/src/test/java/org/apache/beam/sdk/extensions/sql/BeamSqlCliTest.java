@@ -186,6 +186,10 @@ public class BeamSqlCliTest {
         + "  street VARCHAR, \n"
         + "  country VARCHAR \n"
         + "  ), \n"
+        + "addressAngular ROW< \n"
+        + "  street VARCHAR, \n"
+        + "  country VARCHAR \n"
+        + "  >, \n"
         + "isRobot BOOLEAN"
         + ") \n"
         + "TYPE 'text' \n"
@@ -202,6 +206,13 @@ public class BeamSqlCliTest {
                 Field.of("tags",
                          ARRAY.type().withCollectionElementType(VARCHAR)).withNullable(true),
                 Field.of("address",
+                         ROW.type().withRowSchema(
+                             RowSqlTypes
+                                 .builder()
+                                 .withVarcharField("street")
+                                 .withVarcharField("country")
+                                 .build())).withNullable(true),
+                Field.of("addressangular",
                          ROW.type().withRowSchema(
                              RowSqlTypes
                                  .builder()
