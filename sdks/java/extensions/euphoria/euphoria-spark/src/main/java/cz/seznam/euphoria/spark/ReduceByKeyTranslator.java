@@ -53,7 +53,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     return doTranslate(operator, context);
   }
 
-  private <IN, KEY, VALUE, OUT, W extends Window>
+  private <IN, KEY, VALUE, OUT, W extends Window<W>>
       JavaRDD<SparkElement<W, Pair<KEY, OUT>>> doTranslate(
           ReduceByKey<IN, KEY, VALUE, OUT, W> operator, SparkExecutorContext context) {
 
@@ -110,7 +110,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
    * Extracts {@link KeyedWindow} from {@link SparkElement} and assigns timestamp according to
    * (optional) eventTimeAssigner.
    */
-  private static class CompositeKeyExtractor<IN, KEY, VALUE, W extends Window>
+  private static class CompositeKeyExtractor<IN, KEY, VALUE, W extends Window<W>>
       implements PairFlatMapFunction<SparkElement<?, IN>, KeyedWindow<W, KEY>, VALUE> {
 
     private final UnaryFunction<IN, KEY> keyExtractor;
