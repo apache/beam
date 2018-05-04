@@ -42,9 +42,11 @@ class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> 
   static <T> PCollection<T> doTranslate(DataSource<T> source, BeamExecutorContext context) {
     if (source.isBounded()) {
       return context.getPipeline().apply(
+          "read::" + source.hashCode(),
           Read.from(BeamBoundedSource.wrap(source.asBounded())));
     } else {
       return context.getPipeline().apply(
+          "read::" + source.hashCode(),
           Read.from(BeamUnboundedSource.wrap(source.asUnbounded())));
     }
   }
