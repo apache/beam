@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.BOOLEAN;
 import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.VARCHAR;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ARRAY;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
@@ -128,6 +129,42 @@ public class BeamSqlCliTest {
                 Field.of("matrix",
                          ARRAY.type().withCollectionElementType(
                              ARRAY.type().withCollectionElementType(INTEGER))).withNullable(true))
+            .collect(toSchema()),
+        table.getSchema());
+  }
+
+  @Test
+  public void testExecute_createTableWithPrefixMapField() throws Exception {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli()
+        .metaStore(metaStore);
+    cli.execute(
+        "create table person (\n"
+        + "id int COMMENT 'id', \n"
+        + "name varchar COMMENT 'name', \n"
+        + "age int COMMENT 'age', \n"
+        + "tags MAP<VARCHAR, VARCHAR>, \n"
+        + "nestedMap MAP<INTEGER, MAP<VARCHAR, INTEGER>> \n"
+        + ") \n"
+        + "TYPE 'text' \n"
+        + "COMMENT '' LOCATION '/home/admin/orders'"
+    );
+    Table table = metaStore.getTable("person");
+    assertNotNull(table);
+    assertEquals(
+        Stream
+            .of(
+                Field.of("id", INTEGER).withDescription("id").withNullable(true),
+                Field.of("name", VARCHAR).withDescription("name").withNullable(true),
+                Field.of("age", INTEGER).withDescription("age").withNullable(true),
+                Field.of("tags",
+                         MAP.type().withMapType(VARCHAR, VARCHAR)).withNullable(true),
+                Field.of("nestedmap",
+                         MAP.type().withMapType(
+                             INTEGER,
+                             MAP.type().withMapType(VARCHAR, INTEGER))).withNullable(true))
             .collect(toSchema()),
         table.getSchema());
   }
