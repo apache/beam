@@ -24,20 +24,20 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Streams;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 
 /**
  * Translator for {@code ReduceByKey} operator.
@@ -123,7 +123,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
     @SuppressWarnings("unchecked")
     final ReduceFunctor<IN, IN> combiner = (ReduceFunctor<IN, IN>) reducer;
-    final CombinableCollector<IN> collector = new CombinableCollector<>();
+    final SingleValueCollector<IN> collector = new SingleValueCollector<>();
     return (Iterable<IN> input) -> {
       combiner.apply(Streams.stream(input), collector);
       return collector.get();
@@ -133,18 +133,20 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static class ReduceDoFn<K, V, O> extends DoFn<KV<K, Iterable<V>>, Pair<K, O>> {
 
     private final ReduceFunctor<V, O> reducer;
-    private final AccumulatorProvider accumulators;
+    private final DoFnCollector<O> doFnCollector;
 
     ReduceDoFn(ReduceFunctor<V, O> reducer, AccumulatorProvider accumulators) {
       this.reducer = reducer;
-      this.accumulators = accumulators;
+      this.doFnCollector = new DoFnCollector<>(accumulators);
+
     }
 
     @ProcessElement
     public void processElement(ProcessContext ctx) {
+      doFnCollector.setOutputConsumer(out -> ctx.output(Pair.of(ctx.element().getKey(), out)));
+
       reducer.apply(StreamSupport.stream(ctx.element().getValue().spliterator(), false),
-          new DoFnCollector<>(accumulators, out ->
-              ctx.output(Pair.of(ctx.element().getKey(), out))));
+          doFnCollector);
     }
   }
 
