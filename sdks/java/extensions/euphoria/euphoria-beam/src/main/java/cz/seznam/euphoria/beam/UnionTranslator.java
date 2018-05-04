@@ -25,11 +25,11 @@ class UnionTranslator implements OperatorTranslator<Union> {
   @Override
   @SuppressWarnings("unchecked")
   public PCollection<?> translate(Union operator, BeamExecutorContext context) {
-    return doTranslate(operator,context);
+    return doTranslate(operator, context);
   }
 
   private static <T> PCollection<T> doTranslate(Union<T> operator, BeamExecutorContext context) {
-    return PCollectionList.of(context.getInputs(operator)).apply(Flatten.pCollections());
+    return PCollectionList.of(context.getInputs(operator))
+        .apply(operator.getName(), Flatten.pCollections());
   }
-
 }
