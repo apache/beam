@@ -34,42 +34,52 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     return doTranslate(operator, context);
   }
 
-  private static <IN, OUT> PCollection<OUT> doTranslate(FlatMap<IN, OUT> operator,
-                                                        BeamExecutorContext context) {
-    final AccumulatorProvider accumulators = new LazyAccumulatorProvider(
-        context.getAccumulatorFactory(),
-        context.getSettings());
-    final Mapper<IN, OUT> mapper = new Mapper<>(operator.getFunctor(), accumulators,
-        operator.getEventTimeExtractor());
+  private static <IN, OUT> PCollection<OUT> doTranslate(
+      FlatMap<IN, OUT> operator, BeamExecutorContext context) {
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
+    final Mapper<IN, OUT> mapper =
+        new Mapper<>(operator.getFunctor(), accumulators, operator.getEventTimeExtractor());
     return context.getInput(operator).apply(ParDo.of(mapper));
   }
 
   private static class Mapper<IN, OUT> extends DoFn<IN, OUT> {
 
     private final UnaryFunctor<IN, OUT> mapper;
-    private final DoFnCollector<OUT> doFnCollector;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeExtractor;
+    private final DoFnCollector<IN, OUT, OUT> collector;
 
-    Mapper(UnaryFunctor<IN, OUT> mapper,
-           AccumulatorProvider accumulators,
-           @Nullable ExtractEventTime<IN> eventTimeExtractor) {
+    Mapper(
+        UnaryFunctor<IN, OUT> mapper,
+        AccumulatorProvider accumulators,
+        @Nullable ExtractEventTime<IN> eventTimeExtractor) {
       this.mapper = mapper;
-      this.doFnCollector = new DoFnCollector<>(accumulators);
-      this.eventTimeExtractor = eventTimeExtractor;
+      this.collector = new DoFnCollector<>(accumulators, new Collector<>(eventTimeExtractor));
     }
 
     @ProcessElement
+    @SuppressWarnings("unused")
     public void processElement(ProcessContext ctx) {
-      doFnCollector.setOutputConsumer((out) -> {
-        if (eventTimeExtractor != null) {
-          ctx.outputWithTimestamp(out, new Instant(eventTimeExtractor.extractTimestamp(ctx.element())));
-        } else {
-          ctx.output(out);
-        }
-      });
-      mapper.apply(ctx.element(), doFnCollector);
+      collector.setProcessContext(ctx);
+      mapper.apply(ctx.element(), collector);
     }
   }
 
+  private static class Collector<IN, OUT> implements DoFnCollector.BeamCollector<IN, OUT, OUT> {
+
+    @Nullable private final ExtractEventTime<IN> eventTimeExtractor;
+
+    private Collector(@Nullable ExtractEventTime<IN> eventTimeExtractor) {
+      this.eventTimeExtractor = eventTimeExtractor;
+    }
+
+    @Override
+    public void collect(DoFn<IN, OUT>.ProcessContext ctx, OUT out) {
+      if (eventTimeExtractor != null) {
+        ctx.outputWithTimestamp(
+            out, new Instant(eventTimeExtractor.extractTimestamp(ctx.element())));
+      } else {
+        ctx.output(out);
+      }
+    }
+  }
 }
