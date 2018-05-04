@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static com.google.api.client.util.DateTime.parseRfc3339;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DATETIME;
 import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
 
@@ -39,12 +38,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.JsonToRowUtils;
 import org.apache.beam.sdk.util.RowJsonDeserializer;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.DateTime;
 
 /**
  * <i>Experimental</i>
@@ -119,7 +116,6 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
         PBegin
             .in(pipeline)
             .apply("readFromPubsub", readMessagesWithAttributes())
-            .apply("parseTimestampAttribute", parseTimestampAttribute())
             .apply("parseJsonPayload", parseJsonPayload())
             .setCoder(getSchema().getRowCoder());
   }
@@ -132,35 +128,14 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
             .withTimestampAttribute(getTimestampAttribute());
   }
 
-  private ParDo.SingleOutput<PubsubMessage, KV<DateTime, PubsubMessage>> parseTimestampAttribute() {
-    return
-        ParDo.of(new DoFn<PubsubMessage, KV<DateTime, PubsubMessage>>() {
-          @ProcessElement
-          public void processElement(ProcessContext context) {
-            PubsubMessage pubsubMessage = context.element();
-            long msSinceEpoch = asMsSinceEpoch(pubsubMessage.getAttribute(getTimestampAttribute()));
-            context.output(KV.of(new DateTime(msSinceEpoch), pubsubMessage));
-          }
-        });
-  }
-
-  private static long asMsSinceEpoch(String timestamp) {
-    try {
-      return Long.parseLong(timestamp);
-    } catch (IllegalArgumentException e1) {
-      return parseRfc3339(timestamp).getValue();
-    }
-  }
-
-  private ParDo.SingleOutput<KV<DateTime, PubsubMessage>, Row> parseJsonPayload() {
+  private ParDo.SingleOutput<PubsubMessage, Row> parseJsonPayload() {
     return ParDo.of(
-        new DoFn<KV<DateTime, PubsubMessage>, Row>() {
+        new DoFn<PubsubMessage, Row>() {
           private transient volatile @Nullable ObjectMapper objectMapper;
 
           @ProcessElement
           public void processElement(ProcessContext context) {
-            DateTime timestamp = context.element().getKey();
-            byte[] payloadBytes = context.element().getValue().getPayload();
+            byte[] payloadBytes = context.element().getPayload();
             String payloadJson = new String(payloadBytes, StandardCharsets.UTF_8);
             Row payloadRow = parseRow(payloadJson);
 
@@ -168,7 +143,7 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
                 Row
                     .withSchema(getSchema())
                     .addValues(payloadRow.getValues())
-                    .addValue(timestamp)
+                    .addValue(context.timestamp())
                     .build());
           }
 
