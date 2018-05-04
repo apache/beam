@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.joda.time.Duration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -48,7 +49,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
-import org.joda.time.Duration;
 
 /**
  * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
@@ -56,7 +56,7 @@ import org.joda.time.Duration;
 class BeamExecutorContext {
 
   private DAG<Operator<?, ?>> dag;
-  private final Map<Dataset<?>, PCollection<?>> outputs = new HashMap<>();
+  private final Map<Dataset<?>, PCollection<?>> datasetToPCollection = new HashMap<>();
   private final Pipeline pipeline;
   private final Duration allowedLateness;
 
@@ -90,7 +90,7 @@ class BeamExecutorContext {
         .stream()
         .map(Node::get)
         .map(parent -> {
-          final PCollection<IN> out = (PCollection<IN>) outputs.get(parent.output());
+          final PCollection<IN> out = (PCollection<IN>) datasetToPCollection.get(parent.output());
           if (out == null) {
             throw new IllegalArgumentException("Output missing for operator " + parent.getName());
           }
@@ -101,11 +101,11 @@ class BeamExecutorContext {
 
   @SuppressWarnings("unchecked")
   <T> Optional<PCollection<T>> getPCollection(Dataset<T> dataset) {
-    return Optional.ofNullable((PCollection) outputs.get(dataset));
+    return Optional.ofNullable((PCollection) datasetToPCollection.get(dataset));
   }
 
   <T> void setPCollection(Dataset<T> dataset, PCollection<T> coll) {
-    final PCollection<?> prev = outputs.put(dataset, coll);
+    final PCollection<?> prev = datasetToPCollection.put(dataset, coll);
     if (prev != null && prev != coll) {
       throw new IllegalStateException(
          "Dataset(" + dataset + ") already materialized.");

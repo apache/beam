@@ -47,8 +47,7 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
   private static class Mapper<IN, OUT> extends DoFn<IN, OUT> {
 
     private final UnaryFunctor<IN, OUT> mapper;
-    private final AccumulatorProvider accumulators;
-
+    private final DoFnCollector<OUT> doFnCollector;
     @Nullable
     private final ExtractEventTime<IN> eventTimeExtractor;
 
@@ -56,21 +55,20 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
            AccumulatorProvider accumulators,
            @Nullable ExtractEventTime<IN> eventTimeExtractor) {
       this.mapper = mapper;
-      this.accumulators = accumulators;
+      this.doFnCollector = new DoFnCollector<>(accumulators);
       this.eventTimeExtractor = eventTimeExtractor;
     }
 
-
     @ProcessElement
     public void processElement(ProcessContext ctx) {
-      mapper.apply(ctx.element(), new DoFnCollector<>(accumulators, (out) -> {
+      doFnCollector.setOutputConsumer((out) -> {
         if (eventTimeExtractor != null) {
-          ctx.outputWithTimestamp(
-              out, new Instant(eventTimeExtractor.extractTimestamp(ctx.element())));
+          ctx.outputWithTimestamp(out, new Instant(eventTimeExtractor.extractTimestamp(ctx.element())));
         } else {
           ctx.output(out);
         }
-      }));
+      });
+      mapper.apply(ctx.element(), doFnCollector);
     }
   }
 

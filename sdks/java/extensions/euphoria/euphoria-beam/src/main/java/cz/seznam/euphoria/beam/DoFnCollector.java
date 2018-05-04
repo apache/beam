@@ -27,20 +27,20 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
 
 import javax.annotation.concurrent.NotThreadSafe;
+import java.io.Serializable;
 
 /**
  * A context adding values to list.
  */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
-public class DoFnCollector<OUT> implements Collector<OUT>, Context {
+public class DoFnCollector<OUT> implements Collector<OUT>, Context, Serializable {
 
   private final AccumulatorProvider accumulators;
-  private final Consumer<OUT> outputConsumer;
+  private Consumer<OUT> outputConsumer;
 
-  DoFnCollector(AccumulatorProvider accumulators, Consumer<OUT> outputConsumer) {
+  DoFnCollector(AccumulatorProvider accumulators) {
     this.accumulators = accumulators;
-    this.outputConsumer = outputConsumer;
   }
 
   @Override
@@ -72,5 +72,9 @@ public class DoFnCollector<OUT> implements Collector<OUT>, Context {
   @Override
   public Timer getTimer(String name) {
     return accumulators.getTimer(name);
+  }
+
+  public void setOutputConsumer(Consumer<OUT> outputConsumer) {
+    this.outputConsumer = outputConsumer;
   }
 }

@@ -13,62 +13,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.beam.io;
+package cz.seznam.euphoria.beam;
 
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
-import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
-import java.util.ArrayList;
-import java.util.List;
+
+import java.io.Serializable;
 
 /**
- * A context adding values to list.
+ * {@code Collector} for combinable functors.
  */
-@SuppressWarnings("unchecked")
-public class ListCollector<T> implements Collector<T>, Context {
+public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
-  private final Window<?> window = GlobalWindowing.Window.get();
-  private final List<T> elements = new ArrayList<>();
+  private T elem;
+
+  public T get() {
+    return elem;
+  }
 
   @Override
   public void collect(T elem) {
-    elements.add(elem);
+    this.elem = elem;
   }
 
   @Override
   public Context asContext() {
-    return this;
+    // this is not needed, the underlaying functor does not have access to this
+    throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Window<?> getWindow() {
-    return window;
+    // this is not needed, the underlaying functor does not have access to this
+    throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Counter getCounter(String name) {
-    throw new UnsupportedOperationException();
+    // this is not needed, the underlaying functor does not have access to this
+    throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    throw new UnsupportedOperationException();
+    // this is not needed, the underlaying functor does not have access to this
+    throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Timer getTimer(String name) {
-    throw new UnsupportedOperationException();
+    // this is not needed, the underlaying functor does not have access to this
+    throw new UnsupportedOperationException("Not supported.");
   }
 
-  public List<T> get() {
-    return elements;
-  }
-
-  public void clear() {
-    elements.clear();
-  }
 }
