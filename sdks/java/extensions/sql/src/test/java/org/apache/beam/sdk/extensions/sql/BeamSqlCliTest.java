@@ -46,7 +46,7 @@ public class BeamSqlCliTest {
         + "TYPE 'text' \n"
         + "COMMENT '' LOCATION '/home/admin/orders'"
     );
-    Table table = metaStore.getTable("person");
+    Table table = metaStore.getTables().get("person");
     assertNotNull(table);
   }
 
@@ -65,11 +65,11 @@ public class BeamSqlCliTest {
             + "TYPE 'text' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'"
     );
-    Table table = metaStore.getTable("person");
+    Table table = metaStore.getTables().get("person");
     assertNotNull(table);
 
     cli.execute("drop table person");
-    table = metaStore.getTable("person");
+    table = metaStore.getTables().get("person");
     assertNull(table);
   }
 

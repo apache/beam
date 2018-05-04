@@ -18,18 +18,12 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
-import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
 /**
  * The interface to handle CRUD of {@code BeamSql} table metadata.
  */
 public interface MetaStore extends TableProvider {
-  /**
-   * Get table with the specified name.
-   */
-  Table getTable(String tableName);
-
   /**
    * Register a table provider.
    * @param provider

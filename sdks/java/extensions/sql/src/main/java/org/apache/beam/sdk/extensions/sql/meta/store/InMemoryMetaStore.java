@@ -18,9 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -66,15 +65,8 @@ public class InMemoryMetaStore implements MetaStore {
     tables.remove(tableName);
   }
 
-  @Override public Table getTable(String tableName) {
-    if (tableName == null) {
-      return null;
-    }
-    return tables.get(tableName.toLowerCase());
-  }
-
-  @Override public List<Table> listTables() {
-    return new ArrayList<>(tables.values());
+  @Override public Map<String, Table> getTables() {
+    return ImmutableMap.copyOf(tables);
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
@@ -96,20 +88,19 @@ public class InMemoryMetaStore implements MetaStore {
           + provider.getTableType());
     }
 
-    this.providers.put(provider.getTableType(), provider);
     initTablesFromProvider(provider);
+    this.providers.put(provider.getTableType(), provider);
   }
 
   private void initTablesFromProvider(TableProvider provider) {
-    List<Table> tables = provider.listTables();
-    for (Table table : tables) {
-      if (this.tables.containsKey(table.getName())) {
+    Map<String, Table> tables = provider.getTables();
+    for (String tableName : tables.keySet()) {
+      if (this.tables.containsKey(tableName)) {
         throw new IllegalStateException(
-            "Duplicate table: " + table.getName() + " from provider: " + provider);
+            "Duplicate table: " + tableName + " from provider: " + provider);
       }
-
-      this.tables.put(table.getName(), table);
     }
+    this.tables.putAll(tables);
   }
 
   Map<String, TableProvider> getProviders() {
