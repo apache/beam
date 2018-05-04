@@ -172,6 +172,8 @@ Schema.FieldType FieldType() :
 }
 {
     (
+        fieldType = Map()
+    |
         fieldType = Array()
     |
         fieldType = Row()
@@ -191,9 +193,7 @@ Schema.FieldType FieldType() :
 }
 
 Schema.FieldType Array() :
-
 {
-    final Span s = Span.of();
     final Schema.FieldType arrayElementType;
 }
 {
@@ -205,6 +205,23 @@ Schema.FieldType Array() :
 
 }
 
+Schema.FieldType Map() :
+{
+    final Schema.FieldType mapKeyType;
+    final Schema.FieldType mapValueType;
+}
+{
+    <MAP>
+        <LT>
+            mapKeyType = SimpleType()
+        <COMMA>
+            mapValueType = FieldType()
+        <GT>
+    {
+        return Schema.TypeName.MAP.type()
+            .withMapType(mapKeyType, mapValueType);
+    }
+}
 
 Schema.FieldType Row() :
 {

@@ -192,7 +192,7 @@ public class RowTest {
     Schema type = Stream
         .of(Schema.Field.of("array",
             TypeName.ARRAY.type().withCollectionElementType(
-                TypeName.MAP.type().withMapType(TypeName.INT32, TypeName.STRING.type()))))
+                TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type()))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -210,7 +210,7 @@ public class RowTest {
     };
     Schema type = Stream
         .of(Schema.Field.of("map",
-            TypeName.MAP.type().withMapType(TypeName.INT32, TypeName.STRING.type())))
+            TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type())))
         .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
@@ -226,7 +226,7 @@ public class RowTest {
     };
     Schema type = Stream
         .of(Schema.Field.of("map",
-            TypeName.MAP.type().withMapType(TypeName.INT32,
+            TypeName.MAP.type().withMapType(TypeName.INT32.type(),
                 TypeName.ARRAY.type().withCollectionElementType(TypeName.STRING.type()))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
@@ -251,8 +251,8 @@ public class RowTest {
     };
     Schema type = Stream
         .of(Schema.Field.of("map",
-            TypeName.MAP.type().withMapType(TypeName.INT32,
-                TypeName.MAP.type().withMapType(TypeName.INT32, TypeName.STRING.type()))))
+            TypeName.MAP.type().withMapType(TypeName.INT32.type(),
+                TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type()))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
@@ -268,7 +268,8 @@ public class RowTest {
         put(2, Row.withSchema(nestedType).addValues("two").build());
       }
     };
-    Schema type = Stream.of(Schema.Field.of("map", TypeName.MAP.type().withMapType(TypeName.INT32,
+    Schema type = Stream.of(Schema.Field.of("map", TypeName.MAP.type().withMapType(
+        TypeName.INT32.type(),
         TypeName.ROW.type().withRowSchema(nestedType)))).collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
