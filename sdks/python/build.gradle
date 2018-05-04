@@ -31,11 +31,7 @@ def tox_opts = "-c tox.ini --recreate"
 task setupVirtualenv {
   doLast {
     exec {
-      commandLine 'virtualenv', "${envdir}"
-    }
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+      commandLine 'sh', 'setup_virtualenv.sh',  "${envdir}"
     }
   }
   // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -49,7 +45,7 @@ configurations { distConfig }
 task sdist(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
     }
     def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
@@ -66,7 +62,7 @@ artifacts {
 task cleanPython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && python setup.py clean"
     }
   }
@@ -77,7 +73,7 @@ task buildPython(dependsOn: 'setupVirtualenv') {
   doLast {
     println 'Building Python Dependencies'
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
     }
   }
@@ -90,7 +86,7 @@ check.dependsOn lint
 task lintPy27(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint"
     }
   }
@@ -100,7 +96,7 @@ lint.dependsOn lintPy27
 task lintPy3(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3-lint"
     }
   }
@@ -110,7 +106,7 @@ lint.dependsOn lintPy3
 task testGcp(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-gcp"
     }
   }
@@ -120,7 +116,7 @@ test.dependsOn testGcp
 task testPython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27"
     }
   }
@@ -130,7 +126,7 @@ test.dependsOn testPython
 task testCython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-cython"
     }
   }
@@ -144,7 +140,7 @@ testCython.mustRunAfter testPython, testGcp
 task docs(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e docs"
     }
   }
@@ -154,7 +150,7 @@ assemble.dependsOn docs
 task cover(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
-      executable 'sh'
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e cover"
     }
   }
