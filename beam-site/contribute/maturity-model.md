@@ -168,7 +168,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CO50</p></td>
       <td><p>The way in which contributors can be granted more rights such as commit access or decision power is clearly documented and is the same for all contributors.</p></td>
-      <td><p><b>YES.</b> The criteria is documented in the <a href="{{ site.baseurl }}/contribute/contribution-guide/#granting-more-rights-to-a-contributor">contribution guide</a>.</p></td>
+      <td><p><b>YES.</b> The criteria is documented in the page <a href="{{ site.baseurl }}/contribute/become-a-committer">"Become a Committer"</a>.</p></td>
     </tr>
     <tr>
       <td><p>CO60</p></td>
@@ -187,7 +187,9 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CS10</p></td>
       <td><p>The project maintains a public list of its contributors who have decision power -- the project&#39;s PMC (Project Management Committee) consists of those contributors.</p></td>
-      <td><p><b>YES.</b> The website contains the <a href="{{ site.baseurl }}/contribute/team/">list of committers and PPMC members</a>.</p></td>
+      <td><p><b>YES.</b> The website links to the ASF's summary of the <a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="{{ site.baseurl }}/images/external-link-icon.png"
+                                                                                            width="14" height="14"
+                                                                                            alt="External link."></a>.</p></td>
     </tr>
     <tr>
       <td><p>CS20</p></td>
