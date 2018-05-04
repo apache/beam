@@ -320,8 +320,8 @@ public class KafkaIOTest {
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
-        .withKeyDeserializerClassName(IntegerDeserializer.class)
-        .withValueDeserializerClassName(LongDeserializer.class)
+        .withKeyDeserializer(IntegerDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(maxNumRecords);
 
     if (timestampFn != null) {
@@ -396,8 +396,8 @@ public class KafkaIOTest {
                 KafkaIO.<Integer, Long>read()
                     .withBootstrapServers(bootStrapServers)
                     .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
-                    .withKeyDeserializerClassName(IntegerDeserializer.class)
-                    .withValueDeserializerClassName(LongDeserializer.class)
+                    .withKeyDeserializer(IntegerDeserializer.class)
+                    .withValueDeserializer(LongDeserializer.class)
                     .updateConsumerProperties(
                         ImmutableMap.of(
                             ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
@@ -425,8 +425,8 @@ public class KafkaIOTest {
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
         .withMaxNumRecords(numElements)
-        .withKeyDeserializerClassName(IntegerDeserializer.class)
-        .withValueDeserializerClassName(LongDeserializer.class);
+        .withKeyDeserializer(IntegerDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class);
 
     PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
 
@@ -445,8 +445,8 @@ public class KafkaIOTest {
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
-        .withKeyDeserializerClassName(ByteArrayDeserializer.class)
-        .withValueDeserializerClassName(LongDeserializer.class)
+        .withKeyDeserializer(ByteArrayDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(numElements / 10);
 
     PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
@@ -634,8 +634,8 @@ public class KafkaIOTest {
       .withTopic(topic)
       .withConsumerFactoryFn(new ConsumerFactoryFn(
         ImmutableList.of(topic), numPartitions, numElements, OffsetResetStrategy.EARLIEST))
-      .withKeyDeserializerClassName(ByteArrayDeserializer.class)
-      .withValueDeserializerClassName(LongDeserializer.class)
+      .withKeyDeserializer(ByteArrayDeserializer.class)
+      .withValueDeserializer(LongDeserializer.class)
       .withTimestampPolicyFactory(
         new TimestampPolicyWithEndOfSource<>(numElements / numPartitions - 1));
 
@@ -804,8 +804,8 @@ public class KafkaIOTest {
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.LATEST))
-        .withKeyDeserializerClassName(IntegerDeserializer.class)
-        .withValueDeserializerClassName(LongDeserializer.class)
+        .withKeyDeserializer(IntegerDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
@@ -938,8 +938,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeySerializerClassName(IntegerSerializer.class)
-            .withValueSerializerClassName(LongSerializer.class)
+            .withKeySerializer(IntegerSerializer.class)
+            .withValueSerializer(LongSerializer.class)
             .withInputTimestamp()
             .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
@@ -970,7 +970,7 @@ public class KafkaIOTest {
               KafkaIO.<Integer, Long>write()
                   .withBootstrapServers("none")
                   .withTopic(topic)
-                  .withValueSerializerClassName(LongSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
                   .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
                   .values());
 
@@ -1012,8 +1012,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
                  .withBootstrapServers("none")
                  .withTopic(topic)
-                 .withKeySerializerClassName(IntegerSerializer.class)
-                 .withValueSerializerClassName(LongSerializer.class)
+                 .withKeySerializer(IntegerSerializer.class)
+                 .withValueSerializer(LongSerializer.class)
                  .withEOS(1, "test")
                  .withConsumerFactoryFn(new ConsumerFactoryFn(
                    Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
@@ -1055,8 +1055,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeySerializerClassName(IntegerSerializer.class)
-            .withValueSerializerClassName(LongSerializer.class)
+            .withKeySerializer(IntegerSerializer.class)
+            .withValueSerializer(LongSerializer.class)
             .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       try {
@@ -1171,7 +1171,7 @@ public class KafkaIOTest {
       KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
         .withBootstrapServers("myServerA:9092,myServerB:9092")
         .withTopic("myTopic")
-        .withValueSerializerClassName(LongSerializer.class)
+        .withValueSerializer(LongSerializer.class)
         .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey));
 
       DisplayData displayData = DisplayData.from(write);
@@ -1278,8 +1278,8 @@ public class KafkaIOTest {
           .apply("writeToKafka", KafkaIO.<Integer, Long>write()
               .withBootstrapServers("none")
               .withTopic(topic)
-              .withKeySerializerClassName(IntegerSerializer.class)
-              .withValueSerializerClassName(LongSerializer.class)
+              .withKeySerializer(IntegerSerializer.class)
+              .withValueSerializer(LongSerializer.class)
               .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       PipelineResult result = p.run();
