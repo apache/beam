@@ -1122,12 +1122,6 @@
 
       <dependency>
         <groupId>com.google.cloud</groupId>
-        <artifactId>google-cloud-bigquery</artifactId>
-        <version>${google-clients.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.cloud</groupId>
         <artifactId>google-cloud-core-grpc</artifactId>
         <version>${grpc.version}</version>
       </dependency>

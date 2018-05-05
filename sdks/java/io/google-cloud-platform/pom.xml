@@ -188,11 +188,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigquery</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.api</groupId>
       <artifactId>gax-grpc</artifactId>
     </dependency>
