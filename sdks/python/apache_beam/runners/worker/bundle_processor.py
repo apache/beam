@@ -117,13 +117,13 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class StateBackedSideInputMap(object):
-  def __init__(self, state_handler, transform_id, tag, side_input_data):
+  def __init__(self, state_handler, transform_id, tag, side_input_data, coder):
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._tag = tag
     self._side_input_data = side_input_data
-    self._element_coder = side_input_data.coder.wrapped_value_coder
-    self._target_window_coder = side_input_data.coder.window_coder
+    self._element_coder = coder.wrapped_value_coder
+    self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
     # TODO(robertwb): Cross-bundle caching respecting cache tokens.
     self._cache = {}
@@ -495,12 +495,18 @@ def _create_pardo_operation(
     serialized_fn, side_inputs_proto=None):
 
   if side_inputs_proto:
+    input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
         for tag, si in side_inputs_proto.items()]
     tagged_side_inputs.sort(key=lambda tag_si: int(tag_si[0][4:]))
     side_input_maps = [
-        StateBackedSideInputMap(factory.state_handler, transform_id, tag, si)
+        StateBackedSideInputMap(
+            factory.state_handler,
+            transform_id,
+            tag,
+            si,
+            input_tags_to_coders[tag])
         for tag, si in tagged_side_inputs]
   else:
     side_input_maps = []
@@ -532,7 +538,7 @@ def _create_pardo_operation(
       serialized_fn=serialized_fn,
       output_tags=[mutate_tag(tag) for tag in output_tags],
       input=None,
-      side_inputs=[],  # Obsoleted by side_input_maps.
+      side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
   return factory.augment_oldstyle_op(
       operations.DoOperation(
@@ -661,12 +667,15 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
     common_urns.primitives.MAP_WINDOWS.urn,
     beam_runner_api_pb2.SdkFunctionSpec)
 def create(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
-  assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
-  window_mapping_fn = pickler.loads(mapping_fn_spec.payload)
+  assert mapping_fn_spec.spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
+  window_mapping_fn = pickler.loads(mapping_fn_spec.spec.payload)
+
   class MapWindows(beam.DoFn):
+
     def process(self, element):
       key, window = element
       return [(key, window_mapping_fn(window))]
+
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       MapWindows())
