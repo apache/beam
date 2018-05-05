@@ -83,6 +83,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.spanner.admin.database.v1"),
             classesInPackage("com.google.datastore.v1"),
             classesInPackage("com.google.protobuf"),
+            classesInPackage("com.google.rpc"),
             classesInPackage("com.google.type"),
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("com.fasterxml.jackson.core"),
