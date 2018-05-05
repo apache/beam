@@ -449,7 +449,8 @@ class DataflowRunner(PipelineRunner):
 
     return step
 
-  def _add_singleton_step(self, label, full_label, tag, input_step):
+  def _add_singleton_step(
+      self, label, full_label, tag, input_step, windowing_strategy):
     """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
     # Import here to avoid adding the dependency for local running scenarios.
     from apache_beam.runners.dataflow.internal import apiclient
@@ -468,6 +469,9 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (full_label, PropertyNames.OUTPUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+    step.add_property(
+        PropertyNames.WINDOWING_STRATEGY,
+        self.serialize_windowing_strategy(windowing_strategy))
     return step
 
   def run_Impulse(self, transform_node):
@@ -601,7 +605,8 @@ class DataflowRunner(PipelineRunner):
 
       self._add_singleton_step(
           step_name, si_full_label, side_pval.pvalue.tag,
-          self._cache.get_pvalue(side_pval.pvalue))
+          self._cache.get_pvalue(side_pval.pvalue),
+          side_pval.pvalue.windowing)
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: step_name,
@@ -966,11 +971,7 @@ class _DataflowIterableSideInput(_DataflowSideInput):
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap['']),
-        coders.WindowedValueCoder(
-            coders.TupleCoder((coders.BytesCoder(),
-                               side_input_data.coder.wrapped_value_coder)),
-            side_input_data.coder.window_coder))
+        lambda multimap: iterable_view_fn(multimap['']))
 
 
 class _DataflowMultimapSideInput(_DataflowSideInput):
@@ -985,8 +986,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
-        side_input_data.view_fn,
-        self._input_element_coder())
+        side_input_data.view_fn)
 
 
 class DataflowPipelineResult(PipelineResult):
