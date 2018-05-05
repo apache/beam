@@ -95,27 +95,25 @@ public final class BeamTableUtils {
       } else {
         return rawObj;
       }
-    } else if (type.isNumericType()) {
-      if ((rawObj instanceof String)
-          || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL)) {
-        String raw = rawObj.toString();
-        switch (type) {
-          case BYTE:
-            return Byte.valueOf(raw);
-          case INT16:
-            return Short.valueOf(raw);
-          case INT32:
-            return Integer.valueOf(raw);
-          case INT64:
-            return Long.valueOf(raw);
-          case FLOAT:
-            return Float.valueOf(raw);
-          case DOUBLE:
-            return Double.valueOf(raw);
-          default:
-            throw new UnsupportedOperationException(
-                String.format("Column type %s is not supported yet!", type));
-        }
+    } else if (type.isNumericType() && ((rawObj instanceof String)
+          || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
+      String raw = rawObj.toString();
+      switch (type) {
+        case BYTE:
+          return Byte.valueOf(raw);
+        case INT16:
+          return Short.valueOf(raw);
+        case INT32:
+          return Integer.valueOf(raw);
+        case INT64:
+          return Long.valueOf(raw);
+        case FLOAT:
+          return Float.valueOf(raw);
+        case DOUBLE:
+          return Double.valueOf(raw);
+        default:
+          throw new UnsupportedOperationException(
+              String.format("Column type %s is not supported yet!", type));
       }
     }
     return rawObj;
