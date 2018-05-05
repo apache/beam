@@ -17,6 +17,6 @@
  */
 
 /**
- * Table schema for KafkaIO.
+ * table schema for KafkaIO.
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
