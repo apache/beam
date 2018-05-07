@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -516,8 +515,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   @Test
   public void testUnsupportedGlobalWindowWithDefaultTrigger() {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectCause(isA(UnsupportedOperationException.class));
+    exceptions.expect(UnsupportedOperationException.class);
 
     pipeline.enableAbandonedNodeEnforcement(false);
 

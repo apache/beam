@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql;
 
-
-import static org.apache.beam.sdk.extensions.sql.QueryValidationHelper.validateQuery;
 import static org.apache.beam.sdk.extensions.sql.SchemaHelper.toRows;
 
 import com.google.auto.value.AutoValue;
@@ -35,11 +33,13 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
 
 /**
  * A {@link PTransform} representing an execution plan for a SQL query.
@@ -59,20 +59,13 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = new BeamSqlEnv(toTableProvider(input));
 
-    if (input instanceof PCollection) {
-      validateQuery(sqlEnv, queryString());
-    }
-
     registerFunctions(sqlEnv);
 
     try {
-      return
-          PCollectionTuple.empty(input.getPipeline()).apply(
-          sqlEnv
-              .getPlanner()
-              .convertToBeamRel(queryString())
-              .toPTransform());
-    } catch (Exception e) {
+      return sqlEnv.getPlanner().compileBeamPipeline(
+          queryString(),
+          input.getPipeline());
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new IllegalStateException(e);
     }
   }

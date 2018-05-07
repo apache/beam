@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -28,6 +27,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
 
 /**
  * {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client.
@@ -54,7 +56,8 @@ public class BeamSqlCli {
   /**
    * Returns a human readable representation of the query execution plan.
    */
-  public String explainQuery(String sqlString) throws Exception {
+  public String explainQuery(String sqlString)
+      throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode exeTree = env.getPlanner().convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
@@ -63,9 +66,9 @@ public class BeamSqlCli {
   /**
    * Executes the given sql.
    */
-  public void execute(String sqlString) throws Exception {
-    BeamSqlParser parser = new BeamSqlParser(sqlString);
-    SqlNode sqlNode = parser.impl().parseSqlStmtEof();
+  public void execute(String sqlString)
+      throws ValidationException, RelConversionException, SqlParseException {
+    SqlNode sqlNode = env.getPlanner().parse(sqlString);
 
     // DDL nodes are SqlExecutableStatement
     if (sqlNode instanceof SqlExecutableStatement) {
