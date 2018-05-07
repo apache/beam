@@ -807,7 +807,8 @@ public class SpannerIO {
   }
 
   /** Same as {@link Write} but supports grouped mutations. */
-  public static class WriteGrouped extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
+  public static class WriteGrouped
+      extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
     private final Write spec;
 
     public WriteGrouped(Write spec) {
