@@ -53,6 +53,8 @@ nums.each {
       shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
       shell('python3 --version || echo "python3 not found"')
+      shell('pip --version || echo "pip not found"')
+      shell('echo "virtualenv "; virtualenv --version || echo "virtualenv not found"')
       shell('/home/jenkins/tools/maven/latest/mvn -v || echo "mvn not found"')
       shell('/home/jenkins/tools/gradle4.3/gradle -v || echo "gradle not found"')
       shell('gcloud -v || echo "gcloud not found"')
