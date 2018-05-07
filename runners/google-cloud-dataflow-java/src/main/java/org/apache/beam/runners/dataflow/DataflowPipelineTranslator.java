@@ -844,13 +844,15 @@ public class DataflowPipelineTranslator {
             WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
             boolean isStreaming =
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
-            boolean disallowCombinerLifting =
-                !windowingStrategy.getWindowFn().isNonMerging()
-                    || !windowingStrategy.getWindowFn().assignsToOneWindow()
-                    || (isStreaming && !transform.fewKeys())
-                    // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-                    || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
-            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
+            boolean allowCombinerLifting =
+                windowingStrategy.getWindowFn().isNonMerging()
+                    && windowingStrategy.getWindowFn().assignsToOneWindow();
+            if (isStreaming) {
+              allowCombinerLifting &= transform.fewKeys();
+              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
+            }
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
