@@ -20,7 +20,7 @@ import logging
 import sys
 import time
 
-from apache_beam.runners.portability import universal_local_runner
+from apache_beam.runners.portability import job_service
 
 
 def run(argv):
@@ -33,8 +33,8 @@ def run(argv):
   parser.add_argument('--worker_command_line',
                       help='command line for starting up a worker process')
   options = parser.parse_args(argv)
-  job_servicer = universal_local_runner.JobServicer(options.worker_command_line)
-  port = job_servicer.start_grpc(options.port)
+  job_servicer = job_service.JobServicer(options.worker_command_line)
+  port = job_servicer.start_grpc_server(options.port)
   while True:
     logging.info("Listening for jobs at %d", port)
     time.sleep(300)
