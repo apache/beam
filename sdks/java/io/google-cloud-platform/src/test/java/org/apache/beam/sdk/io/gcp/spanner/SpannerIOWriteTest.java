@@ -389,8 +389,9 @@ public class SpannerIOWriteTest implements Serializable {
         batch(m(3L), m(4L), m(5L)),
         batch(m(6L), m(7L), m(8L), m(9L), m(10L)),
         // Mutations were also retried individually.
-        batch(m(1L)), batch(m(2L)),batch(m(3L)),batch(m(4L)),batch(m(5L)),
-        batch(m(6L)), batch(m(7L)),batch(m(8L)),batch(m(9L)),batch(m(10L)));
+        batch(m(1L)), batch(m(2L)), batch(m(3L)), batch(m(4L)),
+        batch(m(5L)), batch(m(6L)), batch(m(7L)), batch(m(8L)),
+        batch(m(9L)), batch(m(10L)));
   }
 
   @Test

@@ -48,9 +48,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Wait;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -150,7 +147,7 @@ public class SpannerWriteIT {
   public void testSequentialWrite() throws Exception {
     int numRecords = 100;
 
-    SpannerWriteResult stepOne = p.apply("first step",GenerateSequence.from(0).to(numRecords))
+    SpannerWriteResult stepOne = p.apply("first step", GenerateSequence.from(0).to(numRecords))
         .apply(ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
             SpannerIO.write()
@@ -233,7 +230,7 @@ public class SpannerWriteIT {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
       Long key = c.element();
       builder.set("Key").to(key);
-      String value = injectError.apply(key)? null : RandomUtils.randomAlphaNumeric(valueSize);
+      String value = injectError.apply(key) ? null : RandomUtils.randomAlphaNumeric(valueSize);
       builder.set("Value").to(value);
       Mutation mutation = builder.build();
       c.output(mutation);
