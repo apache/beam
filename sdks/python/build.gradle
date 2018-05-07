@@ -160,11 +160,3 @@ task cover(dependsOn: 'setupVirtualenv') {
   }
 }
 
-task postCommit() {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', './run_postcommit.sh'
-    }
-  }
-}
