@@ -51,8 +51,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 // TODO: Rename to ExecutableStages?
 public class ProcessBundleDescriptors {
   public static ExecutableProcessBundleDescriptor fromExecutableStage(
-      String id, ExecutableStage stage, Components components, ApiServiceDescriptor dataEndpoint)
-      throws IOException {
+      String id, ExecutableStage stage, ApiServiceDescriptor dataEndpoint) throws IOException {
+    Components components = stage.getComponents();
     // Create with all of the processing transforms, and all of the components.
     // TODO: Remove the unreachable subcomponents if the size of the descriptor matters.
     ProcessBundleDescriptor.Builder bundleDescriptorBuilder =
@@ -190,7 +190,7 @@ public class ProcessBundleDescriptors {
      * Get the {@link RemoteInputDestination} that input data are sent to the {@link
      * ProcessBundleDescriptor} over.
      */
-    public abstract RemoteInputDestination<WindowedValue<?>> getRemoteInputDestination();
+    public abstract RemoteInputDestination<? super WindowedValue<?>> getRemoteInputDestination();
 
     /**
      * Get all of the targets materialized by this {@link ExecutableProcessBundleDescriptor} and the
