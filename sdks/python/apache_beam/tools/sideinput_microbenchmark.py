@@ -23,12 +23,13 @@ Run as
 """
 
 from __future__ import print_function
+
 import time
 
 from apache_beam.runners.worker import opcounters
-from apache_beam.runners.worker.sideinputs_test import FakeSource
 from apache_beam.runners.worker import sideinputs
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.sideinputs_test import FakeSource
 from apache_beam.tools import utils
 from apache_beam.utils.counters import CounterFactory
 
@@ -36,6 +37,7 @@ from apache_beam.utils.counters import CounterFactory
 def long_generator(value, elements):
   for _ in range(elements):
     yield value
+
 
 def run_benchmark(num_runs=10, input_per_source=7000, num_sources=4):
   print("Number of runs:", num_runs)
