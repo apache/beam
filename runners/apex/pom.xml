@@ -33,7 +33,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <apex.core.version>3.6.0</apex.core.version>
+    <apex.core.version>3.7.0</apex.core.version>
     <apex.malhar.version>3.4.0</apex.malhar.version>
     <skipIntegrationTests>true</skipIntegrationTests>
     <!-- memory limit for embedded cluster -->
@@ -267,7 +267,7 @@
                 <ignoredUsedUndeclaredDependency>org.apache.commons:commons-lang3::${apache.commons.lang.version}</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>commons-io:commons-io:jar:2.4</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>com.esotericsoftware.kryo:kryo::${apex.kryo.version}</ignoredUsedUndeclaredDependency>
-                <ignoredUsedUndeclaredDependency>com.datatorrent:netlet::1.3.0</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>com.datatorrent:netlet::1.3.2</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>org.slf4j:slf4j-api:jar:${slf4j.version}</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>joda-time:joda-time:jar:2.4</ignoredUsedUndeclaredDependency>
