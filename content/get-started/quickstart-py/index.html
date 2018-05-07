@@ -127,7 +127,7 @@
       <li><a href="#download-and-install">Download and install</a></li>
     </ul>
   </li>
-  <li><a href="#execute-a-pipeline-locally">Execute a pipeline locally</a></li>
+  <li><a href="#execute-a-pipeline">Execute a pipeline</a></li>
   <li><a href="#next-steps">Next Steps</a></li>
 </ul>
 
@@ -149,12 +149,12 @@
   <li><a href="#get-apache-beam" id="markdown-toc-get-apache-beam">Get Apache Beam</a>    <ul>
       <li><a href="#create-and-activate-a-virtual-environment" id="markdown-toc-create-and-activate-a-virtual-environment">Create and activate a virtual environment</a></li>
       <li><a href="#download-and-install" id="markdown-toc-download-and-install">Download and install</a>        <ul>
-          <li><a href="#extra-requirements" id="markdown-toc-extra-requirements">Extra Requirements</a></li>
+          <li><a href="#extra-requirements" id="markdown-toc-extra-requirements">Extra requirements</a></li>
         </ul>
       </li>
     </ul>
   </li>
-  <li><a href="#execute-a-pipeline-locally" id="markdown-toc-execute-a-pipeline-locally">Execute a pipeline locally</a></li>
+  <li><a href="#execute-a-pipeline" id="markdown-toc-execute-a-pipeline">Execute a pipeline</a></li>
   <li><a href="#next-steps" id="markdown-toc-next-steps">Next Steps</a></li>
 </ul>
 
@@ -176,16 +176,27 @@
 </code></pre>
 </div>
 
+<p>If you do not have <code class="highlighter-rouge">pip</code> version 7.0.0 or newer, run the following command to
+install it. This command might require administrative privileges.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pip install --upgrade pip
+</code></pre>
+</div>
+
 <h3 id="install-python-virtual-environment">Install Python virtual environment</h3>
 
 <p>It is recommended that you install a <a href="http://docs.python-guide.org/en/latest/dev/virtualenvs/">Python virtual environment</a>
-for initial experiments. If you do not have <code class="highlighter-rouge">virtualenv</code> version 13.1.0 or newer, install it by running:</p>
+for initial experiments. If you do not have <code class="highlighter-rouge">virtualenv</code> version 13.1.0 or
+newer, run the following command to install it. This command might require
+administrative privileges.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>pip install --upgrade virtualenv
 </code></pre>
 </div>
 
-<p>If you do not want to use a Python virtual environment (not recommended), ensure <code class="highlighter-rouge">setuptools</code> is installed on your machine. If you do not have <code class="highlighter-rouge">setuptools</code> version 17.1 or newer, install it by running:</p>
+<p>If you do not want to use a Python virtual environment (not recommended), ensure
+<code class="highlighter-rouge">setuptools</code> is installed on your machine. If you do not have <code class="highlighter-rouge">setuptools</code>
+version 17.1 or newer, run the following command to install it.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>pip install --upgrade setuptools
 </code></pre>
@@ -223,9 +234,9 @@ environment’s directories.</p>
 </code></pre>
 </div>
 
-<h4 id="extra-requirements">Extra Requirements</h4>
+<h4 id="extra-requirements">Extra requirements</h4>
 
-<p>The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multitple extra requirements using something like <code class="highlighter-rouge">pip install apache-beam[feature1, feature2]</code>.</p>
+<p>The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multitple extra requirements using something like <code class="highlighter-rouge">pip install apache-beam[feature1,feature2]</code>.</p>
 
 <ul>
   <li><strong>Google Cloud Platform</strong>
@@ -255,17 +266,34 @@ environment’s directories.</p>
   </li>
 </ul>
 
-<h2 id="execute-a-pipeline-locally">Execute a pipeline locally</h2>
+<h2 id="execute-a-pipeline">Execute a pipeline</h2>
 
 <p>The Apache Beam <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples">examples</a> directory has many examples. All examples can be run locally by passing the required arguments described in the example script.</p>
 
-<p>For example, to run <code class="highlighter-rouge">wordcount.py</code>, run:</p>
+<p>For example, run <code class="highlighter-rouge">wordcount.py</code> with the following command:</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
 </code></pre>
 </div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
+# complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                                          --output gs://&lt;your-gcs-bucket&gt;/counts \
@@ -274,6 +302,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/
 </code></pre>
 </div>
+
+<p>After the pipeline completes, you can view the output files at your specified
+output path. For example, if you specify <code class="highlighter-rouge">/dir1/counts</code> for the <code class="highlighter-rouge">--output</code>
+parameter, the pipeline writes the files to <code class="highlighter-rouge">/dir1/</code> and names the files
+sequentially in the format <code class="highlighter-rouge">counts-0000-of-0001</code>.</p>
 
 <h2 id="next-steps">Next Steps</h2>
 

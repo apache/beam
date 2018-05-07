@@ -2904,11 +2904,6 @@ with a <code class="highlighter-rouge">DoFn</code> to attach the timestamps to e
 
 <h2 id="triggers">8. Triggers</h2>
 
-<blockquote>
-  <p><strong>NOTE:</strong> This content applies only to the Beam SDK for Java. The Beam SDK for
-Python does not support triggers.</p>
-</blockquote>
-
 <p>When collecting and grouping data into windows, Beam uses <strong>triggers</strong> to
 determine when to emit the aggregated results of each window (referred to as a
 <em>pane</em>). If you use Beam’s default windowing configuration and <a href="#default-trigger">default
@@ -2976,12 +2971,12 @@ trigger emits the contents of a window after the
 <a href="#watermarks-and-late-data">watermark</a> passes the end of the window, based on the
 timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam’s notion of input completeness within your pipeline at any
-given point. <code class="highlighter-rouge">AfterWatermark.pastEndOfWindow()</code> <em>only</em> fires when the watermark
-passes the end of the window.</p>
+given point. <span class="language-java"><code class="highlighter-rouge">AfterWatermark.pastEndOfWindow()</code></span>
+<span class="language-py"><code class="highlighter-rouge">AfterWatermark</code></span> <em>only</em> fires when the
+watermark passes the end of the window.</p>
 
-<p>In addition, you can use <code class="highlighter-rouge">.withEarlyFirings(trigger)</code> and
-<code class="highlighter-rouge">.withLateFirings(trigger)</code> to configure triggers that fire if your pipeline
-receives data before or after the end of the window.</p>
+<p>In addition, you can configure triggers that fire if your pipeline receives data
+before or after the end of the window.</p>
 
 <p>The following example shows a billing scenario, and uses both early and late
 firings:</p>
@@ -2997,7 +2992,9 @@ firings:</p>
       <span class="o">.</span><span class="na">withLateFirings</span><span class="o">(</span><span class="n">AfterPane</span><span class="o">.</span><span class="na">elementCountAtLeast</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
 </code></pre>
 </div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">AfterWatermark</span><span class="p">(</span>
+    <span class="n">early</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
+    <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -3016,9 +3013,10 @@ modifying this behavior.</p>
 <h3 id="processing-time-triggers">8.2. Processing time triggers</h3>
 
 <p>The <code class="highlighter-rouge">AfterProcessingTime</code> trigger operates on <em>processing time</em>. For example,
-the <code class="highlighter-rouge">AfterProcessingTime.pastFirstElementInPane() </code> trigger emits a window after
-a certain amount of processing time has passed since data was received. The
-processing time is determined by the system clock, rather than the data
+the <span class="language-java"><code class="highlighter-rouge">AfterProcessingTime.pastFirstElementInPane()</code></span>
+<span class="language-py"><code class="highlighter-rouge">AfterProcessingTime</code></span> trigger emits a window
+after a certain amount of processing time has passed since data was received.
+The processing time is determined by the system clock, rather than the data
 element’s timestamp.</p>
 
 <p>The <code class="highlighter-rouge">AfterProcessingTime</code> trigger is useful for triggering early results from a
@@ -3027,26 +3025,39 @@ window.</p>
 
 <h3 id="data-driven-triggers">8.3. Data-driven triggers</h3>
 
-<p>Beam provides one data-driven trigger, <code class="highlighter-rouge">AfterPane.elementCountAtLeast()</code>. This
-trigger works on an element count; it fires after the current pane has collected
-at least <em>N</em> elements. This allows a window to emit early results (before all
-the data has accumulated), which can be particularly useful if you are using a
-single global window.</p>
+<p>Beam provides one data-driven trigger,
+<span class="language-java"><code class="highlighter-rouge">AfterPane.elementCountAtLeast()</code></span>
+<span class="language-py"><code class="highlighter-rouge">AfterCount</code></span>. This trigger works on an element
+count; it fires after the current pane has collected at least <em>N</em> elements. This
+allows a window to emit early results (before all the data has accumulated),
+which can be particularly useful if you are using a single global window.</p>
 
-<p>It is important to note that if, for example, you use <code class="highlighter-rouge">.elementCountAtLeast(50)</code>
-and only 32 elements arrive, those 32 elements sit around forever. If the 32
-elements are important to you, consider using <a href="#composite-triggers">composite
-triggers</a> to combine multiple conditions. This allows you
-to specify multiple firing conditions such as “fire either when I receive 50
-elements, or every 1 second”.</p>
+<p>It is important to note that if, for example, you specify
+<span class="language-java"><code class="highlighter-rouge">.elementCountAtLeast(50)</code></span>
+<span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
+those 32 elements sit around forever. If the 32 elements are important to you,
+consider using <a href="#composite-triggers">composite triggers</a> to combine multiple
+conditions. This allows you to specify multiple firing conditions such as “fire
+either when I receive 50 elements, or every 1 second”.</p>
 
 <h3 id="setting-a-trigger">8.4. Setting a trigger</h3>
 
-<p>When you set a windowing function for a <code class="highlighter-rouge">PCollection</code> by using the <code class="highlighter-rouge">Window</code>
+<p>When you set a windowing function for a <code class="highlighter-rouge">PCollection</code> by using the
+<span class="language-java"><code class="highlighter-rouge">Window</code></span><span class="language-py"><code class="highlighter-rouge">WindowInto</code></span>
 transform, you can also specify a trigger.</p>
 
-<p>You set the trigger(s) for a <code class="highlighter-rouge">PCollection</code> by invoking the method
-<code class="highlighter-rouge">.triggering()</code> on the result of your <code class="highlighter-rouge">Window.into()</code> transform, as follows:</p>
+<p class="language-java">You set the trigger(s) for a <code class="highlighter-rouge">PCollection</code> by invoking the method
+<code class="highlighter-rouge">.triggering()</code> on the result of your <code class="highlighter-rouge">Window.into()</code> transform. This code
+sample sets a time-based trigger for a <code class="highlighter-rouge">PCollection</code>, which emits results one
+minute after the first element in that window has been processed.  The last line
+in the code sample, <code class="highlighter-rouge">.discardingFiredPanes()</code>, sets the window’s <strong>accumulation
+mode</strong>.</p>
+
+<p class="language-py">You set the trigger(s) for a <code class="highlighter-rouge">PCollection</code> by setting the <code class="highlighter-rouge">trigger</code> parameter
+when you use the <code class="highlighter-rouge">WindowInto</code> transform. This code sample sets a time-based
+trigger for a <code class="highlighter-rouge">PCollection</code>, which emits results one minute after the first
+element in that window has been processed. The <code class="highlighter-rouge">accumulation_mode</code> parameter
+sets the window’s <strong>accumulation mode</strong>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
   <span class="n">pc</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">MINUTES</span><span class="o">))</span>
@@ -3055,14 +3066,12 @@ transform, you can also specify a trigger.</p>
                                <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">());</span>
 </code></pre>
 </div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
+    <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
+    <span class="n">trigger</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
+    <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre>
 </div>
-
-<p>This code sample sets a time-based trigger for a <code class="highlighter-rouge">PCollection</code>, which emits
-results one minute after the first element in that window has been processed.
-The last line in the code sample, <code class="highlighter-rouge">.discardingFiredPanes()</code>, is the window’s
-<strong>accumulation mode</strong>.</p>
 
 <h4 id="window-accumulation-modes">8.4.1. Window accumulation modes</h4>
 
@@ -3072,9 +3081,14 @@ pane. Since a trigger can fire multiple times, the accumulation mode determines
 whether the system <em>accumulates</em> the window panes as the trigger fires, or
 <em>discards</em> them.</p>
 
-<p>To set a window to accumulate the panes that are produced when the trigger
+<p class="language-java">To set a window to accumulate the panes that are produced when the trigger
 fires, invoke<code class="highlighter-rouge">.accumulatingFiredPanes()</code> when you set the trigger. To set a
 window to discard fired panes, invoke <code class="highlighter-rouge">.discardingFiredPanes()</code>.</p>
+
+<p class="language-py">To set a window to accumulate the panes that are produced when the trigger
+fires, set the <code class="highlighter-rouge">accumulation_mode</code> parameter to <code class="highlighter-rouge">ACCUMULATING</code> when you set the
+trigger. To set a window to discard fired panes, set <code class="highlighter-rouge">accumulation_mode</code> to
+<code class="highlighter-rouge">DISCARDING</code>.</p>
 
 <p>Let’s look an example that uses a <code class="highlighter-rouge">PCollection</code> with fixed-time windowing and a
 data-based trigger. This is something you might do if, for example, each window
@@ -3096,9 +3110,9 @@ we’ll assume that the events all arrive in the pipeline in order.</p>
 
 <h5 id="accumulating-mode">8.4.1.1. Accumulating mode</h5>
 
-<p>If our trigger is set to <code class="highlighter-rouge">.accumulatingFiredPanes</code>, the trigger emits the
-following values each time it fires. Keep in mind that the trigger fires every
-time three elements arrive:</p>
+<p>If our trigger is set to accumulating mode, the trigger emits the following
+values each time it fires. Keep in mind that the trigger fires every time three
+elements arrive:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>  First trigger firing:  [5, 8, 3]
   Second trigger firing: [5, 8, 3, 15, 19, 23]
@@ -3108,8 +3122,8 @@ time three elements arrive:</p>
 
 <h5 id="discarding-mode">8.4.1.2. Discarding mode</h5>
 
-<p>If our trigger is set to <code class="highlighter-rouge">.discardingFiredPanes</code>, the trigger emits the
-following values on each firing:</p>
+<p>If our trigger is set to discarding mode, the trigger emits the following values
+on each firing:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>  First trigger firing:  [5, 8, 3]
   Second trigger firing:           [15, 19, 23]
@@ -3118,6 +3132,10 @@ following values on each firing:</p>
 </div>
 
 <h4 id="handling-late-data">8.4.2. Handling late data</h4>
+
+<blockquote>
+  <p>The Beam SDK for Python does not currently support allowed lateness.</p>
+</blockquote>
 
 <p>If you want your pipeline to process data that arrives after the watermark
 passes the end of the window, you can apply an <em>allowed lateness</em> when you set
@@ -3135,7 +3153,7 @@ windowing function:</p>
                               <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">30</span><span class="o">));</span>
 </code></pre>
 </div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not currently support allowed lateness.</span>
 </code></pre>
 </div>
 
@@ -3176,26 +3194,37 @@ multiple triggers.</li>
 final time and never fire again.</li>
 </ul>
 
-<h4 id="afterwatermark-pastendofwindow">8.5.2. Composition with AfterWatermark.pastEndOfWindow</h4>
+<h4 id="composite-afterwatermark">8.5.2. Composition with AfterWatermark</h4>
 
 <p>Some of the most useful composite triggers fire a single time when Beam
 estimates that all the data has arrived (i.e. when the watermark passes the end
 of the window) combined with either, or both, of the following:</p>
 
 <ul>
-  <li>Speculative firings that precede the watermark passing the end of the window
-to allow faster processing of partial results.</li>
-  <li>Late firings that happen after the watermark passes the end of the window,
-to allow for handling late-arriving data</li>
+  <li>
+    <p>Speculative firings that precede the watermark passing the end of the window
+to allow faster processing of partial results.</p>
+  </li>
+  <li>
+    <p>Late firings that happen after the watermark passes the end of the window,
+to allow for handling late-arriving data</p>
+  </li>
 </ul>
 
-<p>You can express this pattern using <code class="highlighter-rouge">AfterWatermark.pastEndOfWindow</code>. For
-example, the following example trigger code fires on the following conditions:</p>
+<p>You can express this pattern using <code class="highlighter-rouge">AfterWatermark</code>. For example, the following
+example trigger code fires on the following conditions:</p>
 
 <ul>
-  <li>On Beam’s estimate that all the data has arrived (the watermark passes the
-end of the window)</li>
-  <li>Any time late data arrives, after a ten-minute delay</li>
+  <li>
+    <p>On Beam’s estimate that all the data has arrived (the watermark passes the
+end of the window)</p>
+  </li>
+  <li>
+    <p>Any time late data arrives, after a ten-minute delay</p>
+  </li>
+</ul>
+
+<ul class="language-java">
   <li>After two days, we assume no more data of interest will arrive, and the
 trigger stops executing</li>
 </ul>
@@ -3210,7 +3239,11 @@ trigger stops executing</li>
       <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardDays</span><span class="o">(</span><span class="mi">2</span><span class="o">)));</span>
 </code></pre>
 </div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
+    <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
+    <span class="n">trigger</span><span class="o">=</span><span class="n">AfterWatermark</span><span class="p">(</span>
+        <span class="n">late</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)),</span>
+    <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -3225,7 +3258,13 @@ elements, or after a minute.</p>
       <span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">().</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
 </code></pre>
 </div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
+    <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
+    <span class="n">trigger</span><span class="o">=</span><span class="n">Repeatedly</span><span class="p">(</span>
+        <span class="n">AfterAny</span><span class="p">(</span>
+            <span class="n">AfterCount</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+            <span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">))),</span>
+    <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre>
 </div>
 

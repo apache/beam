@@ -102,17 +102,16 @@
         
 
 <ul class="nav">
-  <li><a href="#cloud-dataflow-runner-prerequisites-and-setup">Cloud Dataflow Runner prerequisites and setup</a>
+  <li><a href="#setup">Cloud Dataflow Runner prerequisites and setup</a>
     <ul>
-      <li><a href="#specify-your-dependency">Specify your dependency</a></li>
+      <li><a href="#dependency">Specify your dependency</a></li>
       <li><a href="#self-executing-jar">Self executing JAR</a></li>
-      <li><a href="#authentication">Authentication</a></li>
     </ul>
   </li>
-  <li><a href="#pipeline-options-for-the-cloud-dataflow-runner">Pipeline options for the Cloud Dataflow Runner</a></li>
-  <li><a href="#additional-information-and-caveats">Additional information and caveats</a>
+  <li><a href="#pipeline-options">Pipeline options for the Cloud Dataflow Runner</a></li>
+  <li><a href="#additional-info">Additional information and caveats</a>
     <ul>
-      <li><a href="#monitoring-your-job">Monitoring your job</a></li>
+      <li><a href="#monitoring">Monitoring your job</a></li>
       <li><a href="#blocking-execution">Blocking Execution</a></li>
       <li><a href="#streaming-execution">Streaming Execution</a></li>
     </ul>
@@ -145,45 +144,25 @@
 
 <p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the supported capabilities of the Cloud Dataflow Runner.</p>
 
-<h2 id="cloud-dataflow-runner-prerequisites-and-setup">Cloud Dataflow Runner prerequisites and setup</h2>
-<p>To use the Cloud Dataflow Runner, you must complete the following setup:</p>
+<h2 id="setup">Cloud Dataflow Runner prerequisites and setup</h2>
+
+<p>To use the Cloud Dataflow Runner, you must complete the setup in the <em>Before you
+begin</em> section of the <a href="https://cloud.google.com/dataflow/docs/quickstarts">Cloud Dataflow quickstart</a>
+for your chosen language.</p>
 
 <ol>
-  <li>
-    <p>Select or create a Google Cloud Platform Console project.</p>
-  </li>
-  <li>
-    <p>Enable billing for your project.</p>
-  </li>
-  <li>
-    <p>Enable the required Google Cloud APIs: Cloud Dataflow, Compute Engine,
+  <li>Select or create a Google Cloud Platform Console project.</li>
+  <li>Enable billing for your project.</li>
+  <li>Enable the required Google Cloud APIs: Cloud Dataflow, Compute Engine,
 Stackdriver Logging, Cloud Storage, Cloud Storage JSON, and Cloud Resource
 Manager. You may need to enable additional APIs (such as BigQuery, Cloud
-Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</p>
-  </li>
-  <li>
-    <p>Install the Google Cloud SDK.</p>
-  </li>
-  <li>
-    <p>Create a Cloud Storage bucket.</p>
-    <ul>
-      <li>In the Google Cloud Platform Console, go to the Cloud Storage browser.</li>
-      <li>Click <strong>Create bucket</strong>.</li>
-      <li>In the <strong>Create bucket</strong> dialog, specify the following attributes:
-        <ul>
-          <li><em>Name</em>: A unique bucket name. Do not include sensitive information in the bucket name, as the bucket namespace is global and publicly visible.</li>
-          <li><em>Storage class</em>: Multi-Regional</li>
-          <li><em>Location</em>:  Choose your desired location</li>
-        </ul>
-      </li>
-      <li>Click <strong>Create</strong>.</li>
-    </ul>
-  </li>
+Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</li>
+  <li>Authenticate with Google Cloud Platform.</li>
+  <li>Install the Google Cloud SDK.</li>
+  <li>Create a Cloud Storage bucket.</li>
 </ol>
 
-<p>For more information, see the <em>Before you begin</em> section of the <a href="https://cloud.google.com/dataflow/docs/quickstarts">Cloud Dataflow quickstarts</a>.</p>
-
-<h3 id="specify-your-dependency">Specify your dependency</h3>
+<h3 id="dependency">Specify your dependency</h3>
 
 <p><span class="language-java">When using Java, you must specify your dependency on the Cloud Dataflow Runner in your <code class="highlighter-rouge">pom.xml</code>.</span></p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
@@ -246,15 +225,7 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</p>
 </code></pre>
 </div>
 
-<h3 id="authentication">Authentication</h3>
-
-<p>Before running your pipeline, you must authenticate with the Google Cloud Platform. Run the following command to get <a href="https://developers.google.com/identity/protocols/application-default-credentials">Application Default Credentials</a>.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>gcloud auth application-default login
-</code></pre>
-</div>
-
-<h2 id="pipeline-options-for-the-cloud-dataflow-runner">Pipeline options for the Cloud Dataflow Runner</h2>
+<h2 id="pipeline-options">Pipeline options for the Cloud Dataflow Runner</h2>
 
 <p><span class="language-java">When executing your pipeline with the Cloud Dataflow Runner (Java), consider these common pipeline options.</span>
 <span class="language-py">When executing your pipeline with the Cloud Dataflow Runner (Python), consider these common pipeline options.</span></p>
@@ -278,8 +249,7 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</p>
   <td>If not set, defaults to the default project in the current environment. The default project is set via <code>gcloud</code>.</td>
 </tr>
 
-<!-- Only show for Java -->
-<tr class="language-java">
+<tr>
   <td><code>streaming</code></td>
   <td>Whether streaming mode is enabled or disabled; <code>true</code> if enabled. Set to <code>true</code> if running pipelines with unbounded <code>PCollection</code>s.</td>
   <td><code>false</code></td>
@@ -340,9 +310,9 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</p>
 <span class="language-py"><a href="/documentation/sdks/pydoc/2.4.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions"><code class="highlighter-rouge">PipelineOptions</code></a></span>
 interface (and any subinterfaces) for additional pipeline configuration options.</p>
 
-<h2 id="additional-information-and-caveats">Additional information and caveats</h2>
+<h2 id="additional-info">Additional information and caveats</h2>
 
-<h3 id="monitoring-your-job">Monitoring your job</h3>
+<h3 id="monitoring">Monitoring your job</h3>
 
 <p>While your pipeline executes, you can monitor the job’s progress, view details on execution, and receive updates on the pipeline’s results by using the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf">Dataflow Monitoring Interface</a> or the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf">Dataflow Command-line Interface</a>.</p>
 
@@ -352,8 +322,30 @@ interface (and any subinterfaces) for additional pipeline configuration options.
 
 <h3 id="streaming-execution">Streaming Execution</h3>
 
-<p><span class="language-java">If your pipeline uses an unbounded data source or sink, you must set the <code class="highlighter-rouge">streaming</code> option to <code class="highlighter-rouge">true</code>.</span>
-<span class="language-py">The Beam SDK for Python does not currently support streaming pipelines.</span></p>
+<p>If your pipeline uses an unbounded data source or sink, you must set the <code class="highlighter-rouge">streaming</code> option to <code class="highlighter-rouge">true</code>.</p>
+
+<p>When using streaming execution, keep the following considerations in mind.</p>
+
+<ol>
+  <li>
+    <p>Streaming pipelines do not terminate unless explicitly cancelled by the user.
+You can cancel your streaming job from the <a href="https://cloud.google.com/dataflow/pipelines/stopping-a-pipeline">Dataflow Monitoring Interface</a>
+or with the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf">Dataflow Command-line Interface</a>
+(<a href="https://cloud.google.com/sdk/gcloud/reference/dataflow/jobs/cancel">gcloud dataflow jobs cancel</a>
+command).</p>
+  </li>
+  <li>
+    <p>Streaming jobs use a Google Compute Engine <a href="https://cloud.google.com/compute/docs/machine-types">machine type</a>
+of <code class="highlighter-rouge">n1-standard-2</code> or higher by default. You must not override this, as
+<code class="highlighter-rouge">n1-standard-2</code> is the minimum required machine type for running streaming
+jobs.</p>
+  </li>
+  <li>
+    <p>Streaming execution <a href="https://cloud.google.com/dataflow/pricing">pricing</a>
+differs from batch execution.</p>
+  </li>
+</ol>
+
 
       </div>
     </div>
