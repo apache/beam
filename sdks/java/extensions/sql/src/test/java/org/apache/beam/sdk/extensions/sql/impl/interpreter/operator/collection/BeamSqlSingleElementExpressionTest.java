@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -46,7 +47,7 @@ public class BeamSqlSingleElementExpressionTest {
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals("aaa", expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals("aaa", expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -57,7 +58,7 @@ public class BeamSqlSingleElementExpressionTest {
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertNull(expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertNull(expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test

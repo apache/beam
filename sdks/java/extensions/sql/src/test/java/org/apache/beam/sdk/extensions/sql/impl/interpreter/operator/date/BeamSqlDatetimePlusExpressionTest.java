@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -123,7 +124,9 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
 
   private static ReadableInstant evalDatetimePlus(
       BeamSqlExpression date, BeamSqlExpression interval) {
-    return dateTimePlus(date, interval).evaluate(NULL_INPUT_ROW, NULL_WINDOW).getDate();
+    return dateTimePlus(date, interval)
+        .evaluate(NULL_INPUT_ROW, NULL_WINDOW, ImmutableMap.of())
+        .getDate();
   }
 
   private static BeamSqlDatetimePlusExpression dateTimePlus(BeamSqlExpression... operands) {

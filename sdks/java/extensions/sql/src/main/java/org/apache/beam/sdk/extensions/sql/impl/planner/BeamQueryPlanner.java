@@ -149,6 +149,7 @@ public class BeamQueryPlanner {
               .replace(root.collation)
               .simplify();
       beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
+      LOG.info("BeamSQL>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
     }

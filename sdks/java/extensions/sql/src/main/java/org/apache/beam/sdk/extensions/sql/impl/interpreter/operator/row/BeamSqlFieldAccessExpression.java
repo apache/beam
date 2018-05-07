@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -46,8 +47,9 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window);
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window, correlateEnv);
     SqlTypeName targetFieldType = targetObject.getOutputType();
 
     Object targetFieldValue;

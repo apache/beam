@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
@@ -45,7 +46,7 @@ public class BeamSqlFilterFn extends DoFn<Row, Row> {
   public void processElement(ProcessContext c, BoundedWindow window) {
     Row in = c.element();
 
-    List<Object> result = executor.execute(in, window);
+    List<Object> result = executor.execute(in, window, ImmutableMap.of());
 
     if ((Boolean) result.get(0)) {
       c.output(in);
