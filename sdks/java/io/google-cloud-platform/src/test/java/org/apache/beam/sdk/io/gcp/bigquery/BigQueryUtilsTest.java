@@ -30,8 +30,6 @@ import static org.junit.Assert.assertThat;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.Field.Mode;
-import com.google.cloud.bigquery.StandardSQLTypeName;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
