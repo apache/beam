@@ -39,7 +39,7 @@ def long_generator(value, elements):
     yield value
 
 
-def run_benchmark(num_runs=10, input_per_source=7000, num_sources=4):
+def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
   print("Number of runs:", num_runs)
   print("Input size:", num_sources*input_per_source)
   print("Sources:", num_sources)
