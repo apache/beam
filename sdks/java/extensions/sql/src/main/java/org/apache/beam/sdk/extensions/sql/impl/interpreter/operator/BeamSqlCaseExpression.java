@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
@@ -49,13 +50,16 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window);
+      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window, correlateEnv);
       if (wasOpEvaluated != null && wasOpEvaluated) {
-        return BeamSqlPrimitive.of(outputType, opValueEvaluated(i + 1, inputRow, window));
+        return BeamSqlPrimitive.of(
+            outputType, opValueEvaluated(i + 1, inputRow, window, correlateEnv));
       }
     }
-    return BeamSqlPrimitive.of(outputType, opValueEvaluated(operands.size() - 1, inputRow, window));
+    return BeamSqlPrimitive.of(
+        outputType, opValueEvaluated(operands.size() - 1, inputRow, window, correlateEnv));
   }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -38,10 +39,13 @@ public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<? extends Number> evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<? extends Number> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     BeamSqlExpression leftOp = op(0);
     BeamSqlExpression rightOp = op(1);
-    return calculate(leftOp.evaluate(inputRow, window), rightOp.evaluate(inputRow, window));
+    return calculate(
+        leftOp.evaluate(inputRow, window, correlateEnv),
+        rightOp.evaluate(inputRow, window, correlateEnv));
   }
 
   /**

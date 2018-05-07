@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -53,41 +54,55 @@ public class BeamSqlSubstringExpressionTest extends BeamSqlFnExecutorTestBase {
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals("hello", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "hello",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
-    assertEquals("he", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "he",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
-    assertEquals("hello", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "hello",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100));
-    assertEquals("hello", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "hello",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 0));
-    assertEquals("", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, -1));
-    assertEquals("", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, -1));
-    assertEquals("o", new BeamSqlSubstringExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "o",
+        new BeamSqlSubstringExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
 }

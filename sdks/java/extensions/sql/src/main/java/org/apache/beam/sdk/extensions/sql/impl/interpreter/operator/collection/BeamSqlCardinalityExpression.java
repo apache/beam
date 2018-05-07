@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -32,7 +33,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlCardinalityExpression extends BeamSqlExpression {
 
   public BeamSqlCardinalityExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
-
     super(operands, sqlTypeName);
   }
 
@@ -42,9 +42,9 @@ public class BeamSqlCardinalityExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    Collection<Object> collection = opValueEvaluated(0, inputRow, window);
-
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    Collection<Object> collection = opValueEvaluated(0, inputRow, window, correlateEnv);
     return BeamSqlPrimitive.of(outputType, collection.size());
   }
 }
