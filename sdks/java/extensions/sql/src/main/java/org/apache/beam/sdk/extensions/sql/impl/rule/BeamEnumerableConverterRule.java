@@ -19,13 +19,14 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.calcite.adapter.enumerable.EnumerableConvention;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
 /**
- * A {@code ConverterRule} to Convert {@link BeamRel} to {@link EnumerableConvention}.
+ * A {@code ConverterRule} to Convert {@link BeamRelNode} to {@link EnumerableConvention}.
  *
  */
 public class BeamEnumerableConverterRule extends ConverterRule {
