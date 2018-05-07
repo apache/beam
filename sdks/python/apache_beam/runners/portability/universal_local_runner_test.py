@@ -19,14 +19,22 @@ from __future__ import print_function
 import logging
 import platform
 import signal
+import socket
+import subprocess
 import sys
 import threading
+import time
 import traceback
 import unittest
 
+import grpc
+
 import apache_beam as beam
+from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import universal_local_runner
+from apache_beam.runners.portability.job_service import JobServicer
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -58,19 +66,85 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     if platform.system() != 'Windows':
       signal.alarm(0)
 
+  @staticmethod
+  def _pick_unused_port():
+    """Not perfect, but we have to provide a port to the subprocess."""
+    # TODO(robertwb): Consider letting the subprocess communicate a choice of
+    # port back.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('localhost', 0))
+    _, port = s.getsockname()
+    s.close()
+    return port
+
+  @classmethod
+  def _start_local_runner_subprocess_job_service(cls):
+    if cls._subprocess:
+      # Kill the old one if it exists.
+      cls._subprocess.kill()
+    # TODO(robertwb): Consider letting the subprocess pick one and
+    # communicate it back...
+    port = cls._pick_unused_port()
+    logging.info('Starting server on port %d.', port)
+    cls._subprocess = subprocess.Popen([
+        sys.executable, '-m',
+        'apache_beam.runners.portability.job_service_main', '-p',
+        str(port), '--worker_command_line',
+        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
+    ])
+    address = 'localhost:%d' % port
+    job_service = beam_job_api_pb2_grpc.JobServiceStub(
+        grpc.insecure_channel(address))
+    logging.info('Waiting for server to be ready...')
+    start = time.time()
+    timeout = 30
+    while True:
+      time.sleep(0.1)
+      if cls._subprocess.poll() is not None:
+        raise RuntimeError(
+            'Subprocess terminated unexpectedly with exit code %d.' %
+            cls._subprocess.returncode)
+      elif time.time() - start > timeout:
+        raise RuntimeError(
+            'Pipeline timed out waiting for job service subprocess.')
+      else:
+        try:
+          job_service.GetState(
+              beam_job_api_pb2.GetJobStateRequest(job_id='[fake]'))
+          break
+        except grpc.RpcError as exn:
+          if exn.code != grpc.StatusCode.UNAVAILABLE:
+            # We were able to contact the service for our fake state request.
+            break
+    logging.info('Server ready.')
+    return address
+
+  @classmethod
+  def _create_job_service(cls):
+    if cls._use_subprocesses:
+      return cls._start_local_runner_subprocess_job_service()
+    elif cls._use_grpc:
+      # Use GRPC for workers.
+      cls._servicer = JobServicer(use_grpc=True)
+      return 'localhost:%d' % cls._servicer.start_grpc_server()
+    else:
+      # Do not use GRPC for worker.
+      cls._servicer = JobServicer(use_grpc=False)
+      return 'localhost:%d' % cls._servicer.start_grpc_server()
+
   @classmethod
   def get_runner(cls):
     # Don't inherit.
     if '_runner' not in cls.__dict__:
       cls._runner = universal_local_runner.UniversalLocalRunner(
-          use_grpc=cls._use_grpc,
-          use_subprocesses=cls._use_subprocesses)
+          job_service_address=cls._create_job_service())
     return cls._runner
 
   @classmethod
   def tearDownClass(cls):
-    if hasattr(cls, '_runner'):
-      cls._runner.cleanup()
+    if hasattr(cls, '_subprocess'):
+      cls._subprocess.kill()
+      time.sleep(0.1)
 
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner())
