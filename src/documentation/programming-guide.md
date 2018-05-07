@@ -2390,9 +2390,6 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 
 ## 8. Triggers {#triggers}
 
-> **NOTE:** This content applies only to the Beam SDK for Java. The Beam SDK for
-> Python does not support triggers.
-
 When collecting and grouping data into windows, Beam uses **triggers** to
 determine when to emit the aggregated results of each window (referred to as a
 *pane*). If you use Beam's default windowing configuration and [default
@@ -2454,12 +2451,12 @@ trigger emits the contents of a window after the
 [watermark](#watermarks-and-late-data) passes the end of the window, based on the
 timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam's notion of input completeness within your pipeline at any
-given point. `AfterWatermark.pastEndOfWindow()` *only* fires when the watermark
-passes the end of the window.
+given point. <span class="language-java">`AfterWatermark.pastEndOfWindow()`</span>
+<span class="language-py">`AfterWatermark`</span> *only* fires when the
+watermark passes the end of the window.
 
-In addition, you can use `.withEarlyFirings(trigger)` and
-`.withLateFirings(trigger)` to configure triggers that fire if your pipeline
-receives data before or after the end of the window.
+In addition, you can configure triggers that fire if your pipeline receives data
+before or after the end of the window.
 
 The following example shows a billing scenario, and uses both early and late
 firings:
@@ -2476,8 +2473,8 @@ firings:
       .withLateFirings(AfterPane.elementCountAtLeast(1))
 ```
 ```py
-  # The Beam SDK for Python does not support triggers.
-```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_early_late_triggers
+%}```
 
 #### 8.1.1. Default trigger {#default-trigger}
 
@@ -2494,9 +2491,10 @@ modifying this behavior.
 ### 8.2. Processing time triggers {#processing-time-triggers}
 
 The `AfterProcessingTime` trigger operates on *processing time*. For example,
-the `AfterProcessingTime.pastFirstElementInPane() ` trigger emits a window after
-a certain amount of processing time has passed since data was received. The
-processing time is determined by the system clock, rather than the data
+the <span class="language-java">`AfterProcessingTime.pastFirstElementInPane()`</span>
+<span class="language-py">`AfterProcessingTime`</span> trigger emits a window
+after a certain amount of processing time has passed since data was received.
+The processing time is determined by the system clock, rather than the data
 element's timestamp.
 
 The `AfterProcessingTime` trigger is useful for triggering early results from a
@@ -2505,26 +2503,41 @@ window.
 
 ### 8.3. Data-driven triggers {#data-driven-triggers}
 
-Beam provides one data-driven trigger, `AfterPane.elementCountAtLeast()`. This
-trigger works on an element count; it fires after the current pane has collected
-at least *N* elements. This allows a window to emit early results (before all
-the data has accumulated), which can be particularly useful if you are using a
-single global window.
+Beam provides one data-driven trigger,
+<span class="language-java">`AfterPane.elementCountAtLeast()`</span>
+<span class="language-py">`AfterCount`</span>. This trigger works on an element
+count; it fires after the current pane has collected at least *N* elements. This
+allows a window to emit early results (before all the data has accumulated),
+which can be particularly useful if you are using a single global window.
 
-It is important to note that if, for example, you use `.elementCountAtLeast(50)`
-and only 32 elements arrive, those 32 elements sit around forever. If the 32
-elements are important to you, consider using [composite
-triggers](#composite-triggers) to combine multiple conditions. This allows you
-to specify multiple firing conditions such as “fire either when I receive 50
-elements, or every 1 second”.
+It is important to note that if, for example, you specify
+<span class="language-java">`.elementCountAtLeast(50)`</span>
+<span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
+those 32 elements sit around forever. If the 32 elements are important to you,
+consider using [composite triggers](#composite-triggers) to combine multiple
+conditions. This allows you to specify multiple firing conditions such as “fire
+either when I receive 50 elements, or every 1 second”.
 
 ### 8.4. Setting a trigger {#setting-a-trigger}
 
-When you set a windowing function for a `PCollection` by using the `Window`
+When you set a windowing function for a `PCollection` by using the
+<span class="language-java">`Window`</span><span class="language-py">`WindowInto`</span>
 transform, you can also specify a trigger.
 
+{:.language-java}
 You set the trigger(s) for a `PCollection` by invoking the method
-`.triggering()` on the result of your `Window.into()` transform, as follows:
+`.triggering()` on the result of your `Window.into()` transform. This code
+sample sets a time-based trigger for a `PCollection`, which emits results one
+minute after the first element in that window has been processed.  The last line
+in the code sample, `.discardingFiredPanes()`, sets the window's **accumulation
+mode**.
+
+{:.language-py}
+You set the trigger(s) for a `PCollection` by setting the `trigger` parameter
+when you use the `WindowInto` transform. This code sample sets a time-based
+trigger for a `PCollection`, which emits results one minute after the first
+element in that window has been processed. The `accumulation_mode` parameter
+sets the window's **accumulation mode**.
 
 ```java
   PCollection<String> pc = ...;
@@ -2534,13 +2547,8 @@ You set the trigger(s) for a `PCollection` by invoking the method
                                .discardingFiredPanes());
 ```
 ```py
-  # The Beam SDK for Python does not support triggers.
-```
-
-This code sample sets a time-based trigger for a `PCollection`, which emits
-results one minute after the first element in that window has been processed.
-The last line in the code sample, `.discardingFiredPanes()`, is the window's
-**accumulation mode**.
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_setting_trigger
+%}```
 
 #### 8.4.1. Window accumulation modes {#window-accumulation-modes}
 
@@ -2550,9 +2558,16 @@ pane. Since a trigger can fire multiple times, the accumulation mode determines
 whether the system *accumulates* the window panes as the trigger fires, or
 *discards* them.
 
+{:.language-java}
 To set a window to accumulate the panes that are produced when the trigger
 fires, invoke`.accumulatingFiredPanes()` when you set the trigger. To set a
 window to discard fired panes, invoke `.discardingFiredPanes()`.
+
+{:.language-py}
+To set a window to accumulate the panes that are produced when the trigger
+fires, set the `accumulation_mode` parameter to `ACCUMULATING` when you set the
+trigger. To set a window to discard fired panes, set `accumulation_mode` to
+`DISCARDING`.
 
 Let's look an example that uses a `PCollection` with fixed-time windowing and a
 data-based trigger. This is something you might do if, for example, each window
@@ -2572,9 +2587,9 @@ we'll assume that the events all arrive in the pipeline in order.
 
 ##### 8.4.1.1. Accumulating mode {#accumulating-mode}
 
-If our trigger is set to `.accumulatingFiredPanes`, the trigger emits the
-following values each time it fires. Keep in mind that the trigger fires every
-time three elements arrive:
+If our trigger is set to accumulating mode, the trigger emits the following
+values each time it fires. Keep in mind that the trigger fires every time three
+elements arrive:
 
 ```
   First trigger firing:  [5, 8, 3]
@@ -2585,8 +2600,8 @@ time three elements arrive:
 
 ##### 8.4.1.2. Discarding mode {#discarding-mode}
 
-If our trigger is set to `.discardingFiredPanes`, the trigger emits the
-following values on each firing:
+If our trigger is set to discarding mode, the trigger emits the following values
+on each firing:
 
 ```
   First trigger firing:  [5, 8, 3]
@@ -2595,6 +2610,8 @@ following values on each firing:
 ```
 
 #### 8.4.2. Handling late data {#handling-late-data}
+
+> The Beam SDK for Python does not currently support allowed lateness.
 
 If you want your pipeline to process data that arrives after the watermark
 passes the end of the window, you can apply an *allowed lateness* when you set
@@ -2613,7 +2630,7 @@ windowing function:
                               .withAllowedLateness(Duration.standardMinutes(30));
 ```
 ```py
-  # The Beam SDK for Python does not support triggers.
+  # The Beam SDK for Python does not currently support allowed lateness.
 ```
 
 This allowed lateness propagates to all `PCollection`s derived as a result of
@@ -2652,7 +2669,7 @@ Beam includes the following composite triggers:
 *   `orFinally` can serve as a final condition to cause any trigger to fire one
     final time and never fire again.
 
-#### 8.5.2. Composition with AfterWatermark.pastEndOfWindow {#afterwatermark-pastendofwindow}
+#### 8.5.2. Composition with AfterWatermark {#composite-afterwatermark}
 
 Some of the most useful composite triggers fire a single time when Beam
 estimates that all the data has arrived (i.e. when the watermark passes the end
@@ -2660,15 +2677,19 @@ of the window) combined with either, or both, of the following:
 
 *   Speculative firings that precede the watermark passing the end of the window
     to allow faster processing of partial results.
+
 *   Late firings that happen after the watermark passes the end of the window,
     to allow for handling late-arriving data
 
-You can express this pattern using `AfterWatermark.pastEndOfWindow`. For
-example, the following example trigger code fires on the following conditions:
+You can express this pattern using `AfterWatermark`. For example, the following
+example trigger code fires on the following conditions:
 
 *   On Beam's estimate that all the data has arrived (the watermark passes the
     end of the window)
+
 *   Any time late data arrives, after a ten-minute delay
+
+{:.language-java}
 *   After two days, we assume no more data of interest will arrive, and the
     trigger stops executing
 
@@ -2683,8 +2704,8 @@ example, the following example trigger code fires on the following conditions:
       .withAllowedLateness(Duration.standardDays(2)));
 ```
 ```py
-  # The Beam SDK for Python does not support triggers.
-```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_composite_triggers
+%}```
 
 #### 8.5.3. Other composite triggers {#other-composite-triggers}
 
@@ -2698,5 +2719,5 @@ elements, or after a minute.
       AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
 ```
 ```py
-  # The Beam SDK for Python does not support triggers.
-```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_other_composite_triggers
+%}```
