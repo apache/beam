@@ -162,6 +162,10 @@ task pythonPreCommit() {
   dependsOn ":beam-sdks-python:check"
 }
 
+task pythonPostCommit() {
+  dependsOn ":beam-sdks-python:postCommit"
+}
+
 apply plugin: 'net.researchgate.release'
 release {
   revertOnFail = true
