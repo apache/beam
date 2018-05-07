@@ -70,7 +70,7 @@ abstract class SqlDropObject extends SqlDrop
     case DROP_TABLE:
       if (schema.schema instanceof BeamCalciteSchema) {
         BeamCalciteSchema beamSchema = (BeamCalciteSchema) schema.schema;
-        beamSchema.getTableProvider().dropTable(name.getSimple().toLowerCase());
+        beamSchema.getTableProvider().dropTable(name.getSimple());
         existed = true;
       } else {
         existed = schema.removeTable(name.getSimple());

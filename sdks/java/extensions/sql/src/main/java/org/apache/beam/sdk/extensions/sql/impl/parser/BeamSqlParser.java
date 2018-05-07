@@ -32,8 +32,8 @@ public class BeamSqlParser {
   public BeamSqlParser(String s) {
     this.impl = new BeamSqlParserImpl(new StringReader(s));
     this.impl.setTabSize(1);
-    this.impl.setQuotedCasing(Lex.ORACLE.quotedCasing);
-    this.impl.setUnquotedCasing(Lex.ORACLE.unquotedCasing);
+    this.impl.setQuotedCasing(Lex.JAVA.quotedCasing);
+    this.impl.setUnquotedCasing(Lex.JAVA.unquotedCasing);
     this.impl.setIdentifierMaxLength(DEFAULT_IDENTIFIER_MAX_LENGTH);
     /*
      *  By default parser uses [ ] for quoting identifiers. Switching to

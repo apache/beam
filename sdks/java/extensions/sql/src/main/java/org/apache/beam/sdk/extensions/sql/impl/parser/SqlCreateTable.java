@@ -162,8 +162,8 @@ public class SqlCreateTable extends SqlCreate
     return
         Table
             .builder()
-            .type(getString(type).toLowerCase())
-            .name(name.getSimple().toLowerCase())
+            .type(getString(type))
+            .name(name.getSimple())
             .schema(columnList.stream().collect(toSchema()))
             .comment(getString(comment))
             .location(getString(location))

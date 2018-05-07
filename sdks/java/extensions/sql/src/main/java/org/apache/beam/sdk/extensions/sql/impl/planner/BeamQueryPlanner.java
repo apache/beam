@@ -92,7 +92,7 @@ public class BeamQueryPlanner {
     FrameworkConfig config =
         Frameworks.newConfigBuilder()
             .parserConfig(SqlParser.configBuilder()
-                .setLex(Lex.MYSQL)
+                .setLex(Lex.JAVA)
                 .setParserFactory(BeamSqlParserImpl.FACTORY)
                 .build())
             .defaultSchema(schema)
