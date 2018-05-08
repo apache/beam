@@ -48,7 +48,8 @@ abstract class SpannerSchema implements Serializable {
    */
   @AutoValue.Builder
   abstract static class Builder {
-    abstract ImmutableList.Builder<String> tablesBuilder();
+    abstract Builder setTables(ImmutableList<String> tablesBuilder);
+
     abstract ImmutableListMultimap.Builder<String, Column> columnsBuilder();
     abstract ImmutableListMultimap.Builder<String, KeyPart> keyPartsBuilder();
     abstract ImmutableTable.Builder<String, String, Long> cellsMutatedPerColumnBuilder();
@@ -85,7 +86,7 @@ abstract class SpannerSchema implements Serializable {
           cellsMutatedPerColumn().rowMap(),
           entry -> entry.values().stream().mapToLong(Long::longValue).sum()));
 
-      tablesBuilder().addAll(columns().keySet());
+      setTables(ImmutableList.copyOf(columns().keySet()));
 
       return autoBuild();
     }
