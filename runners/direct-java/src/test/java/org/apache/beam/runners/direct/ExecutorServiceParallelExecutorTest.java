@@ -35,7 +35,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ThreadLeakTracker;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -95,12 +94,8 @@ public class ExecutorServiceParallelExecutorTest {
   }
 
   @Test
-  public void test() throws Exception {
-    pipeline
-        .apply(
-            // Use maxReadTime to force unbounded mode.
-            GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
-        .apply(ParDo.of(new CountingDoFn()));
+  public void testNoThreadsLeakInPipelineExecution() {
+    pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
   }
 
@@ -113,7 +108,7 @@ public class ExecutorServiceParallelExecutorTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        e.printStackTrace();
+        throw new RuntimeException(e);
       }
     }
   }
