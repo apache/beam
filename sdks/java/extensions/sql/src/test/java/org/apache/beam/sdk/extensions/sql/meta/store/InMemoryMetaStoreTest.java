@@ -20,13 +20,12 @@ package org.apache.beam.sdk.extensions.sql.meta.store;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
@@ -54,7 +53,7 @@ public class InMemoryMetaStoreTest {
   public void testCreateTable() throws Exception {
     Table table = mockTable("person");
     store.createTable(table);
-    Table actualTable = store.getTable("person");
+    Table actualTable = store.getTables().get("person");
     assertEquals(table, actualTable);
   }
 
@@ -72,33 +71,26 @@ public class InMemoryMetaStoreTest {
     store.createTable(table);
   }
 
-  @Test
-  public void testGetTable_nullName() throws Exception {
-    Table table = store.getTable(null);
-    assertNull(table);
-  }
-
-  @Test public void testListTables() throws Exception {
+  @Test public void testGetTables() throws Exception {
     store.createTable(mockTable("hello"));
     store.createTable(mockTable("world"));
 
-    assertThat(store.listTables(),
-        Matchers.containsInAnyOrder(mockTable("hello"), mockTable("world")));
+    assertEquals(2, store.getTables().size());
+    assertThat(store.getTables(),
+        Matchers.hasValue(mockTable("hello")));
+    assertThat(store.getTables(),
+        Matchers.hasValue(mockTable("world")));
   }
 
   @Test public void testBuildBeamSqlTable() throws Exception {
-    store.createTable(mockTable("hello"));
-    BeamSqlTable actualSqlTable = store.buildBeamSqlTable("hello");
+    Table table = mockTable("hello");
+    store.createTable(table);
+    BeamSqlTable actualSqlTable = store.buildBeamSqlTable(table);
     assertNotNull(actualSqlTable);
     assertEquals(
         RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build(),
         actualSqlTable.getSchema()
     );
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testBuildBeamSqlTable_tableNotExist() throws Exception {
-    store.buildBeamSqlTable("world");
   }
 
   @Test
@@ -109,7 +101,7 @@ public class InMemoryMetaStoreTest {
     assertEquals("text", store.getProviders().get("text").getTableType());
     assertEquals("mock", store.getProviders().get("mock").getTableType());
 
-    assertEquals(2, store.listTables().size());
+    assertEquals(2, store.getTables().size());
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -157,10 +149,6 @@ public class InMemoryMetaStoreTest {
       this.names = names;
     }
 
-    @Override public void init() {
-
-    }
-
     @Override public String getTableType() {
       return type;
     }
@@ -173,10 +161,10 @@ public class InMemoryMetaStoreTest {
 
     }
 
-    @Override public List<Table> listTables() {
-      List<Table> ret = new ArrayList<>(names.length);
+    @Override public Map<String, Table> getTables() {
+      Map<String, Table> ret = new HashMap(names.length);
       for (String name : names) {
-        ret.add(mockTable(name, "mock"));
+        ret.put(name, mockTable(name, "mock"));
       }
 
       return ret;
@@ -184,10 +172,6 @@ public class InMemoryMetaStoreTest {
 
     @Override public BeamSqlTable buildBeamSqlTable(Table table) {
       return null;
-    }
-
-    @Override public void close() {
-
     }
   }
 }

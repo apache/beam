@@ -16,17 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.meta.store;
+package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import java.util.Collections;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
- * The interface to handle CRUD of {@code BeamSql} table metadata.
+ * A {@code InMemoryMetaTableProvider} is an abstract {@code TableProvider} for in-memory types.
  */
-public interface MetaStore extends TableProvider {
-  /**
-   * Register a table provider.
-   * @param provider
-   */
-  void registerProvider(TableProvider provider);
+public abstract class InMemoryMetaTableProvider implements TableProvider {
+
+  @Override
+  public void createTable(Table table) {
+    // No-op
+  }
+
+  @Override
+  public void dropTable(String tableName) {
+    // No-op
+  }
+
+  @Override
+  public Map<String, Table> getTables() {
+    return Collections.emptyMap();
+  }
 }

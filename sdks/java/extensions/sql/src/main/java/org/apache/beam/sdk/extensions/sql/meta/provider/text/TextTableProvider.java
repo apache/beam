@@ -21,11 +21,9 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
 
 import com.alibaba.fastjson.JSONObject;
-import java.util.Collections;
-import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.commons.csv.CSVFormat;
 
@@ -44,7 +42,7 @@ import org.apache.commons.csv.CSVFormat;
  * TBLPROPERTIES '{"format": "Excel"}' -- format of each text line(csv format)
  * }</pre>
  */
-public class TextTableProvider implements TableProvider {
+public class TextTableProvider extends InMemoryMetaTableProvider {
 
   @Override public String getTableType() {
     return "text";
@@ -63,25 +61,5 @@ public class TextTableProvider implements TableProvider {
 
     BeamTextCSVTable txtTable = new BeamTextCSVTable(schema, filePattern, format);
     return txtTable;
-  }
-
-  @Override public void createTable(Table table) {
-    // empty
-  }
-
-  @Override public void dropTable(String tableName) {
-    // empty
-  }
-
-  @Override public List<Table> listTables() {
-    return Collections.emptyList();
-  }
-
-  @Override public void init() {
-    // empty
-  }
-
-  @Override public void close() {
-    // empty
   }
 }

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
@@ -72,7 +71,6 @@ public class BeamSqlFnExecutorTestBase {
             .addValues(1234567L, 0, 8.9, 1234567L)
             .build();
 
-    BeamSqlEnv sqlEnv = new BeamSqlEnv();
     SchemaPlus schema = Frameworks.createRootSchema(true);
     final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
@@ -83,7 +81,7 @@ public class BeamSqlFnExecutorTestBase {
             .defaultSchema(schema)
             .traitDefs(traitDefs)
             .context(Contexts.EMPTY_CONTEXT)
-            .ruleSets(BeamRuleSets.getRuleSets(sqlEnv))
+            .ruleSets(BeamRuleSets.getRuleSets())
             .costFactory(null)
             .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
             .build();
