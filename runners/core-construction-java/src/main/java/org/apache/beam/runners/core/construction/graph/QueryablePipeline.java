@@ -68,6 +68,14 @@ public class QueryablePipeline {
   }
 
   /**
+   * Create a new {@link QueryablePipeline} which uses the root transform IDs and components of the
+   * provided {@link Pipeline}.
+   */
+  public static QueryablePipeline forPipeline(RunnerApi.Pipeline p) {
+    return forTransforms(p.getRootTransformIdsList(), p.getComponents());
+  }
+
+  /**
    * Create a new {@link QueryablePipeline} based on the provided components containing only the
    * provided {@code transformIds}.
    */
