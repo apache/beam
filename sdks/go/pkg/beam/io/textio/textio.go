@@ -18,12 +18,12 @@ package textio
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -38,34 +38,8 @@ func init() {
 func Read(s beam.Scope, glob string) beam.PCollection {
 	s = s.Scope("textio.Read")
 
-	validateScheme(glob)
+	filesystem.ValidateScheme(glob)
 	return read(s, beam.Create(s, glob))
-}
-
-func validateScheme(glob string) {
-	if strings.TrimSpace(glob) == "" {
-		panic("empty file glob provided")
-	}
-	scheme := getScheme(glob)
-	if _, ok := registry[scheme]; !ok {
-		panic(fmt.Sprintf("textio scheme %v not registered", scheme))
-	}
-}
-
-func getScheme(glob string) string {
-	if index := strings.Index(glob, "://"); index > 0 {
-		return glob[:index]
-	}
-	return "default"
-}
-
-func newFileSystem(ctx context.Context, glob string) (FileSystem, error) {
-	scheme := getScheme(glob)
-	mkfs, ok := registry[scheme]
-	if !ok {
-		return nil, fmt.Errorf("textio scheme %v not registered for %v", scheme, glob)
-	}
-	return mkfs(ctx), nil
 }
 
 // ReadAll expands and reads the filename given as globs by the incoming
@@ -87,7 +61,7 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 		return nil // ignore empty string elements here
 	}
 
-	fs, err := newFileSystem(ctx, glob)
+	fs, err := filesystem.New(ctx, glob)
 	if err != nil {
 		return err
 	}
@@ -106,7 +80,7 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 func readFn(ctx context.Context, filename string, emit func(string)) error {
 	log.Infof(ctx, "Reading from %v", filename)
 
-	fs, err := newFileSystem(ctx, filename)
+	fs, err := filesystem.New(ctx, filename)
 	if err != nil {
 		return err
 	}
@@ -133,7 +107,7 @@ func readFn(ctx context.Context, filename string, emit func(string)) error {
 func Write(s beam.Scope, filename string, col beam.PCollection) {
 	s = s.Scope("textio.Write")
 
-	validateScheme(filename)
+	filesystem.ValidateScheme(filename)
 
 	// NOTE(BEAM-3579): We may never call Teardown for non-local runners and
 	// FinishBundle doesn't have the right granularity. We therefore
@@ -151,7 +125,7 @@ type writeFileFn struct {
 }
 
 func (w *writeFileFn) ProcessElement(ctx context.Context, _ int, lines func(*string) bool) error {
-	fs, err := newFileSystem(ctx, w.Filename)
+	fs, err := filesystem.New(ctx, w.Filename)
 	if err != nil {
 		return err
 	}
