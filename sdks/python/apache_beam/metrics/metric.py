@@ -26,13 +26,18 @@ and displayed as part of their pipeline execution.
 """
 import inspect
 
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
 
 __all__ = ['Metrics', 'MetricsFilter']
+
+
+class _DelegatingMetric(object):
+  def __init__(self):
+    global MetricsEnvironment  # pylint: disable=global-variable-not-assigned
+    from apache_beam.metrics.execution import MetricsEnvironment
 
 
 class Metrics(object):
@@ -92,8 +97,11 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingGauge(MetricName(namespace, name))
 
-  class DelegatingCounter(Counter):
+  class DelegatingCounter(Counter, _DelegatingMetric):
+    """Metrics Counter that Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name):
+      super(Metrics.DelegatingCounter, self).__init__()
       self.metric_name = metric_name
 
     def inc(self, n=1):
@@ -101,8 +109,11 @@ class Metrics(object):
       if container is not None:
         container.get_counter(self.metric_name).inc(n)
 
-  class DelegatingDistribution(Distribution):
+  class DelegatingDistribution(Distribution, _DelegatingMetric):
+    """Metrics Distribution Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name):
+      super(Metrics.DelegatingDistribution, self).__init__()
       self.metric_name = metric_name
 
     def update(self, value):
@@ -110,8 +121,11 @@ class Metrics(object):
       if container is not None:
         container.get_distribution(self.metric_name).update(value)
 
-  class DelegatingGauge(Gauge):
+  class DelegatingGauge(_DelegatingMetric, Gauge):
+    """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name):
+      super(Metrics.DelegatingGauge, self).__init__()
       self.metric_name = metric_name
 
     def set(self, value):
