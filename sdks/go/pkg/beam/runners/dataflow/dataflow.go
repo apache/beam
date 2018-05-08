@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/user"
 	"path"
 	"time"
 
@@ -97,7 +96,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return fmt.Errorf("Error reading --label flag as JSON: %v", err)
+			return fmt.Errorf("error reading --label flag as JSON: %v", err)
 		}
 	}
 	jobName := jobopts.GetJobName()
@@ -126,21 +125,22 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	// (1) Upload Go binary and model to GCS.
 
-	if *jobopts.WorkerBinary == "" {
+	bin := *jobopts.WorkerBinary
+	if bin == "" {
 		worker, err := runnerlib.BuildTempWorkerBinary(ctx)
 		if err != nil {
 			return err
 		}
 		defer os.Remove(worker)
 
-		*jobopts.WorkerBinary = worker
+		bin = worker
 	} else {
-		log.Infof(ctx, "Using specified worker binary: '%v'", *jobopts.WorkerBinary)
+		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
 
-	log.Infof(ctx, "Staging worker binary: %v", *jobopts.WorkerBinary)
+	log.Infof(ctx, "Staging worker binary: %v", bin)
 
-	binary, err := stageWorker(ctx, project, *stagingLocation, *jobopts.WorkerBinary)
+	binary, err := stageWorker(ctx, project, *stagingLocation, bin)
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			Experiments:       append(jobopts.GetExperiments(), "beam_fn_api"),
 		},
 		Labels: jobLabels,
-		Steps: steps,
+		Steps:  steps,
 	}
 
 	if *numWorkers > 0 {
@@ -329,13 +329,6 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	defer os.Remove(worker)
 
 	return gcsx.Upload(client, project, bucket, obj, fd)
-}
-
-func username() string {
-	if u, err := user.Current(); err == nil {
-		return u.Username
-	}
-	return "anon"
 }
 
 func findPipelineFlags() []*displayData {

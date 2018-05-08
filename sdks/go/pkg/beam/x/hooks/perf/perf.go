@@ -49,7 +49,7 @@ func init() {
 		enabled := len(enabledProfCaptureHooks) > 0
 		var cpuProfBuf bytes.Buffer
 		return hooks.Hook{
-			Req: func(ctx context.Context,  req *fnpb.InstructionRequest) (context.Context, error) {
+			Req: func(ctx context.Context, req *fnpb.InstructionRequest) (context.Context, error) {
 				if !enabled || req.GetProcessBundle() == nil {
 					return ctx, nil
 				}
