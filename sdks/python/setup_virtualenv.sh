@@ -5,6 +5,7 @@ envdir="$@"
 virtualenv $envdir
 . $envdir/bin/activate
 ls -l $envdir/bin
+cat $envdir/bin/pip
 $envdir/bin/pip -V
 $envdir/bin/pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5
 deactivate
