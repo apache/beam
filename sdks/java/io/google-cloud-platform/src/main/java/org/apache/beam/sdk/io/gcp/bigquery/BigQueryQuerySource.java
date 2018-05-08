@@ -102,7 +102,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    return dryRunQueryIfNeeded(bqOptions).getTotalBytesProcessed();
+    return dryRunQueryIfNeeded(bqOptions).getQuery().getTotalBytesProcessed();
   }
 
   @Override

@@ -561,6 +561,40 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
+  public void testBigQueryQuerySourceEstimatedSize() throws Exception {
+
+    List<TableRow> data = ImmutableList.of(
+        new TableRow().set("name", "A").set("number", 10L),
+        new TableRow().set("name", "B").set("number", 11L),
+        new TableRow().set("name", "C").set("number", 12L));
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
+    String stepUuid = "testStepUuid";
+
+    String query = FakeBigQueryServices.encodeQuery(data);
+    BigQueryQuerySource<TableRow> bqSource = BigQueryQuerySource.create(
+        stepUuid,
+        ValueProvider.StaticValueProvider.of(query),
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE,
+        QueryPriority.BATCH,
+        null);
+
+    fakeJobService.expectDryRunQuery(
+        bqOptions.getProject(),
+        query,
+        new JobStatistics().setQuery(
+            new JobStatistics2().setTotalBytesProcessed(100L)));
+
+    assertEquals(100, bqSource.getEstimatedSizeBytes(bqOptions));
+  }
+
+  @Test
   public void testBigQueryQuerySourceInitSplit() throws Exception {
     TableReference dryRunTable = new TableReference();
 
