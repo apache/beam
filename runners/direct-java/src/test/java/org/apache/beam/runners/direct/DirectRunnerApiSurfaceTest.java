@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.runners.direct.portable.ExecutableGraphBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -63,6 +64,9 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(DisplayData.Builder.class)
             .pruningClass(MetricResults.class)
             .pruningClass(DirectGraphs.class)
+            .pruningClass(
+                WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
+            .pruningClass(ExecutableGraphBuilder.class)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")

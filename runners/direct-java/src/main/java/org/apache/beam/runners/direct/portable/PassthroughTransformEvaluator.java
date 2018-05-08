@@ -17,20 +17,20 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.util.WindowedValue;
 
 class PassthroughTransformEvaluator<InputT> implements TransformEvaluator<InputT> {
   public static <InputT> PassthroughTransformEvaluator<InputT> create(
-      AppliedPTransform<?, ?, ?> transform, UncommittedBundle<InputT> output) {
+      PTransformNode transform, UncommittedBundle<InputT> output) {
     return new PassthroughTransformEvaluator<>(transform, output);
   }
 
-  private final AppliedPTransform<?, ?, ?> transform;
+  private final PTransformNode transform;
   private final UncommittedBundle<InputT> output;
 
   private PassthroughTransformEvaluator(
-      AppliedPTransform<?, ?, ?> transform, UncommittedBundle<InputT> output) {
+      PTransformNode transform, UncommittedBundle<InputT> output) {
     this.transform = transform;
     this.output = output;
   }

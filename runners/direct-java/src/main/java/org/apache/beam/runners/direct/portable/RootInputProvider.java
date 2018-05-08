@@ -19,32 +19,27 @@
 package org.apache.beam.runners.direct.portable;
 
 import java.util.Collection;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 
 /**
  * Provides {@link CommittedBundle bundles} that will be provided to the {@link PTransform
  * PTransforms} that are at the root of a {@link Pipeline}.
  */
-interface RootInputProvider<T, ShardT, InputT extends PInput> {
+interface RootInputProvider<ShardT> {
   /**
-   * Get the initial inputs for the {@link AppliedPTransform}. The {@link AppliedPTransform} will be
+   * Get the initial inputs for the {@link PTransformNode}. The {@link PTransformNode} will be
    * provided with these {@link CommittedBundle bundles} as input when the {@link Pipeline} runs.
    *
    * <p>For source transforms, these should be sufficient that, when provided to the evaluators
-   * produced by {@link TransformEvaluatorFactory#forApplication(AppliedPTransform,
-   * CommittedBundle)}, all of the elements contained in the source are eventually produced.
+   * produced by {@link TransformEvaluatorFactory#forApplication(PTransformNode, CommittedBundle)},
+   * all of the elements contained in the source are eventually produced.
    *
-   * @param transform the {@link AppliedPTransform} to get initial inputs for.
+   * @param transform the {@link PTransformNode} to get initial inputs for.
    * @param targetParallelism the target amount of parallelism to obtain from the source. Must be
    *     greater than or equal to 1.
    */
   Collection<CommittedBundle<ShardT>> getInitialInputs(
-      AppliedPTransform<InputT, PCollection<T>, PTransform<InputT, PCollection<T>>>
-          transform,
-      int targetParallelism)
-      throws Exception;
+      PTransformNode transform, int targetParallelism) throws Exception;
 }

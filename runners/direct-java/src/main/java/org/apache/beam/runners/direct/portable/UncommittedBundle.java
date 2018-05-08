@@ -19,6 +19,7 @@
 package org.apache.beam.runners.direct.portable;
 
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -36,7 +37,7 @@ interface UncommittedBundle<T> {
    * Returns the PCollection that the elements of this {@link UncommittedBundle} belong to.
    */
   @Nullable
-  PCollection<T> getPCollection();
+  PCollectionNode getPCollection();
 
   /**
    * Outputs an element to this bundle.

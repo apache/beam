@@ -19,6 +19,7 @@
 package org.apache.beam.runners.direct.portable;
 
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,12 +34,12 @@ import org.joda.time.Instant;
  * a part of at a later point.
  * @param <T> the type of elements contained within this bundle
  */
-interface CommittedBundle<T> extends Bundle<T, PCollection<T>> {
+interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
   /**
    * Returns the PCollection that the elements of this bundle belong to.
    */
   @Nullable
-  PCollection<T> getPCollection();
+  PCollectionNode getPCollection();
 
   /**
    * Returns the key that was output in the most recent {@code GroupByKey} in the

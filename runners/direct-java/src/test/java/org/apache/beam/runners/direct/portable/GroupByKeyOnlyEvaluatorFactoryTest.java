@@ -25,22 +25,26 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.direct.DirectGraphs;
-import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.local.StructuralKey;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,6 +58,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
+  @Ignore("TODO: BEAM-4240 Not yet migrated")
   public void testInMemoryEvaluator() throws Exception {
     KV<String, Integer> firstFoo = KV.of("foo", -1);
     KV<String, Integer> secondFoo = KV.of("foo", 1);
@@ -61,13 +66,31 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
     KV<String, Integer> firstBar = KV.of("bar", 22);
     KV<String, Integer> secondBar = KV.of("bar", 12);
     KV<String, Integer> firstBaz = KV.of("baz", Integer.MAX_VALUE);
-    PCollection<KV<String, Integer>> values =
-        p.apply(Create.of(firstFoo, firstBar, secondFoo, firstBaz, secondBar, thirdFoo));
-    PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        values.apply(new DirectGroupByKeyOnly<>());
+
+    KvCoder<String, Integer> kvCoder =
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of());
+
+    PCollectionNode values =
+        PipelineNode.pCollection(
+            "values",
+            RunnerApi.PCollection.newBuilder()
+                .setUniqueName("values")
+                .setCoderId("kvCoder")
+                .build());
+    PCollectionNode groupedKvs =
+        PipelineNode.pCollection(
+            "groupedKvs", RunnerApi.PCollection.newBuilder().setUniqueName("groupedKvs").build());
+    PTransformNode groupByKeyOnly =
+        PipelineNode.pTransform(
+            "gbko",
+            PTransform.newBuilder()
+                .putInputs("input", "values")
+                .putOutputs("output", "groupedKvs")
+                .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GBKO_URN).build())
+                .build());
 
     CommittedBundle<KV<String, Integer>> inputBundle =
-        bundleFactory.createBundle(values).commit(Instant.now());
+        bundleFactory.<KV<String, Integer>>createBundle(values).commit(Instant.now());
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
 
     StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
@@ -80,16 +103,22 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
         bundleFactory.createKeyedBundle(bazKey, groupedKvs);
 
-    when(evaluationContext.createKeyedBundle(fooKey, groupedKvs)).thenReturn(fooBundle);
-    when(evaluationContext.createKeyedBundle(barKey, groupedKvs)).thenReturn(barBundle);
-    when(evaluationContext.createKeyedBundle(bazKey, groupedKvs)).thenReturn(bazBundle);
+    when(evaluationContext.<String, KeyedWorkItem<String, Integer>>createKeyedBundle(
+            fooKey, groupedKvs))
+        .thenReturn(fooBundle);
+    when(evaluationContext.<String, KeyedWorkItem<String, Integer>>createKeyedBundle(
+            barKey, groupedKvs))
+        .thenReturn(barBundle);
+    when(evaluationContext.<String, KeyedWorkItem<String, Integer>>createKeyedBundle(
+            bazKey, groupedKvs))
+        .thenReturn(bazBundle);
 
     // The input to a GroupByKey is assumed to be a KvCoder
     @SuppressWarnings("unchecked")
-    Coder<String> keyCoder = ((KvCoder<String, Integer>) values.getCoder()).getKeyCoder();
+    Coder<String> keyCoder = kvCoder.getKeyCoder();
     TransformEvaluator<KV<String, Integer>> evaluator =
         new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
-            .forApplication(DirectGraphs.getProducer(groupedKvs), inputBundle);
+            .forApplication(groupByKeyOnly, inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow(firstFoo));
     evaluator.processElement(WindowedValue.valueInGlobalWindow(secondFoo));

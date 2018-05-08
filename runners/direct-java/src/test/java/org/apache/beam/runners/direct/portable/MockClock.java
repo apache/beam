@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.runners.direct.Clock;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

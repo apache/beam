@@ -23,23 +23,18 @@ import static org.junit.Assert.assertThat;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.direct.DirectGraphs;
-import org.apache.beam.runners.direct.ExecutableGraph;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,20 +44,27 @@ import org.junit.runners.JUnit4;
 public class WatermarkCallbackExecutorTest {
   private WatermarkCallbackExecutor executor =
       WatermarkCallbackExecutor.create(Executors.newSingleThreadExecutor());
-  private AppliedPTransform<?, ?, ?> create;
-  private AppliedPTransform<?, ?, ?> sum;
-
-  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private PTransformNode create;
+  private PTransformNode sum;
 
   @Before
   public void setup() {
-    PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
-    PCollection<Integer> summed = created.apply(Sum.integersGlobally());
-    DirectGraphs.performDirectOverrides(p);
-    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
-        DirectGraphs.getGraph(p);
-    create = graph.getProducer(created);
-    sum = graph.getProducer(summed);
+    create =
+        PipelineNode.pTransform(
+            "create",
+            PTransform.newBuilder()
+                .setUniqueName("create")
+                .putInputs("in", "impulse.out")
+                .putOutputs("out", "create.out")
+                .build());
+    sum =
+        PipelineNode.pTransform(
+            "sum",
+            PTransform.newBuilder()
+                .setUniqueName("sum")
+                .putInputs("in", "create.in")
+                .putOutputs("out", "sum.out")
+                .build());
   }
 
   @Test

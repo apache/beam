@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -49,13 +50,13 @@ class ImmutableListBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+  public <T> UncommittedBundle<T> createBundle(PCollectionNode output) {
     return UncommittedImmutableListBundle.create(output, StructuralKey.empty());
   }
 
   @Override
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      StructuralKey<K> key, PCollection<T> output) {
+      StructuralKey<K> key, PCollectionNode output) {
     return UncommittedImmutableListBundle.create(output, key);
   }
 
@@ -63,7 +64,7 @@ class ImmutableListBundleFactory implements BundleFactory {
    * A {@link UncommittedBundle} that buffers elements in memory.
    */
   private static final class UncommittedImmutableListBundle<T> implements UncommittedBundle<T> {
-    private final PCollection<T> pcollection;
+    private final PCollectionNode pcollection;
     private final StructuralKey<?> key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
@@ -73,19 +74,19 @@ class ImmutableListBundleFactory implements BundleFactory {
      * Create a new {@link UncommittedImmutableListBundle} for the specified {@link PCollection}.
      */
     public static <T> UncommittedImmutableListBundle<T> create(
-        PCollection<T> pcollection,
+        PCollectionNode pcollection,
         StructuralKey<?> key) {
       return new UncommittedImmutableListBundle<>(pcollection, key);
     }
 
-    private UncommittedImmutableListBundle(PCollection<T> pcollection, StructuralKey<?> key) {
+    private UncommittedImmutableListBundle(PCollectionNode pcollection, StructuralKey<?> key) {
       this.pcollection = pcollection;
       this.key = key;
       this.elements = ImmutableList.builder();
     }
 
     @Override
-    public PCollection<T> getPCollection() {
+    public PCollectionNode getPCollection() {
       return pcollection;
     }
 
@@ -121,7 +122,7 @@ class ImmutableListBundleFactory implements BundleFactory {
   @AutoValue
   abstract static class CommittedImmutableListBundle<T> implements CommittedBundle<T> {
     public static <T> CommittedImmutableListBundle<T> create(
-        @Nullable PCollection<T> pcollection,
+        @Nullable PCollectionNode pcollection,
         StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
         Instant minElementTimestamp,
