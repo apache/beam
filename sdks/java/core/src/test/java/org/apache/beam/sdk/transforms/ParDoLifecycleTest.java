@@ -53,30 +53,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Rule
   public final transient TestPipeline p = TestPipeline.create();
 
-  @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
-  public void testOldFnCallSequence() {
-    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
-        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingDoFn<>()));
-
-    p.run();
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
-  public void testOldFnCallSequenceMulti() {
-    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
-        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.pCollections())
-        .apply(
-            ParDo.of(new CallSequenceEnforcingDoFn<Integer>())
-                .withOutputTags(new TupleTag<Integer>() {}, TupleTagList.empty()));
-
-    p.run();
-  }
-
   private static class CallSequenceEnforcingDoFn<T> extends DoFn<T, T> {
     private boolean setupCalled = false;
     private int startBundleCalls = 0;

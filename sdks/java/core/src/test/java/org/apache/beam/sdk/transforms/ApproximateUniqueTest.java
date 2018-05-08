@@ -43,7 +43,6 @@ import org.apache.beam.sdk.testing.CombineFnTester;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.ApproximateUnique.ApproximateUniqueCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -355,7 +354,7 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testApproximateUniqueWithSmallInput() {
       final PCollection<Integer> input = p.apply(
           Create.of(Arrays.asList(1, 2, 3, 3)));

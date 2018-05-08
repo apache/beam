@@ -22,9 +22,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -67,7 +67,7 @@ public class FilterTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testIdentityFilterByPredicate() {
     PCollection<Integer> output = p
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
@@ -78,7 +78,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testNoFilterByPredicate() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 4, 5))
@@ -89,7 +89,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterByPredicate() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -100,7 +100,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterLessThan() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -111,7 +111,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterGreaterThan() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -122,7 +122,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterLessThanEq() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -133,7 +133,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterGreaterThanEq() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -144,7 +144,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterEqual() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -168,7 +168,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testIdentityFilterByPredicateWithLambda() {
 
     PCollection<Integer> output = p
@@ -180,7 +180,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testNoFilterByPredicateWithLambda() {
 
     PCollection<Integer> output = p
@@ -192,7 +192,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterByPredicateWithLambda() {
 
     PCollection<Integer> output = p
@@ -220,7 +220,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterByMethodReferenceWithLambda() {
 
     PCollection<Integer> output = p
