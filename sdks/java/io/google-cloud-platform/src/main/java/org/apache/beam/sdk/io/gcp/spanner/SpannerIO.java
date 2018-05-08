@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
@@ -183,7 +184,7 @@ public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
   // Max number of mutations to batch together.
-  private static final int DEFAULT_MAX_NUM_MUTATIONS = 10000;
+  private static final int DEFAULT_MAX_NUM_MUTATIONS = 5000;
   // The maximum number of keys to fit in memory when computing approximate quantiles.
   private static final long MAX_NUM_KEYS = (long) 1e6;
   // TODO calculate number of samples based on the size of the input.
@@ -665,8 +666,6 @@ public class SpannerIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Mutation>, SpannerWriteResult> {
 
-    private long maxNumMutations;
-
     abstract SpannerConfig getSpannerConfig();
 
     abstract long getBatchSizeBytes();
@@ -877,6 +876,7 @@ public class SpannerIO {
       failedMutations.setCoder(SerializableCoder.of(MutationGroup.class));
       return new SpannerWriteResult(input.getPipeline(), result.get(mainTag), failedMutations,
           failedTag);
+
     }
 
     private PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
@@ -938,11 +938,6 @@ public class SpannerIO {
       SerializedMutation m = c.element();
       c.output(KV.of(m.getTableName().toLowerCase(), m.getEncodedKey()));
     }
-  }
-
-  private static boolean isPointDelete(Mutation m) {
-    return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
-        && Iterables.size(m.getKeySet().getKeys()) == 1;
   }
 
   /**
@@ -1032,7 +1027,7 @@ public class SpannerIO {
         byte[] value = kv.getMutationGroupBytes();
         MutationGroup mg = mutationGroupEncoder.decode(value);
         long groupSize = MutationSizeEstimator.sizeOf(mg);
-        long groupCells = MutationCellEstimator.countOf(spannerSchema, mg);
+        long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
         if (batchCells + groupCells > maxNumMutations
             || batchSizeBytes + groupSize > maxBatchSizeBytes) {
           ImmutableList<MutationGroup> mutations = batch.build();
@@ -1114,5 +1109,5 @@ public class SpannerIO {
 
   }
 
-    private SpannerIO() {} // Prevent construction.
+  private SpannerIO() {} // Prevent construction.
 }

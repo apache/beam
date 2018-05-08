@@ -17,36 +17,37 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
+
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
 import com.google.common.collect.Iterables;
 
-final class MutationCellEstimator {
+final class MutationCellCounter {
   // Prevent construction.
-  private MutationCellEstimator() {
+  private MutationCellCounter() {
   }
 
   /**
-   * Estimate the number of cells modified in a {@link MutationGroup}.
+   * Count the number of cells modified by {@link MutationGroup}.
    */
   public static long countOf(SpannerSchema spannerSchema, MutationGroup mutationGroup) {
     long mutatedCells = 0L;
     for (Mutation mutation : mutationGroup) {
-      if (mutation.getOperation() != Op.DELETE) {
+      if (mutation.getOperation() == Op.DELETE) {
+        // For single key deletes sum up all the columns in the schema.
+        // There is no clear way to estimate range deletes, so they are ignored.
+        if (isPointDelete(mutation)) {
+          final KeySet keySet = mutation.getKeySet();
+
+          final long rows = Iterables.size(keySet.getKeys());
+          mutatedCells += rows * spannerSchema.getCellsMutatedPerRow(mutation.getTable());
+        }
+      } else {
         // sum the cells of the columns included in the mutation
         for (String column : mutation.getColumns()) {
           mutatedCells += spannerSchema.getCellsMutatedPerColumn(mutation.getTable(), column);
-        }
-      } else {
-        // deletes are a little less obvious...
-        // for single key deletes simply sum up all the columns in the schema
-        // range deletes are broken up into batches already and can be ignored
-        final KeySet keySet = mutation.getKeySet();
-
-        final long rows = Iterables.size(keySet.getKeys());
-        if (rows > 0) {
-          mutatedCells += rows * spannerSchema.getCellsMutatedPerRow(mutation.getTable());
         }
       }
     }
