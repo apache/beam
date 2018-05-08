@@ -75,7 +75,7 @@ public class CountingSourceTest {
   public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testBoundedSource() {
     long numElements = 1000;
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
@@ -85,7 +85,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEmptyBoundedSource() {
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(0)));
 
@@ -147,7 +147,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedSource() {
     long numElements = 1000;
 
@@ -166,7 +166,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedSourceTimestamps() {
     long numElements = 1000;
 
