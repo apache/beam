@@ -147,11 +147,6 @@ task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
 }
 
-task pythonPostCommit() {
-  dependsOn ":beam-sdks-python:preCommit"
-  dependsOn ":beam-sdks-python:postCommit"
-}
-
 task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
@@ -168,12 +163,8 @@ task pythonPreCommit() {
 }
 
 task pythonPostCommit() {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', './sdks/python/run_postcommit.sh'
-    }
-  }
+  dependsOn ":beam-sdks-python:preCommit"
+  dependsOn ":beam-sdks-python:postCommit"
 }
 
 apply plugin: 'net.researchgate.release'
