@@ -84,7 +84,7 @@ public class BeamSqlCliTest {
         + "TYPE 'text' \n"
         + "COMMENT '' LOCATION '/home/admin/orders'"
     );
-    Table table = metaStore.getTable("person");
+    Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
         Stream
@@ -116,7 +116,7 @@ public class BeamSqlCliTest {
         + "TYPE 'text' \n"
         + "COMMENT '' LOCATION '/home/admin/orders'"
     );
-    Table table = metaStore.getTable("person");
+    Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
         Stream
@@ -151,7 +151,7 @@ public class BeamSqlCliTest {
         + "TYPE 'text' \n"
         + "COMMENT '' LOCATION '/home/admin/orders'"
     );
-    Table table = metaStore.getTable("person");
+    Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
         Stream
@@ -195,7 +195,7 @@ public class BeamSqlCliTest {
         + "TYPE 'text' \n"
         + "COMMENT '' LOCATION '/home/admin/orders'"
     );
-    Table table = metaStore.getTable("person");
+    Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
         Stream

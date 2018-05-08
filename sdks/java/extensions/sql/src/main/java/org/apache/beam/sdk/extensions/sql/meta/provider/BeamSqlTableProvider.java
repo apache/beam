@@ -19,10 +19,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * A {@code BeamSqlTableProvider} provides read only set of {@code BeamSqlTable}.
@@ -58,7 +58,7 @@ public class BeamSqlTableProvider implements TableProvider {
           Table.builder()
             .type(getTableType())
             .name(table.getKey())
-            .columns(Collections.emptyList())
+            .schema(Schema.builder().build())
             .build());
     }
     return map.build();
