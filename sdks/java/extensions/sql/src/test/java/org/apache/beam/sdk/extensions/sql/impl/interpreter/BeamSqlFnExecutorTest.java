@@ -189,18 +189,6 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     BeamSqlFnExecutor.buildExpression(rexNode);
   }
 
-
-  @Test(expected = IllegalStateException.class)
-  public void testBuildExpression_logical_not_invalidOperandCount() {
-    RexNode rexNode = rexBuilder.makeCall(SqlStdOperatorTable.NOT,
-        Arrays.asList(
-            rexBuilder.makeLiteral(true),
-            rexBuilder.makeLiteral(true)
-        )
-    );
-    BeamSqlFnExecutor.buildExpression(rexNode);
-  }
-
   @Test
   public void testBuildExpression_arithmetic() {
     testBuildArithmeticExpression(SqlStdOperatorTable.PLUS, BeamSqlPlusExpression.class);
@@ -431,7 +419,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     // minus for dates
     rexNode =
         rexBuilder.makeCall(
-            TYPE_FACTORY.createSqlType(SqlTypeName.INTERVAL_DAY),
+            TYPE_FACTORY.createSqlIntervalType(
+                new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO)),
             SqlStdOperatorTable.MINUS,
             Arrays.asList(
                 rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000),

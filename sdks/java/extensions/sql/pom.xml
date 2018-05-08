@@ -209,7 +209,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>-da</argLine> <!-- disable assert in Calcite converter validation -->
           <systemPropertyVariables>
             <saffron.default.charset>${calcite.charset}</saffron.default.charset>
             <saffron.default.nationalcharset>${calcite.charset}</saffron.default.nationalcharset>
