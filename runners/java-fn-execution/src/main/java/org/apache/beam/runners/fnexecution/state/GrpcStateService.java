@@ -23,6 +23,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
@@ -31,10 +32,16 @@ import org.apache.beam.runners.fnexecution.FnService;
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
-  private final ConcurrentHashMap<String, StateRequestHandler> requestHandlers;
+  /**
+   * Create a new {@link GrpcStateService}.
+   */
+  public static GrpcStateService create() {
+    return new GrpcStateService();
+  }
 
-  public GrpcStateService()
-      throws Exception {
+  private final ConcurrentMap<String, StateRequestHandler> requestHandlers;
+
+  private GrpcStateService() {
     this.requestHandlers = new ConcurrentHashMap<>();
   }
 
@@ -92,7 +99,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     @Override
     public void onNext(StateRequest request) {
       StateRequestHandler handler =
-        requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
+          requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
         CompletionStage<StateResponse.Builder> result = handler.handle(request);
         result.whenCompleteAsync(
@@ -133,4 +140,3 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     }
   }
 }
-
