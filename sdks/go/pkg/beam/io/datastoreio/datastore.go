@@ -209,7 +209,7 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) 
 	// lookup type
 	t, ok := runtime.LookupType(f.Type)
 	if !ok {
-		fmt.Errorf("No type registered %s", f.Type)
+		return fmt.Errorf("No type registered %s", f.Type)
 	}
 
 	// Translate BoundedQuery to datastore.Query
