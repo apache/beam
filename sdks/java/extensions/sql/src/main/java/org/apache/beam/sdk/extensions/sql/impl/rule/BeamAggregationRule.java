@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
@@ -50,18 +50,17 @@ public class BeamAggregationRule extends RelOptRule {
         relBuilderFactory, null);
   }
 
-  public BeamAggregationRule(RelOptRuleOperand operand, String description) {
-    super(operand, description);
-  }
-
   @Override
   public void onMatch(RelOptRuleCall call) {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
-    updateWindow(call, aggregate, project);
+    RelNode x = updateWindow(call, aggregate, project);
+    if (x != null) {
+      call.transformTo(x);
+    }
   }
 
-  private void updateWindow(RelOptRuleCall call, Aggregate aggregate,
+  private static RelNode updateWindow(RelOptRuleCall call, Aggregate aggregate,
                             Project project) {
     ImmutableBitSet groupByFields = aggregate.getGroupSet();
     List<RexNode> projectMapping = project.getProjects();
@@ -86,7 +85,7 @@ public class BeamAggregationRule extends RelOptRule {
         aggregate.getGroupSets(),
         aggregate.getAggCallList(),
         windowField);
-    call.transformTo(newAggregator);
+    return newAggregator;
   }
 
 }
