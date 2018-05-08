@@ -28,6 +28,11 @@ import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
  * <p>The channel builder uses {@link ApiServiceDescriptor#getUrl()} as the unique in-process name.
  */
 public class InProcessManagedChannelFactory extends ManagedChannelFactory {
+  public static ManagedChannelFactory create() {
+    return new InProcessManagedChannelFactory();
+  }
+
+  private InProcessManagedChannelFactory() {}
 
   @Override
   public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {

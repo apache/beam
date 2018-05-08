@@ -96,7 +96,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
               PipelineOptionsFactory.create(),
               loggingServer.getApiServiceDescriptor(),
               controlServer.getApiServiceDescriptor(),
-              new InProcessManagedChannelFactory(),
+              InProcessManagedChannelFactory.create(),
               StreamObserverFactory.direct());
           return null;
         });
