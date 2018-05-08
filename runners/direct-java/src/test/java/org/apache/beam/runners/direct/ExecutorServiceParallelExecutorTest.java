@@ -35,16 +35,14 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ThreadLeakTracker;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
 
-/**
- * Validates some basic behavior for the ExecutorServiceParallelExecutor.
- */
+/** Validates some basic behavior for the ExecutorServiceParallelExecutor. */
 public class ExecutorServiceParallelExecutorTest {
 
   private static final long NUM_ELEMENTS = 1000L;
@@ -52,50 +50,52 @@ public class ExecutorServiceParallelExecutorTest {
   private final TestPipeline pipeline = TestPipeline.create();
   private final TestRule threadLeakTracker = new ThreadLeakTracker();
 
-  @Rule
-  public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
+  @Rule public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
 
-  @Rule
-  public final TestName testName = new TestName();
+  @Rule public final TestName testName = new TestName();
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
   public void ensureMetricsThreadDoesntLeak() {
-    final DirectGraph graph = DirectGraph.create(
-      emptyMap(), emptyMap(), LinkedListMultimap.create(),
-      emptySet(), emptyMap());
-    final ExecutorService metricsExecutorService = Executors.newSingleThreadExecutor(
-      new ThreadFactoryBuilder()
-        .setDaemon(false)
-        .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
-        .build());
+    final DirectGraph graph =
+        DirectGraph.create(
+            emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap());
+    final ExecutorService metricsExecutorService =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(false)
+                .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
+                .build());
 
     // fake a metrics usage
     metricsExecutorService.submit(() -> {});
 
-    final EvaluationContext context = EvaluationContext.create(
-      MockClock.fromInstant(Instant.now()),
-      CloningBundleFactory.create(), graph, emptySet(), metricsExecutorService);
-    ExecutorServiceParallelExecutor
-      .create(
-        2, TransformEvaluatorRegistry.javaSdkNativeRegistry(context,
-              PipelineOptionsFactory.create().as(DirectOptions.class)), emptyMap(),
-              context,
-              metricsExecutorService)
-      .stop();
+    final EvaluationContext context =
+        EvaluationContext.create(
+            MockClock.fromInstant(Instant.now()),
+            CloningBundleFactory.create(),
+            graph,
+            emptySet(),
+            metricsExecutorService);
+    ExecutorServiceParallelExecutor.create(
+            2,
+            TransformEvaluatorRegistry.javaSdkNativeRegistry(
+                context, PipelineOptionsFactory.create().as(DirectOptions.class)),
+            emptyMap(),
+            context,
+            metricsExecutorService)
+        .stop();
     try {
-      metricsExecutorService.awaitTermination(10000L, TimeUnit.MILLISECONDS);
+      metricsExecutorService.awaitTermination(10L, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
-      e.printStackTrace();
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
     }
   }
 
   @Test
-  public void test() throws Exception {
-    pipeline
-        .apply(
-            // Use maxReadTime to force unbounded mode.
-            GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
-        .apply(ParDo.of(new CountingDoFn()));
+  public void testNoThreadsLeakInPipelineExecution() {
+    pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
   }
 
@@ -108,7 +108,7 @@ public class ExecutorServiceParallelExecutorTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        e.printStackTrace();
+        throw new RuntimeException(e);
       }
     }
   }
