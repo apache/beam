@@ -55,6 +55,7 @@ import org.junit.Test;
 public class BeamEnumerableConverterTest {
   static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
   static PipelineOptions options = PipelineOptionsFactory.create();
+  static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
 
   @Test
   public void testToEnumerable_collectSingle() {
@@ -62,7 +63,7 @@ public class BeamEnumerableConverterTest {
     RelDataType type = CalciteUtils.toCalciteRowType(schema, BeamQueryPlanner.TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)));
-    BeamRelNode node = new BeamValuesRel(null, type, tuples, null);
+    BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
 
     Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
     Enumerator<Object> enumerator = enumerable.enumerator();
@@ -83,7 +84,7 @@ public class BeamEnumerableConverterTest {
             ImmutableList.of(
                 rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
                 rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
-    BeamRelNode node = new BeamValuesRel(null, type, tuples, null);
+    BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
 
     Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
     Enumerator<Object> enumerator = enumerable.enumerator();
@@ -138,10 +139,10 @@ public class BeamEnumerableConverterTest {
             ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
     BeamRelNode node =
         new BeamIOSinkRel(
-            RelOptCluster.create(new VolcanoPlanner(), rexBuilder),
+            cluster,
             RelOptTableImpl.create(null, type, ImmutableList.of(), null),
             null,
-            new BeamValuesRel(null, type, tuples, null),
+            new BeamValuesRel(cluster, type, tuples, null),
             null,
             null,
             null,

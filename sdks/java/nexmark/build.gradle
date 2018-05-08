@@ -85,10 +85,6 @@ if (shouldProvideSpark) {
   }
 }
 
-test {
-  jvmArgs "-da"
-}
-
 // Execute the Nexmark queries or suites via Gradle.
 //
 // Parameters:
