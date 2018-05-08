@@ -68,37 +68,6 @@ public class BeamSqlCliTest {
   }
 
   @Test
-  public void testExecute_createTableWithArrayField() throws Exception {
-    InMemoryMetaStore metaStore = new InMemoryMetaStore();
-    metaStore.registerProvider(new TextTableProvider());
-
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
-    cli.execute(
-        "create table person (\n"
-        + "id int COMMENT 'id', \n"
-        + "name varchar COMMENT 'name', \n"
-        + "age int COMMENT 'age', \n"
-        + "tags VARCHAR ARRAY \n"
-        + ") \n"
-        + "TYPE 'text' \n"
-        + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
-    Table table = metaStore.getTables().get("person");
-    assertNotNull(table);
-    assertEquals(
-        Stream
-            .of(
-                Field.of("id", INTEGER).withDescription("id").withNullable(true),
-                Field.of("name", VARCHAR).withDescription("name").withNullable(true),
-                Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("tags",
-                         ARRAY.type().withCollectionElementType(VARCHAR)).withNullable(true))
-            .collect(toSchema()),
-        table.getSchema());
-  }
-
-  @Test
   public void testExecute_createTableWithPrefixArrayField() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
@@ -181,7 +150,6 @@ public class BeamSqlCliTest {
         + "id int COMMENT 'id', \n"
         + "name varchar COMMENT 'name', \n"
         + "age int COMMENT 'age', \n"
-        + "tags VARCHAR ARRAY, \n"
         + "address ROW ( \n"
         + "  street VARCHAR, \n"
         + "  country VARCHAR \n"
@@ -203,8 +171,6 @@ public class BeamSqlCliTest {
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("tags",
-                         ARRAY.type().withCollectionElementType(VARCHAR)).withNullable(true),
                 Field.of("address",
                          ROW.type().withRowSchema(
                              RowSqlTypes
@@ -265,7 +231,6 @@ public class BeamSqlCliTest {
     cli.execute("drop table person");
     cli.explainQuery("select * from person");
   }
-
 
   @Test
   public void testExplainQuery() throws Exception {

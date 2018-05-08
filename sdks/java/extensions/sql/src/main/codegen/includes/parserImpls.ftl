@@ -206,13 +206,6 @@ Schema.FieldType FieldType() :
     |
         fieldType = SimpleType()
     )
-    [
-        collectionTypeName = CollectionTypeName()
-        {
-            Schema.FieldType collectionType = CalciteUtils.toFieldType(collectionTypeName);
-            fieldType = collectionType.withCollectionElementType(fieldType);
-        }
-    ]
     {
         return fieldType;
     }
@@ -289,16 +282,5 @@ Schema.FieldType SimpleType() :
         return CalciteUtils.toFieldType(simpleTypeName);
     }
 }
-
-SqlTypeName CollectionTypeName() :
-{
-}
-{
-    <ARRAY> {
-        return SqlTypeName.ARRAY;
-    }
-}
-
-
 
 // End parserImpls.ftl
