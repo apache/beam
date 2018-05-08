@@ -19,7 +19,6 @@
 import threading
 from collections import namedtuple
 
-from apache_beam.metrics import execution
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
@@ -76,7 +75,6 @@ class StateSampler(statesampler_impl.StateSampler):
   def start(self):
     self.tracked_thread = threading.current_thread()
     set_current_tracker(self)
-    execution.metrics_startup()
     super(StateSampler, self).start()
     self.started = True
 

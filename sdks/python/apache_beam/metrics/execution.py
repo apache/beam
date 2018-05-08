@@ -36,6 +36,7 @@ from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker import statesampler
 
 
 class MetricKey(object):
@@ -147,12 +148,6 @@ class _MetricsEnvironment(object):
 
 
 MetricsEnvironment = _MetricsEnvironment()
-
-
-def metrics_startup():
-  """Initialize metrics context to run."""
-  global statesampler  # pylint: disable=global-variable-not-assigned
-  from apache_beam.runners.worker import statesampler
 
 
 class MetricsContainer(object):

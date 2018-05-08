@@ -32,7 +32,6 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal.util import ArgumentPlaceholder
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -357,6 +356,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
 
+    from apache_beam.metrics.execution import MetricsEnvironment
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
