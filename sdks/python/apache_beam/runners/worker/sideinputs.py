@@ -159,7 +159,8 @@ class PrefetchingSourceSetIterable(object):
     try:
       while True:
         try:
-          element = self.element_queue.get()
+          with self.read_counter:
+            element = self.element_queue.get()
           if element is READER_THREAD_IS_DONE_SENTINEL:
             num_readers_finished += 1
             if num_readers_finished == self.num_reader_threads:
