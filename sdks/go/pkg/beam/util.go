@@ -32,6 +32,12 @@ func init() {
 // look exactly like the more primitive sources/sinks, but be picked at
 // pipeline construction time.
 
+// NewPipelineWithRoot creates a new empty pipeline and its root scope.
+func NewPipelineWithRoot() (*Pipeline, Scope) {
+	p := NewPipeline()
+	return p, p.Root()
+}
+
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
 func Seq(s Scope, col PCollection, dofns ...interface{}) PCollection {
