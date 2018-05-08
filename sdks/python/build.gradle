@@ -187,12 +187,27 @@ task localWordCount(dependsOn: 'installGcpTest') {
   }
 }
 
-task postCommit(dependsOn: 'preCommit') {
-  dependsOn "localWordCount"
+task validatesRunnerTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh"
     }
   }
+}
+
+task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
+    }
+  }
+}
+
+task postCommit() {
+  dependsOn "preCommit"
+  dependsOn "localWordCount"
+  dependsOn "hdfsIntegrationTest"
+  dependsOn "validatesRunnerTests"
 }
