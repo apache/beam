@@ -29,28 +29,27 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
-import org.apache.beam.runners.direct.DirectGraphs;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,10 +59,11 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindowEvaluatorFactory}. */
 @RunWith(JUnit4.class)
+@Ignore("TODO BEAM-4241 Not yet migrated")
 public class WindowEvaluatorFactoryTest {
   private static final Instant EPOCH = new Instant(0);
 
-  private PCollection<Long> input;
+  private PCollectionNode input;
   private WindowEvaluatorFactory factory;
 
   @Mock private EvaluationContext evaluationContext;
@@ -98,7 +98,9 @@ public class WindowEvaluatorFactoryTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    input = p.apply(Create.of(1L, 2L, 3L));
+    input =
+        PipelineNode.pCollection(
+            "created", RunnerApi.PCollection.newBuilder().setUniqueName("created").build());
 
     bundleFactory = ImmutableListBundleFactory.create();
     factory = new WindowEvaluatorFactory(evaluationContext);
@@ -107,17 +109,15 @@ public class WindowEvaluatorFactoryTest {
   @Test
   public void singleWindowFnSucceeds() throws Exception {
     Duration windowDuration = Duration.standardDays(7);
-    Window<Long> transform = Window.into(FixedWindows.of(windowDuration));
-    PCollection<Long> windowed = input.apply(transform);
-
     CommittedBundle<Long> inputBundle = createInputBundle();
 
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    PCollectionNode windowed = null;
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     BoundedWindow firstSecondWindow = new IntervalWindow(EPOCH, EPOCH.plus(windowDuration));
     BoundedWindow thirdWindow = new IntervalWindow(EPOCH.minus(windowDuration), EPOCH);
 
-    TransformResult<Long> result = runEvaluator(windowed, inputBundle);
+    TransformResult<Long> result = runEvaluator(inputBundle);
 
     assertThat(Iterables.getOnlyElement(result.getOutputBundles()), Matchers.equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
@@ -144,13 +144,13 @@ public class WindowEvaluatorFactoryTest {
   public void multipleWindowsWindowFnSucceeds() throws Exception {
     Duration windowDuration = Duration.standardDays(6);
     Duration slidingBy = Duration.standardDays(3);
-    Window<Long> transform = Window.into(SlidingWindows.of(windowDuration).every(slidingBy));
-    PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
 
-    TransformResult<Long> result = runEvaluator(windowed, inputBundle);
+    PCollectionNode windowed = null;
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
+
+    TransformResult<Long> result = runEvaluator(inputBundle);
 
     assertThat(Iterables.getOnlyElement(result.getOutputBundles()), Matchers.equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
@@ -199,13 +199,12 @@ public class WindowEvaluatorFactoryTest {
 
   @Test
   public void referencesEarlierWindowsSucceeds() throws Exception {
-    Window<Long> transform = Window.into(new EvaluatorTestWindowFn());
-    PCollection<Long> windowed = input.apply(transform);
-
     CommittedBundle<Long> inputBundle = createInputBundle();
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
 
-    TransformResult<Long> result = runEvaluator(windowed, inputBundle);
+    PCollectionNode windowed = null;
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
+
+    TransformResult<Long> result = runEvaluator(inputBundle);
 
     assertThat(Iterables.getOnlyElement(result.getOutputBundles()), Matchers.equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
@@ -252,7 +251,7 @@ public class WindowEvaluatorFactoryTest {
   private CommittedBundle<Long> createInputBundle() {
     CommittedBundle<Long> inputBundle =
         bundleFactory
-            .createBundle(input)
+            .<Long>createBundle(input)
             .add(valueInGlobalWindow)
             .add(valueInGlobalAndTwoIntervalWindows)
             .add(valueInIntervalWindow)
@@ -260,23 +259,21 @@ public class WindowEvaluatorFactoryTest {
     return inputBundle;
   }
 
-  private UncommittedBundle<Long> createOutputBundle(
-      PCollection<Long> output, CommittedBundle<Long> inputBundle) {
+  private UncommittedBundle<Long> createOutputBundle(PCollectionNode output) {
     UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(output);
-    when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
-    return outputBundle;
+    when(evaluationContext.<Long>createBundle(output)).thenReturn(outputBundle);
+    throw new UnsupportedOperationException("Not yet migrated");
   }
 
-  private TransformResult<Long> runEvaluator(
-      PCollection<Long> windowed, CommittedBundle<Long> inputBundle) throws Exception {
-    TransformEvaluator<Long> evaluator =
-        factory.forApplication(DirectGraphs.getProducer(windowed), inputBundle);
+  private TransformResult<Long> runEvaluator(CommittedBundle<Long> inputBundle) throws Exception {
+    PTransformNode window = null;
+    TransformEvaluator<Long> evaluator = factory.forApplication(window, inputBundle);
 
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
     evaluator.processElement(valueInIntervalWindow);
     TransformResult<Long> result = evaluator.finishBundle();
-    return result;
+    throw new UnsupportedOperationException("Not yet migrated");
   }
 
   private static class EvaluatorTestWindowFn extends NonMergingWindowFn<Long, BoundedWindow> {

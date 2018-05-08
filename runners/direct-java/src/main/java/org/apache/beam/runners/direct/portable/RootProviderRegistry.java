@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -33,26 +33,23 @@ import org.apache.beam.sdk.transforms.PTransform;
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
-  /**
-   * Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive.
-   */
+  /** Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive. */
   public static RootProviderRegistry impulseRegistry(EvaluationContext context) {
     return new RootProviderRegistry(
-        ImmutableMap.<String, RootInputProvider<?, ?, ?>>builder()
+        ImmutableMap.<String, RootInputProvider<?>>builder()
             .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory.ImpulseRootProvider(context))
             .build());
   }
 
-  private final Map<String, RootInputProvider<?, ?, ?>> providers;
+  private final Map<String, RootInputProvider<?>> providers;
 
-  private RootProviderRegistry(
-      Map<String, RootInputProvider<?, ?, ?>> providers) {
+  private RootProviderRegistry(Map<String, RootInputProvider<?>> providers) {
     this.providers = providers;
   }
 
   public Collection<CommittedBundle<?>> getInitialInputs(
-      AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception {
-    String transformUrn = PTransformTranslation.urnForTransform(transform.getTransform());
+      PTransformNode transform, int targetParallelism) throws Exception {
+    String transformUrn = PTransformTranslation.urnForTransformOrNull(transform.getTransform());
     RootInputProvider provider =
         checkNotNull(
             providers.get(transformUrn),

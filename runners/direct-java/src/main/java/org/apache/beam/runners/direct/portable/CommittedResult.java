@@ -21,7 +21,7 @@ package org.apache.beam.runners.direct.portable;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
 import java.util.Set;
-import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 
 /**
@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 @AutoValue
 abstract class CommittedResult<ExecutableT> {
   /**
-   * Returns the {@link AppliedPTransform} that produced this result.
+   * Returns the {@link PTransformNode} that produced this result.
    */
   public abstract ExecutableT getExecutable();
 
@@ -40,7 +40,6 @@ abstract class CommittedResult<ExecutableT> {
    * input elements, and absent otherwise.
    */
   public abstract Optional<? extends CommittedBundle<?>> getUnprocessedInputs();
-
   /**
    * Returns the outputs produced by the transform.
    */
@@ -55,7 +54,7 @@ abstract class CommittedResult<ExecutableT> {
    */
   public abstract Set<OutputType> getProducedOutputTypes();
 
-  public static CommittedResult<AppliedPTransform<?, ?, ?>> create(
+  public static CommittedResult<PTransformNode> create(
       TransformResult<?> original,
       Optional<? extends CommittedBundle<?>> unprocessedElements,
       Iterable<? extends CommittedBundle<?>> outputs,

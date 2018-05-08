@@ -57,6 +57,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -126,7 +127,8 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-class WatermarkManager<ExecutableT, CollectionT> {
+@Internal
+public class WatermarkManager<ExecutableT, CollectionT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -785,8 +787,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * @param clock the clock to use to determine processing time
    * @param graph the graph representing this pipeline
    */
-  public static WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> create(
-      Clock clock, DirectGraph graph) {
+  public static <ExecutableT, CollectionT>
+      WatermarkManager<ExecutableT, ? super CollectionT> create(
+          Clock clock, ExecutableGraph<ExecutableT, ? super CollectionT> graph) {
     return new WatermarkManager<>(clock, graph);
   }
 
@@ -1033,7 +1036,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * Refresh the watermarks contained within this {@link WatermarkManager}, causing all
    * watermarks to be advanced as far as possible.
    */
-  synchronized void refreshAll() {
+  public synchronized void refreshAll() {
     refreshLock.lock();
     try {
       applyAllPendingUpdates();
@@ -1443,17 +1446,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @VisibleForTesting
-    Iterable<? extends TimerData> getCompletedTimers() {
+    public Iterable<? extends TimerData> getCompletedTimers() {
       return completedTimers;
     }
 
     @VisibleForTesting
-    Iterable<? extends TimerData> getSetTimers() {
+    public Iterable<? extends TimerData> getSetTimers() {
       return setTimers;
     }
 
     @VisibleForTesting
-    Iterable<? extends TimerData> getDeletedTimers() {
+    public Iterable<? extends TimerData> getDeletedTimers() {
       return deletedTimers;
     }
 

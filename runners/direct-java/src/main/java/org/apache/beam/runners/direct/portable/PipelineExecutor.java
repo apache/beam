@@ -17,17 +17,17 @@
  */
 package org.apache.beam.runners.direct.portable;
 
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
- * An executor that schedules and executes {@link AppliedPTransform AppliedPTransforms} for both
- * source and intermediate {@link PTransform PTransforms}.
+ * An executor that schedules and executes {@link PTransformNode PTransformNodes} for both source
+ * and intermediate {@link PTransform PTransforms}.
  */
 interface PipelineExecutor {
   /**
@@ -35,12 +35,12 @@ interface PipelineExecutor {
    * create initial inputs for the provide {@link ExecutableGraph graph}.
    */
   void start(
-      ExecutableGraph<AppliedPTransform<?, ?, ?>, PCollection<?>> graph,
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
       RootProviderRegistry rootProviderRegistry);
 
   /**
    * Blocks until the job being executed enters a terminal state. A job is completed after all root
-   * {@link AppliedPTransform AppliedPTransforms} have completed, and all {@link CommittedBundle
+   * {@link PTransformNode PTransformNodes} have completed, and all {@link CommittedBundle
    * Bundles} have been consumed. Jobs may also terminate abnormally.
    *
    * <p>Waits for up to the provided duration, or forever if the provided duration is less than or
