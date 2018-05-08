@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+set -x
 envdir="$@"
 virtualenv $envdir
 . $envdir/bin/activate
