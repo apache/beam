@@ -36,7 +36,7 @@ TERMINAL_STATES = [
 ]
 
 
-class UniversalLocalRunner(runner.PipelineRunner):
+class PortableRunner(runner.PipelineRunner):
   """
     Experimental: No backward compatibility guaranteed.
     A BeamRunner that executes Python pipelines via the Beam Job API.
@@ -51,7 +51,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
                runner_api_address=None,
                job_service_address=None,
                docker_image=None):
-    super(UniversalLocalRunner, self).__init__()
+    super(PortableRunner, self).__init__()
 
     self._subprocess = None
     self._runner_api_address = runner_api_address

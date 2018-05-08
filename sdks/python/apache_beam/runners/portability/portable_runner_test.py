@@ -33,13 +33,13 @@ import apache_beam as beam
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import fn_api_runner_test
-from apache_beam.runners.portability import universal_local_runner
-from apache_beam.runners.portability.job_service import JobServicer
+from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
+class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 30
 
@@ -88,7 +88,7 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     logging.info('Starting server on port %d.', port)
     cls._subprocess = subprocess.Popen([
         sys.executable, '-m',
-        'apache_beam.runners.portability.job_service_main', '-p',
+        'apache_beam.runners.portability.local_job_service_main', '-p',
         str(port), '--worker_command_line',
         '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
     ])
@@ -125,18 +125,18 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       return cls._start_local_runner_subprocess_job_service()
     elif cls._use_grpc:
       # Use GRPC for workers.
-      cls._servicer = JobServicer(use_grpc=True)
+      cls._servicer = LocalJobServicer(use_grpc=True)
       return 'localhost:%d' % cls._servicer.start_grpc_server()
     else:
       # Do not use GRPC for worker.
-      cls._servicer = JobServicer(use_grpc=False)
+      cls._servicer = LocalJobServicer(use_grpc=False)
       return 'localhost:%d' % cls._servicer.start_grpc_server()
 
   @classmethod
   def get_runner(cls):
     # Don't inherit.
     if '_runner' not in cls.__dict__:
-      cls._runner = universal_local_runner.UniversalLocalRunner(
+      cls._runner = portable_runner.PortableRunner(
           job_service_address=cls._create_job_service())
     return cls._runner
 
@@ -179,12 +179,12 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
-class UniversalLocalRunnerTestWithGrpc(UniversalLocalRunnerTest):
+class PortableRunnerTestWithGrpc(PortableRunnerTest):
   _use_grpc = True
 
 
 @unittest.skip("BEAM-3040")
-class UniversalLocalRunnerTestWithSubprocesses(UniversalLocalRunnerTest):
+class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_grpc = True
   _use_subprocesses = True
 

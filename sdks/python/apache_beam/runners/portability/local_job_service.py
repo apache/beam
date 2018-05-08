@@ -42,7 +42,7 @@ TERMINAL_STATES = [
 ]
 
 
-class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
+class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   """
     Experimental: No backward compatibility guaranteed.
     Servicer for the Beam Job API.
