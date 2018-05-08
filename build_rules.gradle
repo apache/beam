@@ -188,6 +188,7 @@ def postgres_version = "9.4.1212.jre7"
 def jaxb_api_version = "2.2.12"
 def kafka_version = "1.0.0"
 def jackson_datatype_joda_version = "2.4.0"
+def quickcheck_version = "0.8"
 
 // A map of maps containing common libraries used per language. To use:
 // dependencies {
@@ -295,6 +296,7 @@ ext.library = [
     spark_streaming: "org.apache.spark:spark-streaming_2.11:$spark_version",
     stax2_api: "org.codehaus.woodstox:stax2-api:3.1.4",
     woodstox_core_asl: "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
+    quickcheck_core: "com.pholser:junit-quickcheck-core:$quickcheck_version",
   ],
   // For generating pom.xml from archetypes.
   maven: [
