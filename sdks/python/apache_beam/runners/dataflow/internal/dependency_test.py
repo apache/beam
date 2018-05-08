@@ -345,7 +345,7 @@ class SetupTest(unittest.TestCase):
           options,
           temp_dir=self.make_temp_dir())
 
-      self.assertTrue(len(staged_resources), 2)
+      self.assertEqual(len(staged_resources), 2)
       self.assertEqual(staged_resources[0], names.DATAFLOW_SDK_TARBALL_FILE)
       # Exact name depends on the version of the SDK.
       self.assertTrue(staged_resources[1].endswith('whl'))
