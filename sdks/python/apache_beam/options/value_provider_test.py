@@ -183,6 +183,17 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg13.get(), 'a')
     self.assertEqual(options.vpt_vp_arg14.get(), 2)
 
+  def test_experiments_setup(self):
+    RuntimeValueProvider.set_runtime_options(
+        {'experiments': ['feature_1', 'feature_2']}
+    )
+    self.assertTrue(isinstance(RuntimeValueProvider.experiments, set))
+    self.assertTrue('feature_1' in RuntimeValueProvider.experiments)
+    self.assertTrue('feature_2' in RuntimeValueProvider.experiments)
+    # Clean up runtime_options after this test case finish, otherwise, it'll
+    # affect other cases since runtime_options is static attr
+    RuntimeValueProvider.set_runtime_options(None)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
