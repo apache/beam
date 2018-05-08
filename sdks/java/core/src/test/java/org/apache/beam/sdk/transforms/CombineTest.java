@@ -1299,6 +1299,38 @@ public class CombineTest implements Serializable {
       pipeline.run();
     }
 
+    /**
+     * This test is added to catch an issue that singleton side input with accumulating triggers
+     * were writing multiple values as singleton view. For more info:
+     * https://issues.apache.org/jira/browse/BEAM-4255
+     */
+    @Test
+    @Category({ ValidatesRunner.class })
+    public void testCombineGloballyAsSingletonViewWithTrigger() {
+      final PCollectionView<Integer> view = pipeline
+          .apply("CreateSideInput",
+              Create.timestamped(
+                  TimestampedValue.of(1, new Instant(100)),
+                  TimestampedValue.of(2, new Instant(100)),
+                  TimestampedValue.of(3, new Instant(200)),
+                  TimestampedValue.of(4, new Instant(200))))
+          .apply(Window.<Integer>into(new GlobalWindows())
+              .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(2)))
+              .accumulatingFiredPanes())
+          .apply(Sum.integersGlobally().asSingletonView());
+
+      PCollection<Integer> output = pipeline
+          .apply("CreateVoidMainInput", Create.of((Void) null))
+          .apply("OutputSideInput", ParDo.of(new DoFn<Void, Integer>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              c.output(c.sideInput(view));
+            }
+          }).withSideInputs(view));
+
+      pipeline.run();
+    }
+
     @Test
     @Category(ValidatesRunner.class)
     public void testWindowedCombineGloballyAsSingletonView() {
