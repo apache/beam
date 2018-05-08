@@ -41,7 +41,7 @@ def long_generator(value, elements):
 
 def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
   print("Number of runs:", num_runs)
-  print("Input size:", num_sources*input_per_source)
+  print("Input size:", num_sources * input_per_source)
   print("Sources:", num_sources)
 
   times = []
@@ -51,6 +51,7 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
     with state_sampler.scoped_state('step1', 'state'):
       si_counter = opcounters.SideInputReadCounter(
           counter_factory, state_sampler, 'step1', 1)
+      si_counter = opcounters.NoOpTransformIOCounter()
       sources = [
           FakeSource(long_generator(i, input_per_source))
           for i in range(num_sources)]
@@ -65,7 +66,7 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
 
   avg_runtime = sum(times)/len(times)
   print("Average runtime:", avg_runtime)
-  print("Time per element:", avg_runtime/(input_per_source*num_sources))
+  print("Time per element:", avg_runtime/(input_per_source * num_sources))
 
 
 if __name__ == '__main__':
