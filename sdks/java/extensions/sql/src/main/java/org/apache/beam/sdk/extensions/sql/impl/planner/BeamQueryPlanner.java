@@ -38,7 +38,7 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
@@ -135,36 +135,22 @@ public class BeamQueryPlanner {
       throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode beamRelNode;
     try {
-      beamRelNode = (BeamRelNode) validateAndConvert(planner.parse(sqlStatement));
+      SqlNode parsed = planner.parse(sqlStatement);
+      SqlNode validated = planner.validate(parsed);
+      LOG.info("SQL:\n" + validated);
+
+      RelRoot root = planner.rel(validated);
+      LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
+
+      RelTraitSet desiredTraits = root.rel.getTraitSet()
+          .replace(BeamLogicalConvention.INSTANCE)
+          .replace(root.collation)
+          .simplify();
+      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
     } finally {
       planner.close();
     }
     return beamRelNode;
-  }
-
-  private RelNode validateAndConvert(SqlNode sqlNode)
-      throws ValidationException, RelConversionException {
-    SqlNode validated = validateNode(sqlNode);
-    LOG.info("SQL:\n" + validated);
-    RelNode relNode = convertToRelNode(validated);
-    return convertToBeamRel(relNode);
-  }
-
-  private RelNode convertToBeamRel(RelNode relNode) throws RelConversionException {
-    RelTraitSet traitSet = relNode.getTraitSet();
-
-    LOG.info("SQLPlan>\n" + RelOptUtil.toString(relNode));
-
-    // PlannerImpl.transform() optimizes RelNode with ruleset
-    return planner.transform(0, traitSet.plus(BeamLogicalConvention.INSTANCE), relNode);
-  }
-
-  private RelNode convertToRelNode(SqlNode sqlNode) throws RelConversionException {
-    return planner.rel(sqlNode).rel;
-  }
-
-  private SqlNode validateNode(SqlNode sqlNode) throws ValidationException {
-    return planner.validate(sqlNode);
   }
 
   public Planner getPlanner() {
