@@ -126,7 +126,7 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-class WatermarkManager<ExecutableT, CollectionT> {
+class WatermarkManager<ExecutableT, CollectionT> implements TimerProvider<ExecutableT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -1298,7 +1298,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       for (Map.Entry<StructuralKey<?>, List<TimerData>> firedTimers :
           timersPerKey.entrySet()) {
         keyFiredTimers.add(
-            new FiredTimers<>(executable, firedTimers.getKey(), firedTimers.getValue()));
+            FiredTimers.create(executable, firedTimers.getKey(), firedTimers.getValue()));
       }
       return keyFiredTimers;
     }
@@ -1479,50 +1479,6 @@ class WatermarkManager<ExecutableT, CollectionT> {
           && Objects.equals(this.completedTimers, that.completedTimers)
           && Objects.equals(this.setTimers, that.setTimers)
           && Objects.equals(this.deletedTimers, that.deletedTimers);
-    }
-  }
-
-  /**
-   * A pair of {@link TimerData} and key which can be delivered to the appropriate
-   * {@link AppliedPTransform}. A timer fires at the executable that set it with a specific key when
-   * the time domain in which it lives progresses past a specified time, as determined by the
-   * {@link WatermarkManager}.
-   */
-  public static class FiredTimers<ExecutableT> {
-    /** The executable the timers were set at and will be delivered to. */
-    private final ExecutableT executable;
-    /** The key the timers were set for and will be delivered to. */
-    private final StructuralKey<?> key;
-    private final Collection<TimerData> timers;
-
-    private FiredTimers(
-        ExecutableT executable, StructuralKey<?> key, Collection<TimerData> timers) {
-      this.executable = executable;
-      this.key = key;
-      this.timers = timers;
-    }
-
-    public ExecutableT getExecutable() {
-      return executable;
-    }
-
-    public StructuralKey<?> getKey() {
-      return key;
-    }
-
-    /**
-     * Gets all of the timers that have fired within the provided {@link TimeDomain}. If no timers
-     * fired within the provided domain, return an empty collection.
-     *
-     * <p>Timers within a {@link TimeDomain} are guaranteed to be in order of increasing timestamp.
-     */
-    public Collection<TimerData> getTimers() {
-      return timers;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(FiredTimers.class).add("timers", timers).toString();
     }
   }
 
