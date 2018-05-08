@@ -35,6 +35,7 @@ __all__ = ['Metrics', 'MetricsFilter']
 
 
 class _DelegatingMetric(object):
+  """Initializes metrics execution upon creation."""
   def __init__(self):
     global MetricsEnvironment  # pylint: disable=global-variable-not-assigned
     from apache_beam.metrics.execution import MetricsEnvironment
@@ -121,7 +122,7 @@ class Metrics(object):
       if container is not None:
         container.get_distribution(self.metric_name).update(value)
 
-  class DelegatingGauge(_DelegatingMetric, Gauge):
+  class DelegatingGauge(Gauge, _DelegatingMetric):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
 
     def __init__(self, metric_name):
