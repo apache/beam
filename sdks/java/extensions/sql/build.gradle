@@ -71,6 +71,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
+  testCompile library.java.quickcheck_core
 }
 
 // Copy Caclcite templates and our own template into the build directory
