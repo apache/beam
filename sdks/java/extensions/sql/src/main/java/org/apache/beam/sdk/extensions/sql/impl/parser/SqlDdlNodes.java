@@ -16,11 +16,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import java.util.List;
+import org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.Util;
 
 /**
  * Utilities concerning {@link SqlNode} for DDL.
@@ -46,6 +51,26 @@ public class SqlDdlNodes {
   public static SqlNode column(SqlParserPos pos, SqlIdentifier name,
       SqlDataTypeSpec dataType, SqlNode comment) {
     return new SqlColumnDeclaration(pos, name, dataType, comment);
+  }
+
+  /** Returns the schema in which to create an object. */
+  static Pair<CalciteSchema, String> schema(CalcitePrepare.Context context,
+      boolean mutable, SqlIdentifier id) {
+    final String name;
+    final List<String> path;
+    if (id.isSimple()) {
+      path = context.getDefaultSchemaPath();
+      name = id.getSimple();
+    } else {
+      path = Util.skipLast(id.names);
+      name = Util.last(id.names);
+    }
+    CalciteSchema schema = mutable ? context.getMutableRootSchema()
+        : context.getRootSchema();
+    for (String p : path) {
+      schema = schema.getSubSchema(p, true);
+    }
+    return Pair.of(schema, name);
   }
 }
 

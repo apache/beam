@@ -16,12 +16,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static org.apache.calcite.util.Static.RESOURCE;
+
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.sql.SqlDrop;
+import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
@@ -29,7 +36,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  * Base class for parse trees of {@code DROP TABLE}, {@code DROP VIEW} and
  * {@code DROP MATERIALIZED VIEW} statements.
  */
-abstract class SqlDropObject extends SqlDrop {
+abstract class SqlDropObject extends SqlDrop
+    implements SqlExecutableStatement {
   protected final SqlIdentifier name;
 
   /** Creates a SqlDropObject. */
@@ -51,8 +59,30 @@ abstract class SqlDropObject extends SqlDrop {
     name.unparse(writer, leftPrec, rightPrec);
   }
 
-  public String getNameSimple() {
-    return name.getSimple().toLowerCase();
+  public void execute(CalcitePrepare.Context context) {
+    final List<String> path = context.getDefaultSchemaPath();
+    CalciteSchema schema = context.getRootSchema();
+    for (String p : path) {
+      schema = schema.getSubSchema(p, true);
+    }
+    final boolean existed;
+    switch (getKind()) {
+    case DROP_TABLE:
+      if (schema.schema instanceof BeamCalciteSchema) {
+        BeamCalciteSchema beamSchema = (BeamCalciteSchema) schema.schema;
+        beamSchema.getTableProvider().dropTable(name.getSimple().toLowerCase());
+        existed = true;
+      } else {
+        existed = schema.removeTable(name.getSimple());
+      }
+      if (!existed && !ifExists) {
+        throw SqlUtil.newContextException(name.getParserPosition(),
+            RESOURCE.tableNotFound(name.getSimple()));
+      }
+      break;
+    default:
+      throw new AssertionError(getKind());
+    }
   }
 }
 
