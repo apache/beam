@@ -13,29 +13,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package textio
+package filesystem
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 )
 
-var registry = make(map[string]func(context.Context) FileSystem)
+var registry = make(map[string]func(context.Context) Interface)
 
-// RegisterFileSystem registers a file system backend for textio.Read/Write,
-// under the given scheme.For example, "hdfs" would be registered a HFDS file
-// system and HDFS paths used transparently.
-func RegisterFileSystem(scheme string, fs func(context.Context) FileSystem) {
+// Register registers a file system backend under the given scheme.  For
+// example, "hdfs" would be registered a HFDS file system and HDFS paths used
+// transparently.
+func Register(scheme string, fs func(context.Context) Interface) {
 	if _, ok := registry[scheme]; ok {
 		panic(fmt.Sprintf("scheme %v already registered", scheme))
 	}
 	registry[scheme] = fs
 }
 
-// FileSystem is a filesystem abstraction that allows textio to use various
-// underlying storage systems transparently.
-type FileSystem interface {
+// New returns a new Interface for the given file path's scheme.
+func New(ctx context.Context, path string) (Interface, error) {
+	scheme := getScheme(path)
+	mkfs, ok := registry[scheme]
+	if !ok {
+		return nil, fmt.Errorf("file system scheme %v not registered for %v", scheme, path)
+	}
+	return mkfs(ctx), nil
+}
+
+// Interface is a filesystem abstraction that allows beam io sources and sinks
+// to use various underlying storage systems transparently.
+type Interface interface {
 	io.Closer
 
 	// List expands a patten to a list of filenames.
@@ -46,4 +57,23 @@ type FileSystem interface {
 	// OpenRead opens a file for writing. If the file already exist, it will be
 	// overwritten.
 	OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error)
+}
+
+func getScheme(path string) string {
+	if index := strings.Index(path, "://"); index > 0 {
+		return path[:index]
+	}
+	return "default"
+}
+
+// ValidateScheme panics if the given path's scheme does not have a
+// corresponding file system registered.
+func ValidateScheme(path string) {
+	if strings.TrimSpace(path) == "" {
+		panic("empty file glob provided")
+	}
+	scheme := getScheme(path)
+	if _, ok := registry[scheme]; !ok {
+		panic(fmt.Sprintf("filesystem scheme %v not registered", scheme))
+	}
 }
