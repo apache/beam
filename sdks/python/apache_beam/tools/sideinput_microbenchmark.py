@@ -48,6 +48,7 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
   for i in range(num_runs):
     counter_factory = CounterFactory()
     state_sampler = statesampler.StateSampler('basic', counter_factory)
+    state_sampler.start()
     with state_sampler.scoped_state('step1', 'state'):
       si_counter = opcounters.SideInputReadCounter(
           counter_factory, state_sampler, 'step1', 1)
@@ -61,6 +62,7 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
       list(iterator_fn())
       time_cost = time.time() - start
       times.append(time_cost)
+    state_sampler.stop()
 
   print("Runtimes:", times)
 
