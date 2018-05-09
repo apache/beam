@@ -52,7 +52,7 @@ TIME_POINT_2 = NOW - 7 * 86400
 ##############################
 
 SLACK_USER = os.getenv('SLACK_USER', "jenkins-beam")
-SLACK_WEBOOK_URL = os.getenv('SLACK_WEBOOK_URL')
+SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 SLACK_CHANNEL = os.getenv('SLACK_CHANNEL', "beam-testing")
 
 def submit_big_query_job(sql_command, return_type):
@@ -140,7 +140,7 @@ def update_messages(bq_table_name, metric, average_recent, percentage_change, st
         bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
     return report_message, slack_report_message
 
-def create_report(bqtables):
+def create_report(bqtables, metric, send_notification):
     # This function create a report message from tables.
     report_message = ''
     slack_report_message = ''
@@ -168,11 +168,11 @@ def create_report(bqtables):
                 report_message, slack_report_message = \
                     update_messages(bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old, report_message, slack_report_message)
     print(report_message)
-    if args.send_notification:
+    if send_notification:
         notify_on_slack(slack_report_message)
+    return report_message
 
-
-def validate_single_performance_test(bqtables):
+def validate_single_performance_test(bqtables, metric, send_notification):
     # This function validates single test, runs after tests execution
     report_message = ''
     slack_report_message = ''
@@ -194,8 +194,9 @@ def validate_single_performance_test(bqtables):
             report_message, slack_report_message = \
                 update_messages(bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old, report_message, slack_report_message)
     print(report_message)
-    if args.send_notification:
+    if send_notification:
         notify_on_slack(slack_report_message)
+    return report_message
 
 def format_slack_message(table_name, metric, avg_time, change, stddev, stddev_old):
     # Function that gives additional slack formatting
@@ -224,7 +225,7 @@ def notify_on_slack(message):
         'icon_emoji': ':robot_face:',
         'channel': SLACK_CHANNEL
     }
-    response = requests.post(SLACK_WEBOOK_URL, data=json.dumps(
+    response = requests.post(SLACK_WEBHOOK_URL, data=json.dumps(
         data), headers={'Content-Type': 'application/json'})
     print('Response: ' + str(response.text))
     print('Response code: ' + str(response.status_code))
@@ -241,10 +242,11 @@ if __name__ == '__main__':
     client = bigquery.Client()
     bqtables = args.bqtable.split(",")
     metric = args.metric.strip()
+    send_notification = args.send_notification
 
     if args.mode == "report":
-        create_report(bqtables)
+        create_report(bqtables, metric, send_notification)
     elif args.mode == "validate":
-        validate_single_performance_test(bqtables)
+        validate_single_performance_test(bqtables, metric, send_notification)
     else:
         print("This mode is not supported yet.")
