@@ -1,0 +1,13 @@
+*.iml
+.idea/
+target/
+assembly/
+out/
+.project
+.classpath
+.settings
+.gradle/
+build/
+/.nb-gradle/
+**/*.xml.versionsBackup
+**/dependency-reduced-pom.xml
