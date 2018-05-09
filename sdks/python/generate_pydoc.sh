@@ -132,6 +132,7 @@ ignore_identifiers = [
   'apache_beam.io.iobase.SourceBase',
   'apache_beam.io.source_test_utils.ExpectedSplitOutcome',
   'apache_beam.metrics.metric.MetricResults',
+  'apache_beam.metrics.metric._DelegatingMetric',
   'apache_beam.pipeline.PipelineVisitor',
   'apache_beam.pipeline.PTransformOverride',
   'apache_beam.pvalue.AsSideInput',
