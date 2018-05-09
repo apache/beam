@@ -30,10 +30,8 @@ from apache_beam.runners.portability.stager import FileHandler
 class ArtifactStagingFileHandler(FileHandler):
   """:class:`FileHandler` to push files to ArtifactStagingService.
 
-  The class keeps track of pushed files and user is expected to call
-  :fun:`commit_manifest` once all files are uploaded.
-  Once :fun:`commit_manifest` is called, no further operations can be performed
-  on the class.
+  The class keeps track of pushed files and commit manifest once all files are
+  uploaded.
 
   Note: This class is not thread safe and user of this class should ensure
   thread safety.
@@ -51,7 +49,18 @@ class ArtifactStagingFileHandler(FileHandler):
     self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
         ArtifactStagingServiceStub(channel=artifact_service_channel)
     self._artifacts = []
-    self.closed = False
+    self._closed = False
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if not exc_type:
+      self._check_closed()
+      self._closed = True
+      manifest = beam_artifact_api_pb2.Manifest(artifact=self._artifacts)
+      self._artifact_staging_stub.CommitManifest(
+          beam_artifact_api_pb2.CommitManifestRequest(manifest=manifest))
 
   def file_copy(self, from_path, to_path):
     """Uploads a file to ArtifactStagingService.
@@ -73,7 +82,7 @@ class ArtifactStagingFileHandler(FileHandler):
       yield request
       with open(from_path, 'rb') as f:
         while True:
-          chunk = f.read(2 << 12)  # 4kb
+          chunk = f.read(2 << 20)  # 2MB
           if not chunk:
             break
           request = beam_artifact_api_pb2.PutArtifactRequest(
@@ -81,24 +90,13 @@ class ArtifactStagingFileHandler(FileHandler):
           yield request
       self._artifacts.append(metadata)
 
-    response = self._artifact_staging_stub.PutArtifact(
-        artifact_request_generator())
-    print(response)
+    self._artifact_staging_stub.PutArtifact(artifact_request_generator())
 
   def file_download(self, from_url, to_path):
     self._check_closed()
     return super(ArtifactStagingFileHandler, self).file_download(
         from_url, to_path)
 
-  def commit_manifest(self):
-    """Commit the manifest of uploaded files and mark this file handler closed.
-    """
-    self._check_closed()
-    self.closed = True
-    manifest = beam_artifact_api_pb2.Manifest(artifact=self._artifacts)
-    self._artifact_staging_stub.CommitManifest(
-        beam_artifact_api_pb2.CommitManifestRequest(manifest=manifest))
-
   def _check_closed(self):
-    if self.closed:
+    if self._closed:
       raise ValueError('This file handler is commited and can not be used.')
