@@ -303,9 +303,6 @@ class DoOperation(Operation):
     # provided directly.
     assert self.side_input_maps is None
 
-    # Get experiments active in the worker to check for side input metrics exp.
-    experiments = RuntimeValueProvider.get_value('experiments', list, [])
-
     # We will read the side inputs in the order prescribed by the
     # tags_and_types argument because this is exactly the order needed to
     # replace the ArgumentPlaceholder objects in the args/kwargs of the DoFn
@@ -328,7 +325,7 @@ class DoOperation(Operation):
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics' in experiments:
+        if 'sideinput_io_metrics' in RuntimeValueProvider.experiments:
           si_counter = opcounters.SideInputReadCounter(
               self.counter_factory,
               self.state_sampler,
