@@ -535,6 +535,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       if (endMsSinceEpoch >= 0 && now > endMsSinceEpoch && !waitingForShutdown) {
         NexmarkUtils.console("Reached end of test, cancelling job");
         try {
+          cancelJob = true;
           job.cancel();
         } catch (IOException e) {
           throw new RuntimeException("Unable to cancel main job: ", e);
