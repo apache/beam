@@ -201,7 +201,7 @@ public class WaitTest implements Serializable {
   public void testWaitWithSomeSignalWindowsEmpty() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
-        Duration.standardSeconds(0) /* lateness */,
+        Duration.ZERO /* lateness */,
         20 /* numMainElements */,
         FixedWindows.of(Duration.standardSeconds(1)),
         10 /* numSignalElements */,

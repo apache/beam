@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -156,7 +157,7 @@ public class BufferedElementCountingOutputStreamTest {
   public void testWritingBytesWhenFinishedThrows() throws Exception {
     expectedException.expect(IOException.class);
     expectedException.expectMessage("Stream has been finished.");
-    testValues(toBytes("a")).write("b".getBytes());
+    testValues(toBytes("a")).write("b".getBytes(Charsets.UTF_8));
   }
 
   @Test
@@ -195,7 +196,7 @@ public class BufferedElementCountingOutputStreamTest {
   private List<byte[]> toBytes(String ... values) {
     ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
     for (String value : values) {
-      builder.add(value.getBytes());
+      builder.add(value.getBytes(Charsets.UTF_8));
     }
     return builder.build();
   }

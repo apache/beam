@@ -425,6 +425,7 @@ public class Regex {
       this.group = group;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -467,6 +468,7 @@ public class Regex {
       this.groupName = groupName;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -509,6 +511,7 @@ public class Regex {
       this.pattern = pattern;
     }
 
+    @Override
     public PCollection<List<String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -561,6 +564,7 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -607,6 +611,7 @@ public class Regex {
       this.valueGroupName = valueGroupName;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -649,6 +654,7 @@ public class Regex {
       this.group = group;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -691,6 +697,7 @@ public class Regex {
       this.groupName = groupName;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -732,6 +739,7 @@ public class Regex {
       this.pattern = pattern;
     }
 
+    @Override
     public PCollection<List<String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -785,6 +793,7 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -832,6 +841,7 @@ public class Regex {
       this.valueGroupName = valueGroupName;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -874,6 +884,7 @@ public class Regex {
       this.replacement = replacement;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -913,6 +924,7 @@ public class Regex {
       this.replacement = replacement;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
@@ -954,6 +966,7 @@ public class Regex {
       this.outputEmpty = outputEmpty;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(

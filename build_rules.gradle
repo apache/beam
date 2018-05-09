@@ -338,6 +338,7 @@ class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
   boolean enableErrorProne = true // Controls whether the errorprone plugin is enabled and configured
+  boolean failOnWarning = false // Controls whether compiler warnings are treated as errors
 
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
@@ -412,6 +413,16 @@ ext.applyJavaNature = {
   tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
     options.compilerArgs += ["-Xlint:all","-Xlint:-options","-Xlint:-cast","-Xlint:-deprecation","-Xlint:-processing","-Xlint:-rawtypes","-Xlint:-serial","-Xlint:-try","-Xlint:-unchecked","-Xlint:-varargs","-parameters"]
+    if (configuration.enableErrorProne) {
+      options.compilerArgs += [
+        "-XepDisableWarningsInGeneratedCode",
+        "-XepExcludedPaths:.*/build/generated.*avro-java/.*",
+        "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
+      ]
+    }
+    if (configuration.failOnWarning) {
+      options.compilerArgs += "-Werror"
+    }
   }
 
   // Configure the default test tasks set of tests executed
@@ -506,6 +517,9 @@ ext.applyJavaNature = {
   // Enable errorprone, not by default right now
   if (configuration.enableErrorProne) {
     apply plugin: 'net.ltgt.errorprone'
+    tasks.withType(JavaCompile) {
+      options.compilerArgs += "-XepDisableWarningsInGeneratedCode"
+    }
   }
 
   // Enables a plugin which can perform shading of classes. See the general comments

@@ -333,10 +333,10 @@ public class DoFnSignaturesSplittableDoFnTest {
     DoFnSignatures.getSignature(BadFn.class);
   }
 
-  abstract class SomeDefaultTracker
+  abstract static class SomeDefaultTracker
       extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {}
 
-  abstract class RestrictionWithDefaultTracker
+  abstract static class RestrictionWithDefaultTracker
       implements HasDefaultTracker<RestrictionWithDefaultTracker, SomeDefaultTracker> {}
 
   @Test

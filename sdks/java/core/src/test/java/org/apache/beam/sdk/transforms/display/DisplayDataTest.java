@@ -264,7 +264,7 @@ public class DisplayDataTest implements Serializable {
             });
 
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
-    assertEquals(map.size(), 1);
+    assertEquals(1, map.size());
     assertThat(data, hasDisplayItem("foo", "bar"));
     assertEquals(map.values(), data.items());
   }
@@ -732,7 +732,7 @@ public class DisplayDataTest implements Serializable {
     assertThat(data.items(), hasSize(2));
   }
 
-  private class DelegatingDisplayData implements HasDisplayData {
+  private static class DelegatingDisplayData implements HasDisplayData {
     private final HasDisplayData subComponent;
     public DelegatingDisplayData(HasDisplayData subComponent) {
       this.subComponent = subComponent;
@@ -931,8 +931,8 @@ public class DisplayDataTest implements Serializable {
       try {
         type.format(value);
       } catch (ClassCastException e) {
-        fail(String.format("Failed to format %s for DisplayData.%s",
-            value.getClass().getSimpleName(), type));
+        throw new AssertionError(String.format("Failed to format %s for DisplayData.%s",
+            value.getClass().getSimpleName(), type), e);
       }
     }
   }

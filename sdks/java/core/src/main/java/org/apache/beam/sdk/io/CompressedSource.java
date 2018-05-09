@@ -95,7 +95,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionMode(Compression canonical) {
       this.canonical = canonical;

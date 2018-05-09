@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 
 import com.google.common.collect.ImmutableSet;
-import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
@@ -37,7 +36,7 @@ import org.apache.beam.sdk.values.Row;
  */
 class RowJsonValidation {
 
-  private static final Set<Schema.TypeName> SUPPORTED_TYPES =
+  private static final ImmutableSet<Schema.TypeName> SUPPORTED_TYPES =
       ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING);
 
   static void verifyFieldTypeSupported(Schema.Field field) {

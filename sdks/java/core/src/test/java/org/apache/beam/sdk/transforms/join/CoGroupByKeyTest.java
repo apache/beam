@@ -281,7 +281,7 @@ public class CoGroupByKeyTest implements Serializable {
               assertThat(result2.getAll(purchasesTag), containsInAnyOrder("Suit", "Boat"));
 
               CoGbkResult result3 = results.get(3);
-              assertEquals("29 School Rd", result3.getOnly(addressesTag), "29 School Rd");
+              assertEquals("29 School Rd", "29 School Rd", result3.getOnly(addressesTag));
               assertThat(result3.getAll(purchasesTag), containsInAnyOrder("Car", "House"));
 
               CoGbkResult result8 = results.get(8);

@@ -291,6 +291,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
      * pipeline options will be added as display data.
      */
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       Set<PipelineOptionSpec> optionSpecs =
           PipelineOptionsReflector.getOptionSpecs(knownInterfaces);

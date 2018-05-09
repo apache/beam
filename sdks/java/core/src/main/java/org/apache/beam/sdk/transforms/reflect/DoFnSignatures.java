@@ -80,7 +80,7 @@ public class DoFnSignatures {
 
   private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
-  private static final Collection<Class<? extends Parameter>>
+  private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
       ImmutableList.of(
           Parameter.ProcessContextParameter.class,
@@ -94,7 +94,7 @@ public class DoFnSignatures {
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class);
 
-  private static final Collection<Class<? extends Parameter>>
+  private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
@@ -105,7 +105,7 @@ public class DoFnSignatures {
               Parameter.ProcessContextParameter.class,
               Parameter.RestrictionTrackerParameter.class);
 
-  private static final Collection<Class<? extends Parameter>>
+  private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_PARAMETERS =
           ImmutableList.of(
               Parameter.OnTimerContextParameter.class,

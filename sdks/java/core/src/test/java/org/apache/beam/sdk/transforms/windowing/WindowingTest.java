@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -58,7 +60,7 @@ public class WindowingTest implements Serializable {
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
 
-    private final class FormatCountsDoFn extends DoFn<KV<String, Long>, String> {
+    private static final class FormatCountsDoFn extends DoFn<KV<String, Long>, String> {
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow window) {
         c.output(
@@ -234,9 +236,9 @@ public class WindowingTest implements Serializable {
   static class ExtractWordsWithTimestampsFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] words = c.element().split("[^a-zA-Z0-9']+");
-      if (words.length == 2) {
-        c.outputWithTimestamp(words[0], new Instant(Long.parseLong(words[1])));
+      List<String> words = Splitter.onPattern("[^a-zA-Z0-9']+").splitToList(c.element());
+      if (words.size() == 2) {
+        c.outputWithTimestamp(words.get(0), new Instant(Long.parseLong(words.get(1))));
       }
     }
   }

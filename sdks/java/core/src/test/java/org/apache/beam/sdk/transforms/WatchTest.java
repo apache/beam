@@ -351,12 +351,12 @@ public class WatchTest implements Serializable {
                   byTimestamp.isOrdered(byValue.sortedCopy(outputs)));
               assertEquals(
                   "Yields all expected values",
+                  numResults,
                   Sets.newHashSet(
                           StreamSupport.stream(outputs.spliterator(), false)
                               .map(extractValueFn::apply)
                               .collect(Collectors.toList()))
-                      .size(),
-                  numResults);
+                      .size());
               assertThat(
                   "Poll called more than once",
                   Sets.newHashSet(

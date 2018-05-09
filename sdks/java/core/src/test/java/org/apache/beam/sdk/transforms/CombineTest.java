@@ -194,7 +194,7 @@ public class CombineTest implements Serializable {
             Integer, TestCounter.Counter, Iterable<Long>> {
 
       /** An accumulator that observes its merges and outputs. */
-      public class Counter implements
+      public static class Counter implements
           Combine.AccumulatingCombineFn.Accumulator<Integer, Counter, Iterable<Long>>,
           Serializable {
 
@@ -525,7 +525,7 @@ public class CombineTest implements Serializable {
       private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
       private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
 
-      class CountSum implements
+      static class CountSum implements
           Combine.AccumulatingCombineFn.Accumulator<Integer, CountSum, Double> {
         long count = 0;
         double sum = 0.0;
@@ -593,7 +593,7 @@ public class CombineTest implements Serializable {
       /**
        * A {@link Coder} for {@link CountSum}.
        */
-      private class CountSumCoder extends AtomicCoder<CountSum> {
+      private static class CountSumCoder extends AtomicCoder<CountSum> {
         @Override
         public void encode(CountSum value, OutputStream outStream) throws IOException {
           LONG_CODER.encode(value.count, outStream);

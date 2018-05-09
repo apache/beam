@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import java.io.IOException;
@@ -25,8 +26,6 @@ import java.io.PushbackInputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
-import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
@@ -143,11 +142,11 @@ public enum Compression {
   };
 
   private final String suggestedSuffix;
-  private final List<String> detectedSuffixes;
+  private final ImmutableList<String> detectedSuffixes;
 
   Compression(String suggestedSuffix, String... detectedSuffixes) {
     this.suggestedSuffix = suggestedSuffix;
-    this.detectedSuffixes = Arrays.asList(detectedSuffixes);
+    this.detectedSuffixes = ImmutableList.copyOf(detectedSuffixes);
   }
 
   public String getSuggestedSuffix() {
