@@ -69,7 +69,7 @@ public class SpannerWriteIT {
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
     @Description("Instance ID to write to in Spanner")
-    @Default.String("mairbek-deleteme")
+    @Default.String("beam-test")
     String getInstanceId();
     void setInstanceId(String value);
 
