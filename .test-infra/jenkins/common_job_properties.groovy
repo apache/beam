@@ -238,7 +238,6 @@ class common_job_properties {
     }
 
     context.publishers {
-      githubCommitNotifier()
       // Notify an email address for each failed build (defaults to commits@).
       mailer(notifyAddress, false, emailIndividuals)
     }
