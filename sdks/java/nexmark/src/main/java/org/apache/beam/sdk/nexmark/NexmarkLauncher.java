@@ -779,24 +779,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
   }
 
-  static final DoFn<PubsubMessage, Event> PUBSUB_MESSAGE_TO_EVENT =
-    new DoFn<PubsubMessage, Event>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws IOException {
-        Event event = CoderUtils.decodeFromByteArray(Event.CODER, c.element().getPayload());
-        c.output(event);
-      }
-    };
-
-  static final DoFn<Event, PubsubMessage> EVENT_TO_PUBSUB_MESSAGE =
-    new DoFn<Event, PubsubMessage>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws IOException {
-        byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-        c.output(new PubsubMessage(payload, new HashMap<>()));
-      }
-    };
-
   /**
    * Return source of events from Pubsub.
    */
@@ -885,7 +867,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   /**
    * Send {@code events} to Pubsub.
    */
-  private void sinkEventsToPubsub(PCollection<Event> events, long now) {
+  private void sinkEventsToPubsub(PCollection<Event> events) {
     checkState(pubsubTopic != null, "Pubsub topic needs to be set up before initializing sink");
     NexmarkUtils.console("Writing events to Pubsub %s", pubsubTopic);
 
@@ -1069,8 +1051,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             // Send synthesized events to Pubsub in this job.
             sinkEventsToPubsub(
                 sourceEventsFromSynthetic(p)
-                    .apply(queryName + ".Snoop", NexmarkUtils.snoop(queryName)),
-                now);
+                    .apply(queryName + ".Snoop", NexmarkUtils.snoop(queryName)));
             break;
           case COMBINED:
             // Send synthesized events to Pubsub in separate publisher job.
@@ -1083,8 +1064,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                   publisherMonitor = new Monitor<>(queryName, "publisher");
                   sinkEventsToPubsub(
                       sourceEventsFromSynthetic(sp)
-                          .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
-                      now);
+                          .apply(queryName + ".Monitor", publisherMonitor.getTransform()));
                   publisherResult = sp.run();
                   NexmarkUtils.console("Publisher job is started.");
                 });
@@ -1392,7 +1372,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
       byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-      c.output(new PubsubMessage(payload, new HashMap<>()));
+      c.output(new PubsubMessage(payload, Collections.emptyMap()));
     }
   }
 }

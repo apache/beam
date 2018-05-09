@@ -77,7 +77,6 @@ public class PubsubHelper {
   /**
    * Create a topic from short name. Delete it if it already exists. Ensure the topic will be
    * deleted on cleanup. Return full topic name.
-   * @throws InterruptedException
    */
   public TopicPath createTopic(String shortTopic) throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
@@ -104,13 +103,13 @@ public class PubsubHelper {
 
   /** Create a topic from short name if it does not already exist. The topic will not be
    * deleted on cleanup. Return full topic name.
-   * @throws InterruptedException */
+   */
   public TopicPath createOrReuseTopic(String shortTopic) throws IOException {
     TopicPath topic = PubsubClient.topicPathFromName(project, shortTopic);
     while (true) {
       try {
         NexmarkUtils.console("create topic %s", topic);
-        pubsubClient.deleteTopic(topic);
+        pubsubClient.createTopic(topic);
         return topic;
       } catch (GoogleJsonResponseException ex) {
         if (topicExists(shortTopic)) {
@@ -154,7 +153,6 @@ public class PubsubHelper {
   /**
    * Create subscription from short name. Ensure the subscription will be deleted
    * on cleanup. Return full subscription name.
-   * @throws InterruptedException
    */
   public SubscriptionPath createSubscription(String shortTopic, String shortSubscription)
       throws IOException {
