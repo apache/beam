@@ -163,7 +163,6 @@ task pythonPreCommit() {
 }
 
 task pythonPostCommit() {
-  dependsOn ":beam-sdks-python:preCommit"
   dependsOn ":beam-sdks-python:postCommit"
 }
 
