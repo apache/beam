@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
 /**
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
-abstract class PubsubClient implements Closeable {
+public abstract class PubsubClient implements Closeable {
   /**
    * Factory for creating clients.
    */
@@ -119,7 +119,7 @@ abstract class PubsubClient implements Closeable {
   /**
    * Path representing a cloud project id.
    */
-  static class ProjectPath implements Serializable {
+  public static class ProjectPath implements Serializable {
     private final String projectId;
 
     /**

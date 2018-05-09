@@ -56,7 +56,7 @@ public class Main<OptionT extends NexmarkOptions> {
   /**
    * Entry point.
    */
-  void runAll(OptionT options, NexmarkLauncher nexmarkLauncher) {
+  void runAll(OptionT options, NexmarkLauncher nexmarkLauncher) throws IOException {
     Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
@@ -293,7 +293,7 @@ public class Main<OptionT extends NexmarkOptions> {
     NexmarkUtils.console("saved javascript to file %s.", javascriptFilename);
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     NexmarkOptions options = PipelineOptionsFactory.fromArgs(args)
       .withValidation()
       .as(NexmarkOptions.class);

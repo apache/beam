@@ -53,7 +53,7 @@ import org.apache.beam.sdk.util.Transport;
 /**
  * A Pubsub client using JSON transport.
  */
-class PubsubJsonClient extends PubsubClient {
+public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
     private static HttpRequestInitializer chainHttpRequestInitializer(
