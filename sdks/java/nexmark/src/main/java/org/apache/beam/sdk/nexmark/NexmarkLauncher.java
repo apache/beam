@@ -30,14 +30,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -49,6 +47,8 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode;
+import org.apache.beam.sdk.nexmark.NexmarkUtils.SourceType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -175,6 +175,21 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    */
   @Nullable
   private String queryName;
+
+  /**
+   * Full path of the PubSub topic (when PubSub is enabled).
+   */
+  @Nullable
+  private String pubsubTopic;
+
+  /**
+   * Full path of the PubSub subscription (when PubSub is enabled).
+   */
+  @Nullable
+  private String pubsubSubscription;
+
+  @Nullable
+  private PubsubHelper pubsubHelper;
 
   public NexmarkLauncher(OptionT options) {
     this.options = options;
@@ -457,7 +472,29 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Invoke the builder with options suitable for running a publish-only child pipeline.
    */
   private void invokeBuilderForPublishOnlyPipeline(PipelineBuilder<NexmarkOptions> builder) {
-    builder.build(options);
+    String jobName = options.getJobName();
+    String appName = options.getAppName();
+    int numWorkers = options.getNumWorkers();
+    int maxNumWorkers = options.getMaxNumWorkers();
+
+    options.setJobName("p-" + jobName);
+    options.setAppName("p-" + appName);
+    int eventGeneratorWorkers = configuration.numEventGenerators;
+    // TODO: assign one generator per core rather than one per worker.
+    if (numWorkers > 0 && eventGeneratorWorkers > 0) {
+      options.setNumWorkers(Math.min(numWorkers, eventGeneratorWorkers));
+    }
+    if (maxNumWorkers > 0 && eventGeneratorWorkers > 0) {
+      options.setMaxNumWorkers(Math.min(maxNumWorkers, eventGeneratorWorkers));
+    }
+    try {
+      builder.build(options);
+    } finally {
+      options.setJobName(jobName);
+      options.setAppName(appName);
+      options.setNumWorkers(numWorkers);
+      options.setMaxNumWorkers(maxNumWorkers);
+    }
   }
 
   /**
@@ -498,6 +535,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       if (endMsSinceEpoch >= 0 && now > endMsSinceEpoch && !waitingForShutdown) {
         NexmarkUtils.console("Reached end of test, cancelling job");
         try {
+          cancelJob = true;
           job.cancel();
         } catch (IOException e) {
           throw new RuntimeException("Unable to cancel main job: ", e);
@@ -745,11 +783,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Return source of events from Pubsub.
    */
   private PCollection<Event> sourceEventsFromPubsub(Pipeline p, long now) {
-    String shortSubscription = shortSubscription(now);
-    NexmarkUtils.console("Reading events from Pubsub %s", shortSubscription);
+    NexmarkUtils.console("Reading events from Pubsub %s", pubsubSubscription);
 
     PubsubIO.Read<PubsubMessage> io =
-        PubsubIO.readMessagesWithAttributes().fromSubscription(shortSubscription)
+        PubsubIO.readMessagesWithAttributes().fromSubscription(pubsubSubscription)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
@@ -762,14 +799,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   static final DoFn<Event, byte[]> EVENT_TO_BYTEARRAY =
           new DoFn<Event, byte[]>() {
             @ProcessElement
-            public void processElement(ProcessContext c) {
-              try {
-                byte[] encodedEvent = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                c.output(encodedEvent);
-              } catch (CoderException e1) {
-                LOG.error("Error while sending Event {} to Kafka: serialization error",
-                        c.element().toString());
-              }
+            public void processElement(ProcessContext c) throws IOException {
+              byte[] encodedEvent = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+              c.output(encodedEvent);
             }
           };
 
@@ -787,18 +819,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   }
 
-
   static final DoFn<KV<Long, byte[]>, Event> BYTEARRAY_TO_EVENT =
           new DoFn<KV<Long, byte[]>, Event>() {
             @ProcessElement
-            public void processElement(ProcessContext c) {
+            public void processElement(ProcessContext c) throws IOException {
               byte[] encodedEvent = c.element().getValue();
-              try {
-                Event event = CoderUtils.decodeFromByteArray(Event.CODER, encodedEvent);
-                c.output(event);
-              } catch (CoderException e) {
-                LOG.error("Error while decoding Event from Kafka message: serialization error");
-              }
+              Event event = CoderUtils.decodeFromByteArray(Event.CODER, encodedEvent);
+              c.output(event);
             }
           };
 
@@ -840,12 +867,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   /**
    * Send {@code events} to Pubsub.
    */
-  private void sinkEventsToPubsub(PCollection<Event> events, long now) {
-    String shortTopic = shortTopic(now);
-    NexmarkUtils.console("Writing events to Pubsub %s", shortTopic);
+  private void sinkEventsToPubsub(PCollection<Event> events) {
+    checkState(pubsubTopic != null, "Pubsub topic needs to be set up before initializing sink");
+    NexmarkUtils.console("Writing events to Pubsub %s", pubsubTopic);
 
     PubsubIO.Write<PubsubMessage> io =
-        PubsubIO.writeMessages().to(shortTopic)
+        PubsubIO.writeMessages().to(pubsubTopic)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
@@ -965,6 +992,33 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .apply(queryName + ".WriteBigQueryResults", io);
   }
 
+  /**
+   * Creates or reuses PubSub topics and subscriptions as configured.
+   */
+  private void setupPubSubResources(long now) throws IOException {
+    String shortTopic = shortTopic(now);
+    String shortSubscription = shortSubscription(now);
+
+    if (!options.getManageResources() || configuration.pubSubMode == PubSubMode.SUBSCRIBE_ONLY) {
+      // The topic should already have been created by the user or
+      // a companion 'PUBLISH_ONLY' process.
+      pubsubTopic = pubsubHelper.reuseTopic(shortTopic).getPath();
+    } else {
+      // Create a fresh topic. It will be removed when the job is done.
+      pubsubTopic = pubsubHelper.createTopic(shortTopic).getPath();
+    }
+
+    // Create/confirm the subscription.
+    if (configuration.pubSubMode == PubSubMode.PUBLISH_ONLY) {
+      // Nothing to consume.
+    } else if (options.getManageResources()) {
+      pubsubSubscription = pubsubHelper.createSubscription(shortTopic, shortSubscription).getPath();
+    } else {
+      // The subscription should already have been created by the user.
+      pubsubSubscription = pubsubHelper.reuseSubscription(shortTopic, shortSubscription).getPath();
+    }
+  }
+
   // ================================================================================
   // Construct overall pipeline
   // ================================================================================
@@ -973,8 +1027,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Return source of events for this run, or null if we are simply publishing events
    * to Pubsub.
    */
-  private PCollection<Event> createSource(Pipeline p, final long now) {
+  private PCollection<Event> createSource(Pipeline p, final long now) throws IOException {
     PCollection<Event> source = null;
+
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
@@ -986,6 +1041,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         source = sourceEventsFromKafka(p);
         break;
       case PUBSUB:
+        setupPubSubResources(now);
         // Setup the sink for the publisher.
         switch (configuration.pubSubMode) {
           case SUBSCRIBE_ONLY:
@@ -995,8 +1051,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             // Send synthesized events to Pubsub in this job.
             sinkEventsToPubsub(
                 sourceEventsFromSynthetic(p)
-                    .apply(queryName + ".Snoop", NexmarkUtils.snoop(queryName)),
-                now);
+                    .apply(queryName + ".Snoop", NexmarkUtils.snoop(queryName)));
             break;
           case COMBINED:
             // Send synthesized events to Pubsub in separate publisher job.
@@ -1009,9 +1064,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                   publisherMonitor = new Monitor<>(queryName, "publisher");
                   sinkEventsToPubsub(
                       sourceEventsFromSynthetic(sp)
-                          .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
-                      now);
+                          .apply(queryName + ".Monitor", publisherMonitor.getTransform()));
                   publisherResult = sp.run();
+                  NexmarkUtils.console("Publisher job is started.");
                 });
             break;
         }
@@ -1122,7 +1177,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Run {@code configuration} and return its performance if possible.
    */
   @Nullable
-  public NexmarkPerf run(NexmarkConfiguration runConfiguration) {
+  public NexmarkPerf run(NexmarkConfiguration runConfiguration) throws IOException {
     if (options.getManageResources() && !options.getMonitorJobs()) {
       throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
     }
@@ -1133,6 +1188,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     checkState(configuration == null);
     checkState(queryName == null);
     configuration = runConfiguration;
+    if (configuration.sourceType.equals(SourceType.PUBSUB)) {
+      pubsubHelper = PubsubHelper.create(options);
+    }
 
     try {
       NexmarkUtils.console("Running %s", configuration.toShortString());
@@ -1208,6 +1266,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
       return monitor(query);
     } finally {
+      if (pubsubHelper != null) {
+        pubsubHelper.cleanup();
+        pubsubHelper = null;
+      }
       configuration = null;
       queryName = null;
     }
@@ -1298,30 +1360,19 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private static class PubsubMessageEventDoFn extends DoFn<PubsubMessage, Event> {
-
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws IOException {
       byte[] payload = c.element().getPayload();
-      try {
-        Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
-        c.output(event);
-      } catch (CoderException e) {
-        LOG.error("Error while decoding Event from pusbSub message: serialization error");
-      }
+      Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+      c.output(event);
     }
   }
 
   private static class EventPubsubMessageDoFn extends DoFn<Event, PubsubMessage> {
-
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      try {
-        byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-        c.output(new PubsubMessage(payload, new HashMap<>()));
-      } catch (CoderException e1) {
-        LOG.error(
-            "Error while sending Event {} to pusbSub: serialization error", c.element().toString());
-      }
+    public void processElement(ProcessContext c) throws IOException {
+      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+      c.output(new PubsubMessage(payload, Collections.emptyMap()));
     }
   }
 }
