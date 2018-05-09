@@ -32,11 +32,11 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.base.Throwables;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.io.Serializable;
 import java.util.Collections;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -48,7 +48,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Wait;
-import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -190,8 +190,8 @@ public class SpannerWriteIT {
 
   @Test
   public void testFailFast() throws Exception {
-    thrown.expect(Pipeline.PipelineExecutionException.class);
-    thrown.expectMessage(Matchers.containsString("Value must not be NULL in table users"));
+    thrown.expect(new StackTraceContainsString("SpannerException"));
+    thrown.expect(new StackTraceContainsString("Value must not be NULL in table users"));
     int numRecords = 100;
     p.apply(GenerateSequence.from(0).to(2 * numRecords))
         .apply(ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
@@ -257,5 +257,24 @@ public class SpannerWriteIT {
     }
   }
 
+  static class StackTraceContainsString extends TypeSafeMatcher<Exception> {
+
+    private String str;
+
+    public StackTraceContainsString(String str) {
+      this.str = str;
+    }
+
+    @Override
+    public void describeTo(org.hamcrest.Description description) {
+      description.appendText("stack trace contains string '" + str + "'");
+    }
+
+    @Override
+    protected boolean matchesSafely(Exception e) {
+      String stacktrace = Throwables.getStackTraceAsString(e);
+      return stacktrace.contains(str);
+    }
+  }
 
 }
