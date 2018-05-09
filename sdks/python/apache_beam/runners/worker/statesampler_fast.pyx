@@ -92,7 +92,6 @@ cdef class StateSampler(object):
 
   cdef int32_t current_state_index
   cdef DataflowElementExecutionTracker element_tracker
-  cdef readonly bint has_time_counter_experiment
 
   def __init__(self, sampling_period_ms, *args):
     self._sampling_period_ms = sampling_period_ms
@@ -109,13 +108,11 @@ cdef class StateSampler(object):
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
     pythread.PyThread_release_lock(self.lock)
-    self.element_tracker = DataflowElementExecutionTracker()
     # TODO(BEAM-4111): Remove experimental flag once time_counter release.
-    experiments = RuntimeValueProvider.get_value('experiments', str, [])
-    if 'per_element_instrumentation' in experiments:
-      self.has_time_counter_experiment = True
+    if 'time_per_element_counter' in RuntimeValueProvider.experiments:
+      self.element_tracker = DataflowElementExecutionTracker()
     else:
-      self.has_time_counter_experiment = False
+      self.element_tracker = None
 
     # Assert that the compiler correctly aligned the current_state field.  This
     # is necessary for reads and writes to this variable to be atomic across
@@ -139,7 +136,7 @@ cdef class StateSampler(object):
         try:
           elapsed_nsecs = get_nsec_time() - last_nsecs
           # TODO(BEAM-4111): Remove if block once time_counter release.
-          if self.has_time_counter_experiment:
+          if self.element_tracker is not None:
             self.element_tracker.take_sample(elapsed_nsecs)
           if self.finished:
             break
@@ -249,7 +246,7 @@ cdef class ScopedState(object):
     self.sampler.current_state_index = self.state_index
     self.sampler.state_transition_count += 1
     # TODO(BEAM-4111): Remove experimental flag check once time_counter release.
-    if self.sampler.has_time_counter_experiment and self.is_processing_state:
+    if self.sampler.element_tracker is not None and self.is_processing_state:
       self.sampler.element_tracker.enter(self.name.step_name)
     pythread.PyThread_release_lock(self.sampler.lock)
 
@@ -258,7 +255,7 @@ cdef class ScopedState(object):
     self.sampler.current_state_index = self.old_state_index
     self.sampler.state_transition_count += 1
     # TODO(BEAM-4111): Remove experimental flag check once time_counter release.
-    if self.sampler.has_time_counter_experiment and self.is_processing_state:
+    if self.sampler.element_tracker is not None and self.is_processing_state:
       self.sampler.element_tracker.exit()
     pythread.PyThread_release_lock(self.sampler.lock)
 
