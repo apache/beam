@@ -113,7 +113,7 @@ class SparkFlowTranslator {
         // ~ output result will be used more than once, cache Dataset for reusing
         if (dag.getNode(op).getChildren().size() > 1
             && op.getHints().contains(ComputationHint.EXPENSIVE)) {
-          out.persist(storageLevel);
+          out.setName(op.getName() + "-persisted").persist(storageLevel);
         }
         // ~ save output of current operator to context
         executorContext.setOutput(op, out);

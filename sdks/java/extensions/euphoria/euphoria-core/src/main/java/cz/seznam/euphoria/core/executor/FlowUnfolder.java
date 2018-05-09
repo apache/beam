@@ -118,7 +118,7 @@ public class FlowUnfolder {
    * @return the translated DAG consisting of basic operators only
    */
   @SuppressWarnings("unchecked")
-  private static DAG<Operator<?, ?>> translate(
+  public static DAG<Operator<?, ?>> translate(
       DAG<Operator<?, ?>> dag,
       UnaryPredicate<Operator<?, ?>> wantTranslate)
       throws IllegalArgumentException {
@@ -126,7 +126,7 @@ public class FlowUnfolder {
     dag = FlowValidator.preTranslate(dag);
 
     // create root nodes for all inputs
-    DAG<Operator<?, ?>> ret = DAG.of();
+    DAG<Operator<?, ?>> ret = DAG.empty();
 
     Map<Dataset<?>, Optional<Operator<?, ?>>> datasetProducers = new HashMap<>();
 

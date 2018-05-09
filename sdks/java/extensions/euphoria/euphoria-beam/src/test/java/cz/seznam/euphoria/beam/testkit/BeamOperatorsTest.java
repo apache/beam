@@ -13,23 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.spark;
+package cz.seznam.euphoria.beam.testkit;
 
-public final class TimestampedElement<T> {
+public class BeamOperatorsTest extends BeamOperatorsSuite implements BeamExecutorProvider {
 
-  private final long timestamp;
-  private final T el;
-
-  public TimestampedElement(long timestamp, T el) {
-    this.timestamp = timestamp;
-    this.el = el;
-  }
-
-  public long getTimestamp() {
-    return timestamp;
-  }
-
-  public Object getElement() {
-    return el;
-  }
 }

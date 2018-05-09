@@ -64,7 +64,7 @@ import java.util.Objects;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 
-public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
+public abstract class AbstractWindowOperator<I, KEY, WID extends Window<WID>>
         extends AbstractStreamOperator<StreamingElement<WID, Pair<?, ?>>>
         implements OneInputStreamOperator<I, StreamingElement<WID, Pair<?, ?>>>,
         Triggerable<KEY, WID> {
@@ -128,7 +128,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     super.open();
 
     this.windowSerializer =
-            (TypeSerializer<WID>) TypeExtractor.createTypeInfo(Window.class)
+            (TypeSerializer) TypeExtractor.createTypeInfo(Window.class)
                     .createSerializer(getRuntimeContext().getExecutionConfig());
 
     this.timerService =

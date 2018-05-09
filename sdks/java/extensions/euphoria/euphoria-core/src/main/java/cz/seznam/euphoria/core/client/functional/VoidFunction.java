@@ -28,3 +28,4 @@ public interface VoidFunction<T> extends Serializable {
   T apply();
 
 }
+

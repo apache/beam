@@ -91,7 +91,7 @@ public class Flow implements Serializable {
       = new HashMap<>();
 
 
-  private Flow(@Nullable String name, Settings settings) {
+  protected Flow(@Nullable String name, Settings settings) {
     this.name = name == null ? "" : name;
     this.settings = cloneSettings(settings);
   }
@@ -145,6 +145,16 @@ public class Flow implements Serializable {
    */
   public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
     return add(operator, null);
+  }
+
+
+  /**
+   * Called when a {@link Dataset} is persisted via {@link Dataset#persist}.
+   * @param <T> type parameter
+   * @param dataset the dataset that was persisted
+   */
+  public <T> void onPersisted(Dataset<T> dataset) {
+    // nop by default
   }
 
   /**

@@ -291,6 +291,17 @@ public class JoinTest extends AbstractOperatorTest {
     public Trigger<IntWindow> getTrigger() {
       return NoopTrigger.get();
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof EvenOddWindowing;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
   }
 
   @Test

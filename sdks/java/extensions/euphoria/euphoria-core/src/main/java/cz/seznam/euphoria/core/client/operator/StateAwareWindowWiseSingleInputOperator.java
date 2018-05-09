@@ -33,7 +33,7 @@ import java.util.Set;
  */
 @Audience(Audience.Type.INTERNAL)
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, WIN, KIN, KEY, OUT, W extends Window,
+    IN, WIN, KIN, KEY, OUT, W extends Window<W>,
     OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
     extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP> {
 

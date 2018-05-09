@@ -32,8 +32,7 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
 
   private transient FunctionCollectorMem<OUT> cachedCollector;
 
-  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor,
-                             AccumulatorProvider accumulators) {
+  UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor, AccumulatorProvider accumulators) {
     this.functor = Objects.requireNonNull(functor);
     this.accumulators = Objects.requireNonNull(accumulators);
   }

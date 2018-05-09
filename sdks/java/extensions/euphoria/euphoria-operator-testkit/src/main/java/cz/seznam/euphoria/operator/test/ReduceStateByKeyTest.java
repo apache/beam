@@ -45,7 +45,6 @@ import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
-import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -56,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -587,6 +587,18 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         }
       };
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof TimeAssertingWindowing;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+
   }
 
   @Test

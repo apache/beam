@@ -60,7 +60,7 @@ import java.util.stream.Stream;
     repartitions = 1
 )
 public class ReduceWindow<
-    IN, VALUE, OUT, W extends Window>
+    IN, VALUE, OUT, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, Byte, OUT, W,
             ReduceWindow<IN, VALUE, OUT, W>> {
@@ -199,7 +199,7 @@ public class ReduceWindow<
     }
 
     @Override
-    public <W extends Window> OutputBuilder<T, VALUE, OUT>
+    public <W extends Window<W>> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
       return new OutputBuilder<>(
           name, input, valueExtractor, reducer, windowing, valueComparator);

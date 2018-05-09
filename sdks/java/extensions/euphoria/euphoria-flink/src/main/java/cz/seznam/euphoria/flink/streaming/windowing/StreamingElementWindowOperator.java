@@ -32,10 +32,10 @@ import java.util.Objects;
  * elements to be of type {@link StreamingElement} and transforms these
  * into {@link KeyedMultiWindowedElement} on the fly.
  */
-public class StreamingElementWindowOperator<KEY, WID extends Window>
+public class StreamingElementWindowOperator<KEY, WID extends Window<WID>>
         extends AbstractWindowOperator<StreamingElement<WID, ?>, KEY, WID> {
 
-  WindowAssigner<?, KEY, ?, WID> windowAssigner;
+  private WindowAssigner<?, KEY, ?, WID> windowAssigner;
 
   public StreamingElementWindowOperator(
           WindowAssigner<?, KEY, ?, WID> windowAssigner,

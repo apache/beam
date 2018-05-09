@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -29,6 +30,7 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.Util;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
@@ -36,12 +38,15 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -57,8 +62,45 @@ public class FlowUnfolderTest {
   private Flow flow;
   private Dataset<Object> input;
 
+  static class MyInputOperator<T> extends Operator<Void, T> {
+
+    MyInputOperator(Flow flow) {
+      super("MyInputOperator", flow);
+    }
+
+    Dataset<T> output = Datasets.createOutputFor(true, this);
+
+    @Override
+    public Collection<Dataset<Void>> listInputs() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public Dataset<T> output() {
+      return output;
+    }
+
+  }
+
+  static class MySingleInputOperator<IN, OUT> extends SingleInputOperator<IN, OUT> {
+
+    final Dataset<OUT> output = Datasets.createOutputFor(true, this);
+
+    MySingleInputOperator(Dataset<IN> input) {
+      super("MySingleInputOperator", input.getFlow(), input);
+    }
+
+    @Override
+    public Dataset<OUT> output() {
+      return output;
+    }
+
+  }
+
+
+
   @Before
-  public void before() throws Exception {
+  public void setUp() throws Exception {
     flow = Flow.create(getClass().getSimpleName());
     input = flow.createInput(new MockStreamDataSource<>());
 
@@ -161,6 +203,22 @@ public class FlowUnfolderTest {
     output.persist(sink);
     reduced.persist(sink);
     FlowUnfolder.unfold(flow, Executor.getBasicOps());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testUnfoldWithCustomInputOperator() {
+    flow = Flow.create();
+    MyInputOperator<Integer> source = flow.add(new MyInputOperator<>(flow));
+    MySingleInputOperator<Integer, Integer> process = flow.add(new MySingleInputOperator<>(source.output()));
+    DAG<Operator<?, ?>> dag = DAG.of(source);
+    dag.add(process, source);
+    DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, new HashSet<>(
+        (List) Arrays.asList(MyInputOperator.class, MySingleInputOperator.class)));
+    assertEquals(2, unfolded.size());
+    assertEquals(1, unfolded.getRoots().size());
+    assertEquals(1, unfolded.getLeafs().size());
+    assertEquals(1, Iterables.getOnlyElement(unfolded.getLeafs()).getParents().size());
   }
 
   private java.util.Map<Class<? extends Operator>, Node<Operator>>

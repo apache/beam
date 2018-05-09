@@ -6,7 +6,8 @@ out/
 .project
 .classpath
 .settings
-**/pom.xml.versionsBackup
 .gradle/
 build/
 /.nb-gradle/
+**/*.xml.versionsBackup
+**/dependency-reduced-pom.xml
