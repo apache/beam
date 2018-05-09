@@ -21,9 +21,13 @@ import static org.apache.beam.sdk.transforms.Contextful.fn;
 import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -113,8 +117,33 @@ public class Wait {
     private <SignalT> PCollectionView<?> expandTyped(PCollection<SignalT> input) {
       return input
           .apply(Window.<SignalT>configure().triggering(Never.ever()).discardingFiredPanes())
+          // Perform a per-window pre-combine so that our performance does not critically depend
+          // on combiner lifting.
+          .apply(ParDo.of(new CollectWindowsFn<>()))
           .apply(Sample.any(1))
           .apply(View.asList());
+    }
+  }
+
+  private static class CollectWindowsFn<T> extends DoFn<T, Void> {
+    @Nullable
+    private Set<BoundedWindow> windows;
+
+    @StartBundle
+    public void startBundle() {
+      windows = Sets.newHashSetWithExpectedSize(1);
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, BoundedWindow w) {
+      windows.add(w);
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      for (BoundedWindow w : windows) {
+        c.output(null, w.maxTimestamp(), w);
+      }
     }
   }
 }
