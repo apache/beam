@@ -42,16 +42,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.calcite.util.Util;
 import org.joda.time.Duration;
 
 /**
@@ -201,20 +198,4 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     return new BeamAggregationRel(getCluster(), traitSet, input, indicator
         , groupSet, groupSets, aggCalls, windowField);
   }
-
-  public RelWriter explainTerms(RelWriter pw) {
-    // We skip the "groups" element if it is a singleton of "group".
-    pw.item("group", groupSet)
-        .itemIf("window", windowField.orElse(null), windowField.isPresent())
-        .itemIf("groups", groupSets, getGroupType() != Group.SIMPLE)
-        .itemIf("indicator", indicator, indicator)
-        .itemIf("aggs", aggCalls, pw.nest());
-    if (!pw.nest()) {
-      for (Ord<AggregateCall> ord : Ord.zip(aggCalls)) {
-        pw.item(Util.first(ord.e.name, "agg#" + ord.i), ord.e);
-      }
-    }
-    return pw;
-  }
-
 }
