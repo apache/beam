@@ -394,11 +394,15 @@ class StagerTest(unittest.TestCase):
 
     with mock.patch('.'.join([
         stager.FileHandler.__module__, stager.FileHandler.__name__,
-        stager.FileHandler.file_copy.__name__
+        stager.FileHandler.upload_file.__name__
     ])):
-      self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
-                       self.stager.stage_job_resources(
-                           options, staging_location=staging_dir))
+      with mock.patch('.'.join([
+          stager.FileHandler.__module__, stager.FileHandler.__name__,
+          stager.FileHandler.download_file.__name__
+      ])):
+        self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
+                         self.stager.stage_job_resources(
+                             options, staging_location=staging_dir))
 
   def test_sdk_location_remote_wheel_file(self):
     staging_dir = self.make_temp_dir()
@@ -416,16 +420,20 @@ class StagerTest(unittest.TestCase):
 
     with mock.patch('.'.join([
         stager.FileHandler.__module__, stager.FileHandler.__name__,
-        stager.FileHandler.file_copy.__name__
+        stager.FileHandler.upload_file.__name__
     ])):
-      with mock.patch(
-          '.'.join([
-              stager.FileHandler.__module__, stager.FileHandler.__name__,
-              stager.FileHandler.is_remote_path.__name__
-          ]), is_remote_path):
-        self.assertEqual([sdk_filename],
-                         self.stager.stage_job_resources(
-                             options, staging_location=staging_dir))
+      with mock.patch('.'.join([
+          stager.FileHandler.__module__, stager.FileHandler.__name__,
+          stager.FileHandler.download_file.__name__
+      ])):
+        with mock.patch(
+            '.'.join([
+                stager.FileHandler.__module__, stager.FileHandler.__name__,
+                stager.FileHandler._is_remote_path.__name__
+            ]), is_remote_path):
+          self.assertEqual([sdk_filename],
+                           self.stager.stage_job_resources(
+                               options, staging_location=staging_dir))
 
   def test_sdk_location_http(self):
     staging_dir = self.make_temp_dir()
@@ -443,7 +451,7 @@ class StagerTest(unittest.TestCase):
     with mock.patch(
         '.'.join([
             stager.FileHandler.__module__, stager.FileHandler.__name__,
-            stager.FileHandler.file_download.__name__
+            stager.FileHandler.download_file.__name__
         ]), file_download):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        self.stager.stage_job_resources(
@@ -488,25 +496,32 @@ class StagerTest(unittest.TestCase):
         self.create_temp_file(to_path, 'nothing')
         logging.info('Fake copied remote file: %s to %s', from_path, to_path)
       elif is_remote_path(dummy_self, to_path):
-        logging.info('Faking file_copy(%s, %s)', from_path, to_path)
+        logging.info('Faking upload_file(%s, %s)', from_path, to_path)
       else:
         shutil.copyfile(from_path, to_path)
 
     with mock.patch(
         '.'.join([
             stager.FileHandler.__module__, stager.FileHandler.__name__,
-            stager.FileHandler.file_copy.__name__
+            stager.FileHandler.upload_file.__name__
         ]), file_copy):
+
       with mock.patch(
           '.'.join([
               stager.FileHandler.__module__, stager.FileHandler.__name__,
-              stager.FileHandler.is_remote_path.__name__
-          ]), is_remote_path):
-        self.assertEqual([
-            'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',
-            'remote_file.tar.gz', stager.EXTRA_PACKAGES_FILE
-        ], self.stager.stage_job_resources(
-            options, staging_location=staging_dir))
+              stager.FileHandler.download_file.__name__
+          ]), file_copy):
+        with mock.patch(
+            '.'.join([
+                stager.FileHandler.__module__, stager.FileHandler.__name__,
+                stager.FileHandler._is_remote_path.__name__
+            ]), is_remote_path):
+          self.assertEqual([
+              'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',
+              'remote_file.tar.gz', stager.EXTRA_PACKAGES_FILE
+          ],
+                           self.stager.stage_job_resources(
+                               options, staging_location=staging_dir))
     with open(os.path.join(staging_dir, stager.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual([
           'abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n', 'whl.whl\n',
