@@ -17,6 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
+import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.TIMESTAMP;
+import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
+
 import com.alibaba.fastjson.JSONObject;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -28,47 +36,53 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
- * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO} for Beam SQL.
+ * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO}
+ * for consumption by Beam SQL.
  */
 @Internal
 @Experimental
 public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   @Override
-  public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema tableSchema = table.getSchema();
+  public String getTableType() {
+    return "pubsub";
+  }
 
-    JSONObject tableProperties = table.getProperties();
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table tableDefintion) {
+    validatePubsubMessageSchema(tableDefintion);
+
+    JSONObject tableProperties = tableDefintion.getProperties();
     String timestampAttributeKey = tableProperties.getString("timestampAttributeKey");
-
-    if (timestampAttributeKey == null) {
-      throw new IllegalArgumentException(
-          "Unable to find 'timestampAttributeKey' property "
-          + "in TBLPROPERTIES JSON. At the moment Pubsub table "
-          + "have to explicitly declare the 'timestampAttributeKey', "
-          + "so that event time can be determined. Publish time "
-          + "or other timestamp sources are not supported at this time.");
-    }
-
-    if (tableSchema.hasField(timestampAttributeKey)) {
-      throw new IllegalArgumentException(
-          "Conflicting field '" + timestampAttributeKey + "'. "
-          + "It is declared both in the table schema and as a timestamp attribute "
-          + "at the same time. This is not supported. Either remove field from table schema "
-          + "or choose a different timestamp attribute.");
-    }
 
     return
         PubsubIOJsonTable
             .builder()
-            .setPayloadSchema(tableSchema)
+            .setSchema(tableDefintion.getSchema())
             .setTimestampAttribute(timestampAttributeKey)
-            .setTopic(table.getLocation())
+            .setTopic(tableDefintion.getLocation())
             .build();
   }
 
-  @Override
-  public String getTableType() {
-    return "pubsub";
+  private void validatePubsubMessageSchema(Table tableDefinition) {
+    Schema schema = tableDefinition.getSchema();
+
+    if (schema.getFieldCount() != 3
+        || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)
+        || !fieldPresent(schema, ATTRIBUTES_FIELD, MAP.type().withMapType(VARCHAR, VARCHAR))
+        || !(schema.hasField(PAYLOAD_FIELD)
+             && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
+
+      throw new IllegalArgumentException(
+          "Unsupported schema specified for Pubsub source in CREATE TABLE. "
+          + "CREATE TABLE for Pubsub topic should define exactly the following fields: "
+          + "'event_timestamp' field of type 'TIMESTAMP', 'attributes' field of type "
+          + "MAP<VARCHAR, VARCHAR>, and 'payload' field of type 'ROW<...>' which matches the "
+          + "payload JSON format.");
+    }
+  }
+
+  private boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
+    return schema.hasField(field) && expectedType.equals(schema.getField(field).getType());
   }
 }
