@@ -41,10 +41,6 @@ because quite often only a small fraction of the dependencies present in a
 requirements.txt file are actually needed for remote execution and therefore a
 one-time manual trimming is desirable.
 
-TODO(silviuc): Staged files should have a job specific prefix.
-To prevent several jobs in the same project stomping on each other due to a
-shared staging location.
-
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
@@ -80,8 +76,7 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 
 class FileHandler(object):
 
-  def file_copy(self, from_path, to_path):
-    """Copies a local file to a remote location or vice versa."""
+  def _copy_file(self, from_path, to_path):
     logging.info('File copy from %s to %s.', from_path, to_path)
 
     if not os.path.isdir(os.path.dirname(to_path)):
@@ -91,37 +86,32 @@ class FileHandler(object):
       os.mkdir(os.path.dirname(to_path))
     shutil.copyfile(from_path, to_path)
 
-  def file_download(self, from_url, to_path):
-    """Downloads a file over http/https from a or copy them from a remote
-    location."""
-    if from_url.startswith('http://') or from_url.startswith('https://'):
-      # TODO(silviuc): We should cache downloads so we do not do it for every
-      # job.
-      try:
-        # We check if the file is actually there because wget returns a file
-        # even for a 404 response (file will contain the contents of the 404
-        # response).
-        # TODO(angoenka): Extract and use the filename when downloading file.
-        response, content = __import__('httplib2').Http().request(from_url)
-        if int(response['status']) >= 400:
-          raise RuntimeError(
-              'Beam SDK not found at %s (response: %s)' % (from_url, response))
-        with open(to_path, 'w') as f:
-          f.write(content)
-      except Exception:
-        logging.info('Failed to download Beam SDK from %s', from_url)
-        raise
-    else:
-      # Copy the file from the remote file system to loca files system.
-      self.file_copy(from_url, to_path)
+  def upload_file(self, from_path, to_path):
+    """Copies a file from local from_path to remote to_path.
+    This implementation only copies file from local path to local path."""
+    self._copy_file(from_path, to_path)
 
-  def is_remote_path(self, path):
+  def download_file(self, from_url, to_path):
+    """Downloads a file from a remote url to local path.
+    This version only copy file from local file system to local file system."""
+    self._copy_file(from_url, to_path)
+
+  def _is_remote_path(self, path):
     return path.find('://') != -1
 
 
 class Stager(object):
+  """
+  Stager identifies and copies the appropriate artifacts to the staging
+  location.
+  """
 
   def __init__(self, file_handler=FileHandler()):
+    """
+    Args:
+      file_handler: An instance of :class:`FileHandler` capable ofcopying files
+        from local file system to the staging file system.
+    """
     self.file_handler = file_handler
 
   def _stage_extra_packages(self, extra_packages, staging_location, temp_dir):
@@ -144,7 +134,7 @@ class Stager(object):
           name patterns.
       """
     resources = []
-    staging_temp_dir = None
+    staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
     local_packages = []
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
@@ -163,18 +153,13 @@ class Stager(object):
             'running on an x64 Linux host).')
 
       if not os.path.isfile(package):
-        if self.file_handler.is_remote_path(package):
+        if self.file_handler._is_remote_path(package):
           # Download remote package.
-          if not staging_temp_dir:
-            staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
           logging.info('Downloading extra package: %s locally before staging',
                        package)
-          if os.path.isfile(staging_temp_dir):
-            local_file_path = staging_temp_dir
-          else:
-            _, last_component = FileSystems.split(package)
-            local_file_path = FileSystems.join(staging_temp_dir, last_component)
-          self.file_handler.file_download(package, local_file_path)
+          _, last_component = FileSystems.split(package)
+          local_file_path = FileSystems.join(staging_temp_dir, last_component)
+          self.file_handler.download_file(package, local_file_path)
         else:
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
@@ -182,16 +167,15 @@ class Stager(object):
       else:
         local_packages.append(package)
 
-    if staging_temp_dir:
-      local_packages.extend([
-          FileSystems.join(staging_temp_dir, f)
-          for f in os.listdir(staging_temp_dir)
-      ])
+    local_packages.extend([
+        FileSystems.join(staging_temp_dir, f)
+        for f in os.listdir(staging_temp_dir)
+    ])
 
     for package in local_packages:
       basename = os.path.basename(package)
       staged_path = FileSystems.join(staging_location, basename)
-      self.file_handler.file_copy(package, staged_path)
+      self.file_handler.upload_file(package, staged_path)
       resources.append(basename)
     # Create a file containing the list of extra packages and stage it.
     # The file is important so that in the worker the packages are installed
@@ -206,7 +190,7 @@ class Stager(object):
     staged_path = FileSystems.join(staging_location, EXTRA_PACKAGES_FILE)
     # Note that the caller of this function is responsible for deleting the
     # temporary folder where all temp files are created, including this one.
-    self.file_handler.file_copy(
+    self.file_handler.upload_file(
         os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
     resources.append(EXTRA_PACKAGES_FILE)
 
@@ -298,7 +282,7 @@ class Stager(object):
           sdk_local_file)
       staged_path = FileSystems.join(staging_location, sdk_sources_staged_name)
       logging.info('Staging SDK sources from PyPI to %s', staged_path)
-      self.file_handler.file_copy(sdk_local_file, staged_path)
+      self.file_handler.upload_file(sdk_local_file, staged_path)
       staged_sdk_files = [sdk_sources_staged_name]
       try:
         # Stage binary distribution of the SDK, for now on a best-effort basis.
@@ -309,7 +293,7 @@ class Stager(object):
         staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
         logging.info('Staging binary distribution of the SDK from PyPI to %s',
                      staged_path)
-        self.file_handler.file_copy(sdk_local_file, staged_path)
+        self.file_handler.upload_file(sdk_local_file, staged_path)
         staged_sdk_files.append(sdk_binary_staged_name)
       except RuntimeError as e:
         logging.warn(
@@ -317,15 +301,15 @@ class Stager(object):
             'of the SDK: %s', repr(e))
 
       return staged_sdk_files
-    elif self.file_handler.is_remote_path(sdk_remote_location):
+    elif self.file_handler._is_remote_path(sdk_remote_location):
       local_download_file = os.path.join(temp_dir, 'beam-sdk.tar.gz')
-      self.file_handler.file_download(sdk_remote_location, local_download_file)
+      self.file_handler.download_file(sdk_remote_location, local_download_file)
       staged_name = self._desired_sdk_filename_in_staging_location(
           sdk_remote_location)
       staged_path = FileSystems.join(staging_location, staged_name)
       logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
                    staged_path)
-      self.file_handler.file_copy(local_download_file, staged_path)
+      self.file_handler.upload_file(local_download_file, staged_path)
       return [staged_name]
     else:
       raise RuntimeError(
@@ -400,12 +384,12 @@ class Stager(object):
                           staging_location=None):
     """For internal use only; no backwards-compatibility guarantees.
 
-      Creates (if needed) and stages job resources to options.staging_location.
+      Creates (if needed) and stages job resources to staging_location.
 
       Args:
         options: Command line options. More specifically the function will
-          expect staging_location, requirements_file, setup_file, and
-          save_main_session options to be present.
+          expect requirements_file, setup_file, and save_main_session options
+          to be present.
         build_setup_args: A list of command line arguments used to build a setup
           package. Used only if options.setup_file is not None. Used only for
           testing.
@@ -440,7 +424,8 @@ class Stager(object):
             '--requirements_file command line option.' %
             setup_options.requirements_file)
       staged_path = FileSystems.join(staging_location, REQUIREMENTS_FILE)
-      self.file_handler.file_copy(setup_options.requirements_file, staged_path)
+      self.file_handler.upload_file(setup_options.requirements_file,
+                                    staged_path)
       resources.append(REQUIREMENTS_FILE)
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
@@ -454,7 +439,7 @@ class Stager(object):
        self._populate_requirements_cache)(setup_options.requirements_file,
                                           requirements_cache_path)
       for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-        self.file_handler.file_copy(
+        self.file_handler.upload_file(
             pkg, FileSystems.join(staging_location, os.path.basename(pkg)))
         resources.append(os.path.basename(pkg))
 
@@ -474,7 +459,7 @@ class Stager(object):
       tarball_file = self._build_setup_package(setup_options.setup_file,
                                                temp_dir, build_setup_args)
       staged_path = FileSystems.join(staging_location, WORKFLOW_TARBALL_FILE)
-      self.file_handler.file_copy(tarball_file, staged_path)
+      self.file_handler.upload_file(tarball_file, staged_path)
       resources.append(WORKFLOW_TARBALL_FILE)
 
     # Handle extra local packages that should be staged.
@@ -494,13 +479,13 @@ class Stager(object):
       pickler.dump_session(pickled_session_file)
       staged_path = FileSystems.join(staging_location,
                                      names.PICKLED_MAIN_SESSION_FILE)
-      self.file_handler.file_copy(pickled_session_file, staged_path)
+      self.file_handler.upload_file(pickled_session_file, staged_path)
       resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
     if hasattr(setup_options, 'sdk_location'):
 
       if (setup_options.sdk_location == 'default'
-         ) or self.file_handler.is_remote_path(setup_options.sdk_location):
+         ) or self.file_handler._is_remote_path(setup_options.sdk_location):
         # If --sdk_location is not specified then the appropriate package
         # will be obtained from PyPI (https://pypi.python.org) based on the
         # version of the currently running SDK. If the option is
@@ -531,7 +516,7 @@ class Stager(object):
               staging_location,
               self._desired_sdk_filename_in_staging_location(
                   setup_options.sdk_location))
-          self.file_handler.file_copy(sdk_path, staged_path)
+          self.file_handler.upload_file(sdk_path, staged_path)
           _, sdk_staged_filename = FileSystems.split(staged_path)
           resources.append(sdk_staged_filename)
         else:
