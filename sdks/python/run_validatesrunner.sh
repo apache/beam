@@ -19,7 +19,6 @@
 # This script will be run by Jenkins as a post commit test. In order to run
 # locally make the following changes:
 #
-# LOCAL_PATH   -> Path of tox and virtualenv if you have them already installed.
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for service jobs.
 #
@@ -28,14 +27,8 @@
 set -e
 set -v
 
-# pip install --user installation location.
-LOCAL_PATH=$HOME/.local/bin/
-
-# INFRA does not install virtualenv
-pip install virtualenv --user
-
 # Virtualenv for the rest of the script to run setup & e2e tests
-${LOCAL_PATH}/virtualenv sdks/python
+/usr/bin/virtualenv sdks/python
 . sdks/python/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
