@@ -2580,6 +2580,7 @@ public class ParDoTest implements Serializable {
               r.output(window);
             }
 
+            @Override
             public TypeDescriptor<BoundedWindow> getOutputTypeDescriptor() {
               return (TypeDescriptor) TypeDescriptor.of(IntervalWindow.class);
             }

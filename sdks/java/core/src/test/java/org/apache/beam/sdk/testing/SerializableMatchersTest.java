@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrde
 import static org.apache.beam.sdk.testing.SerializableMatchers.kvWithKey;
 import static org.apache.beam.sdk.testing.SerializableMatchers.not;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableList;
 import java.io.InputStream;
@@ -92,24 +91,16 @@ public class SerializableMatchersTest implements Serializable {
 
   @Test
   public void testKvMatcherKeyFailure() throws Exception {
-    try {
-      assertThat(KV.of(1, 2), SerializableMatchers.kv(not(anything()), anything()));
-    } catch (AssertionError exc) {
-      assertThat(exc.getMessage(), Matchers.containsString("key did not match"));
-      return;
-    }
-    fail("Should have failed");
+    AssertionError exc = assertionShouldFail(() ->
+        assertThat(KV.of(1, 2), SerializableMatchers.kv(not(anything()), anything())));
+    assertThat(exc.getMessage(), Matchers.containsString("key did not match"));
   }
 
   @Test
   public void testKvMatcherValueFailure() throws Exception {
-    try {
-      assertThat(KV.of(1, 2), SerializableMatchers.kv(anything(), not(anything())));
-    } catch (AssertionError exc) {
-      assertThat(exc.getMessage(), Matchers.containsString("value did not match"));
-      return;
-    }
-    fail("Should have failed");
+    AssertionError exc = assertionShouldFail(() ->
+        assertThat(KV.of(1, 2), SerializableMatchers.kv(anything(), not(anything()))));
+    assertThat(exc.getMessage(), Matchers.containsString("value did not match"));
   }
 
   @Test
@@ -122,16 +113,22 @@ public class SerializableMatchersTest implements Serializable {
 
   @Test
   public void testKvMatcherGBKLikeFailure() throws Exception {
+    AssertionError exc = assertionShouldFail(() ->
+        assertThat(
+            KV.of("key", ImmutableList.of(1, 2, 3)),
+            SerializableMatchers.<String, Iterable<Integer>>kv(
+                anything(), containsInAnyOrder(1, 2, 3, 4))));
+    assertThat(exc.getMessage(), Matchers.containsString("value did not match"));
+  }
+
+  private static AssertionError assertionShouldFail(Runnable runnable) {
     try {
-      assertThat(
-          KV.of("key", ImmutableList.of(1, 2, 3)),
-          SerializableMatchers.<String, Iterable<Integer>>kv(
-              anything(), containsInAnyOrder(1, 2, 3, 4)));
-    } catch (AssertionError exc) {
-      assertThat(exc.getMessage(), Matchers.containsString("value did not match"));
-      return;
+      runnable.run();
+    } catch (AssertionError expected) {
+      return expected;
     }
-    fail("Should have failed.");
+
+    throw new AssertionError("Should have failed.");
   }
 
   private static class NotSerializableClass {

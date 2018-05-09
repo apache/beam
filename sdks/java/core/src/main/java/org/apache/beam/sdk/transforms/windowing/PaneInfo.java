@@ -129,14 +129,14 @@ public final class PaneInfo {
   }
 
   private static byte encodedByte(boolean isFirst, boolean isLast, Timing timing) {
-    byte result = 0x0;
+    byte result = 0b00;
     if (isFirst) {
-      result |= 1;
+      result |= (byte) 0b01;
     }
     if (isLast) {
-      result |= 2;
+      result |= (byte) 0b10;
     }
-    result |= timing.ordinal() << 2;
+    result |= (byte) (timing.ordinal() << 2);
     return result;
   }
 
@@ -289,7 +289,7 @@ public final class PaneInfo {
 
   @Override
   public String toString() {
-    if (this == PaneInfo.NO_FIRING) {
+    if (this.equals(PaneInfo.NO_FIRING)) {
       return "PaneInfo.NO_FIRING";
     }
 
@@ -328,7 +328,7 @@ public final class PaneInfo {
     }
 
     private Encoding chooseEncoding(PaneInfo value) {
-      if (value.index == 0 && value.nonSpeculativeIndex == 0 || value.timing == Timing.UNKNOWN) {
+      if ((value.index == 0 && value.nonSpeculativeIndex == 0) || value.timing == Timing.UNKNOWN) {
         return Encoding.FIRST;
       } else if (value.index == value.nonSpeculativeIndex || value.timing == Timing.EARLY) {
         return Encoding.ONE_INDEX;

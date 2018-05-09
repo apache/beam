@@ -391,6 +391,7 @@ public class DoFnSignaturesTest {
           private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
+          @Override
           public void foo(ProcessContext context) {}
         }.getClass());
   }
@@ -1075,6 +1076,7 @@ public class DoFnSignaturesTest {
     public void onMyTimer() {}
 
     @ProcessElement
+    @Override
     public void foo(ProcessContext context) {}
   }
 

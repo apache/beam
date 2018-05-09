@@ -20,10 +20,10 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeSet;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -50,7 +50,7 @@ public class CollectionCoderTest {
           Collections.emptySet(),
           Collections.singletonList(13),
           Arrays.asList(1, 2, 3, 4),
-          new LinkedList<>(Arrays.asList(7, 6, 5)),
+          new ArrayList<>(Arrays.asList(7, 6, 5)),
           new TreeSet<>(Arrays.asList(31, -5, 83)));
 
   @Test

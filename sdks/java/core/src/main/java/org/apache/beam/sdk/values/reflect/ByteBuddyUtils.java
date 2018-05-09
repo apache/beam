@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values.reflect;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
+import java.lang.reflect.InvocationTargetException;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -100,8 +101,9 @@ class ByteBuddyUtils {
               ByteBuddyUtils.class.getClassLoader(),
               ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
-          .newInstance();
-    } catch (InstantiationException | IllegalAccessException e) {
+          .getDeclaredConstructor().newInstance();
+    } catch (InstantiationException | IllegalAccessException
+        | NoSuchMethodException | InvocationTargetException e) {
       throw new RuntimeException(
           "Unable to generate a getter for field '" + fieldName + "'.", e);
     }

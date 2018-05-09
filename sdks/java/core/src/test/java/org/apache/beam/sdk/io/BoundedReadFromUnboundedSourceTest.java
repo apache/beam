@@ -224,7 +224,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
       return splits;
     }
 
-    class CounterMark implements UnboundedSource.CheckpointMark {
+    static class CounterMark implements UnboundedSource.CheckpointMark {
       int current;
 
       public CounterMark(int current) {

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import com.google.common.base.Charsets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,9 +34,9 @@ public final class StructuralByteArrayTest {
   @Test
   public void testStructuralByteArray() throws Exception {
     assertEquals(
-        new StructuralByteArray("test string".getBytes()),
-        new StructuralByteArray("test string".getBytes()));
-    assertFalse(new StructuralByteArray("test string".getBytes()).equals(
-        new StructuralByteArray("diff string".getBytes())));
+        new StructuralByteArray("test string".getBytes(Charsets.UTF_8)),
+        new StructuralByteArray("test string".getBytes(Charsets.UTF_8)));
+    assertFalse(new StructuralByteArray("test string".getBytes(Charsets.UTF_8)).equals(
+        new StructuralByteArray("diff string".getBytes(Charsets.UTF_8))));
   }
 }

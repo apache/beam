@@ -105,6 +105,13 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
+    <Method name="equals" />
+    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+    <!-- Comparing doubles directly since equals method is only used in coder test. -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
     <Method name="readAll" />
     <Bug pattern="EI_EXPOSE_REP"/>

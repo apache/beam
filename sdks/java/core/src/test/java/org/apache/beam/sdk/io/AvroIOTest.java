@@ -30,6 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -692,7 +693,7 @@ public class AvroIOTest implements Serializable {
     ArrayList<TimestampedValue<GenericClass>> firstWindowElements = new ArrayList<>();
     ArrayList<Instant> firstWindowTimestamps =
         Lists.newArrayList(
-            base.plus(Duration.standardSeconds(0)), base.plus(Duration.standardSeconds(10)),
+            base.plus(Duration.ZERO), base.plus(Duration.standardSeconds(10)),
             base.plus(Duration.standardSeconds(20)), base.plus(Duration.standardSeconds(30)));
 
     Random random = new Random();
@@ -1108,14 +1109,15 @@ public class AvroIOTest implements Serializable {
                         "longKey",
                         100L,
                         "bytesKey",
-                        "bytesValue".getBytes())));
+                        "bytesValue".getBytes(Charsets.UTF_8))));
     writePipeline.run();
 
     try (DataFileStream dataFileStream =
         new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader())) {
       assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
       assertEquals(100L, dataFileStream.getMetaLong("longKey"));
-      assertArrayEquals("bytesValue".getBytes(), dataFileStream.getMeta("bytesKey"));
+      assertArrayEquals("bytesValue".getBytes(Charsets.UTF_8),
+          dataFileStream.getMeta("bytesKey"));
     }
   }
 
