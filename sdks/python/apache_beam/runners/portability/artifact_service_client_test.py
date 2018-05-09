@@ -55,12 +55,13 @@ class ArtifactStagingFileHandlerTest(unittest.TestCase):
         server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
-    file_handler = artifact_service_client.ArtifactStagingFileHandler(
-        grpc.insecure_channel('localhost:%s' % test_port))
-    for from_file, to_file in files:
-      file_handler.file_copy(
-          from_path=os.path.join(self._temp_dir, from_file), to_path=to_file)
-    file_handler.commit_manifest()
+    with artifact_service_client.ArtifactStagingFileHandler(
+        grpc.insecure_channel('localhost:%s' % test_port)) as file_handler:
+      for from_file, to_file in files:
+        file_handler.file_copy(
+            from_path=os.path.join(self._temp_dir, from_file), to_path=to_file)
+
+    self.assertTrue(file_handler._closed, 'FileHandler was not closed.')
     return file_handler._artifacts
 
   def test_upload_single_file(self):
