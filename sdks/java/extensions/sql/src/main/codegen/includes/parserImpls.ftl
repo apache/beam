@@ -59,53 +59,80 @@ void Option(List<SqlNode> list) :
     }
 }
 
-SqlNodeList TableElementList() :
+List<Schema.Field> FieldListParens() :
 {
-    final Span s;
-    final List<SqlNode> list = Lists.newArrayList();
+    final List<Schema.Field> fields;
 }
 {
-    <LPAREN> { s = span(); }
-    TableElement(list)
-    (
-        <COMMA> TableElement(list)
-    )*
-    <RPAREN> {
-        return new SqlNodeList(list, s.end(this));
+    <LPAREN>
+        fields = FieldListBody()
+    <RPAREN>
+    {
+        return fields;
     }
 }
 
-void TableElement(List<SqlNode> list) :
+List<Schema.Field> FieldListAngular() :
 {
-    final SqlIdentifier id;
-    final SqlDataTypeSpec type;
-    final boolean nullable;
-    SqlNode comment = null;
-    final Span s = Span.of();
+    final List<Schema.Field> fields;
 }
 {
-    id = SimpleIdentifier()
+    <LT>
+        fields = FieldListBody()
+    <GT>
+    {
+        return fields;
+    }
+}
+
+List<Schema.Field> FieldListBody() :
+{
+    final List<Schema.Field> fields = Lists.newArrayList();
+    Schema.Field field = null;
+}
+{
+    field = Field() { fields.add(field); }
     (
-        type = DataType()
-        (
-            <NULL> { nullable = true; }
-        |
-            <NOT> <NULL> { nullable = false; }
-        |
-            { nullable = true; }
-        )
-        [ <COMMENT> comment = StringLiteral() ]
-        {
-            list.add(
-                SqlDdlNodes.column(s.add(id).end(this), id,
-                    type.withNullable(nullable), comment));
-        }
+        <COMMA> field = Field() { fields.add(field); }
+    )*
+    {
+        return fields;
+    }
+}
+
+Schema.Field Field() :
+{
+    final String name;
+    final Schema.FieldType type;
+    final boolean nullable;
+    Schema.Field field = null;
+    SqlNode comment = null;
+}
+{
+    name = Identifier()
+    type = FieldType()
+    {
+        field = Schema.Field.of(name.toLowerCase(), type);
+    }
+    (
+        <NULL> { field = field.withNullable(true); }
     |
-        { list.add(id); }
+        <NOT> <NULL> { field = field.withNullable(false); }
+    |
+        { field = field.withNullable(true); }
     )
-|
-    id = SimpleIdentifier() {
-        list.add(id);
+    [
+        <COMMENT> comment = StringLiteral()
+        {
+            if (comment != null) {
+                String commentString =
+                    ((NlsString) SqlLiteral.value(comment)).getValue();
+                field = field.withDescription(commentString);
+            }
+        }
+    ]
+    {
+        return field;
     }
 }
 
@@ -123,22 +150,32 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     final boolean ifNotExists;
     final SqlIdentifier id;
-    SqlNodeList tableElementList = null;
+    List<Schema.Field> fieldList = null;
     SqlNode type = null;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tblProperties = null;
 }
 {
-    <TABLE> ifNotExists = IfNotExistsOpt() id = CompoundIdentifier()
-    tableElementList = TableElementList()
+    <TABLE> ifNotExists = IfNotExistsOpt()
+    id = CompoundIdentifier()
+    fieldList = FieldListParens()
     <TYPE> type = StringLiteral()
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
     {
-        return SqlDdlNodes.createTable(s.end(this), replace, ifNotExists, id,
-            tableElementList, type, comment, location, tblProperties);
+        return
+            new SqlCreateTable(
+                s.end(this),
+                replace,
+                ifNotExists,
+                id,
+                fieldList,
+                type,
+                comment,
+                location,
+                tblProperties);
     }
 }
 
@@ -150,6 +187,99 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     <TABLE> ifExists = IfExistsOpt() id = CompoundIdentifier() {
         return SqlDdlNodes.dropTable(s.end(this), ifExists, id);
+    }
+}
+
+Schema.FieldType FieldType() :
+{
+    final SqlTypeName collectionTypeName;
+    Schema.FieldType fieldType;
+    final Span s = Span.of();
+}
+{
+    (
+        fieldType = Map()
+    |
+        fieldType = Array()
+    |
+        fieldType = Row()
+    |
+        fieldType = SimpleType()
+    )
+    {
+        return fieldType;
+    }
+}
+
+Schema.FieldType Array() :
+{
+    final Schema.FieldType arrayElementType;
+}
+{
+    <ARRAY> <LT> arrayElementType = FieldType() <GT>
+    {
+        return Schema.TypeName.ARRAY.type()
+            .withCollectionElementType(arrayElementType);
+    }
+
+}
+
+Schema.FieldType Map() :
+{
+    final Schema.FieldType mapKeyType;
+    final Schema.FieldType mapValueType;
+}
+{
+    <MAP>
+        <LT>
+            mapKeyType = SimpleType()
+        <COMMA>
+            mapValueType = FieldType()
+        <GT>
+    {
+        return Schema.TypeName.MAP.type()
+            .withMapType(mapKeyType, mapValueType);
+    }
+}
+
+Schema.FieldType Row() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    <ROW> fields = RowFields()
+    {
+        Schema rowSchema = Schema.builder().addFields(fields).build();
+        return Schema.TypeName.ROW.type()
+            .withRowSchema(rowSchema);
+    }
+}
+
+List<Schema.Field> RowFields() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    (
+        fields = FieldListParens()
+    |
+        fields = FieldListAngular()
+    )
+    {
+        return fields;
+    }
+}
+
+Schema.FieldType SimpleType() :
+{
+    final Span s = Span.of();
+    final SqlTypeName simpleTypeName;
+}
+{
+    simpleTypeName = SqlTypeName(s)
+    {
+        s.end(this);
+        return CalciteUtils.toFieldType(simpleTypeName);
     }
 }
 

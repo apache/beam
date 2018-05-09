@@ -252,7 +252,7 @@ public class Schema implements Serializable {
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable public abstract FieldType getCollectionElementType();
     // For MAP type, returns the type of the key element, it must be a primitive type;
-    @Nullable public abstract TypeName getMapKeyType();
+    @Nullable public abstract FieldType getMapKeyType();
     // For MAP type, returns the type of the value element, it can be a nested type;
     @Nullable public abstract FieldType getMapValueType();
     // For ROW types, returns the schema for the row.
@@ -267,7 +267,7 @@ public class Schema implements Serializable {
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
-      abstract Builder setMapKeyType(@Nullable TypeName mapKeyType);
+      abstract Builder setMapKeyType(@Nullable FieldType mapKeyType);
       abstract Builder setMapValueType(@Nullable FieldType mapValueType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
       abstract Builder setMetadata(@Nullable byte[] metadata);
@@ -294,13 +294,15 @@ public class Schema implements Serializable {
     /**
      * For MAP type, adds the type of the component key/value element.
      */
-    public FieldType withMapType(@Nullable TypeName mapKeyType,
+    public FieldType withMapType(
+        @Nullable FieldType mapKeyType,
         @Nullable FieldType mapValueType) {
       if (mapKeyType != null && mapValueType != null) {
         checkArgument(getTypeName().isMapType());
-        checkArgument(mapKeyType.isPrimitiveType());
+        checkArgument(mapKeyType.getTypeName().isPrimitiveType());
       }
-      return toBuilder().setMapKeyType(mapKeyType)
+      return toBuilder()
+          .setMapKeyType(mapKeyType)
           .setMapValueType(mapValueType).build();
     }
 

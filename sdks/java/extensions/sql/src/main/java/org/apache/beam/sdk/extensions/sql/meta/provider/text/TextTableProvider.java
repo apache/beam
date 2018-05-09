@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
-
 import com.alibaba.fastjson.JSONObject;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -49,7 +47,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema schema = getRowTypeFromTable(table);
+    Schema schema = table.getSchema();
 
     String filePattern = table.getLocation();
     CSVFormat format = CSVFormat.DEFAULT;
