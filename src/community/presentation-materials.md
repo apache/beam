@@ -1,9 +1,11 @@
 ---
 layout: section
 title: "Beam Presentation Materials"
-section_menu: section-menu/contribute.html
-permalink: /contribute/presentation-materials/
-redirect_from: /learn/presentation-materials/
+section_menu: section-menu/community.html
+permalink: /community/presentation-materials/
+redirect_from:
+ - /learn/presentation-materials/
+ - /contribute/presentation-materials/
 ---
 
 # Apache Beam Presentation Materials
