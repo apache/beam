@@ -1,11 +1,12 @@
 ---
 layout: section
 title: "Beam Logos"
-section_menu: section-menu/contribute.html
-permalink: /contribute/logos/
+section_menu: section-menu/community.html
+permalink: /community/logos/
 redirect_from:
   - /project/logos/
   - /material/
+  - /contribute/logos/
 ---
 
 # Apache Beam Logos
