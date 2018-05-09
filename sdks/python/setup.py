@@ -30,6 +30,7 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
 from setuptools.command.sdist import sdist
 from setuptools.command.test import test
 
@@ -129,7 +130,7 @@ GCP_REQUIREMENTS = [
 
 
 # We must generate protos after setup_requires are installed.
-def generate_protos_first(original_cmd):
+def generate_protos_first(original_cmd, require_grpc_tools=False):
   try:
     # See https://issues.apache.org/jira/browse/BEAM-2366
     # pylint: disable=wrong-import-position
@@ -137,6 +138,12 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
+        try:
+          # pylint: disable=wrong-import-position
+          import grpc_tools
+        except ImportError:
+          if require_grpc_tools:
+            ImportError("grpcio-tools required for development")
         gen_protos.generate_proto_files()
         super(cmd, self).run()
     return cmd
@@ -200,6 +207,7 @@ setuptools.setup(
         ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
+        'develop': generate_protos_first(develop, require_grpc_tools=True),
         'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
     },
