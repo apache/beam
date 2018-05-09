@@ -234,6 +234,6 @@ barrenly: 1
   and look through the [Java SDK API reference]({{ site.baseurl }}/documentation/sdks/javadoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 * Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
-* Join the Beam [users@]({{ site.baseurl }}/get-started/support#mailing-lists) mailing list.
+* Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
-Please don't hesitate to [reach out]({{ site.baseurl }}/get-started/support) if you encounter any issues!
+Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
