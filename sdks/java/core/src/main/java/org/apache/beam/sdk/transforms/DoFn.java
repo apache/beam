@@ -24,6 +24,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -114,7 +115,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the
      * {@link FinishBundle} method.
      */
-    public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
+    public abstract void output(@Nullable OutputT output, Instant timestamp, BoundedWindow window);
 
     /**
      * Adds the given element to the output {@code PCollection} with the given tag at the given
