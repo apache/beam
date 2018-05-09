@@ -1,6 +1,0 @@
-dependencies {
-  compile project(':euphoria-core')
-  compile "org.apache.kafka:kafka-clients:${kafkaVersion}"
-  testCompile project(':euphoria-operator-testkit')
-  testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
-}

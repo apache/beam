@@ -1,5 +1,0 @@
-dependencies {
-  compile project(':benchmarks:benchmark-euphoria-common')
-  compile project(':euphoria-spark')
-  compile "org.apache.spark:spark-core_${scalaVersion}:${sparkVersion}"
-}
