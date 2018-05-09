@@ -19,4 +19,8 @@
 /**
  * Table schema for {@link org.apache.beam.sdk.io.gcp.pubsub.PubsubIO}.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

@@ -28,7 +28,7 @@ import org.junit.Test;
 public class BeamSqlCliPubsubTest {
 
   @Test
-  @Ignore("Something like this needs an emulator. TODO(akedin): BEAM-4195")
+  @Ignore("Something like this needs an emulator. TODO: BEAM-4195")
   public void testPubsubTable() throws Exception {
     String pubsubTopic = "projects/<probject>/topics/<topic>";
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
@@ -38,10 +38,17 @@ public class BeamSqlCliPubsubTest {
 
     cli.execute(
         "CREATE TABLE topic (\n"
-        + "name VARCHAR, \n"
-        + "age INTEGER) \n"
+        + "event_timestamp TIMESTAMP, \n"
+        + "attributes MAP<VARCHAR, VARCHAR>, \n"
+        + "payload ROW< \n"
+        + "             `id` INTEGER, \n"
+        + "             `name` VARCHAR \n"
+        + "           > \n"
+        + ") \n"
         + "TYPE 'pubsub' \n"
         + "LOCATION '" + pubsubTopic + "' \n"
         + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'");
+
+    cli.execute("SELECT topic.payload.name from topic");
   }
 }
