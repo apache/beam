@@ -19,13 +19,14 @@ cimport cython
 cimport libc.stdint
 
 from apache_beam.utils.counters cimport Counter
+from apache_beam.runners.worker cimport statesampler_fast
 
 
 cdef class TransformIOCounter(object):
   cdef readonly object _counter_factory
   cdef readonly object _state_sampler
   cdef Counter bytes_read_counter
-  cdef object scoped_state
+  cdef statesampler_fast.ScopedState scoped_state
   cdef object _latest_step
 
   cpdef update_current_step(self)
