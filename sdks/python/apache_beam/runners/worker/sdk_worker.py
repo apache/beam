@@ -23,7 +23,6 @@ from __future__ import print_function
 import abc
 import contextlib
 import logging
-import Queue as queue
 import sys
 import threading
 import traceback
@@ -32,6 +31,7 @@ from concurrent import futures
 import grpc
 import six
 
+import six.moves.queue as queue  # pylint: disable=wrong-import-order
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor

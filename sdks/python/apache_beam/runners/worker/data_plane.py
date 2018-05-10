@@ -24,13 +24,13 @@ from __future__ import print_function
 import abc
 import collections
 import logging
-import Queue as queue
 import sys
 import threading
 
 import grpc
 import six
 
+import six.moves.queue as queue  # pylint: disable=wrong-import-order
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc

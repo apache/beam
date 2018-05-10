@@ -18,11 +18,11 @@
 
 import logging
 import math
-import Queue as queue
 import threading
 
 import grpc
 
+import six.moves.queue as queue  # pylint: disable=wrong-import-order
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
