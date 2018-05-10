@@ -160,3 +160,54 @@ task cover(dependsOn: 'setupVirtualenv') {
   }
 }
 
+task preCommit() {
+  dependsOn "docs"
+  dependsOn "testCython"
+  dependsOn "testPython"
+  dependsOn "testGcp"
+  dependsOn "lint"
+}
+
+task installGcpTest(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test]"
+    }
+  }
+}
+
+task localWordCount(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct"
+      // TODO: Check that the output file is generated and runs.
+    }
+  }
+}
+
+task validatesRunnerTests(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh"
+    }
+  }
+}
+
+task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh"
+    }
+  }
+}
+
+task postCommit() {
+  dependsOn "preCommit"
+  dependsOn "localWordCount"
+  dependsOn "hdfsIntegrationTest"
+  dependsOn "validatesRunnerTests"
+}
