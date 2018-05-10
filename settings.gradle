@@ -78,6 +78,19 @@ include "beam-sdks-java-container"
 project(":beam-sdks-java-container").dir = file("sdks/java/container")
 include "beam-sdks-java-core"
 project(":beam-sdks-java-core").dir = file("sdks/java/core")
+// euphoria Java 8 DSL
+include "beam-sdks-java-extensions-euphoria-core"
+project(":beam-sdks-java-extensions-euphoria-core").dir = file("sdks/java/extensions/euphoria/euphoria-core")
+include "beam-sdks-java-extensions-euphoria-testing"
+project(":beam-sdks-java-extensions-euphoria-testing").dir = file("sdks/java/extensions/euphoria/euphoria-testing")
+include "beam-sdks-java-extensions-euphoria-beam"
+project(":beam-sdks-java-extensions-euphoria-beam").dir = file("sdks/java/extensions/euphoria/euphoria-beam")
+include "beam-sdks-java-extensions-euphoria-operator-testkit"
+project(":beam-sdks-java-extensions-euphoria-operator-testkit").dir = file("sdks/java/extensions/euphoria/euphoria-operator-testkit")
+include "beam-sdks-java-extensions-euphoria-local"
+project(":beam-sdks-java-extensions-euphoria-local").dir = file("sdks/java/extensions/euphoria/euphoria-local")
+
+
 include "beam-sdks-java-extensions-google-cloud-platform-core"
 project(":beam-sdks-java-extensions-google-cloud-platform-core").dir = file("sdks/java/extensions/google-cloud-platform-core")
 include "beam-sdks-java-extensions-json-jackson"
