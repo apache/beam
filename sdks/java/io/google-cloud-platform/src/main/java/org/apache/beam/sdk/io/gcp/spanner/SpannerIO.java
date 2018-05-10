@@ -866,9 +866,11 @@ public class SpannerIO {
       PCollectionTuple result = serialized
           .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
-          .apply("Group by partition", GroupByKey.create()).apply("Batch mutations together",
-              ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getMaxNumMutations(), spec.getSpannerConfig(), schemaView))
-                  .withSideInputs(schemaView)).apply("Write mutations to Spanner",
+          .apply("Group by partition", GroupByKey.create())
+          .apply("Batch mutations together", ParDo.of(new BatchFn(spec.getBatchSizeBytes(),
+              spec.getMaxNumMutations(), spec.getSpannerConfig(), schemaView))
+                  .withSideInputs(schemaView))
+          .apply("Write mutations to Spanner",
               ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig(), spec.getFailureMode(),
                   failedTag))
                   .withOutputTags(mainTag, TupleTagList.of(failedTag)));
