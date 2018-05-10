@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
 public class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
-  protected final Planner planner;
+  private final FrameworkConfig config;
 
   public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
       RelDataTypeSystem.DEFAULT);
@@ -89,10 +89,10 @@ public class BeamQueryPlanner {
         new CalciteCatalogReader(
             CalciteSchema.from(schema).root(), Collections.emptyList(), TYPE_FACTORY, null));
 
-    FrameworkConfig config =
+    config =
         Frameworks.newConfigBuilder()
             .parserConfig(SqlParser.configBuilder()
-                .setLex(Lex.MYSQL)
+                .setLex(Lex.JAVA)
                 .setParserFactory(BeamSqlParserImpl.FACTORY)
                 .build())
             .defaultSchema(schema)
@@ -103,14 +103,20 @@ public class BeamQueryPlanner {
             .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
             .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
             .build();
-    this.planner = Frameworks.getPlanner(config);
   }
 
   /**
    * Parse input SQL query, and return a {@link SqlNode} as grammar tree.
    */
-  public SqlNode parseQuery(String sqlQuery) throws SqlParseException{
-    return planner.parse(sqlQuery);
+  public SqlNode parse(String sqlStatement) throws SqlParseException {
+    Planner planner = getPlanner();
+    SqlNode parsed;
+    try {
+      parsed = planner.parse(sqlStatement);
+    } finally {
+      planner.close();
+    }
+    return parsed;
   }
 
   /**
@@ -119,7 +125,7 @@ public class BeamQueryPlanner {
    * {@code PCollection} so more operations can be applied.
    */
   public PCollection<Row> compileBeamPipeline(String sqlStatement, Pipeline basePipeline)
-      throws Exception {
+      throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
@@ -134,6 +140,7 @@ public class BeamQueryPlanner {
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode beamRelNode;
+    Planner planner = getPlanner();
     try {
       SqlNode parsed = planner.parse(sqlStatement);
       SqlNode validated = planner.validate(parsed);
@@ -153,8 +160,8 @@ public class BeamQueryPlanner {
     return beamRelNode;
   }
 
-  public Planner getPlanner() {
-    return planner;
+  private Planner getPlanner() {
+    return Frameworks.getPlanner(config);
   }
 
 }
