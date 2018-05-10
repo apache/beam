@@ -1,14 +1,14 @@
 apply plugin: 'com.github.johnrengelman.shadow'
 
 dependencies {
-  compile project(':euphoria-core')
+  compile project(':beam-sdks-java-extensions-euphoria-core')
   compile project(':euphoria-hadoop')
   compile project(':euphoria-flink')
   compile project(':euphoria-spark')
-  compile project(':euphoria-local')
+  compile project(':beam-sdks-java-extensions-euphoria-local')
   compile project(':euphoria-hbase')
   compile project(':euphoria-kafka')
-  testCompile project(':euphoria-testing')
+  testCompile project(':beam-sdks-java-extensions-euphoria-testing')
 
   compileOnly "org.apache.flink:flink-statebackend-rocksdb_${scalaVersion}:${flinkVersion}"
   compileOnly "org.apache.flink:flink-streaming-java_${scalaVersion}:${flinkVersion}"
