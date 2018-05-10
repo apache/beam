@@ -1,6 +1,10 @@
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
 dependencies {
-  compile project(':euphoria-core')
-  testCompile project(':euphoria-testing')
-  testCompile project(':euphoria-operator-testkit')
-  testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
+  compile project(':beam-sdks-java-extensions-euphoria-core')
+  compileOnly library.java.findbugs_jsr305
+  testCompile project(':beam-sdks-java-extensions-euphoria-testing')
+  testCompile project(':beam-sdks-java-extensions-euphoria-operator-testkit')
+//  testCompile project(path: ':beam-sdks-java-extensions-euphoria-core', configuration: 'testArtifact')
 }

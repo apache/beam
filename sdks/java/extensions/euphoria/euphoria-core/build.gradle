@@ -1,27 +1,11 @@
-configurations {
-  testArtifact
-}
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
-  compile project(path: ':thirdparty-guava', configuration: 'shadow')
-  compile "org.slf4j:slf4j-api:${slf4jVersion}"
-  testCompile project(path: ':euphoria-testing')
-}
-
-task testJar(type: Jar) {
-  from sourceSets.test.output
-  classifier = 'test'
-}
-
-artifacts {
-  testArtifact testJar
-}
-
-publishing {
-  publications {
-    mavenJavaTest(MavenPublication) {
-      from components.java
-      artifact testJar
-    }
-  }
+  shadow library.java.guava
+  shadow library.java.slf4j_api
+  compileOnly library.java.findbugs_jsr305
+  testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
 }

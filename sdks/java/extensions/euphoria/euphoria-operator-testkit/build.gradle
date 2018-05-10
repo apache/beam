@@ -1,4 +1,9 @@
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
+
 dependencies {
-  compile project(':euphoria-core')
-  compileOnly "junit:junit:${junitVersion}"
+  compile project(':beam-sdks-java-extensions-euphoria-core')
+  compileOnly library.java.junit
 }
