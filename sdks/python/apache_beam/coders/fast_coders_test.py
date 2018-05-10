@@ -16,6 +16,7 @@
 #
 
 """Unit tests for compiled implementation of coder impls."""
+from __future__ import absolute_import
 
 import logging
 import unittest

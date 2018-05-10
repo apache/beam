@@ -22,7 +22,7 @@ Only those coders listed in __all__ are part of the public API of this module.
 from __future__ import absolute_import
 
 import base64
-import cPickle as pickle
+from builtins import object
 
 import google.protobuf
 from google.protobuf import wrappers_pb2
@@ -32,6 +32,12 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
+
+# This is for py2/3 compatibility. cPickle was renamed pickle in python 3.
+try:
+  import cPickle as pickle # Python 2
+except ImportError:
+  import pickle # Python 3
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -210,11 +216,15 @@ class Coder(object):
   def __repr__(self):
     return self.__class__.__name__
 
+  # pylint: disable=protected-access
   def __eq__(self, other):
-    # pylint: disable=protected-access
     return (self.__class__ == other.__class__
             and self._dict_without_impl() == other._dict_without_impl())
-    # pylint: enable=protected-access
+
+  def __hash__(self):
+    return hash((self.__class__,) +
+                tuple(sorted(self._dict_without_impl().items())))
+  # pylint: enable=protected-access
 
   _known_urns = {}
 
@@ -312,7 +322,7 @@ class ToStringCoder(Coder):
 
   def encode(self, value):
     try:               # Python 2
-      if isinstance(value, unicode):
+      if isinstance(value, unicode):   # pylint: disable=unicode-builtin
         return value.encode('utf-8')
     except NameError:  # Python 3
       pass
