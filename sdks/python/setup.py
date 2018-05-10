@@ -30,6 +30,8 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
+from setuptools.command.egg_info import egg_info
 from setuptools.command.sdist import sdist
 from setuptools.command.test import test
 
@@ -200,6 +202,8 @@ setuptools.setup(
         ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
+        'develop': generate_protos_first(develop),
+        'egg_info': generate_protos_first(egg_info),
         'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
     },

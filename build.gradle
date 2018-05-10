@@ -159,16 +159,11 @@ task goPostCommit() {
 
 task pythonPreCommit() {
   dependsOn ":rat"
-  dependsOn ":beam-sdks-python:check"
+  dependsOn ":beam-sdks-python:preCommit"
 }
 
 task pythonPostCommit() {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', './sdks/python/run_postcommit.sh'
-    }
-  }
+  dependsOn ":beam-sdks-python:postCommit"
 }
 
 apply plugin: 'net.researchgate.release'

@@ -28,30 +28,6 @@
 set -e
 set -v
 
-# pip install --user installation location.
-LOCAL_PATH=$HOME/.local/bin/
-
-# Remove any tox cache from previous workspace
-# TODO(udim): Remove this line and add '-r' to tox invocation instead.
-rm -rf sdks/python/target/.tox
-
-# INFRA does not install these packages
-pip install --user --upgrade virtualenv tox
-
-# Tox runs unit tests in a virtual environment
-${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
-
-# Virtualenv for the rest of the script to run setup & e2e tests
-${LOCAL_PATH}/virtualenv sdks/python
-. sdks/python/bin/activate
-cd sdks/python
-pip install -e .[gcp,test]
-
-# Run wordcount in the Direct Runner and validate output.
-echo ">>> RUNNING DIRECT RUNNER py-wordcount"
-python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
-# TODO: check that output file is generated for Direct Runner.
-
 # Run tests on the service.
 
 # Where to store integration test outputs.
@@ -81,6 +57,3 @@ python setup.py nosetests \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
     --sleep_secs=20"
-
-echo ">>> RUNNING DIRECT RUNNER hdfs_integration_test"
-apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh
