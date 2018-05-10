@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
@@ -34,10 +35,10 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -183,7 +184,7 @@ public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
   // Max number of mutations to batch together.
-  private static final int MAX_NUM_MUTATIONS = 10000;
+  private static final int DEFAULT_MAX_NUM_MUTATIONS = 5000;
   // The maximum number of keys to fit in memory when computing approximate quantiles.
   private static final long MAX_NUM_KEYS = (long) 1e6;
   // TODO calculate number of samples based on the size of the input.
@@ -240,6 +241,7 @@ public class SpannerIO {
     return new AutoValue_SpannerIO_Write.Builder()
         .setSpannerConfig(SpannerConfig.create())
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
+        .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setNumSamples(DEFAULT_NUM_SAMPLES)
         .setFailureMode(FailureMode.FAIL_FAST)
         .build();
@@ -668,6 +670,8 @@ public class SpannerIO {
 
     abstract long getBatchSizeBytes();
 
+    abstract long getMaxNumMutations();
+
     abstract int getNumSamples();
 
     abstract FailureMode getFailureMode();
@@ -684,6 +688,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
+
+      abstract Builder setMaxNumMutations(long maxNumMutations);
 
       abstract Builder setNumSamples(int numSamples);
 
@@ -775,6 +781,11 @@ public class SpannerIO {
       return toBuilder().setFailureMode(failureMode).build();
     }
 
+    /** Specifies the cell mutation limit. */
+    public Write withMaxNumMutations(long maxNumMutations) {
+      return toBuilder().setMaxNumMutations(maxNumMutations).build();
+    }
+
     @Override
     public SpannerWriteResult expand(PCollection<Mutation> input) {
       getSpannerConfig().validate();
@@ -855,9 +866,11 @@ public class SpannerIO {
       PCollectionTuple result = serialized
           .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
-          .apply("Group by partition", GroupByKey.create()).apply("Batch mutations together",
-              ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
-                  .withSideInputs(schemaView)).apply("Write mutations to Spanner",
+          .apply("Group by partition", GroupByKey.create())
+          .apply("Batch mutations together", ParDo.of(new BatchFn(spec.getBatchSizeBytes(),
+              spec.getMaxNumMutations(), spec.getSpannerConfig(), schemaView))
+                  .withSideInputs(schemaView))
+          .apply("Write mutations to Spanner",
               ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig(), spec.getFailureMode(),
                   failedTag))
                   .withOutputTags(mainTag, TupleTagList.of(failedTag)));
@@ -865,6 +878,7 @@ public class SpannerIO {
       failedMutations.setCoder(SerializableCoder.of(MutationGroup.class));
       return new SpannerWriteResult(input.getPipeline(), result.get(mainTag), failedMutations,
           failedTag);
+
     }
 
     private PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
@@ -928,11 +942,6 @@ public class SpannerIO {
     }
   }
 
-  private static boolean isPointDelete(Mutation m) {
-    return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
-        && Iterables.size(m.getKeySet().getKeys()) == 1;
-  }
-
   /**
    * Assigns a partition to the mutation group token based on the sampled data.
    */
@@ -974,26 +983,34 @@ public class SpannerIO {
       extends DoFn<KV<String, Iterable<SerializedMutation>>, Iterable<MutationGroup>> {
 
     private final long maxBatchSizeBytes;
+    private final long maxNumMutations;
     private final SpannerConfig spannerConfig;
     private final PCollectionView<SpannerSchema> schemaView;
 
     private transient SpannerAccessor spannerAccessor;
     // Current batch of mutations to be written.
-    private List<MutationGroup> mutations;
+    private transient ImmutableList.Builder<MutationGroup> batch;
     // total size of the current batch.
     private long batchSizeBytes;
+    // total number of mutated cells including indices.
+    private long batchCells;
 
-    private BatchFn(long maxBatchSizeBytes, SpannerConfig spannerConfig,
+    private BatchFn(
+        long maxBatchSizeBytes,
+        long maxNumMutations,
+        SpannerConfig spannerConfig,
         PCollectionView<SpannerSchema> schemaView) {
       this.maxBatchSizeBytes = maxBatchSizeBytes;
+      this.maxNumMutations = maxNumMutations;
       this.spannerConfig = spannerConfig;
       this.schemaView = schemaView;
     }
 
     @Setup
     public void setup() {
-      mutations = new ArrayList<>();
+      batch = ImmutableList.builder();
       batchSizeBytes = 0;
+      batchCells = 0;
       spannerAccessor = spannerConfig.connectToSpanner();
     }
 
@@ -1004,24 +1021,35 @@ public class SpannerIO {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(c.sideInput(schemaView));
+      SpannerSchema spannerSchema = c.sideInput(schemaView);
+      MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(spannerSchema);
+
       KV<String, Iterable<SerializedMutation>> element = c.element();
       for (SerializedMutation kv : element.getValue()) {
         byte[] value = kv.getMutationGroupBytes();
         MutationGroup mg = mutationGroupEncoder.decode(value);
-        mutations.add(mg);
-        batchSizeBytes += MutationSizeEstimator.sizeOf(mg);
-        if (batchSizeBytes >= maxBatchSizeBytes || mutations.size() > MAX_NUM_MUTATIONS) {
+        long groupSize = MutationSizeEstimator.sizeOf(mg);
+        long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
+        if (batchCells + groupCells > maxNumMutations
+            || batchSizeBytes + groupSize > maxBatchSizeBytes) {
+          ImmutableList<MutationGroup> mutations = batch.build();
           c.output(mutations);
-          mutations = new ArrayList<>();
+          batch = ImmutableList.builder();
           batchSizeBytes = 0;
+          batchCells = 0;
         }
+        batch.add(mg);
+        batchSizeBytes += groupSize;
+        batchCells += groupCells;
       }
+      ImmutableList<MutationGroup> mutations = batch.build();
       if (!mutations.isEmpty()) {
         c.output(mutations);
-        mutations = new ArrayList<>();
+        batch = ImmutableList.builder();
         batchSizeBytes = 0;
+        batchCells = 0;
       }
+
     }
   }
 
@@ -1083,5 +1111,5 @@ public class SpannerIO {
 
   }
 
-    private SpannerIO() {} // Prevent construction.
+  private SpannerIO() {} // Prevent construction.
 }
