@@ -25,7 +25,6 @@ from __future__ import absolute_import
 
 import abc
 import bz2
-import cStringIO
 import fnmatch
 import logging
 import os
@@ -38,6 +37,11 @@ from six import integer_types
 from six import string_types
 
 from apache_beam.utils.plugin import BeamPlugin
+
+try:
+  from cStringIO import StringIO as BytesIO
+except ImportError:
+  from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +135,7 @@ class CompressedFile(object):
 
     if self.readable():
       self._read_size = read_size
-      self._read_buffer = cStringIO.StringIO()
+      self._read_buffer = BytesIO()
       self._read_position = 0
       self._read_eof = False
 
@@ -246,7 +250,7 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    io = cStringIO.StringIO()
+    io = BytesIO()
     while True:
       # Ensure that the internal buffer has at least half the read_size. Going
       # with half the _read_size (as opposed to a full _read_size) to ensure
