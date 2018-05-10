@@ -26,16 +26,19 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.Test;
 
 /**
- * UnitTest for {@link BeamSqlParser}.
+ * UnitTest for {@link BeamSqlParserImpl}.
  */
-public class BeamSqlParserTest {
+public class BeamDDLTest {
+
   @Test
   public void testParseCreateTable_full() throws Exception {
     JSONObject properties = new JSONObject();
@@ -59,7 +62,7 @@ public class BeamSqlParserTest {
     );
   }
 
-  @Test(expected = org.apache.beam.sdk.extensions.sql.impl.parser.impl.ParseException.class)
+  @Test(expected = SqlParseException.class)
   public void testParseCreateTable_withoutType() throws Exception {
     parseTable(
         "create table person (\n"
@@ -124,19 +127,17 @@ public class BeamSqlParserTest {
 
   @Test
   public void testParseDropTable() throws Exception {
-    BeamSqlParser parser = new BeamSqlParser("drop table person");
-    SqlNode sqlNode = parser.impl().parseSqlStmtEof();
+    SqlNode sqlNode = ParserTestUtils.parse("drop table person");
 
     assertNotNull(sqlNode);
     assertTrue(sqlNode instanceof SqlDropTable);
     SqlDropTable stmt = (SqlDropTable) sqlNode;
     assertNotNull(stmt);
-    assertEquals("PERSON", stmt.name.getSimple());
+    assertEquals("person", stmt.name.getSimple());
   }
 
   private Table parseTable(String sql) throws Exception {
-    BeamSqlParser parser = new BeamSqlParser(sql);
-    SqlNode sqlNode = parser.impl().parseSqlStmtEof();
+    SqlNode sqlNode = ParserTestUtils.parse(sql);
 
     assertNotNull(sqlNode);
     assertTrue(sqlNode instanceof SqlCreateTable);

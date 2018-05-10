@@ -76,10 +76,9 @@ public class BeamDDLNestedTypesTest {
         + "LOCATION '/home/admin/person'\n";
     System.out.println(createTable);
 
-    BeamSqlParser parser = new BeamSqlParser(createTable);
     SqlNode sqlNode;
     try {
-      sqlNode = parser.impl().parseSqlStmtEof();
+      sqlNode = ParserTestUtils.parse(createTable);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

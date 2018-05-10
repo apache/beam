@@ -127,22 +127,6 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   }
 
   @Test
-  public void testFromInvalidTableName2() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Use PCOLLECTION as table name"
-                                 + " when selecting from single PCollection."
-                                 + " Use PCollectionTuple to explicitly "
-                                 + "name the input PCollections");
-    pipeline.enableAbandonedNodeEnforcement(false);
-
-    String sql = "SELECT * FROM PCOLLECTION_NA";
-
-    boundedInput1.apply(BeamSql.query(sql));
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
   public void testInvalidFilter() throws Exception {
     exceptions.expect(IllegalStateException.class);
     exceptions.expectMessage("Column 'f_int_na' not found in any table");
