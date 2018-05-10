@@ -59,8 +59,9 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
         String type = resultSet.getString(2);
+        long cellsMutated = resultSet.getLong(3);
 
-        builder.addColumn(tableName, columnName, type);
+        builder.addColumn(tableName, columnName, type, cellsMutated);
       }
 
       resultSet = readPrimaryKeyInfo(tx);
@@ -76,11 +77,28 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
   }
 
   private ResultSet readTableInfo(ReadOnlyTransaction tx) {
-    return tx.executeQuery(Statement.of(
-        "SELECT c.table_name, c.column_name, c.spanner_type"
-            + " FROM information_schema.columns as c"
-            + " WHERE c.table_catalog = '' AND c.table_schema = ''"
-            + " ORDER BY c.table_name, c.ordinal_position"));
+    // retrieve schema information for all tables, as well as aggregating the
+    // number of indexes that cover each column. this will be used to estimate
+    // the number of cells (table column plus indexes) mutated in an upsert operation
+    // in order to stay below the 20k threshold
+    return tx.executeQuery(Statement
+        .of("SELECT"
+            + "    c.table_name"
+            + "  , c.column_name"
+            + "  , c.spanner_type"
+            + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
+            + "  FROM ("
+            + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
+            + "     FROM information_schema.columns as c"
+            + "     WHERE c.table_catalog = '' AND c.table_schema = '') AS c"
+            + "  LEFT OUTER JOIN ("
+            + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
+            + "      FROM information_schema.index_columns AS t "
+            + "      WHERE t.index_name != 'PRIMARY_KEY' AND t.table_catalog = ''"
+            + "      AND t.table_schema = ''"
+            + "      GROUP BY t.table_name, t.column_name) AS t"
+            + "  USING (table_name, column_name)"
+            + "  ORDER BY c.table_name, c.ordinal_position"));
   }
 
   private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx) {
