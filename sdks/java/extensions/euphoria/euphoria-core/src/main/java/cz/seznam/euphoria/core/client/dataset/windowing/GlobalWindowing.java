@@ -59,6 +59,7 @@ public final class GlobalWindowing<T> implements Windowing<T, GlobalWindowing.Wi
     return 314159265;
   }
 
+  /** Singleton window. */
   public static final class Window
       extends cz.seznam.euphoria.core.client.dataset.windowing.Window<GlobalWindowing.Window> {
 

@@ -35,7 +35,7 @@ public interface TriggerContext extends StorageProvider {
   boolean registerTimer(long stamp, Window window);
 
   /**
-   * Delete previously registered timer
+   * Delete previously registered timer.
    *
    * @param stamp the stamp of a previously registered timer
    * @param window the window of the previously registered timer

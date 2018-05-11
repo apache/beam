@@ -93,18 +93,21 @@ public class ExceptionUtils {
     return () -> new IllegalStateException(message);
   }
 
+  /** */
   @FunctionalInterface
   public interface Supplier<T> {
     T apply() throws Exception;
   }
 
+  /** */
   @FunctionalInterface
   public interface Action {
     void apply() throws Exception;
   }
 
+  /** */
   @FunctionalInterface
   public interface ThrowingConsumer<T> {
-    public void consume(T what) throws Exception;
+    void consume(T what) throws Exception;
   }
 }

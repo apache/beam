@@ -46,19 +46,20 @@ import java.util.Set;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
+public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, OutputT> {
 
-  final UnaryFunctionEnv<IN, OUT> mapper;
+  final UnaryFunctionEnv<InputT, OutputT> mapper;
 
-  MapElements(String name, Flow flow, Dataset<IN> input, UnaryFunction<IN, OUT> mapper) {
+  MapElements(
+      String name, Flow flow, Dataset<InputT> input, UnaryFunction<InputT, OutputT> mapper) {
     this(name, flow, input, (el, ctx) -> mapper.apply(el), Collections.emptySet());
   }
 
   MapElements(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, OUT> mapper,
+      Dataset<InputT> input,
+      UnaryFunction<InputT, OutputT> mapper,
       Set<OutputHint> outputHints) {
     this(name, flow, input, (el, ctx) -> mapper.apply(el), outputHints);
   }
@@ -66,8 +67,8 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   MapElements(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunctionEnv<IN, OUT> mapper,
+      Dataset<InputT> input,
+      UnaryFunctionEnv<InputT, OutputT> mapper,
       Set<OutputHint> outputHints) {
     super(name, flow, input, outputHints);
     this.mapper = mapper;
@@ -76,13 +77,13 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   /**
    * Starts building a nameless {@link MapElements} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
     return new UsingBuilder<>("MapElements", input);
   }
 
@@ -106,7 +107,7 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(
         // do not use the client API here, because it modifies the Flow!
-        new FlatMap<IN, OUT>(
+        new FlatMap<InputT, OutputT>(
             getName(),
             getFlow(),
             input,
@@ -115,7 +116,7 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
             getHints()));
   }
 
-  public UnaryFunctionEnv<IN, OUT> getMapper() {
+  public UnaryFunctionEnv<InputT, OutputT> getMapper() {
     return mapper;
   }
 
@@ -127,59 +128,60 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     @Override
-    public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
       return new UsingBuilder<>(name, input);
     }
   }
 
-  public static class UsingBuilder<IN> {
+  public static class UsingBuilder<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    UsingBuilder(String name, Dataset<IN> input) {
+    UsingBuilder(String name, Dataset<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
 
     /**
-     * The mapping function that takes input element and outputs the OUT type element. If you want
-     * use aggregators use rather {@link #using(UnaryFunctionEnv)}.
+     * The mapping function that takes input element and outputs the OutputT type element. If you
+     * want use aggregators use rather {@link #using(UnaryFunctionEnv)}.
      *
-     * @param <OUT> type of output elements
+     * @param <OutputT> type of output elements
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunction<IN, OUT> mapper) {
+    public <OutputT> OutputBuilder<InputT, OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
       return new OutputBuilder<>(name, input, ((el, ctx) -> mapper.apply(el)));
     }
 
     /**
-     * The mapping function that takes input element and outputs the OUT type element.
+     * The mapping function that takes input element and outputs the OutputT type element.
      *
-     * @param <OUT> type of output elements
+     * @param <OutputT> type of output elements
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunctionEnv<IN, OUT> mapper) {
+    public <OutputT> OutputBuilder<InputT, OutputT> using(
+        UnaryFunctionEnv<InputT, OutputT> mapper) {
       return new OutputBuilder<>(name, input, mapper);
     }
   }
 
-  public static class OutputBuilder<IN, OUT> implements Builders.Output<OUT> {
+  public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunctionEnv<IN, OUT> mapper;
+    private final Dataset<InputT> input;
+    private final UnaryFunctionEnv<InputT, OutputT> mapper;
 
-    OutputBuilder(String name, Dataset<IN> input, UnaryFunctionEnv<IN, OUT> mapper) {
+    OutputBuilder(String name, Dataset<InputT> input, UnaryFunctionEnv<InputT, OutputT> mapper) {
       this.name = name;
       this.input = input;
       this.mapper = mapper;
     }
 
     @Override
-    public Dataset<OUT> output(OutputHint... outputHints) {
+    public Dataset<OutputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      MapElements<IN, OUT> map =
+      MapElements<InputT, OutputT> map =
           new MapElements<>(name, flow, input, mapper, Sets.newHashSet(outputHints));
       flow.add(map);
 

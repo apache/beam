@@ -19,17 +19,17 @@ import cz.seznam.euphoria.core.client.functional.TypeHintAware;
 import java.io.Serializable;
 import java.util.Objects;
 
-abstract class AbstractTypeAware<F, T> implements Serializable, TypeHintAware<T> {
+abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeHintAware<T> {
 
-  private final F function;
+  private final FuncT function;
   private final TypeHint<T> typeHint;
 
-  AbstractTypeAware(F function, TypeHint<T> typeHint) {
+  AbstractTypeAware(FuncT function, TypeHint<T> typeHint) {
     this.function = Objects.requireNonNull(function);
     this.typeHint = Objects.requireNonNull(typeHint);
   }
 
-  public F getDelegate() {
+  public FuncT getDelegate() {
     return function;
   }
 

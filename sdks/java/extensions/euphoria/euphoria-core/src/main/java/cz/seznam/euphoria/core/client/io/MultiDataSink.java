@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MultiDataSink allows to save to multiple {@link DataSink}
+ * MultiDataSink allows to save to multiple {@link DataSink}.
  *
  * <p>Example usage:
  *
@@ -46,48 +46,48 @@ import java.util.Map;
  *   .build();
  * }</pre>
  *
- * @param <KEY> key to select DataSink where to save the element
- * @param <IN> key of input element
+ * @param <K> key to select DataSink where to save the element
+ * @param <InputT> key of input element
  */
-public class MultiDataSink<KEY, IN> implements DataSink<IN> {
+public class MultiDataSink<K, InputT> implements DataSink<InputT> {
 
-  private final UnaryFunction<IN, KEY> selectFunction;
-  private final Map<KEY, DataSinkWrapper<KEY, IN, ?>> sinks;
+  private final UnaryFunction<InputT, K> selectFunction;
+  private final Map<K, DataSinkWrapper<K, InputT, ?>> sinks;
 
   private MultiDataSink(
-      UnaryFunction<IN, KEY> selectFunction, Map<KEY, DataSinkWrapper<KEY, IN, ?>> sinks) {
+      UnaryFunction<InputT, K> selectFunction, Map<K, DataSinkWrapper<K, InputT, ?>> sinks) {
     this.selectFunction = selectFunction;
     this.sinks = sinks;
   }
 
   /**
-   * Selects DataSink where to save output elements
+   * Selects DataSink where to save output elements.
    *
    * @param selectFunction transform
-   * @param <KEY> key to select DataSink
-   * @param <IN> key of input element
+   * @param <K> key to select DataSink
+   * @param <InputT> key of input element
    * @return Builder
    */
-  public static <KEY, IN> Builder<KEY, IN> selectBy(UnaryFunction<IN, KEY> selectFunction) {
+  public static <K, InputT> Builder<K, InputT> selectBy(UnaryFunction<InputT, K> selectFunction) {
     return new Builder<>(selectFunction);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public Writer<IN> openWriter(int partitionId) {
-    Map<KEY, Writer<Object>> writerMap = new HashMap<>();
+  public Writer<InputT> openWriter(int partitionId) {
+    Map<K, Writer<Object>> writerMap = new HashMap<>();
     sinks
         .values()
         .forEach(
             (sink) ->
                 writerMap.put(
                     sink.getKey(), (Writer<Object>) sink.getDataSink().openWriter(partitionId)));
-    return new Writer<IN>() {
+    return new Writer<InputT>() {
 
       @Override
-      public void write(IN elem) throws IOException {
-        final KEY key = selectFunction.apply(elem);
-        final UnaryFunction<IN, ?> mapper = sinks.get(key).getMapper();
+      public void write(InputT elem) throws IOException {
+        final K key = selectFunction.apply(elem);
+        final UnaryFunction<InputT, ?> mapper = sinks.get(key).getMapper();
         writerMap.get(key).write(mapper.apply(elem));
       }
 
@@ -113,12 +113,16 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
     IOUtils.forEach(sinks.values().stream().map(DataSinkWrapper::getDataSink), DataSink::rollback);
   }
 
-  public static class Builder<KEY, IN> {
+  /**
+   * @param <K>
+   * @param <InputT>
+   */
+  public static class Builder<K, InputT> {
 
-    private final UnaryFunction<IN, KEY> selectFunction;
-    private final List<DataSinkWrapper<KEY, IN, ?>> dataSinkWrappers = new ArrayList<>();
+    private final UnaryFunction<InputT, K> selectFunction;
+    private final List<DataSinkWrapper<K, InputT, ?>> dataSinkWrappers = new ArrayList<>();
 
-    private Builder(UnaryFunction<IN, KEY> selectFunction) {
+    private Builder(UnaryFunction<InputT, K> selectFunction) {
       this.selectFunction = selectFunction;
     }
 
@@ -126,42 +130,42 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
      * @param key key of elements for sink
      * @param mapper for mapping input to output
      * @param sink added DataSink
-     * @param <OUT> key of output element
+     * @param <OutputT> key of output element
      * @return Builder
      */
-    public <OUT> Builder<KEY, IN> addSink(
-        KEY key, UnaryFunction<IN, OUT> mapper, DataSink<OUT> sink) {
+    public <OutputT> Builder<K, InputT> addSink(
+        K key, UnaryFunction<InputT, OutputT> mapper, DataSink<OutputT> sink) {
       this.dataSinkWrappers.add(new DataSinkWrapper<>(key, mapper, sink));
       return this;
     }
 
-    public DataSink<IN> build() {
-      Map<KEY, DataSinkWrapper<KEY, IN, ?>> sinksMap = new HashMap<>();
+    public DataSink<InputT> build() {
+      Map<K, DataSinkWrapper<K, InputT, ?>> sinksMap = new HashMap<>();
       dataSinkWrappers.forEach((el) -> sinksMap.put(el.getKey(), el));
       return new MultiDataSink<>(selectFunction, sinksMap);
     }
   }
 
-  private static class DataSinkWrapper<KEY, IN, OUT> implements Serializable {
-    private final KEY key;
-    private final UnaryFunction<IN, OUT> mapper;
-    private final DataSink<OUT> dataSink;
+  private static class DataSinkWrapper<K, InputT, OutputT> implements Serializable {
+    private final K key;
+    private final UnaryFunction<InputT, OutputT> mapper;
+    private final DataSink<OutputT> dataSink;
 
-    DataSinkWrapper(KEY key, UnaryFunction<IN, OUT> mapper, DataSink<OUT> dataSink) {
+    DataSinkWrapper(K key, UnaryFunction<InputT, OutputT> mapper, DataSink<OutputT> dataSink) {
       this.key = key;
       this.mapper = mapper;
       this.dataSink = dataSink;
     }
 
-    KEY getKey() {
+    K getKey() {
       return key;
     }
 
-    UnaryFunction<IN, OUT> getMapper() {
+    UnaryFunction<InputT, OutputT> getMapper() {
       return mapper;
     }
 
-    DataSink<OUT> getDataSink() {
+    DataSink<OutputT> getDataSink() {
       return dataSink;
     }
   }

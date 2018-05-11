@@ -59,8 +59,8 @@ public class BasicOperatorTest {
     return toWords(w -> Pair.of(w, 1L));
   }
 
-  private static <O> UnaryFunctor<String, O> toWords(UnaryFunction<String, O> f) {
-    return (String s, Collector<O> c) -> {
+  private static <OutT> UnaryFunctor<String, OutT> toWords(UnaryFunction<String, OutT> f) {
+    return (String s, Collector<OutT> c) -> {
       for (String part : s.split(" ")) {
         c.collect(f.apply(part));
       }

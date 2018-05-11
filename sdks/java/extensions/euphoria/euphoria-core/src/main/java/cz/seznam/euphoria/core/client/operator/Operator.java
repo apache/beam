@@ -28,7 +28,7 @@ import java.util.Set;
 
 /** An operator base class. All operators inherit his class. */
 @Audience(Audience.Type.INTERNAL)
-public abstract class Operator<IN, OUT> implements Serializable {
+public abstract class Operator<InputT, OutputT> implements Serializable {
 
   /** Name of the operator. */
   private final String name;
@@ -61,7 +61,7 @@ public abstract class Operator<IN, OUT> implements Serializable {
   }
 
   /** @return a collection of all input datasets */
-  public abstract Collection<Dataset<IN>> listInputs();
+  public abstract Collection<Dataset<InputT>> listInputs();
 
   /**
    * Create a new dataset that will be output of this operator. This is used when creating operator
@@ -70,7 +70,7 @@ public abstract class Operator<IN, OUT> implements Serializable {
    * @param input an input associated with this operator
    * @return a newly created dataset associated with this operator as its output
    */
-  final Dataset<OUT> createOutput(final Dataset<IN> input, Set<OutputHint> outputHints) {
+  final Dataset<OutputT> createOutput(final Dataset<InputT> input, Set<OutputHint> outputHints) {
     this.hints = outputHints;
     Preconditions.checkArgument(
         input.getFlow() == getFlow(),
@@ -83,5 +83,5 @@ public abstract class Operator<IN, OUT> implements Serializable {
   }
 
   /** @return the output dataset */
-  public abstract Dataset<OUT> output();
+  public abstract Dataset<OutputT> output();
 }

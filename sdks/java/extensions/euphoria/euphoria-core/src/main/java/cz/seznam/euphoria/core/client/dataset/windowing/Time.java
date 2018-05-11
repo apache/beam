@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.singleton;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
@@ -36,7 +36,7 @@ public class Time<T> implements Windowing<T, TimeInterval> {
   @Nullable private Duration earlyTriggeringPeriod;
 
   private Time(long durationMillis) {
-    Preconditions.checkArgument(durationMillis > 0, "Windowing with zero duration");
+    checkArgument(durationMillis > 0, "Windowing with zero duration");
     this.durationMillis = durationMillis;
   }
 

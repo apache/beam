@@ -25,7 +25,7 @@ import java.io.Serializable;
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface UnaryFunctor<IN, OUT> extends Serializable {
+public interface UnaryFunctor<InputT, OutputT> extends Serializable {
 
   /**
    * Applies function to given element.
@@ -33,5 +33,5 @@ public interface UnaryFunctor<IN, OUT> extends Serializable {
    * @param elem Input element.
    * @param collector Collector to emit results.
    */
-  void apply(IN elem, Collector<OUT> collector);
+  void apply(InputT elem, Collector<OutputT> collector);
 }

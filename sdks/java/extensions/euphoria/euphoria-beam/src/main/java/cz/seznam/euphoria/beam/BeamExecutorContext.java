@@ -73,20 +73,20 @@ class BeamExecutorContext {
     this.allowedLateness = allowedLateness;
   }
 
-  <IN> PCollection<IN> getInput(Operator<IN, ?> operator) {
+  <InputT> PCollection<InputT> getInput(Operator<InputT, ?> operator) {
     return Iterables.getOnlyElement(getInputs(operator));
   }
 
   @SuppressWarnings("unchecked")
-  <IN> List<PCollection<IN>> getInputs(Operator<IN, ?> operator) {
+  <InputT> List<PCollection<InputT>> getInputs(Operator<InputT, ?> operator) {
     return dag.getNode(operator)
         .getParents()
         .stream()
         .map(Node::get)
         .map(
             parent -> {
-              final PCollection<IN> out =
-                  (PCollection<IN>) datasetToPCollection.get(parent.output());
+              final PCollection<InputT> out =
+                  (PCollection<InputT>) datasetToPCollection.get(parent.output());
               if (out == null) {
                 throw new IllegalArgumentException(
                     "Output missing for operator " + parent.getName());
@@ -119,9 +119,9 @@ class BeamExecutorContext {
     return false;
   }
 
-  <IN, OUT> Coder<OUT> getCoder(UnaryFunction<IN, OUT> unaryFunction) {
+  <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunction<InputT, OutputT> unaryFunction) {
     if (unaryFunction instanceof TypeAwareUnaryFunction) {
-      return getCoder(((TypeAwareUnaryFunction<IN, OUT>) unaryFunction).getTypeHint());
+      return getCoder(((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeHint());
     }
     if (strongTypingEnabled()) {
       throw new IllegalArgumentException("Missing type information for function " + unaryFunction);
@@ -129,9 +129,9 @@ class BeamExecutorContext {
     return new KryoCoder<>();
   }
 
-  <IN, OUT> Coder<OUT> getCoder(UnaryFunctor<IN, OUT> unaryFunctor) {
+  <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunctor<InputT, OutputT> unaryFunctor) {
     if (unaryFunctor instanceof TypeAwareUnaryFunctor) {
-      return getCoder(((TypeAwareUnaryFunctor<IN, OUT>) unaryFunctor).getTypeHint());
+      return getCoder(((TypeAwareUnaryFunctor<InputT, OutputT>) unaryFunctor).getTypeHint());
     }
     if (strongTypingEnabled()) {
       throw new IllegalArgumentException("Missing type information for funtion " + unaryFunctor);
@@ -139,9 +139,9 @@ class BeamExecutorContext {
     return new KryoCoder<>();
   }
 
-  <IN, OUT> Coder<OUT> getCoder(ReduceFunctor<IN, OUT> reduceFunctor) {
+  <InputT, OutputT> Coder<OutputT> getCoder(ReduceFunctor<InputT, OutputT> reduceFunctor) {
     if (reduceFunctor instanceof TypeAwareReduceFunctor) {
-      return getCoder(((TypeAwareReduceFunctor<IN, OUT>) reduceFunctor).getTypeHint());
+      return getCoder(((TypeAwareReduceFunctor<InputT, OutputT>) reduceFunctor).getTypeHint());
     }
     if (strongTypingEnabled()) {
       throw new IllegalArgumentException("Missing type information for function " + reduceFunctor);

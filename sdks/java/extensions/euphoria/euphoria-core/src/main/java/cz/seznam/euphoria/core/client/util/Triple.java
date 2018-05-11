@@ -20,12 +20,12 @@ import java.util.Objects;
 
 /** Triple of any types. */
 @Audience(Audience.Type.CLIENT)
-public final class Triple<F, S, T> {
-  final F first;
-  final S second;
-  final T third;
+public final class Triple<FirstT, SecondT, ThirdT> {
+  final FirstT first;
+  final SecondT second;
+  final ThirdT third;
 
-  private Triple(F first, S second, T third) {
+  private Triple(FirstT first, SecondT second, ThirdT third) {
     this.first = first;
     this.second = second;
     this.third = third;
@@ -35,15 +35,15 @@ public final class Triple<F, S, T> {
     return new Triple<>(first, second, third);
   }
 
-  public F getFirst() {
+  public FirstT getFirst() {
     return first;
   }
 
-  public S getSecond() {
+  public SecondT getSecond() {
     return second;
   }
 
-  public T getThird() {
+  public ThirdT getThird() {
     return third;
   }
 

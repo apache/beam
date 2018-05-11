@@ -23,4 +23,4 @@ import java.util.stream.Stream;
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface ReduceFunction<IN, OUT> extends UnaryFunction<Stream<IN>, OUT> {}
+public interface ReduceFunction<InputT, OutputT> extends UnaryFunction<Stream<InputT>, OutputT> {}

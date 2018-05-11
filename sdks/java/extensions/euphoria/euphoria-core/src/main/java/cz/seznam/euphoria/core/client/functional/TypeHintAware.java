@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.type.TypeHint;
 import java.io.Serializable;
 
+/** @param <T> */
 @Audience(Audience.Type.INTERNAL)
 public interface TypeHintAware<T> extends Serializable {
 

@@ -15,7 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -36,7 +37,7 @@ public final class TimeSliding<T> implements Windowing<T, TimeInterval> {
     this.duration = duration;
     this.slide = slide;
 
-    Preconditions.checkArgument(duration > 0, "Windowing with zero duration");
+    checkArgument(duration > 0, "Windowing with zero duration");
 
     if (duration % slide != 0) {
       throw new IllegalArgumentException(

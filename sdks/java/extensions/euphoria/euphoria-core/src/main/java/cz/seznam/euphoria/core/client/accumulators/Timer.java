@@ -34,7 +34,7 @@ public interface Timer extends Accumulator {
   void add(Duration duration);
 
   /**
-   * Add specific duration with given time unit
+   * Add specific duration with given time unit.
    *
    * @param duration Duration to be added.
    * @param unit Time unit.

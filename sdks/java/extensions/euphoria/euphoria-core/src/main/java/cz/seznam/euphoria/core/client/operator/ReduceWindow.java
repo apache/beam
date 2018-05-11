@@ -57,23 +57,23 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
-public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
+public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, Byte, OUT, W, ReduceWindow<IN, VALUE, OUT, W>> {
+        InputT, InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
 
   private static final Byte B_ZERO = (byte) 0;
-  final UnaryFunction<IN, VALUE> valueExtractor;
-  final BinaryFunction<VALUE, VALUE, Integer> valueComparator;
-  private final ReduceFunctor<VALUE, OUT> reducer;
+  final UnaryFunction<InputT, V> valueExtractor;
+  final BinaryFunction<V, V, Integer> valueComparator;
+  private final ReduceFunctor<V, OutputT> reducer;
 
   private ReduceWindow(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, VALUE> valueExtractor,
-      @Nullable Windowing<IN, W> windowing,
-      ReduceFunctor<VALUE, OUT> reducer,
-      @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
+      Dataset<InputT> input,
+      UnaryFunction<InputT, V> valueExtractor,
+      @Nullable Windowing<InputT, W> windowing,
+      ReduceFunctor<V, OutputT> reducer,
+      @Nullable BinaryFunction<V, V, Integer> valueComparator) {
 
     super(name, flow, input, e -> B_ZERO, windowing, Collections.emptySet());
     this.reducer = reducer;
@@ -84,13 +84,13 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
   /**
    * Starts building a nameless {@link ReduceWindow} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> ValueBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> ValueBuilder<InputT> of(Dataset<InputT> input) {
     return new ValueBuilder<>("ReduceWindow", input);
   }
 
@@ -104,7 +104,7 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
     return new OfBuilder(name);
   }
 
-  public ReduceFunctor<VALUE, OUT> getReducer() {
+  public ReduceFunctor<V, OutputT> getReducer() {
     return reducer;
   }
 
@@ -131,12 +131,12 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
       // otherwise we use attached windowing, therefore
       // we already know the window lables and can do group-by these
       // labels to increase parallelism
-      FlatMap<IN, Pair<Window<?>, IN>> map =
+      FlatMap<InputT, Pair<Window<?>, InputT>> map =
           new FlatMap<>(
               getName() + "::window-to-key",
               getFlow(),
               input,
-              (IN in, Collector<Pair<Window<?>, IN>> c) -> {
+              (InputT in, Collector<Pair<Window<?>, InputT>> c) -> {
                 c.collect(Pair.of(c.getWindow(), in));
               },
               null);
@@ -155,8 +155,8 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
       dag.add(rbk);
     }
 
-    MapElements<Pair<Object, OUT>, OUT> format =
-        new MapElements<Pair<Object, OUT>, OUT>(
+    MapElements<Pair<Object, OutputT>, OutputT> format =
+        new MapElements<Pair<Object, OutputT>, OutputT>(
             getName() + "::MapElements", getFlow(), (Dataset) rbk.output(), Pair::getSecond);
 
     dag.add(format);
@@ -186,23 +186,25 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
       this.input = input;
     }
 
-    public <VALUE> ReduceBuilder<T, VALUE> valueBy(UnaryFunction<T, VALUE> valueExtractor) {
+    public <V> ReduceBuilder<T, V> valueBy(UnaryFunction<T, V> valueExtractor) {
       return new ReduceBuilder<>(name, input, valueExtractor);
     }
 
-    public <OUT> SortableOutputBuilder<T, T, OUT> reduceBy(ReduceFunction<T, OUT> reducer) {
+    public <OutputT> SortableOutputBuilder<T, T, OutputT> reduceBy(
+        ReduceFunction<T, OutputT> reducer) {
 
       return new SortableOutputBuilder<>(
           name,
           input,
           e -> e,
-          (Stream<T> s, Collector<OUT> c) -> {
+          (Stream<T> s, Collector<OutputT> c) -> {
             c.collect(reducer.apply(s));
           },
           null);
     }
 
-    public <OUT> SortableOutputBuilder<T, T, OUT> reduceBy(ReduceFunctor<T, OUT> reducer) {
+    public <OutputT> SortableOutputBuilder<T, T, OutputT> reduceBy(
+        ReduceFunctor<T, OutputT> reducer) {
 
       return new SortableOutputBuilder<>(name, input, e -> e, reducer, null);
     }
@@ -212,59 +214,61 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
     }
   }
 
-  public static class ReduceBuilder<T, VALUE> {
+  public static class ReduceBuilder<T, V> {
     final String name;
     final Dataset<T> input;
-    final UnaryFunction<T, VALUE> valueExtractor;
+    final UnaryFunction<T, V> valueExtractor;
 
-    public ReduceBuilder(String name, Dataset<T> input, UnaryFunction<T, VALUE> valueExtractor) {
+    public ReduceBuilder(String name, Dataset<T> input, UnaryFunction<T, V> valueExtractor) {
 
       this.name = name;
       this.input = input;
       this.valueExtractor = valueExtractor;
     }
 
-    public <OUT> SortableOutputBuilder<T, VALUE, OUT> reduceBy(ReduceFunction<VALUE, OUT> reducer) {
+    public <OutputT> SortableOutputBuilder<T, V, OutputT> reduceBy(
+        ReduceFunction<V, OutputT> reducer) {
       return reduceBy(
-          (Stream<VALUE> in, Collector<OUT> ctx) -> {
+          (Stream<V> in, Collector<OutputT> ctx) -> {
             ctx.collect(reducer.apply(in));
           });
     }
 
-    public <OUT> SortableOutputBuilder<T, VALUE, OUT> reduceBy(ReduceFunctor<VALUE, OUT> reducer) {
+    public <OutputT> SortableOutputBuilder<T, V, OutputT> reduceBy(
+        ReduceFunctor<V, OutputT> reducer) {
 
       return new SortableOutputBuilder<>(name, input, valueExtractor, reducer, null);
     }
 
-    public OutputBuilder<T, VALUE, VALUE> combineBy(CombinableReduceFunction<VALUE> reducer) {
+    public OutputBuilder<T, V, V> combineBy(CombinableReduceFunction<V> reducer) {
       return new OutputBuilder<>(
           name, input, valueExtractor, ReduceByKey.toReduceFunctor(reducer), null, null);
     }
   }
 
-  public static class OutputBuilder<T, VALUE, OUT>
-      implements Builders.WindowBy<T, OutputBuilder<T, VALUE, OUT>> {
+  public static class OutputBuilder<T, V, OutputT>
+      implements Builders.WindowBy<T, OutputBuilder<T, V, OutputT>> {
 
     final String name;
     final Dataset<T> input;
-    final UnaryFunction<T, VALUE> valueExtractor;
-    final ReduceFunctor<VALUE, OUT> reducer;
+    final UnaryFunction<T, V> valueExtractor;
+    final ReduceFunctor<V, OutputT> reducer;
     final Windowing<T, ?> windowing;
-    @Nullable final BinaryFunction<VALUE, VALUE, Integer> valueComparator;
+    @Nullable final BinaryFunction<V, V, Integer> valueComparator;
 
     public OutputBuilder(
         String name,
         Dataset<T> input,
-        UnaryFunction<T, VALUE> valueExtractor,
-        ReduceFunction<VALUE, OUT> reducer,
+        UnaryFunction<T, V> valueExtractor,
+        ReduceFunction<V, OutputT> reducer,
         @Nullable Windowing<T, ?> windowing,
-        @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
+        @Nullable BinaryFunction<V, V, Integer> valueComparator) {
 
       this(
           name,
           input,
           valueExtractor,
-          (Stream<VALUE> in, Collector<OUT> ctx) -> {
+          (Stream<V> in, Collector<OutputT> ctx) -> {
             ctx.collect(reducer.apply(in));
           },
           windowing,
@@ -274,10 +278,10 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
     public OutputBuilder(
         String name,
         Dataset<T> input,
-        UnaryFunction<T, VALUE> valueExtractor,
-        ReduceFunctor<VALUE, OUT> reducer,
+        UnaryFunction<T, V> valueExtractor,
+        ReduceFunctor<V, OutputT> reducer,
         Windowing<T, ?> windowing,
-        @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
+        @Nullable BinaryFunction<V, V, Integer> valueComparator) {
 
       this.name = name;
       this.input = input;
@@ -288,9 +292,9 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
     }
 
     @SuppressWarnings("unchecked")
-    public Dataset<OUT> output() {
+    public Dataset<OutputT> output() {
       Flow flow = input.getFlow();
-      ReduceWindow<T, VALUE, OUT, ?> operator =
+      ReduceWindow<T, V, OutputT, ?> operator =
           new ReduceWindow<>(
               name, flow, input, valueExtractor, (Windowing) windowing, reducer, valueComparator);
       flow.add(operator);
@@ -298,18 +302,18 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<T, VALUE, OUT> windowBy(Windowing<T, W> windowing) {
+    public <W extends Window<W>> OutputBuilder<T, V, OutputT> windowBy(Windowing<T, W> windowing) {
       return new OutputBuilder<>(name, input, valueExtractor, reducer, windowing, valueComparator);
     }
   }
 
-  public static class SortableOutputBuilder<T, VALUE, OUT> extends OutputBuilder<T, VALUE, OUT> {
+  public static class SortableOutputBuilder<T, V, OutputT> extends OutputBuilder<T, V, OutputT> {
 
     public SortableOutputBuilder(
         String name,
         Dataset<T> input,
-        UnaryFunction<T, VALUE> valueExtractor,
-        ReduceFunctor<VALUE, OUT> reducer,
+        UnaryFunction<T, V> valueExtractor,
+        ReduceFunctor<V, OutputT> reducer,
         @Nullable Windowing<T, ?> windowing) {
 
       super(name, input, valueExtractor, reducer, windowing, null);
@@ -321,8 +325,7 @@ public class ReduceWindow<IN, VALUE, OUT, W extends Window<W>>
      * @param comparator function with contract defined by {@code java.util.Comparator#compare}.
      * @return next step builder
      */
-    public OutputBuilder<T, VALUE, OUT> withSortedValues(
-        BinaryFunction<VALUE, VALUE, Integer> comparator) {
+    public OutputBuilder<T, V, OutputT> withSortedValues(BinaryFunction<V, V, Integer> comparator) {
 
       return new OutputBuilder<>(name, input, valueExtractor, reducer, windowing, comparator);
     }

@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.core.executor;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
@@ -73,7 +75,7 @@ class FlowValidator {
   }
 
   private static void checkJoinWindowing(Node<Operator<?, ?>> node) {
-    Preconditions.checkState(node.get() instanceof Join);
+    checkState(node.get() instanceof Join);
 
     // ~ if a windowing strategy is explicitly provided by the user, all is fine
     if (((Join) node.get()).getWindowing() != null) {
@@ -100,7 +102,7 @@ class FlowValidator {
       }
     }
     List<Node<Operator<?, ?>>> parents = node.getParents();
-    Preconditions.checkState(!parents.isEmpty(), "Non-input operator without parents?!");
+    checkState(!parents.isEmpty(), "Non-input operator without parents?!");
     for (Node<Operator<?, ?>> parent : parents) {
       if (!isBatched(parent)) {
         return false;

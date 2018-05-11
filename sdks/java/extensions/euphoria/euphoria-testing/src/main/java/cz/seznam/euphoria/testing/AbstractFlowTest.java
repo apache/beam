@@ -24,16 +24,16 @@ import java.util.List;
 /**
  * Abstract test class for user's {@link Flow} testing.
  *
- * @param <OUT> type of output dataset
+ * @param <OutputT> type of output dataset
  */
-public abstract class AbstractFlowTest<OUT> {
+public abstract class AbstractFlowTest<OutputT> {
 
   /**
    * This method describes how the final dataset should look like.
    *
    * @return expected output dataset (ordering does not matter)
    */
-  protected abstract List<OUT> getOutput();
+  protected abstract List<OutputT> getOutput();
 
   /**
    * Creates input using provided {@link Flow} and creates output dataset.
@@ -41,11 +41,11 @@ public abstract class AbstractFlowTest<OUT> {
    * @param flow to lift inputs from
    * @return output dataset
    */
-  protected abstract Dataset<OUT> buildFlow(Flow flow);
+  protected abstract Dataset<OutputT> buildFlow(Flow flow);
 
   public void execute(Executor executor) {
     final Flow flow = Flow.create("test");
-    final ListDataSink<OUT> sink = ListDataSink.get();
+    final ListDataSink<OutputT> sink = ListDataSink.get();
     buildFlow(flow).persist(sink);
     executor.submit(flow).join();
     DatasetAssert.unorderedEquals(getOutput(), sink.getOutputs());

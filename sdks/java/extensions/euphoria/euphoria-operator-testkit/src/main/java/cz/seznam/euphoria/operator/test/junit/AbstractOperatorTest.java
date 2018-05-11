@@ -172,7 +172,7 @@ public abstract class AbstractOperatorTest implements Serializable {
   }
 
   /** Abstract {@code TestCase} to be extended by test classes. */
-  public abstract static class AbstractTestCase<I, O> implements TestCase<O> {
+  public abstract static class AbstractTestCase<InT, OutT> implements TestCase<OutT> {
 
     protected final Flow flow;
     protected final Settings settings;
@@ -216,25 +216,25 @@ public abstract class AbstractOperatorTest implements Serializable {
     }
 
     @Override
-    public final Dataset<O> getOutput(Flow flow, boolean bounded) {
-      List<I> inputData = getInput();
-      DataSource<I> dataSource = asListDataSource(inputData, bounded, parallel);
-      Dataset<I> inputDataset = flow.createInput(dataSource);
-      Dataset<O> output = getOutput(inputDataset);
+    public final Dataset<OutT> getOutput(Flow flow, boolean bounded) {
+      List<InT> inputData = getInput();
+      DataSource<InT> dataSource = asListDataSource(inputData, bounded, parallel);
+      Dataset<InT> inputDataset = flow.createInput(dataSource);
+      Dataset<OutT> output = getOutput(inputDataset);
       return output;
     }
 
-    protected abstract Dataset<O> getOutput(Dataset<I> input);
+    protected abstract Dataset<OutT> getOutput(Dataset<InT> input);
 
-    protected abstract List<I> getInput();
+    protected abstract List<InT> getInput();
 
-    private DataSource<I> asListDataSource(List<I> inputData, boolean bounded, int parallel) {
+    private DataSource<InT> asListDataSource(List<InT> inputData, boolean bounded, int parallel) {
 
-      final List<List<I>> splits = new ArrayList<>();
+      final List<List<InT>> splits = new ArrayList<>();
       int part = inputData.size() / parallel;
       int pos = 0;
       for (int i = 0; i < parallel; i++) {
-        List<I> partData = new ArrayList<>();
+        List<InT> partData = new ArrayList<>();
         int end = i < parallel - 1 ? pos + part : inputData.size();
         while (pos < end) {
           partData.add(inputData.get(pos++));

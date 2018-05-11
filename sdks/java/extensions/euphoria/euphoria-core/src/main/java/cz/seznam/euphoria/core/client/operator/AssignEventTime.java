@@ -42,15 +42,15 @@ import java.util.Set;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
+public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT> {
 
-  private final ExtractEventTime<IN> eventTimeFn;
+  private final ExtractEventTime<InputT> eventTimeFn;
 
   AssignEventTime(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      ExtractEventTime<IN> eventTimeFn,
+      Dataset<InputT> input,
+      ExtractEventTime<InputT> eventTimeFn,
       Set<OutputHint> outputHints) {
     super(name, flow, input, outputHints);
     this.eventTimeFn = eventTimeFn;
@@ -70,13 +70,13 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
    * Starts building a nameless {@link AssignEventTime} operator to (re-)assign event time the given
    * input dataset's elements.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new {@link AssignEventTime} operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
     return new UsingBuilder<>("AssignEventTime", input);
   }
 
@@ -91,10 +91,11 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
    * @return the user defined event time assigner
    * @see FlatMap#getEventTimeExtractor()
    */
-  public ExtractEventTime<IN> getEventTimeExtractor() {
+  public ExtractEventTime<InputT> getEventTimeExtractor() {
     return eventTimeFn;
   }
 
+  /** */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -103,16 +104,17 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
     }
 
     @Override
-    public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
       return new UsingBuilder<>(name, Objects.requireNonNull(input));
     }
   }
 
-  public static class UsingBuilder<IN> {
+  /** */
+  public static class UsingBuilder<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    UsingBuilder(String name, Dataset<IN> input) {
+    UsingBuilder(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
@@ -122,26 +124,27 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
      * @return the next builder to complete the setup
      * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
-    public OutputBuilder<IN> using(ExtractEventTime<IN> fn) {
+    public OutputBuilder<InputT> using(ExtractEventTime<InputT> fn) {
       return new OutputBuilder<>(name, input, Objects.requireNonNull(fn));
     }
   }
 
-  public static class OutputBuilder<IN> implements Builders.Output<IN> {
+  /** */
+  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
     private final String name;
-    private final Dataset<IN> input;
-    private final ExtractEventTime<IN> eventTimeFn;
+    private final Dataset<InputT> input;
+    private final ExtractEventTime<InputT> eventTimeFn;
 
-    OutputBuilder(String name, Dataset<IN> input, ExtractEventTime<IN> eventTimeFn) {
+    OutputBuilder(String name, Dataset<InputT> input, ExtractEventTime<InputT> eventTimeFn) {
       this.name = name;
       this.input = input;
       this.eventTimeFn = eventTimeFn;
     }
 
     @Override
-    public Dataset<IN> output(OutputHint... outputHints) {
+    public Dataset<InputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      AssignEventTime<IN> op =
+      AssignEventTime<InputT> op =
           new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet(outputHints));
       flow.add(op);
       return op.output();

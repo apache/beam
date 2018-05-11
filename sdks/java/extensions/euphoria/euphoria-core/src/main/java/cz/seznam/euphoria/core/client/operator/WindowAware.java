@@ -22,11 +22,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 /**
  * Operator aware of windows.
  *
- * @param <IN> the type of elements processed
+ * @param <InputT> the type of elements processed
  * @param <W> the type of windows handled
  */
 @Audience(Audience.Type.INTERNAL)
-public interface WindowAware<IN, W extends Window<W>> {
+public interface WindowAware<InputT, W extends Window<W>> {
 
-  Windowing<IN, W> getWindowing();
+  Windowing<InputT, W> getWindowing();
 }

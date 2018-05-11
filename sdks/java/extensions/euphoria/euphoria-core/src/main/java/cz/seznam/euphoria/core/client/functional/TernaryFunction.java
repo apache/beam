@@ -21,7 +21,7 @@ import java.io.Serializable;
 /** Function taking three arguments. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface TernaryFunction<X, Y, Z, RET> extends Serializable {
+public interface TernaryFunction<FirstT, SecondT, ThirdT, OutputT> extends Serializable {
 
-  RET apply(X first, Y second, Z third);
+  OutputT apply(FirstT first, SecondT second, ThirdT third);
 }
