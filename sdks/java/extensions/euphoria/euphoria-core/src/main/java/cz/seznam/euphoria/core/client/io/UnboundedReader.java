@@ -23,17 +23,17 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
  * position for each emitted element * emit watermarks along with the data elements
  *
  * @param <T> the data type contained in the source
- * @param <OFFSET> data type of offset emitted with the elements
+ * @param <OffsetT> data type of offset emitted with the elements
  */
 @Audience(Audience.Type.CLIENT)
-public interface UnboundedReader<T, OFFSET> extends CloseableIterator<T> {
+public interface UnboundedReader<T, OffsetT> extends CloseableIterator<T> {
 
   /**
    * Retrieve offset where the reader has reached so far.
    *
    * @return the so far read offset
    */
-  OFFSET getCurrentOffset();
+  OffsetT getCurrentOffset();
 
   /**
    * Reset the reader to given offset. Call to `next` will then return element with offset following
@@ -42,7 +42,7 @@ public interface UnboundedReader<T, OFFSET> extends CloseableIterator<T> {
    * @param offset the offset to reset to, element with offset following this one will be returned
    *     next
    */
-  void reset(OFFSET offset);
+  void reset(OffsetT offset);
 
   /**
    * Commit given offset as being processed.
@@ -53,5 +53,5 @@ public interface UnboundedReader<T, OFFSET> extends CloseableIterator<T> {
    * @param offset the offset to be committed for persistence across runs of the streaming
    *     processing
    */
-  void commitOffset(OFFSET offset);
+  void commitOffset(OffsetT offset);
 }

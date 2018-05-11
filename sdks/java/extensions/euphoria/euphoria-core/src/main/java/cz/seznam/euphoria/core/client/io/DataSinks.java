@@ -26,15 +26,16 @@ public class DataSinks {
   /**
    * Create {@link DataSink} that re-maps input elements.
    *
-   * @param <IN> type of input elements
-   * @param <OUT> type of output elements
+   * @param <InputT> type of input elements
+   * @param <OutputT> type of output elements
    * @param sink the wrapped sink
    * @param mapper the mapping function
    * @return the {@link DataSink} capable of persisting re-mapped elements
    */
-  public static <IN, OUT> DataSink<OUT> mapping(DataSink<IN> sink, UnaryFunction<OUT, IN> mapper) {
+  public static <InputT, OutputT> DataSink<OutputT> mapping(
+      DataSink<InputT> sink, UnaryFunction<OutputT, InputT> mapper) {
 
-    return new DataSink<OUT>() {
+    return new DataSink<OutputT>() {
 
       @Override
       public void initialize() {
@@ -42,7 +43,7 @@ public class DataSinks {
       }
 
       @Override
-      public Writer<OUT> openWriter(int partitionId) {
+      public Writer<OutputT> openWriter(int partitionId) {
         throw new IllegalStateException("This sink is used only for `prepareDataset`");
       }
 
@@ -57,8 +58,8 @@ public class DataSinks {
       }
 
       @Override
-      public boolean prepareDataset(Dataset<OUT> output) {
-        Dataset<IN> mapped = MapElements.of(output).using(mapper).output();
+      public boolean prepareDataset(Dataset<OutputT> output) {
+        Dataset<InputT> mapped = MapElements.of(output).using(mapper).output();
         mapped.persist(sink);
         sink.prepareDataset(mapped);
         return true;

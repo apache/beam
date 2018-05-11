@@ -24,7 +24,7 @@ import java.util.stream.Stream;
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface ReduceFunctor<IN, OUT> extends UnaryFunctor<Stream<IN>, OUT> {
+public interface ReduceFunctor<InputT, OutputT> extends UnaryFunctor<Stream<InputT>, OutputT> {
 
   /**
    * Is this a commutative associative function with single final output?

@@ -29,13 +29,13 @@ public class Max {
   /**
    * Return {@code CombinableReduceFunction} to calculate maximum of input.
    *
-   * @param <IN> the type of elements handled
+   * @param <InputT> the type of elements handled
    * @param <X> the type of key by which to compare the elements
    * @param extract the key extraction function
    * @return a combiner function which delivers the "maximum" element seen; never {@code null}
    */
-  public static <IN, X extends Comparable<X>> CombinableReduceFunction<IN> of(
-      UnaryFunction<IN, X> extract) {
+  public static <InputT, X extends Comparable<X>> CombinableReduceFunction<InputT> of(
+      UnaryFunction<InputT, X> extract) {
 
     return values ->
         values

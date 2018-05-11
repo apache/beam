@@ -22,7 +22,7 @@ class Util {
   private Util() {}
 
   /**
-   * Trim string (instead of empty string return null)
+   * Trim string (instead of empty string return null).
    *
    * @param s input string
    * @return non-empty trimmed string or null

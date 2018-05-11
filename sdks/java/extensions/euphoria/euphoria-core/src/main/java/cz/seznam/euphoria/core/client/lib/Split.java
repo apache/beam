@@ -30,7 +30,7 @@ import java.util.Objects;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class Split<IN> {
+public class Split<InputT> {
 
   static final String DEFAULT_NAME = "Split";
   static final String POSITIVE_FILTER_SUFFIX = "-positive";
@@ -40,10 +40,11 @@ public class Split<IN> {
     return new OfBuilder(name);
   }
 
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
-    return new UsingBuilder<IN>(DEFAULT_NAME, input);
+  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
+    return new UsingBuilder<InputT>(DEFAULT_NAME, input);
   }
 
+  /** */
   public static class OfBuilder {
     private final String name;
 
@@ -51,49 +52,51 @@ public class Split<IN> {
       this.name = Objects.requireNonNull(name);
     }
 
-    public <IN> Split.UsingBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> Split.UsingBuilder<InputT> of(Dataset<InputT> input) {
       return new Split.UsingBuilder<>(name, input);
     }
   }
 
-  public static class UsingBuilder<IN> {
+  /** */
+  public static class UsingBuilder<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    UsingBuilder(String name, Dataset<IN> input) {
+    UsingBuilder(String name, Dataset<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
 
-    public Split.OutputBuilder<IN> using(UnaryPredicate<IN> predicate) {
+    public Split.OutputBuilder<InputT> using(UnaryPredicate<InputT> predicate) {
       return new Split.OutputBuilder<>(name, input, predicate);
     }
   }
 
-  public static class OutputBuilder<IN> implements Serializable {
+  /** */
+  public static class OutputBuilder<InputT> implements Serializable {
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryPredicate<IN> predicate;
+    private final Dataset<InputT> input;
+    private final UnaryPredicate<InputT> predicate;
 
-    OutputBuilder(String name, Dataset<IN> input, UnaryPredicate<IN> predicate) {
+    OutputBuilder(String name, Dataset<InputT> input, UnaryPredicate<InputT> predicate) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.predicate = Objects.requireNonNull(predicate);
     }
 
-    public Output<IN> output() {
-      Dataset<IN> positiveOutput =
+    public Output<InputT> output() {
+      Dataset<InputT> positiveOutput =
           Filter.named(name + POSITIVE_FILTER_SUFFIX).of(input).by(predicate).output();
-      Dataset<IN> negativeOutput =
+      Dataset<InputT> negativeOutput =
           Filter.named(name + NEGATIVE_FILTER_SUFFIX)
               .of(input)
-              .by((UnaryPredicate<IN>) what -> !predicate.apply(what))
+              .by((UnaryPredicate<InputT>) what -> !predicate.apply(what))
               .output();
       return new Output<>(positiveOutput, negativeOutput);
     }
   }
 
-  /** Pair of positive and negative output as a result of the {@link Split} operator */
+  /** Pair of positive and negative output as a result of the {@link Split} operator. */
   public static class Output<T> {
     private final Dataset<T> positive;
     private final Dataset<T> negative;
@@ -102,10 +105,12 @@ public class Split<IN> {
       this.positive = Objects.requireNonNull(positive);
       this.negative = Objects.requireNonNull(negative);
     }
+
     /** @return positive split result */
     public Dataset<T> positive() {
       return positive;
     }
+
     /** @return negative split result */
     public Dataset<T> negative() {
       return negative;

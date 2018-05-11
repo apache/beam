@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 
+/** */
 public abstract class TypeHint<T> implements Serializable {
 
   private final TypeToken<T> type;
@@ -53,16 +54,16 @@ public abstract class TypeHint<T> implements Serializable {
     return TypeHint.of(Integer.class);
   }
 
-  public static <A, B> TypeHint<Pair<A, B>> ofPair(TypeToken<A> left, TypeToken<B> right) {
+  public static <T1, T2> TypeHint<Pair<T1, T2>> ofPair(TypeToken<T1> left, TypeToken<T2> right) {
     return new SimpleTypeHint<>(
-        new TypeToken<Pair<A, B>>(Pair.class) {}.where(new TypeParameter<A>() {}, left)
-            .where(new TypeParameter<B>() {}, right));
+        new TypeToken<Pair<T1, T2>>(Pair.class) {}.where(new TypeParameter<T1>() {}, left)
+            .where(new TypeParameter<T2>() {}, right));
   }
 
-  public static <A, B> TypeHint<Pair<A, B>> ofPair(Class<A> left, Class<B> right) {
+  public static <T1, T2> TypeHint<Pair<T1, T2>> ofPair(Class<T1> left, Class<T2> right) {
     return new SimpleTypeHint<>(
-        new TypeToken<Pair<A, B>>(Pair.class) {}.where(new TypeParameter<A>() {}, left)
-            .where(new TypeParameter<B>() {}, right));
+        new TypeToken<Pair<T1, T2>>(Pair.class) {}.where(new TypeParameter<T1>() {}, left)
+            .where(new TypeParameter<T2>() {}, right));
   }
 
   public final Type getType() {

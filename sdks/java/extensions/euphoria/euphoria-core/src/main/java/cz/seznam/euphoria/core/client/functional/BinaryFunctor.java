@@ -22,7 +22,7 @@ import java.io.Serializable;
 /** Functor of two arguments. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
+public interface BinaryFunctor<LeftT, RightT, OutputT> extends Serializable {
 
-  void apply(LEFT left, RIGHT right, Collector<OUT> context);
+  void apply(LeftT left, RightT right, Collector<OutputT> context);
 }

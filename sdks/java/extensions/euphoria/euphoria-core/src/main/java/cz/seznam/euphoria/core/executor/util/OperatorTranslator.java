@@ -19,11 +19,12 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.Join.Type;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import java.util.ArrayList;
 
-/** Util class when specific executors use the same methods for operator translation */
+/** Util class when specific executors use the same methods for operator translation. */
 @Audience(Audience.Type.EXECUTOR)
 public class OperatorTranslator {
 
@@ -36,7 +37,7 @@ public class OperatorTranslator {
     final Dataset leftDataset = inputs.get(0);
     final Dataset rightDataset = inputs.get(1);
     return (o.getType() == Join.Type.LEFT && hasFitsInMemoryHint(rightDataset.getProducer())
-            || o.getType() == Join.Type.RIGHT && hasFitsInMemoryHint(leftDataset.getProducer()))
+            || o.getType() == Type.RIGHT && hasFitsInMemoryHint(leftDataset.getProducer()))
         && !(o.getWindowing() instanceof MergingWindowing);
   }
 

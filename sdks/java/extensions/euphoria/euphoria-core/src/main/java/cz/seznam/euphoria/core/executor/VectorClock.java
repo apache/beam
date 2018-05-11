@@ -43,7 +43,7 @@ public class VectorClock implements Serializable {
    * @return current stamp
    */
   public long getCurrent() {
-    return _min(current);
+    return min(current);
   }
 
   /**
@@ -56,7 +56,7 @@ public class VectorClock implements Serializable {
     current[dimension].accumulateAndGet(stamp, (old, update) -> old < update ? update : old);
   }
 
-  private long _min(AtomicLong[] arr) {
+  private long min(AtomicLong[] arr) {
     long min = Long.MAX_VALUE;
     for (AtomicLong l : arr) {
       final long i = l.get();

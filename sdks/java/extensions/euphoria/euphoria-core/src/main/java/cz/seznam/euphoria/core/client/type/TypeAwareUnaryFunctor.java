@@ -18,20 +18,20 @@ package cz.seznam.euphoria.core.client.type;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 
-public class TypeAwareUnaryFunctor<I, O> extends AbstractTypeAware<UnaryFunctor<I, O>, O>
-    implements UnaryFunctor<I, O> {
+public class TypeAwareUnaryFunctor<InT, OutT> extends AbstractTypeAware<UnaryFunctor<InT, OutT>, OutT>
+    implements UnaryFunctor<InT, OutT> {
 
-  private TypeAwareUnaryFunctor(UnaryFunctor<I, O> function, TypeHint<O> resultType) {
+  private TypeAwareUnaryFunctor(UnaryFunctor<InT, OutT> function, TypeHint<OutT> resultType) {
     super(function, resultType);
   }
 
-  public static <I, O> TypeAwareUnaryFunctor<I, O> of(
-      UnaryFunctor<I, O> function, TypeHint<O> typeHint) {
+  public static <InT, OutT> TypeAwareUnaryFunctor<InT, OutT> of(
+      UnaryFunctor<InT, OutT> function, TypeHint<OutT> typeHint) {
     return new TypeAwareUnaryFunctor<>(function, typeHint);
   }
 
   @Override
-  public void apply(I elem, Collector<O> collector) {
+  public void apply(InT elem, Collector<OutT> collector) {
     getDelegate().apply(elem, collector);
   }
 }

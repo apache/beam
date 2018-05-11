@@ -188,7 +188,7 @@ public class Settings implements Serializable {
     setString(key, cls.getName());
   }
 
-  public <E> Class<? extends E> getClass(String key, Class<E> superType) {
+  public <T> Class<? extends T> getClass(String key, Class<T> superType) {
     String className = getString(key);
     return InstanceUtils.forName(className, superType);
   }

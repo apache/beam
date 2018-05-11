@@ -52,6 +52,7 @@ public class IOUtils {
     forEach(stream::iterator, consumer);
   }
 
+  /** */
   @FunctionalInterface
   public interface IOConsumer<T> {
     void accept(T t) throws IOException;

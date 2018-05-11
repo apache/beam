@@ -24,13 +24,14 @@ import java.io.Serializable;
  * cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing}, e.g. session windows, where
  * individual session windows need occasionally be merged and, thus, their states.
  *
- * @param <IN> the type of input elements for the states
- * @param <OUT> the type of output elements of the states
+ * @param <InputT> the type of input elements for the states
+ * @param <OutputT> the type of output elements of the states
  * @param <STATE> the type of states being merged
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface StateMerger<IN, OUT, STATE extends State<IN, OUT>> extends Serializable {
+public interface StateMerger<InputT, OutputT, STATE extends State<InputT, OutputT>>
+    extends Serializable {
 
   /**
    * Merges <tt>others</tt> into the given <tt>target</tt>, which itself is guaranteed by the caller

@@ -21,12 +21,12 @@ import java.io.Serializable;
 /**
  * Function of single argument.
  *
- * @param <IN> the type of the element processed
- * @param <OUT> the type of the result applying element to the function
+ * @param <InputT> the type of the element processed
+ * @param <OutputT> the type of the result applying element to the function
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface UnaryFunction<IN, OUT> extends Serializable {
+public interface UnaryFunction<InputT, OutputT> extends Serializable {
 
   /**
    * Return the result of this function.
@@ -34,5 +34,5 @@ public interface UnaryFunction<IN, OUT> extends Serializable {
    * @param what the element applied to the function
    * @return the result of the function application
    */
-  OUT apply(IN what);
+  OutputT apply(InputT what);
 }

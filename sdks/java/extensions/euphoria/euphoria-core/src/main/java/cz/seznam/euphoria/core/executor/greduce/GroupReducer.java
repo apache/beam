@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.core.executor.greduce;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
@@ -52,30 +54,30 @@ import java.util.Objects;
  * key) and windowed elements where no late-comers are tolerated. Use this class only in batch mode!
  */
 @Audience(Audience.Type.EXECUTOR)
-public class GroupReducer<WidT extends Window, KEY, I> {
+public class GroupReducer<WidT extends Window, K, InT> {
 
   // ~ temporary store for trigger states
   final TriggerStorage triggerStorage;
   final TimerSupport<WidT> clock = new TimerSupport<>();
   final HashMap<WidT, State> states = new HashMap<>();
-  private final StateFactory<I, ?, State<I, ?>> stateFactory;
-  private final StateMerger<I, ?, State<I, ?>> stateCombiner;
+  private final StateFactory<InT, ?, State<InT, ?>> stateFactory;
+  private final StateMerger<InT, ?, State<InT, ?>> stateCombiner;
   private final WindowedElementFactory<WidT, Object> elementFactory;
   private final StateContext stateContext;
-  private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
+  private final Collector<WindowedElement<?, Pair<K, ?>>> collector;
   private final Windowing windowing;
   private final Trigger trigger;
   private final AccumulatorProvider accumulators;
-  KEY key;
+  K key;
 
   public GroupReducer(
-      StateFactory<I, ?, State<I, ?>> stateFactory,
-      StateMerger<I, ?, State<I, ?>> stateCombiner,
+      StateFactory<InT, ?, State<InT, ?>> stateFactory,
+      StateMerger<InT, ?, State<InT, ?>> stateCombiner,
       StateContext stateContext,
       WindowedElementFactory<WidT, Object> elementFactory,
       Windowing windowing,
       Trigger trigger,
-      Collector<WindowedElement<?, Pair<KEY, ?>>> collector,
+      Collector<WindowedElement<?, Pair<K, ?>>> collector,
       AccumulatorProvider accumulators) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
@@ -90,7 +92,7 @@ public class GroupReducer<WidT extends Window, KEY, I> {
   }
 
   @SuppressWarnings("unchecked")
-  public void process(WindowedElement<WidT, Pair<KEY, I>> elem) {
+  public void process(WindowedElement<WidT, Pair<K, InT>> elem) {
     // ~ make sure we have the key
     updateKey(elem);
 
@@ -220,12 +222,12 @@ public class GroupReducer<WidT extends Window, KEY, I> {
     return xs;
   }
 
-  private void updateKey(WindowedElement<WidT, Pair<KEY, I>> elem) {
+  private void updateKey(WindowedElement<WidT, Pair<K, InT>> elem) {
     if (key == null) {
       key = elem.getElement().getFirst();
     } else {
       // ~ validate we really do process elements of a single key only
-      Preconditions.checkState(key.equals(elem.getElement().getFirst()));
+      checkState(key.equals(elem.getElement().getFirst()));
     }
   }
 
@@ -263,10 +265,10 @@ public class GroupReducer<WidT extends Window, KEY, I> {
 
   class ElementCollector<T> implements Context, cz.seznam.euphoria.core.client.io.Collector<T> {
 
-    final Collector<WindowedElement<WidT, Pair<KEY, T>>> out;
+    final Collector<WindowedElement<WidT, Pair<K, T>>> out;
     final WidT window;
 
-    ElementCollector(Collector<WindowedElement<WidT, Pair<KEY, T>>> out, WidT window) {
+    ElementCollector(Collector<WindowedElement<WidT, Pair<K, T>>> out, WidT window) {
       this.out = out;
       this.window = window;
     }

@@ -83,21 +83,21 @@ public class Fold implements Serializable {
    * Return a {@link ReduceFunctor} that performs a fold operation and emits partial results after
    * each input element.
    *
-   * @param <IN> type of input value
-   * @param <OUT> type of output value
+   * @param <InputT> type of input value
+   * @param <OutputT> type of output value
    * @param identity the zero element
    * @param fold the fold function
    * @return the {@link ReduceFunctor}
    */
   @SuppressWarnings("ReturnValueIgnored") // TODO : remove
-  public static <IN, OUT> ReduceFunctor<IN, OUT> whileEmittingEach(
-      OUT identity, BinaryFunction<OUT, IN, OUT> fold) {
+  public static <InputT, OutputT> ReduceFunctor<InputT, OutputT> whileEmittingEach(
+      OutputT identity, BinaryFunction<OutputT, InputT, OutputT> fold) {
 
     return (s, ctx) ->
         s.reduce(
             identity,
             (a, b) -> {
-              OUT v = fold.apply(a, b);
+              OutputT v = fold.apply(a, b);
               ctx.collect(v);
               return v;
             },

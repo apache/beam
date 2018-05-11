@@ -27,13 +27,14 @@ public class Datasets {
   /**
    * Create output dataset for given operator.
    *
-   * @param <IN> the type of elements of the input dataset
-   * @param <OUT> the type of elements in the output dataset
+   * @param <InputT> the type of elements of the input dataset
+   * @param <OutputT> the type of elements in the output dataset
    * @param bounded {@code true} if the output dataset should be bounded
    * @param op the operator producing the output dataset
    * @return a dataset representing the output of the given operator
    */
-  public static <IN, OUT> Dataset<OUT> createOutputFor(boolean bounded, Operator<IN, OUT> op) {
+  public static <InputT, OutputT> Dataset<OutputT> createOutputFor(
+      boolean bounded, Operator<InputT, OutputT> op) {
 
     return new OutputDataset<>(op.getFlow(), op, bounded);
   }

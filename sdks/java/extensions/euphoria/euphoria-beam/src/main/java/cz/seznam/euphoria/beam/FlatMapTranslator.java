@@ -27,11 +27,11 @@ import org.joda.time.Instant;
 
 class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 
-  private static <IN, OUT> PCollection<OUT> doTranslate(
-      FlatMap<IN, OUT> operator, BeamExecutorContext context) {
+  private static <InputT, OutputT> PCollection<OutputT> doTranslate(
+      FlatMap<InputT, OutputT> operator, BeamExecutorContext context) {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
-    final Mapper<IN, OUT> mapper =
+    final Mapper<InputT, OutputT> mapper =
         new Mapper<>(operator.getFunctor(), accumulators, operator.getEventTimeExtractor());
     return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
   }
@@ -42,15 +42,15 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     return doTranslate(operator, context);
   }
 
-  private static class Mapper<IN, OUT> extends DoFn<IN, OUT> {
+  private static class Mapper<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
-    private final UnaryFunctor<IN, OUT> mapper;
-    private final DoFnCollector<IN, OUT, OUT> collector;
+    private final UnaryFunctor<InputT, OutputT> mapper;
+    private final DoFnCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
-        UnaryFunctor<IN, OUT> mapper,
+        UnaryFunctor<InputT, OutputT> mapper,
         AccumulatorProvider accumulators,
-        @Nullable ExtractEventTime<IN> eventTimeExtractor) {
+        @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.mapper = mapper;
       this.collector = new DoFnCollector<>(accumulators, new Collector<>(eventTimeExtractor));
     }
@@ -63,16 +63,16 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     }
   }
 
-  private static class Collector<IN, OUT> implements DoFnCollector.BeamCollector<IN, OUT, OUT> {
+  private static class Collector<InputT, OutputT> implements DoFnCollector.BeamCollector<InputT, OutputT, OutputT> {
 
-    @Nullable private final ExtractEventTime<IN> eventTimeExtractor;
+    @Nullable private final ExtractEventTime<InputT> eventTimeExtractor;
 
-    private Collector(@Nullable ExtractEventTime<IN> eventTimeExtractor) {
+    private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;
     }
 
     @Override
-    public void collect(DoFn<IN, OUT>.ProcessContext ctx, OUT out) {
+    public void collect(DoFn<InputT, OutputT>.ProcessContext ctx, OutputT out) {
       if (eventTimeExtractor != null) {
         ctx.outputWithTimestamp(
             out, new Instant(eventTimeExtractor.extractTimestamp(ctx.element())));

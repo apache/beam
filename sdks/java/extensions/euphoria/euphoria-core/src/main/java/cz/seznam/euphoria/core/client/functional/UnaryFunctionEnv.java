@@ -22,12 +22,12 @@ import java.io.Serializable;
 /**
  * Function of single argument with access to Euphoria environment via context.
  *
- * @param <IN> the type of the element processed
- * @param <OUT> the type of the result applying element to the function
+ * @param <InputT> the type of the element processed
+ * @param <OutputT> the type of the result applying element to the function
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface UnaryFunctionEnv<IN, OUT> extends Serializable {
+public interface UnaryFunctionEnv<InputT, OutputT> extends Serializable {
 
   /**
    * Applies function to given element.
@@ -36,5 +36,5 @@ public interface UnaryFunctionEnv<IN, OUT> extends Serializable {
    * @param context Provides access to the environment.
    * @return the result of the function application
    */
-  OUT apply(IN what, Context context);
+  OutputT apply(InputT what, Context context);
 }

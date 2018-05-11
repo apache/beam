@@ -19,20 +19,20 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import java.util.stream.Stream;
 
-public class TypeAwareReduceFunctor<I, O> extends AbstractTypeAware<ReduceFunctor<I, O>, O>
-    implements ReduceFunctor<I, O> {
+public class TypeAwareReduceFunctor<InT, OutT> extends AbstractTypeAware<ReduceFunctor<InT, OutT>, OutT>
+    implements ReduceFunctor<InT, OutT> {
 
-  private TypeAwareReduceFunctor(ReduceFunctor<I, O> functor, TypeHint<O> resultType) {
+  private TypeAwareReduceFunctor(ReduceFunctor<InT, OutT> functor, TypeHint<OutT> resultType) {
     super(functor, resultType);
   }
 
-  public static <I, O> TypeAwareReduceFunctor<I, O> of(
-      ReduceFunctor<I, O> functor, TypeHint<O> typeHint) {
+  public static <InT, OutT> TypeAwareReduceFunctor<InT, OutT> of(
+      ReduceFunctor<InT, OutT> functor, TypeHint<OutT> typeHint) {
     return new TypeAwareReduceFunctor<>(functor, typeHint);
   }
 
   @Override
-  public void apply(Stream<I> elem, Collector<O> collector) {
+  public void apply(Stream<InT> elem, Collector<OutT> collector) {
     getDelegate().apply(elem, collector);
   }
 }

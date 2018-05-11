@@ -20,21 +20,21 @@ import cz.seznam.euphoria.core.client.io.Collector;
 
 /** A state for stateful operations. */
 @Audience(Audience.Type.CLIENT)
-public interface State<IN, OUT> {
+public interface State<InputT, OutputT> {
 
   /**
    * Add element to this state.
    *
    * @param element the element to add/accumulate to this state
    */
-  void add(IN element);
+  void add(InputT element);
 
   /**
    * Flush the state to output. Invoked when window this state is part of gets disposed/triggered.
    *
    * @param context the context to utilize for emitting output elements; never {@code null}
    */
-  void flush(Collector<OUT> context);
+  void flush(Collector<OutputT> context);
 
   /**
    * Closes this state. Invoked after {@link #flush(Collector)} and before this state gets disposed

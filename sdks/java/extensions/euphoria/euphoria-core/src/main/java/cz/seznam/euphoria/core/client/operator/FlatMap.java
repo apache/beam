@@ -74,17 +74,17 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
-public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
+public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, OutputT> {
 
-  private final UnaryFunctor<IN, OUT> functor;
-  private final ExtractEventTime<IN> eventTimeFn;
+  private final UnaryFunctor<InputT, OutputT> functor;
+  private final ExtractEventTime<InputT> eventTimeFn;
 
   FlatMap(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunctor<IN, OUT> functor,
-      @Nullable ExtractEventTime<IN> evtTimeFn,
+      Dataset<InputT> input,
+      UnaryFunctor<InputT, OutputT> functor,
+      @Nullable ExtractEventTime<InputT> evtTimeFn,
       Set<OutputHint> outputHints) {
     super(name, flow, input, outputHints);
     this.functor = functor;
@@ -94,22 +94,22 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   FlatMap(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunctor<IN, OUT> functor,
-      @Nullable ExtractEventTime<IN> evtTimeFn) {
+      Dataset<InputT> input,
+      UnaryFunctor<InputT, OutputT> functor,
+      @Nullable ExtractEventTime<InputT> evtTimeFn) {
     this(name, flow, input, functor, evtTimeFn, Collections.emptySet());
   }
 
   /**
    * Starts building a nameless {@link FlatMap} operator to transform the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be transformed
    * @return a builder to complete the setup of the new {@link FlatMap} operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
     return new UsingBuilder<>("FlatMap", input);
   }
 
@@ -128,7 +128,7 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
    *
    * @return the user defined map function; never {@code null}
    */
-  public UnaryFunctor<IN, OUT> getFunctor() {
+  public UnaryFunctor<InputT, OutputT> getFunctor() {
     return functor;
   }
 
@@ -138,7 +138,7 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
    * @return the user defined event time assigner or {@code null} if none is specified
    */
   @Nullable
-  public ExtractEventTime<IN> getEventTimeExtractor() {
+  public ExtractEventTime<InputT> getEventTimeExtractor() {
     return eventTimeFn;
   }
 
@@ -150,16 +150,16 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     @Override
-    public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
       return new UsingBuilder<>(name, input);
     }
   }
 
-  public static class UsingBuilder<IN> {
+  public static class UsingBuilder<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    UsingBuilder(String name, Dataset<IN> input) {
+    UsingBuilder(String name, Dataset<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
@@ -168,21 +168,22 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
      * Specifies the user defined map function by which to transform the final operator's input
      * dataset.
      *
-     * @param <OUT> the type of elements the user defined map function will produce to the output
-     *     dataset
+     * @param <OutputT> the type of elements the user defined map function will produce to the
+     *     output dataset
      * @param functor the user defined map function
      * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    public <OUT> EventTimeBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
+    public <OutputT> EventTimeBuilder<InputT, OutputT> using(
+        UnaryFunctor<InputT, OutputT> functor) {
       return new EventTimeBuilder<>(this, functor);
     }
   }
 
-  public static class EventTimeBuilder<IN, OUT> implements Builders.Output<OUT> {
-    private final UsingBuilder<IN> using;
-    private final UnaryFunctor<IN, OUT> functor;
+  public static class EventTimeBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
+    private final UsingBuilder<InputT> using;
+    private final UnaryFunctor<InputT, OutputT> functor;
 
-    EventTimeBuilder(UsingBuilder<IN> using, UnaryFunctor<IN, OUT> functor) {
+    EventTimeBuilder(UsingBuilder<InputT> using, UnaryFunctor<InputT, OutputT> functor) {
       this.using = Objects.requireNonNull(using);
       this.functor = Objects.requireNonNull(functor);
     }
@@ -194,29 +195,29 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
      * @param eventTimeFn the event time extraction function
      * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    public OutputBuilder<IN, OUT> eventTimeBy(ExtractEventTime<IN> eventTimeFn) {
+    public OutputBuilder<InputT, OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn) {
       return new OutputBuilder<>(
           this.using.name, this.using.input, this.functor, Objects.requireNonNull(eventTimeFn));
     }
 
     @Override
-    public Dataset<OUT> output(OutputHint... outputHints) {
+    public Dataset<OutputT> output(OutputHint... outputHints) {
       return new OutputBuilder<>(this.using.name, this.using.input, this.functor, null)
           .output(outputHints);
     }
   }
 
-  public static class OutputBuilder<IN, OUT> implements Builders.Output<OUT> {
+  public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunctor<IN, OUT> functor;
-    @Nullable private final ExtractEventTime<IN> evtTimeFn;
+    private final Dataset<InputT> input;
+    private final UnaryFunctor<InputT, OutputT> functor;
+    @Nullable private final ExtractEventTime<InputT> evtTimeFn;
 
     OutputBuilder(
         String name,
-        Dataset<IN> input,
-        UnaryFunctor<IN, OUT> functor,
-        @Nullable ExtractEventTime<IN> evtTimeFn) {
+        Dataset<InputT> input,
+        UnaryFunctor<InputT, OutputT> functor,
+        @Nullable ExtractEventTime<InputT> evtTimeFn) {
       this.name = name;
       this.input = input;
       this.functor = functor;
@@ -224,9 +225,9 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     @Override
-    public Dataset<OUT> output(OutputHint... outputHints) {
+    public Dataset<OutputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      FlatMap<IN, OUT> map =
+      FlatMap<InputT, OutputT> map =
           new FlatMap<>(name, flow, input, functor, evtTimeFn, Sets.newHashSet(outputHints));
       flow.add(map);
       return map.output();
