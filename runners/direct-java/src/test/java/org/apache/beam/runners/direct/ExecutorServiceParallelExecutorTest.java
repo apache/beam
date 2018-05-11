@@ -94,6 +94,7 @@ public class ExecutorServiceParallelExecutorTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
   public void testNoThreadsLeakInPipelineExecution() {
     pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
