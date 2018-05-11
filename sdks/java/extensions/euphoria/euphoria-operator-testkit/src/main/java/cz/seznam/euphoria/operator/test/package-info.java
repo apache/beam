@@ -17,6 +17,7 @@
  */
 
 /**
- * TODO add package comment.
+ * Euphoria operators test suite, see
+ * {@link cz.seznam.euphoria.operator.test.AllOperatorsSuite}.
  */
-package cz.seznam.euphoria.testing;
+package cz.seznam.euphoria.operator.test;

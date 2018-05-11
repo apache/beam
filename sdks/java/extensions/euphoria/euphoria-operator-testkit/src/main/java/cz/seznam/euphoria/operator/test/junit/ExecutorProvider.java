@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
+/**
+ * Provider of {@lin ExecutorEnvironment}.
+ */
 public interface ExecutorProvider {
 
   ExecutorEnvironment newExecutorEnvironment() throws Exception;

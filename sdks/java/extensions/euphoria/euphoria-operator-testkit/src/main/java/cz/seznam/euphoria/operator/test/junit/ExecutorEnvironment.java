@@ -17,6 +17,9 @@ package cz.seznam.euphoria.operator.test.junit;
 
 import cz.seznam.euphoria.core.executor.Executor;
 
+/**
+ * Source of {@link Executor} with ability to shutdown it.
+ */
 public interface ExecutorEnvironment {
 
   Executor getExecutor();

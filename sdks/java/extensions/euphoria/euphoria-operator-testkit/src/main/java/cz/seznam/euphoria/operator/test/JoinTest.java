@@ -507,6 +507,12 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
+  /**
+   * Base for join test cases.
+   * @param <LeftT>
+   * @param <RightT>
+   * @param <OutputT>
+   */
   public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
     @Override
     public Dataset<OutputT> getOutput(Flow flow, boolean bounded) {

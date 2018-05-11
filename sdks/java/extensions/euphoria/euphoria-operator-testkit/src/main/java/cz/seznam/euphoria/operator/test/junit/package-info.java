@@ -17,6 +17,6 @@
  */
 
 /**
- * Accumulators to be used in operator test suite.
+ * Collection of tst utility classes.
  */
-package cz.seznam.euphoria.operator.test.accumulators;
+package cz.seznam.euphoria.operator.test.junit;

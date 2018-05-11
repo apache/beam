@@ -19,4 +19,4 @@
 /**
  * TODO add package comment.
  */
-package cz.seznam.euphoria.executor.local;
+package cz.seznam.euphoria.testing;

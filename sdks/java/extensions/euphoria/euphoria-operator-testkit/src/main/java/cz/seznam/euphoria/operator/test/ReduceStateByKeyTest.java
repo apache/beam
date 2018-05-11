@@ -266,7 +266,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, Long, CountState<String>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-                // FIXME .timedBy(Pair::getSecond) and make the assertion in the validation phase
+                // TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase
                 // stronger
                 .windowBy(Count.of(3))
                 .output();
@@ -591,7 +591,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       }
     }
 
-    protected int flush_(Collector<Integer> context) {
+    protected int flushAndGetSize(Collector<Integer> context) {
       List<Integer> list = Lists.newArrayList(data.get());
       Collections.sort(list);
       for (Integer i : list) {
@@ -613,7 +613,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
     @Override
     public void flush(Collector<Integer> context) {
-      int num = flush_(context);
+      int num = flushAndGetSize(context);
       context.getCounter("flushed").increment(num);
     }
   }
@@ -630,7 +630,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
               .getValueStorage(ValueStorageDescriptor.of("count-state", Long.class, 0L));
     }
 
-    public static <InputT> void combine(CountState<InputT> target, Iterable<CountState<InputT>> others) {
+    public static <InputT> void combine(
+        CountState<InputT> target, Iterable<CountState<InputT>> others) {
+
       for (CountState<InputT> other : others) {
         target.add(other);
       }
@@ -745,8 +747,12 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (!(o instanceof Word)) return false;
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof Word)) {
+        return false;
+      }
 
       Word word = (Word) o;
 

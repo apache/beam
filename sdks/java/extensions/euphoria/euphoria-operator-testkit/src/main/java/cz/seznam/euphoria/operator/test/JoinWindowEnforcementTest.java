@@ -36,6 +36,9 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runners.Parameterized;
 
+/**
+ * A collection of test methods.
+ */
 @Processing(Processing.Type.ALL)
 public class JoinWindowEnforcementTest extends AbstractOperatorTest {
 

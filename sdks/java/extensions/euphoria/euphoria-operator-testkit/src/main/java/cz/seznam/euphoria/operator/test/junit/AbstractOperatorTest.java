@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -35,6 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * Base class for test description of a test case.
+ */
 public abstract class AbstractOperatorTest implements Serializable {
 
   /**
@@ -81,8 +84,8 @@ public abstract class AbstractOperatorTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   public void execute(TestCase tc) {
-    Preconditions.checkNotNull(executor);
-    Preconditions.checkNotNull(processing);
+    checkNotNull(executor);
+    checkNotNull(processing);
 
     SingleJvmAccumulatorProvider.Factory accs = SingleJvmAccumulatorProvider.Factory.get();
     executor.setAccumulatorProvider(accs);
@@ -125,8 +128,10 @@ public abstract class AbstractOperatorTest implements Serializable {
     /**
      * Retrieve expected outputs.
      *
-     * @return list of expected outputs that will be compared irrespective of order
-     *     <p>These outputs will be compared irrespective of order.
+     *<p>These outputs will be compared irrespective of order.
+     *
+     *  @return list of expected outputs that will be compared irrespective of order
+     *
      */
     default List<T> getUnorderedOutput() {
       throw new UnsupportedOperationException(
