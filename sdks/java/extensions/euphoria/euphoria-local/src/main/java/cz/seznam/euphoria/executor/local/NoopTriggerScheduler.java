@@ -17,6 +17,11 @@ package cz.seznam.euphoria.executor.local;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
+/**
+ * TODO: add comment.
+ * @param <W>
+ * @param <K>
+ */
 public class NoopTriggerScheduler<W extends Window, K> implements TriggerScheduler<W, K> {
 
   private volatile long currentWatermark;

@@ -33,7 +33,7 @@ public interface WatermarkEmitStrategy {
   /** Default strategy used in local executor. */
   class Default implements WatermarkEmitStrategy {
 
-    static final ScheduledExecutorService scheduler =
+    private static final ScheduledExecutorService scheduler =
         new ScheduledThreadPoolExecutor(
             1, new ThreadFactoryBuilder().setNameFormat("watermark-%d").setDaemon(true).build());
 

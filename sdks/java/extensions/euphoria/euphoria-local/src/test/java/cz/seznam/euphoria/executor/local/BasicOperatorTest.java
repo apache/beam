@@ -114,7 +114,7 @@ public class BasicOperatorTest {
             .withReadDelay(Duration.ofSeconds(2));
 
     Flow flow = Flow.create("Test");
-    // FIXME: this is basically wrong and cannot function this way outside of local executor
+    // TODO: this is basically wrong and cannot function this way outside of local executor
     // the correct way of doing this is #192
     // fix this after implementation of that issue
     AtomicLong time = new AtomicLong(1000);

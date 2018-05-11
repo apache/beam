@@ -21,6 +21,9 @@ import cz.seznam.euphoria.executor.local.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 
+/**
+ * Executor provider used for testing.
+ */
 public interface LocalExecutorProvider extends ExecutorProvider {
   @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
