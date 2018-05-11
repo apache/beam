@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * FIXME: this description is WRONG! An {@code ExecUnit} is a series of transformation with no
+ * TODO: this description is WRONG! An {@code ExecUnit} is a series of transformation with no
  * checkpointing. {@code ExecUnit} has several inputs, several outputs and possibly some
  * intermediate datasets. Datasets might be shared across multiple {@code ExecUnit}s.
  */
@@ -49,7 +49,7 @@ class ExecUnit {
    * @return the given flow wrapped by a execution unit
    */
   public static List<ExecUnit> split(DAG<Operator<?, ?>> unfoldedFlow) {
-    // FIXME: what exactly for is unit?
+    // TODO: what exactly for is unit?
     return Arrays.asList(new ExecUnit(unfoldedFlow));
   }
 
