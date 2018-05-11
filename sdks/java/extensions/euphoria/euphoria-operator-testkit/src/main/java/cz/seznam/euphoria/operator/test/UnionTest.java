@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
 
-/** Test for operator {@code Union} */
+/** Test for operator {@code Union}. */
 @Processing(Processing.Type.ALL)
 public class UnionTest extends AbstractOperatorTest {
 

@@ -54,7 +54,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 
-/** Tests capabilities of {@link Windowing} */
+/** Tests capabilities of {@link Windowing}. */
 @Processing(Processing.Type.ALL)
 public class WindowingTest extends AbstractOperatorTest {
 
@@ -336,6 +336,9 @@ public class WindowingTest extends AbstractOperatorTest {
         });
   }
 
+  /**
+   * Just simple enum to be used during testing.
+   */
   public enum Type {
     FRUIT,
     VEGETABLE
@@ -368,6 +371,11 @@ public class WindowingTest extends AbstractOperatorTest {
     }
   }
 
+  /**
+   * Pair of items where both items implement {@link Comparable}.
+   * @param <T0> first item type
+   * @param <T1> second item type
+   */
   public static class ComparablePair<T0 extends Comparable<T0>, T1 extends Comparable<T1>>
       implements Comparable<ComparablePair<T0, T1>> {
 

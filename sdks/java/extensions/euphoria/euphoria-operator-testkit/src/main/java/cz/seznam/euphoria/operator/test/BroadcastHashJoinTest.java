@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.Test;
 
+/**
+ * Collection of broadcast hash join tests.
+ */
 public class BroadcastHashJoinTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.BOUNDED)

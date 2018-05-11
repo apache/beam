@@ -17,6 +17,9 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
+/**
+ * Test-purpose {@link Window} identified by integer.
+ */
 public class IntWindow extends Window<IntWindow> {
 
   private int val;

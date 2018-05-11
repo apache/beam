@@ -15,7 +15,8 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Modifier;
@@ -40,6 +41,9 @@ import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * TODO: add javadoc.
+ */
 public class ExecutorProviderRunner extends Suite {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorProviderRunner.class);
@@ -64,11 +68,11 @@ public class ExecutorProviderRunner extends Suite {
       for (FrameworkMethod method : methods) {
         if (isOperatorTest) {
           Optional<Type> mPType = getProcessingType(method.getMethod());
-          Preconditions.checkArgument(
+          checkArgument(
               cPType.isPresent() || mPType.isPresent(),
               "Processing annotation is missing either on method or class!");
           Optional<Type> definedPType = merged(cPType, mPType);
-          Preconditions.checkArgument(definedPType.isPresent(), "Conflicting processings!");
+          checkArgument(definedPType.isPresent(), "Conflicting processings!");
 
           Optional<Type> rPType = merged(kPType, definedPType);
           if (rPType.isPresent()) {

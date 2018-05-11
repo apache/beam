@@ -21,6 +21,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.Assert;
 
+/**
+ * Test wide utility methods for dataset assertion.
+ */
 public class DatasetAssert {
 
   /**

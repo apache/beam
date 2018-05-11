@@ -17,7 +17,6 @@
  */
 
 /**
- * Euphoria operators test suite, see
- * {@link cz.seznam.euphoria.operator.test.AllOperatorsSuite}.
+ * Accumulators to be used in operator test suite.
  */
-package cz.seznam.euphoria.operator.test;
+package cz.seznam.euphoria.operator.test.accumulators;

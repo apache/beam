@@ -31,6 +31,9 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
 
+/**
+ * TODO: add javadoc.
+ */
 public class WatermarkTest extends AbstractOperatorTest {
 
   // ~ see https://github.com/seznam/euphoria/issues/119
@@ -50,7 +53,7 @@ public class WatermarkTest extends AbstractOperatorTest {
           // ~ a very slow source
           @Override
           protected List<Pair<String, Long>> getRightInput() {
-            // FIXME: speed is undefined here!
+            // TODO: speed is undefined here!
             return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
           }
 
