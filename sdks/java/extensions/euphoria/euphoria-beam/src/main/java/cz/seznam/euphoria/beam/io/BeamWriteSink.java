@@ -26,7 +26,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-/** Write to output sink using beam. */
+/**
+ * Write to output sink using beam.
+ */
 @DoFn.BoundedPerElement
 public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
 

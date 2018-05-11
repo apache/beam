@@ -16,7 +16,7 @@
 
 package cz.seznam.euphoria.beam;
 
-import avro.shaded.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.beam.io.BeamWriteSink;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
@@ -49,6 +49,7 @@ public class BeamFlow extends Flow {
   private final transient Pipeline pipeline;
   private Duration allowedLateness = Duration.ZERO;
   private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
+
   /**
    * Construct the {@link BeamFlow}.
    *
@@ -191,7 +192,8 @@ public class BeamFlow extends Flow {
     FlowTranslator.updateContextBy(unfolded, context);
     // register the output of the sub-dag as output of the original operator
     Dataset<OutputT> output = operator.output();
-    Dataset<OutputT> dagOutput = (Dataset) Iterables.getOnlyElement(unfolded.getLeafs()).get().output();
+    Dataset<OutputT> dagOutput = (Dataset) Iterables.getOnlyElement(unfolded.getLeafs()).get()
+        .output();
     if (output != dagOutput) {
       context.setPCollection(output, unwrapped(dagOutput));
     }
@@ -228,13 +230,15 @@ public class BeamFlow extends Flow {
    *
    * @return associated pipeline
    * @throws NullPointerException when the flow has no associated pipeline. Note that the flow has
-   *     associated pipeline if and only if it was created by {@link #create(Pipeline)}.
+   * associated pipeline if and only if it was created by {@link #create(Pipeline)}.
    */
   public Pipeline getPipeline() {
     return Objects.requireNonNull(pipeline);
   }
 
-  /** @return {@code true} if this flow already has associated {@link Pipeline}. */
+  /**
+   * @return {@code true} if this flow already has associated {@link Pipeline}.
+   */
   boolean hasPipeline() {
     return pipeline != null;
   }

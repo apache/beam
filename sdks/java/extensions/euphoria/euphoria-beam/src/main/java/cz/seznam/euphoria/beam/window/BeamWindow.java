@@ -19,7 +19,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
-/** Wrapper around euphoria's {@code Window} into beam. */
+/**
+ * Wrapper around euphoria's {@code Window} into beam.
+ */
 public class BeamWindow<W extends Window<W>> extends BoundedWindow {
 
   private static final Instant MAX_TIMESTAMP = BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1);

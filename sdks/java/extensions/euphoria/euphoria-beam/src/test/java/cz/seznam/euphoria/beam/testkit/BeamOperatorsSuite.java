@@ -29,20 +29,22 @@ import org.junit.runners.Suite;
  */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({
-  //    CountByKeyTest.class,
-  //    DistinctTest.class,
-  //    FilterTest.class,
-  FlatMapTest.class,
-  //    JoinTest.class,
-  //    JoinWindowEnforcementTest.class,
-  //    MapElementsTest.class,
-  //    ReduceByKeyTest.class,
-  //    ReduceStateByKeyTest.class,
-  //    SumByKeyTest.class,
-  //    TopPerKeyTest.class,
-  //    SortTest.class,
-  UnionTest.class,
-  //    WindowingTest.class,
-  //    WatermarkTest.class,
+    //    CountByKeyTest.class,
+    //    DistinctTest.class,
+    //    FilterTest.class,
+    FlatMapTest.class,
+    //    JoinTest.class,
+    //    JoinWindowEnforcementTest.class,
+    //    MapElementsTest.class,
+    //    ReduceByKeyTest.class,
+    //    ReduceStateByKeyTest.class,
+    //    SumByKeyTest.class,
+    //    TopPerKeyTest.class,
+    //    SortTest.class,
+    UnionTest.class,
+    //    WindowingTest.class,
+    //    WatermarkTest.class,
 })
-public abstract class BeamOperatorsSuite implements ExecutorProvider {}
+public abstract class BeamOperatorsSuite implements ExecutorProvider {
+
+}

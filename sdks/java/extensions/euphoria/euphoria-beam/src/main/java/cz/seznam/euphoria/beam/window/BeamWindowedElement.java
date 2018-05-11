@@ -19,7 +19,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import java.util.Objects;
 
-/** A {@code WindowedElement} created from Beam's element. */
+/**
+ * A {@code WindowedElement} created from Beam's element.
+ */
 public class BeamWindowedElement<W extends Window, T> implements WindowedElement<W, T> {
 
   private final T elem;

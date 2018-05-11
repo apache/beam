@@ -23,7 +23,9 @@ import cz.seznam.euphoria.core.util.Settings;
 import java.io.Serializable;
 import java.util.Objects;
 
-/** Instantiate accumulator provider on the first usage. */
+/**
+ * Instantiate accumulator provider on the first usage.
+ */
 class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
 
   private final AccumulatorProvider.Factory factory;
