@@ -22,5 +22,4 @@ public interface ExecutorEnvironment {
   Executor getExecutor();
 
   void shutdown() throws Exception;
-
 }

@@ -15,15 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import static java.util.Collections.singleton;
+
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
-import static java.util.Collections.singleton;
-
-/**
- * Count tumbling windowing.
- */
+/** Count tumbling windowing. */
 @Audience(Audience.Type.CLIENT)
 public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
 
@@ -31,6 +29,10 @@ public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
 
   private Count(int maxCount) {
     this.maxCount = maxCount;
+  }
+
+  public static <T> Count<T> of(int count) {
+    return new Count<>(count);
   }
 
   @Override
@@ -41,10 +43,6 @@ public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
   @Override
   public Trigger<GlobalWindowing.Window> getTrigger() {
     return new CountTrigger<>(maxCount);
-  }
-
-  public static <T> Count<T> of(int count) {
-    return new Count<>(count);
   }
 
   @Override
@@ -59,5 +57,4 @@ public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
   public int hashCode() {
     return maxCount;
   }
-
 }

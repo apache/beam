@@ -15,44 +15,38 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-import org.junit.Test;
-
-import java.time.Duration;
-
 import static org.junit.Assert.assertEquals;
+
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
+import java.time.Duration;
+import org.junit.Test;
 
 public class TimeSlidingTest {
 
   @Test
   public void testWindowAssignment() {
-    TimeSliding<?> windowing =
-            TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5));
+    TimeSliding<?> windowing = TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5));
 
-    Iterable<TimeInterval> windows =
-            windowing.assignWindowsToElement(new TimestampedElement<>(16));
+    Iterable<TimeInterval> windows = windowing.assignWindowsToElement(new TimestampedElement<>(16));
 
     assertEquals(2, Iterables.size(windows));
-    assertEquals(Sets.newHashSet(
-            new TimeInterval(10, 20),
-            new TimeInterval(15, 25)),
-            Sets.newHashSet(windows));
+    assertEquals(
+        Sets.newHashSet(new TimeInterval(10, 20), new TimeInterval(15, 25)),
+        Sets.newHashSet(windows));
 
     windows = windowing.assignWindowsToElement(new TimestampedElement<>(10));
 
     assertEquals(2, Iterables.size(windows));
-    assertEquals(Sets.newHashSet(
-            new TimeInterval(5, 15),
-            new TimeInterval(10, 20)),
-            Sets.newHashSet(windows));
+    assertEquals(
+        Sets.newHashSet(new TimeInterval(5, 15), new TimeInterval(10, 20)),
+        Sets.newHashSet(windows));
 
     windows = windowing.assignWindowsToElement(new TimestampedElement<>(9));
 
     assertEquals(2, Iterables.size(windows));
-    assertEquals(Sets.newHashSet(
-            new TimeInterval(0, 10),
-            new TimeInterval(5, 15)),
-            Sets.newHashSet(windows));
+    assertEquals(
+        Sets.newHashSet(new TimeInterval(0, 10), new TimeInterval(5, 15)),
+        Sets.newHashSet(windows));
   }
 }

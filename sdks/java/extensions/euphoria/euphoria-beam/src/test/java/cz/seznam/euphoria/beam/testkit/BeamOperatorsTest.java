@@ -15,6 +15,4 @@
  */
 package cz.seznam.euphoria.beam.testkit;
 
-public class BeamOperatorsTest extends BeamOperatorsSuite implements BeamExecutorProvider {
-
-}
+public class BeamOperatorsTest extends BeamOperatorsSuite implements BeamExecutorProvider {}

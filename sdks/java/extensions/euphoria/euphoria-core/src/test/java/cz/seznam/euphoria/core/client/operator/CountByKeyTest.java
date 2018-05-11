@@ -15,15 +15,17 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
-import org.junit.Test;
-
 import java.time.Duration;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class CountByKeyTest {
 
@@ -33,11 +35,8 @@ public class CountByKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Pair<String, Long>> counted = CountByKey.named("CountByKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .windowBy(windowing)
-            .output();
+    Dataset<Pair<String, Long>> counted =
+        CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s).windowBy(windowing).output();
 
     assertEquals(flow, counted.getFlow());
     assertEquals(1, flow.size());
@@ -55,9 +54,7 @@ public class CountByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    CountByKey.of(dataset)
-            .keyBy(s -> s)
-            .output();
+    CountByKey.of(dataset).keyBy(s -> s).output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertEquals("CountByKey", count.getName());
@@ -69,10 +66,10 @@ public class CountByKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
     CountByKey.named("CountByKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+        .of(dataset)
+        .keyBy(s -> s)
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertTrue(count.getWindowing() instanceof Time);
@@ -92,5 +89,4 @@ public class CountByKeyTest {
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertTrue(count.getWindowing() instanceof Time);
   }
-
 }

@@ -29,17 +29,14 @@ import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.core.util.Settings;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.util.IdentityHashMap;
-import java.util.Map;
 import org.joda.time.Duration;
 
-/**
- * This class converts Euphoria's {@code Flow} into Beam's Pipeline.
- */
+/** This class converts Euphoria's {@code Flow} into Beam's Pipeline. */
 class FlowTranslator {
 
   private static final Map<Class, OperatorTranslator> translators = new IdentityHashMap<>();
@@ -65,23 +62,21 @@ class FlowTranslator {
     final Pipeline pipeline = Pipeline.create(options);
     DAG<Operator<?, ?>> dag = toDAG(flow);
 
-    final BeamExecutorContext executorContext = new BeamExecutorContext(
-        dag, accumulatorFactory, pipeline, settings, allowedLateness);
+    final BeamExecutorContext executorContext =
+        new BeamExecutorContext(dag, accumulatorFactory, pipeline, settings, allowedLateness);
 
     updateContextBy(dag, executorContext);
     return executorContext.getPipeline();
   }
 
   static DAG<Operator<?, ?>> toDAG(Flow flow) {
-    final DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, operator ->
-        translators.containsKey(operator.getClass())
-    );
+    final DAG<Operator<?, ?>> dag =
+        FlowUnfolder.unfold(flow, operator -> translators.containsKey(operator.getClass()));
     return dag;
   }
 
   static DAG<Operator<?, ?>> unfold(DAG<Operator<?, ?>> dag) {
-    return FlowUnfolder.translate(dag, operator ->
-        translators.containsKey(operator.getClass()));
+    return FlowUnfolder.translate(dag, operator -> translators.containsKey(operator.getClass()));
   }
 
   @SuppressWarnings("unchecked")
@@ -90,32 +85,34 @@ class FlowTranslator {
     // translate each operator to a beam transformation
     dag.traverse()
         .map(Node::get)
-        .forEach(op -> {
-          final OperatorTranslator translator = translators.get(op.getClass());
-          if (translator == null) {
-            throw new UnsupportedOperationException(
-                "Operator " + op.getClass().getSimpleName() + " not supported");
-          }
-          context.setPCollection(
-              op.output(),
-              translator.translate(op, context));
-        });
+        .forEach(
+            op -> {
+              final OperatorTranslator translator = translators.get(op.getClass());
+              if (translator == null) {
+                throw new UnsupportedOperationException(
+                    "Operator " + op.getClass().getSimpleName() + " not supported");
+              }
+              context.setPCollection(op.output(), translator.translate(op, context));
+            });
 
     // process sinks
     dag.getLeafs()
         .stream()
         .map(Node::get)
-        .forEach(op -> {
-          final PCollection pcs = context.getPCollection(op.output())
-              .orElseThrow(ExceptionUtils.illegal(
-                  "Dataset " + op.output() + " has not been " +
-                  "materialized"));
-          DataSink<?> sink = op.output().getOutputSink();
-          if (sink != null) {
-            // the leaf might be consumed by some other Beam transformation
-            // so the sink might be null
-            pcs.apply(BeamWriteSink.wrap(sink));
-          }
-        });
+        .forEach(
+            op -> {
+              final PCollection pcs =
+                  context
+                      .getPCollection(op.output())
+                      .orElseThrow(
+                          ExceptionUtils.illegal(
+                              "Dataset " + op.output() + " has not been " + "materialized"));
+              DataSink<?> sink = op.output().getOutputSink();
+              if (sink != null) {
+                // the leaf might be consumed by some other Beam transformation
+                // so the sink might be null
+                pcs.apply(BeamWriteSink.wrap(sink));
+              }
+            });
   }
 }

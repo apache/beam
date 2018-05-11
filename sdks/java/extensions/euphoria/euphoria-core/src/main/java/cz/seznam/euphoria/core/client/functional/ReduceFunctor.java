@@ -19,8 +19,8 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.util.stream.Stream;
 
 /**
- * Reduce function reducing iterable of elements into multiple elements (of
- * possibly different type).
+ * Reduce function reducing iterable of elements into multiple elements (of possibly different
+ * type).
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
@@ -28,11 +28,11 @@ public interface ReduceFunctor<IN, OUT> extends UnaryFunctor<Stream<IN>, OUT> {
 
   /**
    * Is this a commutative associative function with single final output?
-   * @return {@code true} if this is combinable function.
-   * NOTE: user code should not need to override this
+   *
+   * @return {@code true} if this is combinable function. NOTE: user code should not need to
+   *     override this
    */
   default boolean isCombinable() {
     return false;
   }
-
 }

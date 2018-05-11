@@ -25,17 +25,14 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Duration;
 
-/**
- * Executor implementation using Apache Beam as a runtime.
- */
+/** Executor implementation using Apache Beam as a runtime. */
 public class BeamExecutor extends AbstractExecutor {
 
   private final PipelineOptions options;
   private final Settings settings;
   private Duration allowedLateness = Duration.ZERO;
 
-  private AccumulatorProvider.Factory accumulatorFactory =
-      VoidAccumulatorProvider.Factory.get();
+  private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.Factory.get();
 
   public BeamExecutor(PipelineOptions options) {
     this(options, new Settings());
@@ -52,8 +49,8 @@ public class BeamExecutor extends AbstractExecutor {
     if (flow instanceof BeamFlow && ((BeamFlow) flow).hasPipeline()) {
       pipeline = ((BeamFlow) flow).getPipeline();
     } else {
-      pipeline = FlowTranslator.toPipeline(
-          flow, accumulatorFactory, options, settings, allowedLateness);
+      pipeline =
+          FlowTranslator.toPipeline(flow, accumulatorFactory, options, settings, allowedLateness);
     }
     final PipelineResult result = pipeline.run();
     // @todo handle result
@@ -68,6 +65,7 @@ public class BeamExecutor extends AbstractExecutor {
 
   /**
    * Specify global allowed lateness for the executor.
+   *
    * @param duration the allowed lateness for all windows
    * @return this
    */

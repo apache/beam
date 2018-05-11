@@ -28,59 +28,25 @@ import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-/**
- * A data sink that stores data in list.
- */
-@Audience({ Audience.Type.CLIENT, Audience.Type.TESTS })
+/** A data sink that stores data in list. */
+@Audience({Audience.Type.CLIENT, Audience.Type.TESTS})
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
-  private static final Map<ListDataSink<?>, Map<Integer, List<?>>> storage
-      = Collections.synchronizedMap(new WeakHashMap<>());
-
-  public static <T> ListDataSink<T> get() {
-    return new ListDataSink<>();
-  }
-
-  class ListWriter implements Writer<T> {
-    final List<T> output = new ArrayList<>();
-    final List<T> commitOutputs;
-    final int partitionId;
-
-    ListWriter(int partitionId, List<T> commitOutputs) {
-      this.partitionId = partitionId;
-      this.commitOutputs = commitOutputs;
-    }
-
-    @Override
-    public void write(T elem) throws IOException {
-      output.add(elem);
-    }
-
-    @Override
-    public synchronized void commit() throws IOException {
-      commitOutputs.addAll(output);
-    }
-
-    @Override
-    public void close() throws IOException {
-      // nop
-    }
-
-  }
-
-
+  private static final Map<ListDataSink<?>, Map<Integer, List<?>>> storage =
+      Collections.synchronizedMap(new WeakHashMap<>());
   private final int sinkId = System.identityHashCode(this);
-  private final List<ListWriter> writers = Collections.synchronizedList(
-      new ArrayList<>());
-
-  @Nullable
-  private Consumer<Dataset<T>> prepareDataset = null;
+  private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
+  @Nullable private Consumer<Dataset<T>> prepareDataset = null;
 
   @SuppressWarnings("unchecked")
   protected ListDataSink() {
     // save outputs to static storage
     storage.put((ListDataSink) this, Collections.synchronizedMap(new HashMap<>()));
+  }
+
+  public static <T> ListDataSink<T> get() {
+    return new ListDataSink<>();
   }
 
   @Override
@@ -114,9 +80,9 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
   /**
-   * Add function to be applied on {@code Dataset} being output.
-   * This function can apply additional operators to the dataset
-   * and has to persist the final dataset to (same or different) sink.
+   * Add function to be applied on {@code Dataset} being output. This function can apply additional
+   * operators to the dataset and has to persist the final dataset to (same or different) sink.
+   *
    * @param prepareDataset the function to be applied
    * @return this
    */
@@ -127,16 +93,13 @@ public class ListDataSink<T> implements DataSink<T> {
 
   @SuppressWarnings("unchecked")
   public List<T> getOutputs() {
-    return (List) storage.get(this).values()
-        .stream().flatMap(v -> v.stream())
-        .collect(Collectors.toList());
+    return (List)
+        storage.get(this).values().stream().flatMap(v -> v.stream()).collect(Collectors.toList());
   }
 
   public List<T> getUncommittedOutputs() {
     synchronized (writers) {
-      return writers.stream()
-          .flatMap(w -> w.output.stream())
-          .collect(Collectors.toList());
+      return writers.stream().flatMap(w -> w.output.stream()).collect(Collectors.toList());
     }
   }
 
@@ -153,5 +116,31 @@ public class ListDataSink<T> implements DataSink<T> {
   @Override
   public int hashCode() {
     return sinkId;
+  }
+
+  class ListWriter implements Writer<T> {
+    final List<T> output = new ArrayList<>();
+    final List<T> commitOutputs;
+    final int partitionId;
+
+    ListWriter(int partitionId, List<T> commitOutputs) {
+      this.partitionId = partitionId;
+      this.commitOutputs = commitOutputs;
+    }
+
+    @Override
+    public void write(T elem) throws IOException {
+      output.add(elem);
+    }
+
+    @Override
+    public synchronized void commit() throws IOException {
+      commitOutputs.addAll(output);
+    }
+
+    @Override
+    public void close() throws IOException {
+      // nop
+    }
   }
 }

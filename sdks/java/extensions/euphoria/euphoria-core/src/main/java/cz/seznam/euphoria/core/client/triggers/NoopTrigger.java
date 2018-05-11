@@ -18,20 +18,18 @@ package cz.seznam.euphoria.core.client.triggers;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
-/**
- * A trigger implementation which actually never fires any of the observed windows.
- */
+/** A trigger implementation which actually never fires any of the observed windows. */
 @Audience(Audience.Type.CLIENT)
 public final class NoopTrigger<W extends Window> implements Trigger<W> {
 
   private static final NoopTrigger INSTANCE = new NoopTrigger();
 
+  private NoopTrigger() {}
+
   @SuppressWarnings("unchecked")
   public static <W extends Window> NoopTrigger<W> get() {
     return (NoopTrigger) INSTANCE;
   }
-
-  private NoopTrigger() {}
 
   @Override
   public boolean isStateful() {
@@ -49,12 +47,8 @@ public final class NoopTrigger<W extends Window> implements Trigger<W> {
   }
 
   @Override
-  public void onClear(W window, TriggerContext ctx) {
-
-  }
+  public void onClear(W window, TriggerContext ctx) {}
 
   @Override
-  public void onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
-
-  }
+  public void onMerge(W window, TriggerContext.TriggerMergeContext ctx) {}
 }

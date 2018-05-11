@@ -20,16 +20,46 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 /**
- * A sink to write to a specified print stream (typically
- * {@link java.lang.System#out}) using the produce element's
- * {@link Object#toString()} implementation.
+ * A sink to write to a specified print stream (typically {@link java.lang.System#out}) using the
+ * produce element's {@link Object#toString()} implementation.
  */
 @Audience(Audience.Type.CLIENT)
 public class StdoutSink<T> implements DataSink<T> {
 
   static final long START_SYSTEM_NANO_TIME = System.nanoTime();
+  private final boolean debug;
+  private final String discriminator;
 
-  static abstract class AbstractWriter<T> implements Writer<T> {
+  public StdoutSink() {
+    this(false);
+  }
+
+  public StdoutSink(boolean debug) {
+    this(debug, null);
+  }
+
+  public StdoutSink(boolean debug, String discriminator) {
+    this.debug = debug;
+    this.discriminator = discriminator;
+  }
+
+  @Override
+  public Writer<T> openWriter(int partitionId) {
+    // ~ we're specifying the writers _not_ to close
+    // the given PrintStream (stdout here)
+    PrintStream out = System.out;
+    return debug
+        ? new DebugWriter<>(out, partitionId, false, discriminator)
+        : new PlainWriter<>(out, false);
+  }
+
+  @Override
+  public void commit() throws IOException {}
+
+  @Override
+  public void rollback() {}
+
+  abstract static class AbstractWriter<T> implements Writer<T> {
     final PrintStream out;
     // ~ if 'true' 'out' will be closed, if false 'out' will be
     // kept open even after this writer is closed
@@ -94,43 +124,8 @@ public class StdoutSink<T> implements DataSink<T> {
           .append(") {")
           .append(elem == null ? null : elem.getClass())
           .append("}: ")
-          .append(elem)
-      ;
+          .append(elem);
       out.println(buf);
     }
-  }
-
-  private final boolean debug;
-  private final String discriminator;
-
-  public StdoutSink() {
-    this(false);
-  }
-
-  public StdoutSink(boolean debug) {
-    this(debug, null);
-  }
-
-  public StdoutSink(boolean debug, String discriminator) {
-    this.debug = debug;
-    this.discriminator = discriminator;
-  }
-
-  @Override
-  public Writer<T> openWriter(int partitionId) {
-    // ~ we're specifying the writers _not_ to close
-    // the given PrintStream (stdout here)
-    PrintStream out = System.out;
-    return debug
-        ? new DebugWriter<>(out, partitionId, false, discriminator)
-        : new PlainWriter<>(out, false);
-  }
-
-  @Override
-  public void commit() throws IOException {
-  }
-
-  @Override
-  public void rollback() {
   }
 }

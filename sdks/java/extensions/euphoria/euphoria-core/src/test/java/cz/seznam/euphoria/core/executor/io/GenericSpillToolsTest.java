@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.core.executor.io;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import java.util.Collection;
 import java.util.Comparator;
@@ -22,19 +25,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Test suite for {@code GenericSpillTools}.
- */
+/** Test suite for {@code GenericSpillTools}. */
 public class GenericSpillToolsTest {
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   private TmpFolderSpillFileFactory spillFiles;
   private GenericSpillTools tools;
@@ -42,23 +41,22 @@ public class GenericSpillToolsTest {
   @Before
   public void setUp() {
     spillFiles = new TmpFolderSpillFileFactory(folder);
-    tools = new GenericSpillTools(
-        new JavaSerializationFactory(), spillFiles, 100);
+    tools = new GenericSpillTools(new JavaSerializationFactory(), spillFiles, 100);
   }
 
   @Test
   public void testSorted() throws InterruptedException {
-    Iterable<Integer> iterable = tools.sorted(
-        IntStream.range(0, 1003)
-            .boxed()
-            // sort descending
-            .sorted(Comparator.reverseOrder())
-            .collect(Collectors.toList()),
-        Integer::compare);
+    Iterable<Integer> iterable =
+        tools.sorted(
+            IntStream.range(0, 1003)
+                .boxed()
+                // sort descending
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList()),
+            Integer::compare);
 
-    List<Integer> sorted = StreamSupport
-        .stream(iterable.spliterator(), false)
-        .collect(Collectors.toList());
+    List<Integer> sorted =
+        StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toList());
 
     assertEquals(1003, sorted.stream().distinct().count());
     checkSorted(sorted);
@@ -66,13 +64,14 @@ public class GenericSpillToolsTest {
 
   @Test
   public void testSpilling() throws InterruptedException {
-    Collection<ExternalIterable<Integer>> parts = tools.spillAndSortParts(
-        IntStream.range(0, 1003)
-            .boxed()
-            // sort descending
-            .sorted(Comparator.reverseOrder())
-            .collect(Collectors.toList()),
-        Integer::compare);
+    Collection<ExternalIterable<Integer>> parts =
+        tools.spillAndSortParts(
+            IntStream.range(0, 1003)
+                .boxed()
+                // sort descending
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList()),
+            Integer::compare);
 
     // 11 = ceil(1003 / 100)
     assertEquals(11, parts.size());
@@ -83,11 +82,8 @@ public class GenericSpillToolsTest {
     int last = Integer.MIN_VALUE;
     for (Integer i : input) {
       assertTrue(
-          "Last element was " + last + " next was not greater or equals, was " + i,
-          last <= i);
+          "Last element was " + last + " next was not greater or equals, was " + i, last <= i);
       last = i;
     }
   }
-
-
 }

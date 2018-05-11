@@ -21,15 +21,14 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunction;
 import cz.seznam.euphoria.core.client.type.TypeHint;
+import cz.seznam.euphoria.core.client.util.Pair;
 
 /**
- * Common methods used in operator builders to share related javadoc
- * descriptions.<p>
+ * Common methods used in operator builders to share related javadoc descriptions.
  *
- * For internal usage only.
+ * <p>For internal usage only.
  */
 @Audience(Audience.Type.INTERNAL)
 public class Builders {
@@ -40,9 +39,7 @@ public class Builders {
      * Specifies the input dataset of the operator.
      *
      * @param <IN> the type of elements in the input dataset
-     *
      * @param input the input dataset to recuce
-     *
      * @return the next builder to complete the setup of the operator
      */
     <IN> Object of(Dataset<IN> input);
@@ -51,14 +48,11 @@ public class Builders {
   interface KeyBy<IN> {
 
     /**
-     * Specifies the function to derive the keys from the operator's input
-     * elements.
+     * Specifies the function to derive the keys from the operator's input elements.
      *
      * @param <KEY> the type of the extracted key
-     *
-     * @param keyExtractor a user defined function to extract keys from the
-     *                      processed input dataset's elements
-     *
+     * @param keyExtractor a user defined function to extract keys from the processed input
+     *     dataset's elements
      * @return the next builder to complete the setup of the operator
      */
     <KEY> Object keyBy(UnaryFunction<IN, KEY> keyExtractor);
@@ -70,6 +64,7 @@ public class Builders {
 
   /**
    * Interface for builders of windowing.
+   *
    * @param <IN> data type of the input elements
    * @param <BUILDER> the builder
    */
@@ -77,16 +72,13 @@ public class Builders {
       extends OptionalMethodBuilder<BUILDER> {
 
     /**
-     * Specifies the windowing strategy to be applied to the input dataset.
-     * Unless the operator is already preceded by an event time assignment,
-     * it will process the input elements in ingestion time.
+     * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
+     * already preceded by an event time assignment, it will process the input elements in ingestion
+     * time.
      *
      * @param <W> the type of the windowing
-     *
      * @param windowing the windowing strategy to apply to the input dataset
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceByKey} operator
+     * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     <W extends Window<W>> Object windowBy(Windowing<IN, W> windowing);
   }
@@ -105,20 +97,17 @@ public class Builders {
   public interface OutputValues<K, V> extends Output<Pair<K, V>> {
 
     /**
-     * Finalizes the operator and retrieves its output dataset.
-     * Using this output new operator {@link MapElements} is added
-     * to the flow to extract values from pairs.
+     * Finalizes the operator and retrieves its output dataset. Using this output new operator
+     * {@link MapElements} is added to the flow to extract values from pairs.
      *
      * @param outputHints output dataset description
      * @return the dataset representing the new operator's output
      */
     default Dataset<V> outputValues(OutputHint... outputHints) {
-      return MapElements
-          .named("extract-values")
+      return MapElements.named("extract-values")
           .of(output())
           .using(Pair::getSecond)
           .output(outputHints);
     }
   }
-
 }

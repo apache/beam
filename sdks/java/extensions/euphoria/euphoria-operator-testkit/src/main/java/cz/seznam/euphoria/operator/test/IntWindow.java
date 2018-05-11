@@ -43,7 +43,6 @@ public class IntWindow extends Window<IntWindow> {
     return val;
   }
 
-
   @Override
   public int compareTo(IntWindow o) {
     return Integer.compare(val, o.val);

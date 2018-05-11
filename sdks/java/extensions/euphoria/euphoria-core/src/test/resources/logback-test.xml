@@ -2,7 +2,7 @@
 
 <configuration>
 
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+  <appender class="ch.qos.logback.core.ConsoleAppender" name="STDOUT">
     <!-- encoders are assigned the type
          ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
     <encoder>
@@ -13,9 +13,9 @@
   </appender>
 
   <root level="info">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="STDOUT"/>
   </root>
 
-  <logger name="cz.seznam.euphoria" level="debug" additive="true" />
+  <logger additive="true" level="debug" name="cz.seznam.euphoria"/>
 
 </configuration>

@@ -19,9 +19,7 @@ import cz.seznam.euphoria.core.client.io.SpillTools;
 import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 
-/**
- * Implementation of {@code StateContext} for {@code LocalExecutor}.
- */
+/** Implementation of {@code StateContext} for {@code LocalExecutor}. */
 class LocalStateContext implements StateContext {
 
   private final StorageProvider storageProvider = new LocalStorageProvider();
@@ -37,5 +35,4 @@ class LocalStateContext implements StateContext {
   public SpillTools getSpillTools() {
     return spillTools;
   }
-
 }

@@ -19,41 +19,33 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.operator.Filter;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import org.junit.Test;
-
 import java.util.Arrays;
 import java.util.List;
+import org.junit.Test;
 
-
-/**
- * Test operator {@code Filter}.
- */
+/** Test operator {@code Filter}. */
 @Processing(Processing.Type.ALL)
 public class FilterTest extends AbstractOperatorTest {
 
   @Test
   public void testFilter() {
-    execute(new AbstractTestCase<Integer, Integer>() {
+    execute(
+        new AbstractTestCase<Integer, Integer>() {
 
-      @Override
-      protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-        return Filter.of(input)
-            .by(e -> e % 2 == 0)
-            .output();
-      }
+          @Override
+          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+            return Filter.of(input).by(e -> e % 2 == 0).output();
+          }
 
-      @Override
-      protected List<Integer> getInput() {
-        return Arrays.asList(
-            1, 2, 3, 4, 5, 6,
-            7, 8, 9, 10, 11, 12, 13, 14);
-      }
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+          }
 
-      @Override
-      public List<Integer> getUnorderedOutput() {
-        return Arrays.asList(2, 4, 6, 8, 10, 12, 14);
-      }
-      
-    });
+          @Override
+          public List<Integer> getUnorderedOutput() {
+            return Arrays.asList(2, 4, 6, 8, 10, 12, 14);
+          }
+        });
   }
 }

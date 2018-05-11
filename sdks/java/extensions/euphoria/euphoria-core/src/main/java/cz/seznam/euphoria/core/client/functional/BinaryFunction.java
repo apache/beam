@@ -29,15 +29,12 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface BinaryFunction<LEFT, RIGHT, OUT> extends Serializable {
 
-
   /**
    * Applies this function to the given arguments.
    *
    * @param left the "left" parameter of the operation
    * @param right the "right" parameter of the operation
-   *
    * @return the result of applying "left" and "right" to an operation
    */
   OUT apply(LEFT left, RIGHT right);
-
 }

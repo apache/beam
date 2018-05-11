@@ -27,49 +27,26 @@ import cz.seznam.euphoria.core.client.operator.WindowingRequiredException;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runners.Parameterized;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runners.Parameterized;
 
 @Processing(Processing.Type.ALL)
 public class JoinWindowEnforcementTest extends AbstractOperatorTest {
-
-  @Parameterized.Parameters
-  public static List<Object[]> testParameters() {
-    Object[][] params = {
-        /* left-windowing, right-windowing, join-windowing, expected-failure */
-        {null, null, null, false},
-        {GlobalWindowing.get(), GlobalWindowing.get(), null, false},
-        {GlobalWindowing.get(), null, null, false},
-        {null, GlobalWindowing.get(), null, false},
-        {Time.of(Duration.ofMinutes(1)), null, null, true},
-        {null, Time.of(Duration.ofMinutes(1)), null, true},
-        {Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), null, true},
-        {GlobalWindowing.get(), Time.of(Duration.ofMinutes(1)), null, true},
-        {Time.of(Duration.ofMinutes(1)), GlobalWindowing.get(), null, true},
-        {Time.of(Duration.ofMinutes(1)), null, Time.of(Duration.ofHours(1)), false},
-        {GlobalWindowing.get(), Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), false},
-        {null, Time.of(Duration.ofMinutes(1)), GlobalWindowing.get(), false},
-        {Time.of(Duration.ofMinutes(1)), null, Count.of(10), false},
-        {Time.of(Duration.ofMinutes(1)), Count.of(11), GlobalWindowing.get(), false},
-        {Time.of(Duration.ofMinutes(1)), Count.of(11), Time.of(Duration.ofMinutes(1)), false}
-    };
-    return Arrays.asList(params);
-  }
 
   private final Windowing leftWindowing;
   private final Windowing rightWindowing;
   private final Windowing joinWindowing;
   private final boolean expectFailure;
-
   public JoinWindowEnforcementTest(
-      Windowing leftWindowing, Windowing rightWindowing, Windowing joinWindowing,
+      Windowing leftWindowing,
+      Windowing rightWindowing,
+      Windowing joinWindowing,
       boolean expectFailure) {
     this.leftWindowing = leftWindowing;
     this.rightWindowing = rightWindowing;
@@ -77,78 +54,96 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
     this.expectFailure = expectFailure;
   }
 
+  @Parameterized.Parameters
+  public static List<Object[]> testParameters() {
+    Object[][] params = {
+      /* left-windowing, right-windowing, join-windowing, expected-failure */
+      {null, null, null, false},
+      {GlobalWindowing.get(), GlobalWindowing.get(), null, false},
+      {GlobalWindowing.get(), null, null, false},
+      {null, GlobalWindowing.get(), null, false},
+      {Time.of(Duration.ofMinutes(1)), null, null, true},
+      {null, Time.of(Duration.ofMinutes(1)), null, true},
+      {Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), null, true},
+      {GlobalWindowing.get(), Time.of(Duration.ofMinutes(1)), null, true},
+      {Time.of(Duration.ofMinutes(1)), GlobalWindowing.get(), null, true},
+      {Time.of(Duration.ofMinutes(1)), null, Time.of(Duration.ofHours(1)), false},
+      {
+        GlobalWindowing.get(), Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), false
+      },
+      {null, Time.of(Duration.ofMinutes(1)), GlobalWindowing.get(), false},
+      {Time.of(Duration.ofMinutes(1)), null, Count.of(10), false},
+      {Time.of(Duration.ofMinutes(1)), Count.of(11), GlobalWindowing.get(), false},
+      {Time.of(Duration.ofMinutes(1)), Count.of(11), Time.of(Duration.ofMinutes(1)), false}
+    };
+    return Arrays.asList(params);
+  }
+
   @Test
   public void testWindowValidity() throws Exception {
-    JoinTest.JoinTestCase<Object, Object, Pair<Object, Object>>
-        test = new JoinTest.JoinTestCase<Object, Object, Pair<Object,Object>>() {
+    JoinTest.JoinTestCase<Object, Object, Pair<Object, Object>> test =
+        new JoinTest.JoinTestCase<Object, Object, Pair<Object, Object>>() {
 
-
-      @Override
-      public void validate(List<Pair<Object, Object>> outputs) throws AssertionError {
-        // nothing to validate here
-      }
-
-      @SuppressWarnings("unchecked")
-      @Override
-      protected Dataset<Pair<Object, Object>>
-      getOutput(Dataset<Object> left, Dataset<Object> right) {
-        // ~ prepare left input
-        {
-          ReduceByKey.DatasetBuilder4<Object, Object, Object, Object> leftBuilder =
-              ReduceByKey.of(left)
-                  .keyBy(e -> e)
-                  .valueBy(e -> e)
-                  .combineBy(xs -> xs.iterator().next());
-          final Dataset<Pair<Object, Object>> leftWindowed;
-          if (leftWindowing == null) {
-            leftWindowed = leftBuilder.output();
-          } else {
-            leftWindowed = leftBuilder.windowBy(leftWindowing).output();
+          @Override
+          public void validate(List<Pair<Object, Object>> outputs) throws AssertionError {
+            // nothing to validate here
           }
-          left = MapElements.of(leftWindowed)
-              .using(Pair::getFirst)
-              .output();
-        }
 
-        // ~ prepare right input
-        {
-          ReduceByKey.DatasetBuilder4<Object, Object, Object, Object> rightBuilder =
-              ReduceByKey.of(right)
-                  .keyBy(e -> e)
-                  .valueBy(e -> e)
-                  .combineBy(xs -> xs.iterator().next());
-          final Dataset<Pair<Object, Object>> rightWindowed;
-          if (rightWindowing == null) {
-            rightWindowed = rightBuilder.output();
-          } else {
-            rightWindowed = rightBuilder.windowBy(rightWindowing).output();
+          @SuppressWarnings("unchecked")
+          @Override
+          protected Dataset<Pair<Object, Object>> getOutput(
+              Dataset<Object> left, Dataset<Object> right) {
+            // ~ prepare left input
+            {
+              ReduceByKey.DatasetBuilder4<Object, Object, Object, Object> leftBuilder =
+                  ReduceByKey.of(left)
+                      .keyBy(e -> e)
+                      .valueBy(e -> e)
+                      .combineBy(xs -> xs.iterator().next());
+              final Dataset<Pair<Object, Object>> leftWindowed;
+              if (leftWindowing == null) {
+                leftWindowed = leftBuilder.output();
+              } else {
+                leftWindowed = leftBuilder.windowBy(leftWindowing).output();
+              }
+              left = MapElements.of(leftWindowed).using(Pair::getFirst).output();
+            }
+
+            // ~ prepare right input
+            {
+              ReduceByKey.DatasetBuilder4<Object, Object, Object, Object> rightBuilder =
+                  ReduceByKey.of(right)
+                      .keyBy(e -> e)
+                      .valueBy(e -> e)
+                      .combineBy(xs -> xs.iterator().next());
+              final Dataset<Pair<Object, Object>> rightWindowed;
+              if (rightWindowing == null) {
+                rightWindowed = rightBuilder.output();
+              } else {
+                rightWindowed = rightBuilder.windowBy(rightWindowing).output();
+              }
+              right = MapElements.of(rightWindowed).using(Pair::getFirst).output();
+            }
+
+            Join.WindowingBuilder<Object, Object, Object, Object> joinBuilder =
+                Join.of(left, right).by(e -> e, e -> e).using((l, r, c) -> c.collect(new Object()));
+            if (joinWindowing == null) {
+              return joinBuilder.output();
+            } else {
+              return joinBuilder.windowBy(joinWindowing).output();
+            }
           }
-          right = MapElements.of(rightWindowed)
-              .using(Pair::getFirst)
-              .output();
-        }
 
-        Join.WindowingBuilder<Object, Object, Object, Object> joinBuilder =
-            Join.of(left, right)
-                .by(e -> e, e -> e)
-                .using((l, r, c) -> c.collect(new Object()));
-        if (joinWindowing == null) {
-          return joinBuilder.output();
-        } else {
-          return joinBuilder.windowBy(joinWindowing).output();
-        }
-      }
+          @Override
+          protected List<Object> getLeftInput() {
+            return Collections.singletonList(new ArrayList<>());
+          }
 
-      @Override
-      protected List<Object> getLeftInput() {
-        return Collections.singletonList(new ArrayList<>());
-      }
-
-      @Override
-      protected List<Object> getRightInput() {
-        return Collections.singletonList(new ArrayList<>());
-      }
-    };
+          @Override
+          protected List<Object> getRightInput() {
+            return Collections.singletonList(new ArrayList<>());
+          }
+        };
     Exception thrown = null;
     try {
       execute(test);

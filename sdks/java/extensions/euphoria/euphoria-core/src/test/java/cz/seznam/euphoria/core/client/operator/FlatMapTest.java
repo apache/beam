@@ -15,16 +15,15 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Collector;
-import org.junit.Test;
-
-import java.math.BigDecimal;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+
+import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.io.Collector;
+import java.math.BigDecimal;
+import org.junit.Test;
 
 public class FlatMapTest {
 
@@ -33,10 +32,11 @@ public class FlatMapTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> mapped = FlatMap.named("FlatMap1")
-       .of(dataset)
-       .using((String s, Collector<String> c) -> c.collect(s))
-       .output();
+    Dataset<String> mapped =
+        FlatMap.named("FlatMap1")
+            .of(dataset)
+            .using((String s, Collector<String> c) -> c.collect(s))
+            .output();
 
     assertEquals(flow, mapped.getFlow());
     assertEquals(1, flow.size());
@@ -54,11 +54,12 @@ public class FlatMapTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<BigDecimal> mapped = FlatMap.named("FlatMap2")
-        .of(dataset)
-        .using((String s, Collector<BigDecimal> c) -> c.collect(null))
-        .eventTimeBy(Long::parseLong) // ~ consuming the original input elements
-        .output();
+    Dataset<BigDecimal> mapped =
+        FlatMap.named("FlatMap2")
+            .of(dataset)
+            .using((String s, Collector<BigDecimal> c) -> c.collect(null))
+            .eventTimeBy(Long::parseLong) // ~ consuming the original input elements
+            .output();
 
     assertEquals(flow, mapped.getFlow());
     assertEquals(1, flow.size());
@@ -76,12 +77,14 @@ public class FlatMapTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> mapped = FlatMap.named("FlatMap1")
+    Dataset<String> mapped =
+        FlatMap.named("FlatMap1")
             .of(dataset)
-            .using((String s, Collector<String> c) -> {
-              c.getCounter("my-counter").increment();
-              c.collect(s);
-            })
+            .using(
+                (String s, Collector<String> c) -> {
+                  c.getCounter("my-counter").increment();
+                  c.collect(s);
+                })
             .output();
 
     assertEquals(flow, mapped.getFlow());
@@ -99,12 +102,9 @@ public class FlatMapTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    FlatMap.of(dataset)
-            .using((String s, Collector<String> c) -> c.collect(s))
-            .output();
+    FlatMap.of(dataset).using((String s, Collector<String> c) -> c.collect(s)).output();
 
     FlatMap map = (FlatMap) flow.operators().iterator().next();
     assertEquals("FlatMap", map.getName());
   }
-
 }

@@ -23,10 +23,20 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Provider of state storage for local executor.
- */
+/** Provider of state storage for local executor. */
 public class LocalStorageProvider implements StorageProvider {
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
+    return new LocalValueStateStorage(descriptor.getDefaultValue());
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
+    return new LocalListStateStorage();
+  }
 
   private static class LocalValueStateStorage<T> implements ValueStorage<T> {
 
@@ -72,20 +82,5 @@ public class LocalStorageProvider implements StorageProvider {
     public void clear() {
       values.clear();
     }
-
   }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
-    return new LocalValueStateStorage(descriptor.getDefaultValue());
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
-    return new LocalListStateStorage();
-  }
-
-
 }

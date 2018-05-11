@@ -20,9 +20,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 
 /**
- * Annotation marking an operator a {@code Basic} operator.
- * Such an operator *must* be implemented (natively) by an executor
- * in order to run a flow.
+ * Annotation marking an operator a {@code Basic} operator. Such an operator *must* be implemented
+ * (natively) by an executor in order to run a flow.
  */
 @Documented
 @Target(ElementType.TYPE)
@@ -30,8 +29,7 @@ public @interface Basic {
 
   /** @return the state complexity */
   StateComplexity state();
-  
+
   /** @return number of global repartition operations */
   int repartitions();
-    
 }

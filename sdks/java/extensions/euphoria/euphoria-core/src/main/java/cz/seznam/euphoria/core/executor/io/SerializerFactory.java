@@ -24,25 +24,30 @@ import java.io.Serializable;
 @Audience(Audience.Type.EXECUTOR)
 public interface SerializerFactory extends Serializable {
 
+  Serializer newSerializer();
+
   interface Serializer {
+
+    Output newOutput(OutputStream out);
+
+    Input newInput(InputStream in);
 
     interface Output extends Closeable {
       void writeObject(Object o);
+
       void flush();
+
       @Override
       void close();
     }
 
     interface Input extends Closeable {
       Object readObject();
+
       boolean eof();
+
       @Override
       void close();
     }
-
-    Output newOutput(OutputStream out);
-    Input newInput(InputStream in);
   }
-
-  Serializer newSerializer();
 }

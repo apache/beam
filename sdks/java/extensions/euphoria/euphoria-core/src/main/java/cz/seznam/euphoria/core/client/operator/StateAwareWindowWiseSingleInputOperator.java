@@ -22,19 +22,21 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
-
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
+import javax.annotation.Nullable;
 
-/**
- * Operator operating on window level with state information.
- */
+/** Operator operating on window level with state information. */
 @Audience(Audience.Type.INTERNAL)
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, WIN, KIN, KEY, OUT, W extends Window<W>,
-    OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
+        IN,
+        WIN,
+        KIN,
+        KEY,
+        OUT,
+        W extends Window<W>,
+        OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
     extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP> {
 
   protected final Dataset<IN> input;
@@ -42,9 +44,11 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
       String name,
-      Flow flow, Dataset<IN> input,
+      Flow flow,
+      Dataset<IN> input,
       UnaryFunction<KIN, KEY> extractor,
-      @Nullable Windowing<WIN, W> windowing, Set<OutputHint> outputHints) {
+      @Nullable Windowing<WIN, W> windowing,
+      Set<OutputHint> outputHints) {
 
     super(name, flow, windowing, extractor);
     this.input = input;

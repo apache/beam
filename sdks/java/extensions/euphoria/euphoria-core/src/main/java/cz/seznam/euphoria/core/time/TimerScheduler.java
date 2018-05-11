@@ -16,16 +16,15 @@
 package cz.seznam.euphoria.core.time;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A scheduler implementation with an underlying timer periodically executing
- * the specified runnables.
+ * A scheduler implementation with an underlying timer periodically executing the specified
+ * runnables.
  */
 @Audience(Audience.Type.EXECUTOR)
 public class TimerScheduler implements Scheduler {
@@ -36,12 +35,14 @@ public class TimerScheduler implements Scheduler {
 
   @Override
   public void schedulePeriodically(final Duration period, final Runnable r) {
-    final TimerTask t = new TimerTask() {
-      @Override public void run() {
-        LOG.debug("Running periodically scheduled {}", r);
-        r.run();
-      }
-    };
+    final TimerTask t =
+        new TimerTask() {
+          @Override
+          public void run() {
+            LOG.debug("Running periodically scheduled {}", r);
+            r.run();
+          }
+        };
     long millis = period.toMillis();
     timer.schedule(t, millis, millis);
   }

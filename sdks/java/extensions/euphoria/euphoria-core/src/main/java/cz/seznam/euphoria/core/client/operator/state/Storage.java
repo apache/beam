@@ -17,13 +17,10 @@ package cz.seznam.euphoria.core.client.operator.state;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-/**
- * A storage for state data.
- */
+/** A storage for state data. */
 @Audience(Audience.Type.INTERNAL)
 public interface Storage<T> {
 
   /** Clear the storage. */
   void clear();
-
 }

@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.executor.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -31,9 +30,8 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 
 /**
- * A list storage implementation keeping a given maximum number of received
- * elements, eventually starting to spill them to the local file system.
- * Intended for use in batch executors.
+ * A list storage implementation keeping a given maximum number of received elements, eventually
+ * starting to spill them to the local file system. Intended for use in batch executors.
  *
  * @param <T> the type of elements stored in this list storage
  */
@@ -86,7 +84,8 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
   @Override
   public Iterable<T> get() {
     return () -> {
-      if (serializerStream == null && elems.isEmpty()
+      if (serializerStream == null
+          && elems.isEmpty()
           && (storageFile == null || !storageFile.exists())) {
 
         return Collections.emptyIterator();
@@ -100,12 +99,12 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
         }
       }
       try {
-        is = storageFile != null && storageFile.exists()
-            ? serializerInstance.newInput(new FileInputStream(storageFile))
-            : null;
+        is =
+            storageFile != null && storageFile.exists()
+                ? serializerInstance.newInput(new FileInputStream(storageFile))
+                : null;
       } catch (FileNotFoundException e) {
-        throw new IllegalStateException(
-            "Failed to open spilling storage: " + storageFile, e);
+        throw new IllegalStateException("Failed to open spilling storage: " + storageFile, e);
       }
 
       Iterator elemsIter = elems.iterator();
@@ -153,15 +152,12 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
     }
     if (storageFile != null && storageFile.exists()) {
       if (!storageFile.delete()) {
-        throw new IllegalStateException(
-            "Failed to clean up storage file: " + storageFile);
+        throw new IllegalStateException("Failed to clean up storage file: " + storageFile);
       }
     }
   }
 
-  /**
-   * Force persisting all the data to disk.
-   */
+  /** Force persisting all the data to disk. */
   void flush() {
     spillElems();
     serializerStream.flush();
@@ -190,6 +186,4 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
   public void close() {
     clear();
   }
-
-
 }

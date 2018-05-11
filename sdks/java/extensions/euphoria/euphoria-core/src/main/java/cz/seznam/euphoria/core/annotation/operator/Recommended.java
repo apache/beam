@@ -20,17 +20,16 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 
 /**
- * A {@code Recommended} operator is such an operator that is strongly
- * advised to be implemented natively by executor due to performance
- * reasons.
+ * A {@code Recommended} operator is such an operator that is strongly advised to be implemented
+ * natively by executor due to performance reasons.
  */
 @Documented
 @Target(ElementType.TYPE)
 public @interface Recommended {
 
   /**
-   * @return a human readable explanation why the annotated operator is recommendation
-   *          for native implementation by an executor
+   * @return a human readable explanation why the annotated operator is recommendation for native
+   *     implementation by an executor
    */
   String reason();
 
@@ -39,5 +38,4 @@ public @interface Recommended {
 
   /** @return the number of global repartition operations */
   int repartitions();
-  
 }

@@ -15,20 +15,17 @@
  */
 package cz.seznam.euphoria.core.executor.graph;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-/**
- * DAG test suite.
- */
+/** DAG test suite. */
 public class DAGTest {
 
   @Test
@@ -43,12 +40,11 @@ public class DAGTest {
     assertEquals(new Integer(1), dag.getNode(1).get());
   }
 
-  @Test(expected=IllegalStateException.class)
+  @Test(expected = IllegalStateException.class)
   public void testGetNodeDoesntExists() {
     DAG<Integer> dag = DAG.of(1);
     dag.getNode(2);
   }
-
 
   @Test
   public void testGetRoots() {
@@ -154,9 +150,7 @@ public class DAGTest {
     assertEquals(2, two.getChildren().size());
     assertTrue(two.getChildren().contains(new Node<>(5)));
     assertTrue(two.getChildren().contains(new Node<>(4)));
-
   }
-
 
   @Test
   public void testTraversal() {
@@ -172,5 +166,4 @@ public class DAGTest {
 
     assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), bfs);
   }
-
 }

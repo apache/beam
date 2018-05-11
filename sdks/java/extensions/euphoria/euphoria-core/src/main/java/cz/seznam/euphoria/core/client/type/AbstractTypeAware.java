@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.core.client.type;
 
 import cz.seznam.euphoria.core.client.functional.TypeHintAware;
-
 import java.io.Serializable;
 import java.util.Objects;
 

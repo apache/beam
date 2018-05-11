@@ -19,20 +19,19 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
-
 import java.util.Set;
 
 /**
- * Operator working element-wise, with no context between elements.
- * No windowing scheme is needed to be defined on input.
+ * Operator working element-wise, with no context between elements. No windowing scheme is needed to
+ * be defined on input.
  */
 @Audience(Audience.Type.INTERNAL)
-public abstract class ElementWiseOperator<IN, OUT>
-    extends SingleInputOperator<IN, OUT> {
+public abstract class ElementWiseOperator<IN, OUT> extends SingleInputOperator<IN, OUT> {
 
   protected final Dataset<OUT> output;
 
-  protected ElementWiseOperator(String name, Flow flow, Dataset<IN> input, Set<OutputHint> outputHints) {
+  protected ElementWiseOperator(
+      String name, Flow flow, Dataset<IN> input, Set<OutputHint> outputHints) {
     super(name, flow, input);
     this.output = createOutput(input, outputHints);
   }

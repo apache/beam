@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.executor.local;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-
 import java.util.Objects;
 
 public final class KeyedWindow<W extends Window, K> {
@@ -54,9 +53,6 @@ public final class KeyedWindow<W extends Window, K> {
 
   @Override
   public String toString() {
-    return "KeyedWindow{" +
-        "window=" + window +
-        ", key=" + key +
-        '}';
+    return "KeyedWindow{" + "window=" + window + ", key=" + key + '}';
   }
 }

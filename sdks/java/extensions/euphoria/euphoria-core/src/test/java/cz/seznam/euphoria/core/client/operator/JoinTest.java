@@ -15,18 +15,20 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Optional;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class JoinTest {
 
@@ -36,13 +38,15 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> {
-          // no-op
-        })
-        .output();
+    Dataset<Pair<Integer, String>> joined =
+        Join.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using(
+                (String l, String r, Collector<String> c) -> {
+                  // no-op
+                })
+            .output();
 
     assertEquals(flow, joined.getFlow());
     assertEquals(1, flow.size());
@@ -63,13 +67,15 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<String> joined = Join.named("JoinValues")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> {
-          // no-op
-        })
-        .outputValues();
+    Dataset<String> joined =
+        Join.named("JoinValues")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using(
+                (String l, String r, Collector<String> c) -> {
+                  // no-op
+                })
+            .outputValues();
 
     assertEquals(flow, joined.getFlow());
     assertEquals(2, flow.size());
@@ -89,14 +95,16 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> {
-          c.getCounter("my-counter").increment();
-          c.collect(l + r);
-        })
-        .output();
+    Dataset<Pair<Integer, String>> joined =
+        Join.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using(
+                (String l, String r, Collector<String> c) -> {
+                  c.getCounter("my-counter").increment();
+                  c.collect(l + r);
+                })
+            .output();
 
     assertEquals(flow, joined.getFlow());
     assertEquals(1, flow.size());
@@ -119,9 +127,10 @@ public class JoinTest {
 
     Join.of(left, right)
         .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> {
-          // no-op
-        })
+        .using(
+            (String l, String r, Collector<String> c) -> {
+              // no-op
+            })
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
@@ -137,9 +146,10 @@ public class JoinTest {
     LeftJoin.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
-        .using((String l, Optional<String> r, Collector<String> c) -> {
-          // no-op
-        })
+        .using(
+            (String l, Optional<String> r, Collector<String> c) -> {
+              // no-op
+            })
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
@@ -155,9 +165,10 @@ public class JoinTest {
     RightJoin.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
-        .using((Optional<String> l, String r, Collector<String> c) -> {
-          // no-op
-        })
+        .using(
+            (Optional<String> l, String r, Collector<String> c) -> {
+              // no-op
+            })
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
@@ -173,8 +184,9 @@ public class JoinTest {
     FullJoin.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
-        .using((Optional<String> l, Optional<String> r, Collector<String> c) ->
-            c.collect(l.orElse(null) + r.orElse(null)))
+        .using(
+            (Optional<String> l, Optional<String> r, Collector<String> c) ->
+                c.collect(l.orElse(null) + r.orElse(null)))
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
@@ -205,40 +217,39 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-
-    Dataset<String> outputDataset = Join.named("Join1")
-        .of(MapElements.of(left).using(i -> i).output(new Util.TestHint(), new Util.TestHint2()),
-            right)
-        .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> {
-          // no-op
-        })
-        .outputValues(SizeHint.FITS_IN_MEMORY);
+    Dataset<String> outputDataset =
+        Join.named("Join1")
+            .of(
+                MapElements.of(left)
+                    .using(i -> i)
+                    .output(new Util.TestHint(), new Util.TestHint2()),
+                right)
+            .by(String::length, String::length)
+            .using(
+                (String l, String r, Collector<String> c) -> {
+                  // no-op
+                })
+            .outputValues(SizeHint.FITS_IN_MEMORY);
 
     assertTrue(outputDataset.getProducer().getHints().contains(SizeHint.FITS_IN_MEMORY));
 
-    Join join = (Join) flow.operators()
-        .stream()
-        .filter(op -> op instanceof Join)
-        .findFirst()
-        .get();
-    assertTrue(join.listInputs()
-        .stream()
-        .anyMatch(input ->
-            ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
-
-    assertTrue(join.listInputs()
-        .stream()
-        .anyMatch(input ->
-            ((Dataset) input).getProducer().getHints().contains(new Util.TestHint2())));
-
-    assertEquals(2,
-        ((Dataset) join.listInputs()
+    Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
+    assertTrue(
+        join.listInputs()
             .stream()
-            .findFirst()
-            .get()
-        ).getProducer().getHints().size());
+            .anyMatch(
+                input -> ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
 
+    assertTrue(
+        join.listInputs()
+            .stream()
+            .anyMatch(
+                input ->
+                    ((Dataset) input).getProducer().getHints().contains(new Util.TestHint2())));
+
+    assertEquals(
+        2,
+        ((Dataset) join.listInputs().stream().findFirst().get()).getProducer().getHints().size());
   }
 
   @Test
@@ -249,41 +260,36 @@ public class JoinTest {
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
     Join.named("Join1")
-        .of(MapElements.of(left)
+        .of(
+            MapElements.of(left)
                 .using(i -> i)
                 .output(new Util.TestHint(), new Util.TestHint2(), new Util.TestHint2()),
             right)
         .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> {
-          // no-op
-        })
+        .using(
+            (String l, String r, Collector<String> c) -> {
+              // no-op
+            })
         .windowBy(Time.of(Duration.ofHours(1)))
         .output();
 
-    Join join = (Join) flow.operators()
-        .stream()
-        .filter(op -> op instanceof Join)
-        .findFirst()
-        .get();
-    assertTrue(join.listInputs()
-        .stream()
-        .anyMatch(input ->
-            ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
-
-    assertTrue(join.listInputs()
-        .stream()
-        .anyMatch(input ->
-            ((Dataset) input)
-                .getProducer()
-                .getHints()
-                .contains(new Util.TestHint2())));
-
-    assertEquals(2,
-        ((Dataset) join.listInputs()
+    Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
+    assertTrue(
+        join.listInputs()
             .stream()
-            .findFirst()
-            .get()
-        ).getProducer().getHints().size());
+            .anyMatch(
+                input -> ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
+
+    assertTrue(
+        join.listInputs()
+            .stream()
+            .anyMatch(
+                input ->
+                    ((Dataset) input).getProducer().getHints().contains(new Util.TestHint2())));
+
+    assertEquals(
+        2,
+        ((Dataset) join.listInputs().stream().findFirst().get()).getProducer().getHints().size());
 
     assertTrue(join.getWindowing() instanceof Time);
   }

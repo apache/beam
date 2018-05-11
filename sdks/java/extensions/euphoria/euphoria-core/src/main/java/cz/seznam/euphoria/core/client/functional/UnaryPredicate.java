@@ -17,11 +17,7 @@ package cz.seznam.euphoria.core.client.functional;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-/**
- * Binary function of X returning boolean.
- */
+/** Binary function of X returning boolean. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface UnaryPredicate<T> extends UnaryFunction<T, Boolean> {
-
-}
+public interface UnaryPredicate<T> extends UnaryFunction<T, Boolean> {}

@@ -19,20 +19,13 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.SpillTools;
 import java.io.Serializable;
 
-/**
- * A context that is passed to stateful operators when creating {@code State}.
- */
+/** A context that is passed to stateful operators when creating {@code State}. */
 @Audience(Audience.Type.CLIENT)
 public interface StateContext extends Serializable {
 
-  /**
-   * @return {@code StorageProvider} implementation.
-   */
+  /** @return {@code StorageProvider} implementation. */
   StorageProvider getStorageProvider();
 
-  /**
-   * @return {@code SpillTools} for possible externalization of data to local storage.
-   */
+  /** @return {@code SpillTools} for possible externalization of data to local storage. */
   SpillTools getSpillTools();
-
 }

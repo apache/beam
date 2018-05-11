@@ -16,20 +16,17 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.flow.Flow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-abstract public class AbstractExecutor implements Executor {
+public abstract class AbstractExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractExecutor.class);
 
-  /**
-   * Executor to submit flows, if closed all executions should be interrupted.
-   */
+  /** Executor to submit flows, if closed all executions should be interrupted. */
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   protected abstract Result execute(Flow flow);

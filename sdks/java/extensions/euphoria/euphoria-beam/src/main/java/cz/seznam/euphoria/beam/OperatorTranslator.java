@@ -31,9 +31,7 @@ interface OperatorTranslator<O extends Operator> {
    *
    * @param operator the operator to translate
    * @param context the execution context aware of all inputs of the given operator
-   *
    * @return a beam transformation
    */
   PCollection<?> translate(O operator, BeamExecutorContext context);
-
 }

@@ -26,31 +26,25 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 public interface TriggerScheduler<W extends Window, K> {
 
   /**
-   * Fire specific trigger on given time.
-   * Schedule the given trigger at the given stamp.
-   * The trigger will be fired as close to the time as possible.
+   * Fire specific trigger on given time. Schedule the given trigger at the given stamp. The trigger
+   * will be fired as close to the time as possible.
    *
    * @param stamp the time stamp to schedule the action for
    * @param window the window to be supplied when triggering the action
    * @param trigger the function to be triggered when <tt>stamp</tt> has been reached
-   *
-   * @return true if the triggerable has been scheduled,
-   *          false if the time already passed
+   * @return true if the triggerable has been scheduled, false if the time already passed
    */
   boolean scheduleAt(long stamp, KeyedWindow<W, K> window, Triggerable<W, K> trigger);
 
   /**
-   * Retrieve current timestamp this triggering is on.
-   * This can be either a real system timestamp or the last
-   * timestamp updated by call to `updateStamp'.
+   * Retrieve current timestamp this triggering is on. This can be either a real system timestamp or
+   * the last timestamp updated by call to `updateStamp'.
    *
    * @return the current timestamp as seen by this scheduler
    */
   long getCurrentTimestamp();
 
-  /**
-   * Cancel all scheduled tasks
-   */
+  /** Cancel all scheduled tasks */
   void cancelAll();
 
   /**
@@ -70,9 +64,6 @@ public interface TriggerScheduler<W extends Window, K> {
     // nop
   }
 
-  /**
-   * Close all triggers and destroy the triggering.
-   */
+  /** Close all triggers and destroy the triggering. */
   void close();
-
 }
