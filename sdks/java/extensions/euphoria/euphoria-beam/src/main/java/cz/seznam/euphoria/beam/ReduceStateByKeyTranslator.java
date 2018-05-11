@@ -18,6 +18,9 @@ package cz.seznam.euphoria.beam;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import org.apache.beam.sdk.values.PCollection;
 
+/**
+ * TODO: add javadoc.
+ */
 public class ReduceStateByKeyTranslator implements OperatorTranslator<ReduceStateByKey> {
 
   @Override

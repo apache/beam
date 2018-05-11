@@ -30,7 +30,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 
-/** A {@code WindowFn} wrapper of {@code Windowing}. */
+/**
+ * A {@code WindowFn} wrapper of {@code Windowing}.
+ */
 public class BeamWindowFn<T, W extends Window<W>> extends WindowFn<T, BeamWindow<W>> {
 
   private final Windowing<T, W> windowing;
@@ -80,11 +82,11 @@ public class BeamWindowFn<T, W extends Window<W>> extends WindowFn<T, BeamWindow
             ? GlobalWindowing.Window.get()
             : ((BeamWindow<W>) ctx.window()).get();
     return StreamSupport.stream(
-            windowing
-                .assignWindowsToElement(
-                    BeamWindowedElement.of(ctx.element(), window, ctx.timestamp().getMillis()))
-                .spliterator(),
-            false)
+        windowing
+            .assignWindowsToElement(
+                BeamWindowedElement.of(ctx.element(), window, ctx.timestamp().getMillis()))
+            .spliterator(),
+        false)
         .map(BeamWindow::wrap)
         .collect(Collectors.toList());
   }
