@@ -33,6 +33,8 @@ public class BigQueryCoderProviderRegistrar implements CoderProviderRegistrar {
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
         CoderProviders.forCoder(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of()),
-        CoderProviders.forCoder(TypeDescriptor.of(TableRowInfo.class), TableRowInfoCoder.of()));
+        CoderProviders.forCoder(TypeDescriptor.of(TableRowInfo.class), TableRowInfoCoder.of()),
+        CoderProviders.forCoder(
+            TypeDescriptor.of(BigQueryInsertError.class), BigQueryInsertErrorCoder.of()));
   }
 }
