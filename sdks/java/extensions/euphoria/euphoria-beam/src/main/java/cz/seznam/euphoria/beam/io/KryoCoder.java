@@ -35,7 +35,7 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 /** Coder using Kryo as (de)serialization mechanism. FIXME: we should entirely drop this class */
 public class KryoCoder<T> extends CustomCoder<T> {
 
-  public static VoidFunction<Kryo> FACTORY =
+  private static VoidFunction<Kryo> FACTORY =
       () -> {
         final Kryo instance = new Kryo();
         ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())

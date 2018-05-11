@@ -17,6 +17,9 @@ package cz.seznam.euphoria.operator.test.accumulators;
 
 import cz.seznam.euphoria.core.client.accumulators.Accumulator;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.Counter;
+import cz.seznam.euphoria.core.client.accumulators.Histogram;
+import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.util.Settings;
 import java.io.ObjectStreamException;
 import java.time.Duration;
@@ -54,18 +57,18 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
   }
 
   @Override
-  public cz.seznam.euphoria.core.client.accumulators.Counter getCounter(String name) {
-    return assertType(name, Counter.class, accs.computeIfAbsent(name, s -> new Counter()));
+  public Counter getCounter(String name) {
+    return assertType(name, LongCounter.class, accs.computeIfAbsent(name, s -> new LongCounter()));
   }
 
   @Override
-  public cz.seznam.euphoria.core.client.accumulators.Histogram getHistogram(String name) {
-    return assertType(name, Histogram.class, accs.computeIfAbsent(name, s -> new Histogram()));
+  public Histogram getHistogram(String name) {
+    return assertType(name, LongHistogram.class, accs.computeIfAbsent(name, s -> new LongHistogram()));
   }
 
   @Override
-  public cz.seznam.euphoria.core.client.accumulators.Timer getTimer(String name) {
-    return assertType(name, Timer.class, accs.computeIfAbsent(name, s -> new Timer()));
+  public Timer getTimer(String name) {
+    return assertType(name, NanosecondTimer.class, accs.computeIfAbsent(name, s -> new NanosecondTimer()));
   }
 
   void clear() {
@@ -103,17 +106,17 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
 
     @Override
     public Map<String, Long> getCounterSnapshots() {
-      return providerInstance().getSnapshots(Counter.class);
+      return providerInstance().getSnapshots(LongCounter.class);
     }
 
     @Override
     public Map<String, Map<Long, Long>> getHistogramSnapshots() {
-      return providerInstance().getSnapshots(Histogram.class);
+      return providerInstance().getSnapshots(LongHistogram.class);
     }
 
     @Override
     public Map<String, Map<Duration, Long>> getTimerSnapshots() {
-      return providerInstance().getSnapshots(Timer.class);
+      return providerInstance().getSnapshots(NanosecondTimer.class);
     }
 
     @Override

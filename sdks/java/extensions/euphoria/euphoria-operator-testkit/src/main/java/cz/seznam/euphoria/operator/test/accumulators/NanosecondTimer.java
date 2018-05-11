@@ -16,17 +16,18 @@
 package cz.seznam.euphoria.operator.test.accumulators;
 
 import com.google.common.collect.Maps;
+import cz.seznam.euphoria.core.client.accumulators.Timer;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-final class Timer
-    implements cz.seznam.euphoria.core.client.accumulators.Timer,
+final class NanosecondTimer
+    implements Timer,
         Snapshotable<Map<Duration, Long>> {
 
-  private final Histogram hist = new Histogram();
+  private final LongHistogram hist = new LongHistogram();
 
-  Timer() {}
+  NanosecondTimer() {}
 
   @Override
   public void add(long duration, TimeUnit unit) {

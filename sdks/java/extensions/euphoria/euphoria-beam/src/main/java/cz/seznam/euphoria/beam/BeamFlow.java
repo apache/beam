@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.util.Settings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class BeamFlow extends Flow {
 
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
   private final transient BeamExecutorContext context;
   private final transient Pipeline pipeline;

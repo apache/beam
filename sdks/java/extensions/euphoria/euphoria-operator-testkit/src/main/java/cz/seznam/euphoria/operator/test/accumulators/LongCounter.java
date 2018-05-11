@@ -15,14 +15,15 @@
  */
 package cz.seznam.euphoria.operator.test.accumulators;
 
+import cz.seznam.euphoria.core.client.accumulators.Counter;
 import java.util.concurrent.atomic.AtomicLong;
 
-final class Counter
-    implements cz.seznam.euphoria.core.client.accumulators.Counter, Snapshotable<Long> {
+final class LongCounter
+    implements Counter, Snapshotable<Long> {
 
   private AtomicLong value = new AtomicLong();
 
-  Counter() {}
+  LongCounter() {}
 
   @Override
   public void increment(long value) {
@@ -41,6 +42,6 @@ final class Counter
 
   @Override
   public String toString() {
-    return "Counter{" + "value=" + value + '}';
+    return "LongCounter{" + "value=" + value + '}';
   }
 }

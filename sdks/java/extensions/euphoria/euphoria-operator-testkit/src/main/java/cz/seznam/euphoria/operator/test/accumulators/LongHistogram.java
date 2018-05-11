@@ -15,17 +15,18 @@
  */
 package cz.seznam.euphoria.operator.test.accumulators;
 
+import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-final class Histogram
-    implements cz.seznam.euphoria.core.client.accumulators.Histogram,
+final class LongHistogram
+    implements Histogram,
         Snapshotable<Map<Long, Long>> {
 
   final Map<Long, Long> buckets = new ConcurrentHashMap<>();
 
-  Histogram() {}
+  LongHistogram() {}
 
   @Override
   public void add(long value, long times) {
