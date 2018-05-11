@@ -356,6 +356,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
 
+    # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
     from apache_beam.metrics.execution import MetricsEnvironment
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
