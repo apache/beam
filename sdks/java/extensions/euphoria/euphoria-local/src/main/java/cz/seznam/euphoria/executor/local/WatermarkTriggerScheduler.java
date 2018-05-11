@@ -89,7 +89,9 @@ public class WatermarkTriggerScheduler<W extends Window, K> implements TriggerSc
 
   @Override
   public boolean scheduleAt(long stamp, KeyedWindow<W, K> window, Triggerable<W, K> trigger) {
-    if (stamp <= currentWatermark - watermarkDuration) return false;
+    if (stamp <= currentWatermark - watermarkDuration) {
+      return false;
+    }
     purge(window, stamp);
     add(stamp, trigger, window);
     return true;
