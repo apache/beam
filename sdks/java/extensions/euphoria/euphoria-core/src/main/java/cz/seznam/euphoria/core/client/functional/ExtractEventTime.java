@@ -18,9 +18,10 @@ package cz.seznam.euphoria.core.client.functional;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
+/** @param <InputT> */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface ExtractEventTime<I> extends Serializable {
+public interface ExtractEventTime<InputT> extends Serializable {
 
   /**
    * Extracts event time (in millis since epoch) of the given element.
@@ -28,5 +29,5 @@ public interface ExtractEventTime<I> extends Serializable {
    * @param elem input element
    * @return the extracted event time
    */
-  long extractTimestamp(I elem);
+  long extractTimestamp(InputT elem);
 }

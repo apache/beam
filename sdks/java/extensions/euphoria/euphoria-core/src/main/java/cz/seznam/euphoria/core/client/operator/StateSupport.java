@@ -23,16 +23,17 @@ class StateSupport {
 
   private StateSupport() {}
 
-  interface MergeFrom<S> {
+  interface MergeFrom<StateT> {
     /** Requests to merge the <tt>other</tt> state into <tt>this</tt> instance. */
-    void mergeFrom(S other);
+    void mergeFrom(StateT other);
   }
 
-  static class MergeFromStateMerger<I, O, S extends State<I, O> & MergeFrom<S>>
-      implements StateMerger<I, O, S> {
+  static class MergeFromStateMerger<
+          InputT, OutputT, StateT extends State<InputT, OutputT> & MergeFrom<StateT>>
+      implements StateMerger<InputT, OutputT, StateT> {
     @Override
-    public void merge(S target, Iterable<S> others) {
-      for (S other : others) {
+    public void merge(StateT target, Iterable<StateT> others) {
+      for (StateT other : others) {
         target.mergeFrom(other);
       }
     }

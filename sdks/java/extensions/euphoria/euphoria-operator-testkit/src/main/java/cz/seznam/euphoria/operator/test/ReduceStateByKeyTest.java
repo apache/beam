@@ -620,7 +620,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   // ~ ------------------------------------------------------------------------------
 
-  private static class CountState<IN> implements State<IN, Long> {
+  private static class CountState<InputT> implements State<InputT, Long> {
     final ValueStorage<Long> count;
 
     CountState(StateContext context, Collector<Long> collector) {
@@ -630,15 +630,15 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
               .getValueStorage(ValueStorageDescriptor.of("count-state", Long.class, 0L));
     }
 
-    public static <IN> void combine(CountState<IN> target, Iterable<CountState<IN>> others) {
-      for (CountState<IN> other : others) {
+    public static <InputT> void combine(CountState<InputT> target, Iterable<CountState<InputT>> others) {
+      for (CountState<InputT> other : others) {
         target.add(other);
       }
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void add(IN element) {
+    public void add(InputT element) {
       count.set(count.get() + 1);
     }
 
@@ -647,7 +647,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       context.collect(count.get());
     }
 
-    void add(CountState<IN> other) {
+    void add(CountState<InputT> other) {
       count.set(count.get() + other.count.get());
     }
 
@@ -657,36 +657,36 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
   }
 
-  private static class AccState<VALUE> implements State<VALUE, VALUE> {
-    final ListStorage<VALUE> vals;
+  private static class AccState<V> implements State<V, V> {
+    final ListStorage<V> vals;
 
     @SuppressWarnings("unchecked")
-    AccState(StateContext context, Collector<VALUE> collector) {
+    AccState(StateContext context, Collector<V> collector) {
       vals =
           context
               .getStorageProvider()
               .getListStorage(ListStorageDescriptor.of("vals", (Class) Object.class));
     }
 
-    public static <VALUE> void combine(AccState<VALUE> target, Iterable<AccState<VALUE>> others) {
-      for (AccState<VALUE> other : others) {
+    public static <V> void combine(AccState<V> target, Iterable<AccState<V>> others) {
+      for (AccState<V> other : others) {
         target.add(other);
       }
     }
 
     @Override
-    public void add(VALUE element) {
+    public void add(V element) {
       vals.add(element);
     }
 
     @Override
-    public void flush(Collector<VALUE> context) {
-      for (VALUE value : vals.get()) {
+    public void flush(Collector<V> context) {
+      for (V value : vals.get()) {
         context.collect(value);
       }
     }
 
-    void add(AccState<VALUE> other) {
+    void add(AccState<V> other) {
       this.vals.addAll(other.vals.get());
     }
 

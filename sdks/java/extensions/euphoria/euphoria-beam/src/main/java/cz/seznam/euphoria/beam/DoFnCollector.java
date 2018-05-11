@@ -32,13 +32,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 /** Collector that outputs elements to {@link BeamCollector}. */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
-public class DoFnCollector<IN, OUT, ELEM> implements Collector<ELEM>, Context, Serializable {
+public class DoFnCollector<InputT, OutputT, ELEM> implements Collector<ELEM>, Context, Serializable {
 
   private final AccumulatorProvider accumulators;
-  private final BeamCollector<IN, OUT, ELEM> beamCollector;
-  private transient DoFn<IN, OUT>.ProcessContext context;
+  private final BeamCollector<InputT, OutputT, ELEM> beamCollector;
+  private transient DoFn<InputT, OutputT>.ProcessContext context;
 
-  DoFnCollector(AccumulatorProvider accumulators, BeamCollector<IN, OUT, ELEM> beamCollector) {
+  DoFnCollector(AccumulatorProvider accumulators, BeamCollector<InputT, OutputT, ELEM> beamCollector) {
     this.accumulators = accumulators;
     this.beamCollector = beamCollector;
   }
@@ -74,12 +74,12 @@ public class DoFnCollector<IN, OUT, ELEM> implements Collector<ELEM>, Context, S
     return accumulators.getTimer(name);
   }
 
-  void setProcessContext(DoFn<IN, OUT>.ProcessContext context) {
+  void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
     this.context = context;
   }
 
-  public interface BeamCollector<IN, OUT, ELEM> extends Serializable {
+  public interface BeamCollector<InputT, OutputT, ELEM> extends Serializable {
 
-    void collect(DoFn<IN, OUT>.ProcessContext ctx, ELEM elem);
+    void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ELEM elem);
   }
 }

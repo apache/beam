@@ -61,29 +61,29 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
-public class SumByKey<IN, KEY, W extends Window<W>>
+public class SumByKey<InputT, K, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Pair<KEY, Long>, W, SumByKey<IN, KEY, W>> {
+        InputT, InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>> {
 
-  private final UnaryFunction<IN, Long> valueExtractor;
+  private final UnaryFunction<InputT, Long> valueExtractor;
 
   SumByKey(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, KEY> keyExtractor,
-      UnaryFunction<IN, Long> valueExtractor,
-      @Nullable Windowing<IN, W> windowing) {
+      Dataset<InputT> input,
+      UnaryFunction<InputT, K> keyExtractor,
+      UnaryFunction<InputT, Long> valueExtractor,
+      @Nullable Windowing<InputT, W> windowing) {
     this(name, flow, input, keyExtractor, valueExtractor, windowing, Collections.emptySet());
   }
 
   SumByKey(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, KEY> keyExtractor,
-      UnaryFunction<IN, Long> valueExtractor,
-      @Nullable Windowing<IN, W> windowing,
+      Dataset<InputT> input,
+      UnaryFunction<InputT, K> keyExtractor,
+      UnaryFunction<InputT, Long> valueExtractor,
+      @Nullable Windowing<InputT, W> windowing,
       Set<OutputHint> outputHints) {
     super(name, flow, input, keyExtractor, windowing, outputHints);
     this.valueExtractor = valueExtractor;
@@ -92,13 +92,13 @@ public class SumByKey<IN, KEY, W extends Window<W>>
   /**
    * Starts building a nameless {@link SumByKey} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
     return new KeyByBuilder<>("SumByKey", input);
   }
 
@@ -114,7 +114,7 @@ public class SumByKey<IN, KEY, W extends Window<W>>
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    ReduceByKey<IN, KEY, Long, Long, W> reduceByKey =
+    ReduceByKey<InputT, K, Long, Long, W> reduceByKey =
         new ReduceByKey<>(
             getName(),
             input.getFlow(),
@@ -136,71 +136,72 @@ public class SumByKey<IN, KEY, W extends Window<W>>
     }
 
     @Override
-    public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
       return new KeyByBuilder<>(name, input);
     }
   }
 
-  public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
+  public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    KeyByBuilder(String name, Dataset<IN> input) {
+    KeyByBuilder(String name, Dataset<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
 
     @Override
-    public <KEY> ValueByBuilder<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
+    public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
       return new ValueByBuilder<>(name, input, keyExtractor);
     }
   }
 
-  public static class ValueByBuilder<IN, KEY>
-      implements Builders.WindowBy<IN, ByBuilder2<IN, KEY>>,
-          Builders.Output<Pair<KEY, Long>>,
-          Builders.OutputValues<KEY, Long> {
+  public static class ValueByBuilder<InputT, K>
+      implements Builders.WindowBy<InputT, ByBuilder2<InputT, K>>,
+          Builders.Output<Pair<K, Long>>,
+          Builders.OutputValues<K, Long> {
 
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
+    private final Dataset<InputT> input;
+    private final UnaryFunction<InputT, K> keyExtractor;
 
-    ValueByBuilder(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
+    ValueByBuilder(String name, Dataset<InputT> input, UnaryFunction<InputT, K> keyExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
 
-    public ByBuilder2<IN, KEY> valueBy(UnaryFunction<IN, Long> valueExtractor) {
+    public ByBuilder2<InputT, K> valueBy(UnaryFunction<InputT, Long> valueExtractor) {
       return new ByBuilder2<>(name, input, keyExtractor, valueExtractor);
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<IN, KEY, W> windowBy(Windowing<IN, W> windowing) {
+    public <W extends Window<W>> OutputBuilder<InputT, K, W> windowBy(
+        Windowing<InputT, W> windowing) {
       return new OutputBuilder<>(name, input, keyExtractor, e -> 1L, windowing);
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
+    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(name, input, keyExtractor, e -> 1L, null).output(outputHints);
     }
   }
 
-  public static class ByBuilder2<IN, KEY>
-      implements Builders.WindowBy<IN, ByBuilder2<IN, KEY>>,
-          Builders.Output<Pair<KEY, Long>>,
-          Builders.OutputValues<KEY, Long> {
+  public static class ByBuilder2<InputT, K>
+      implements Builders.WindowBy<InputT, ByBuilder2<InputT, K>>,
+          Builders.Output<Pair<K, Long>>,
+          Builders.OutputValues<K, Long> {
 
     final String name;
-    final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
-    final UnaryFunction<IN, Long> valueExtractor;
+    final Dataset<InputT> input;
+    final UnaryFunction<InputT, K> keyExtractor;
+    final UnaryFunction<InputT, Long> valueExtractor;
 
     ByBuilder2(
         String name,
-        Dataset<IN> input,
-        UnaryFunction<IN, KEY> keyExtractor,
-        UnaryFunction<IN, Long> valueExtractor) {
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyExtractor,
+        UnaryFunction<InputT, Long> valueExtractor) {
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -209,35 +210,36 @@ public class SumByKey<IN, KEY, W extends Window<W>>
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<IN, KEY, W> windowBy(Windowing<IN, W> windowing) {
+    public <W extends Window<W>> OutputBuilder<InputT, K, W> windowBy(
+        Windowing<InputT, W> windowing) {
       return new OutputBuilder<>(name, input, keyExtractor, valueExtractor, windowing);
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
+    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(name, input, keyExtractor, valueExtractor, null).output();
     }
   }
 
-  public static class OutputBuilder<IN, KEY, W extends Window<W>> extends ByBuilder2<IN, KEY> {
+  public static class OutputBuilder<InputT, K, W extends Window<W>> extends ByBuilder2<InputT, K> {
 
-    @Nullable private final Windowing<IN, W> windowing;
+    @Nullable private final Windowing<InputT, W> windowing;
 
     OutputBuilder(
         String name,
-        Dataset<IN> input,
-        UnaryFunction<IN, KEY> keyExtractor,
-        UnaryFunction<IN, Long> valueExtractor,
-        @Nullable Windowing<IN, W> windowing) {
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyExtractor,
+        UnaryFunction<InputT, Long> valueExtractor,
+        @Nullable Windowing<InputT, W> windowing) {
 
       super(name, input, keyExtractor, valueExtractor);
       this.windowing = windowing;
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
+    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      SumByKey<IN, KEY, W> sumByKey =
+      SumByKey<InputT, K, W> sumByKey =
           new SumByKey<>(
               name,
               flow,

@@ -105,8 +105,12 @@ public class ListDataSink<T> implements DataSink<T> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof ListDataSink)) return false;
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof ListDataSink)) {
+      return false;
+    }
 
     ListDataSink<?> that = (ListDataSink<?>) o;
 

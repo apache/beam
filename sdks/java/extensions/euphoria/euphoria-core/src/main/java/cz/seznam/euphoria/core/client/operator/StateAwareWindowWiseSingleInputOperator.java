@@ -30,24 +30,24 @@ import javax.annotation.Nullable;
 /** Operator operating on window level with state information. */
 @Audience(Audience.Type.INTERNAL)
 public class StateAwareWindowWiseSingleInputOperator<
-        IN,
-        WIN,
-        KIN,
-        KEY,
-        OUT,
+        InputT,
+        WindowInT,
+        KeyInT,
+        K,
+        OutputT,
         W extends Window<W>,
-        OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
-    extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP> {
+        OperatorT extends StateAwareWindowWiseSingleInputOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
+    extends StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT> {
 
-  protected final Dataset<IN> input;
-  private final Dataset<OUT> output;
+  protected final Dataset<InputT> input;
+  private final Dataset<OutputT> output;
 
   protected StateAwareWindowWiseSingleInputOperator(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<KIN, KEY> extractor,
-      @Nullable Windowing<WIN, W> windowing,
+      Dataset<InputT> input,
+      UnaryFunction<KeyInT, K> extractor,
+      @Nullable Windowing<WindowInT, W> windowing,
       Set<OutputHint> outputHints) {
 
     super(name, flow, windowing, extractor);
@@ -56,16 +56,16 @@ public class StateAwareWindowWiseSingleInputOperator<
   }
 
   @Override
-  public Collection<Dataset<IN>> listInputs() {
+  public Collection<Dataset<InputT>> listInputs() {
     return Collections.singletonList(input);
   }
 
-  public Dataset<IN> input() {
+  public Dataset<InputT> input() {
     return input;
   }
 
   @Override
-  public Dataset<OUT> output() {
+  public Dataset<OutputT> output() {
     return output;
   }
 }

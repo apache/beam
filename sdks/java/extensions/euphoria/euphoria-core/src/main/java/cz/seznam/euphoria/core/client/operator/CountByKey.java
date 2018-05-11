@@ -47,16 +47,16 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
-public class CountByKey<IN, KEY, W extends Window<W>>
+public class CountByKey<InputT, K, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Pair<KEY, Long>, W, CountByKey<IN, KEY, W>> {
+        InputT, InputT, InputT, K, Pair<K, Long>, W, CountByKey<InputT, K, W>> {
 
   CountByKey(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, KEY> extractor,
-      @Nullable Windowing<IN, W> windowing,
+      Dataset<InputT> input,
+      UnaryFunction<InputT, K> extractor,
+      @Nullable Windowing<InputT, W> windowing,
       Set<OutputHint> outputHints) {
 
     super(name, flow, input, extractor, windowing, outputHints);
@@ -65,13 +65,13 @@ public class CountByKey<IN, KEY, W extends Window<W>>
   /**
    * Starts building a nameless {@link CountByKey} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
     return new KeyByBuilder<>("CountByKey", input);
   }
 
@@ -87,12 +87,13 @@ public class CountByKey<IN, KEY, W extends Window<W>>
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    SumByKey<IN, KEY, W> sum =
+    SumByKey<InputT, K, W> sum =
         new SumByKey<>(
             getName(), input.getFlow(), input, keyExtractor, e -> 1L, windowing, getHints());
     return DAG.of(sum);
   }
 
+  /** */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -101,70 +102,74 @@ public class CountByKey<IN, KEY, W extends Window<W>>
     }
 
     @Override
-    public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
       return new KeyByBuilder<>(name, input);
     }
   }
 
-  public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
+  /** */
+  public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    KeyByBuilder(String name, Dataset<IN> input) {
+    KeyByBuilder(String name, Dataset<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
 
     @Override
-    public <KEY> WindowingBuilder<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
+    public <K> WindowingBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
       return new WindowingBuilder<>(name, input, keyExtractor);
     }
   }
 
-  public static class WindowingBuilder<IN, KEY>
-      implements Builders.WindowBy<IN, WindowingBuilder<IN, KEY>>,
-          Builders.Output<Pair<KEY, Long>> {
+  /** */
+  public static class WindowingBuilder<InputT, K>
+      implements Builders.WindowBy<InputT, WindowingBuilder<InputT, K>>,
+          Builders.Output<Pair<K, Long>> {
 
     final String name;
-    final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
+    final Dataset<InputT> input;
+    final UnaryFunction<InputT, K> keyExtractor;
 
-    WindowingBuilder(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
+    WindowingBuilder(String name, Dataset<InputT> input, UnaryFunction<InputT, K> keyExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<IN, KEY, W> windowBy(Windowing<IN, W> windowing) {
+    public <W extends Window<W>> OutputBuilder<InputT, K, W> windowBy(
+        Windowing<InputT, W> windowing) {
       return new OutputBuilder<>(name, input, keyExtractor, windowing);
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
+    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       return windowBy(null).output(outputHints);
     }
   }
 
-  public static class OutputBuilder<IN, KEY, W extends Window<W>> extends WindowingBuilder<IN, KEY>
-      implements Builders.Output<Pair<KEY, Long>> {
+  /** */
+  public static class OutputBuilder<InputT, K, W extends Window<W>>
+      extends WindowingBuilder<InputT, K> implements Builders.Output<Pair<K, Long>> {
 
-    @Nullable private final Windowing<IN, W> windowing;
+    @Nullable private final Windowing<InputT, W> windowing;
 
     OutputBuilder(
         String name,
-        Dataset<IN> input,
-        UnaryFunction<IN, KEY> keyExtractor,
-        @Nullable Windowing<IN, W> windowing) {
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyExtractor,
+        @Nullable Windowing<InputT, W> windowing) {
 
       super(name, input, keyExtractor);
       this.windowing = windowing;
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
+    public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      CountByKey<IN, KEY, W> count =
+      CountByKey<InputT, K, W> count =
           new CountByKey<>(
               name, flow, input, keyExtractor, windowing, Sets.newHashSet(outputHints));
       flow.add(count);

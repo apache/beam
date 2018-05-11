@@ -20,26 +20,26 @@ import static java.util.Objects.requireNonNull;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import javax.annotation.Nullable;
 
-/** Either LEFT or RIGHT element. */
+/** Either LeftT or RightT element. */
 @Audience(Audience.Type.INTERNAL)
-public final class Either<LEFT, RIGHT> {
+public final class Either<LeftT, RightT> {
 
-  @Nullable final LEFT left;
-  @Nullable final RIGHT right;
+  @Nullable final LeftT left;
+  @Nullable final RightT right;
 
-  private Either(@Nullable LEFT left, @Nullable RIGHT right) {
+  private Either(@Nullable LeftT left, @Nullable RightT right) {
     this.left = left;
     this.right = right;
   }
 
-  public static <LEFT, RIGHT> Either<LEFT, RIGHT> left(LEFT left) {
+  public static <LeftT, RightT> Either<LeftT, RightT> left(LeftT left) {
     requireNonNull(left);
-    return new Either<>(left, (RIGHT) null);
+    return new Either<>(left, (RightT) null);
   }
 
-  public static <LEFT, RIGHT> Either<LEFT, RIGHT> right(RIGHT right) {
+  public static <LeftT, RightT> Either<LeftT, RightT> right(RightT right) {
     requireNonNull(right);
-    return new Either<>((LEFT) null, right);
+    return new Either<>((LeftT) null, right);
   }
 
   public boolean isLeft() {
@@ -50,11 +50,11 @@ public final class Either<LEFT, RIGHT> {
     return right != null;
   }
 
-  public LEFT left() {
+  public LeftT left() {
     return left;
   }
 
-  public RIGHT right() {
+  public RightT right() {
     return right;
   }
 

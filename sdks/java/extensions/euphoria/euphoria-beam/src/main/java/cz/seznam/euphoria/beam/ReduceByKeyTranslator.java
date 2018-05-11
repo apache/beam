@@ -41,18 +41,18 @@ import org.apache.beam.sdk.values.PCollection;
 class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @SuppressWarnings("unchecked")
-  private static <IN, KEY, VALUE, OUT, W extends Window<W>> PCollection<Pair<KEY, OUT>> doTranslate(
-      ReduceByKey<IN, KEY, VALUE, OUT, W> operator, BeamExecutorContext context) {
+  private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>> doTranslate(
+      ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
 
-    final UnaryFunction<IN, KEY> keyExtractor = operator.getKeyExtractor();
-    final UnaryFunction<IN, VALUE> valueExtractor = operator.getValueExtractor();
-    final ReduceFunctor<VALUE, OUT> reducer = operator.getReducer();
+    final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
+    final UnaryFunction<InputT, V> valueExtractor = operator.getValueExtractor();
+    final ReduceFunctor<V, OutputT> reducer = operator.getReducer();
 
     // ~ resolve coders
-    final Coder<KEY> keyCoder = context.getCoder(keyExtractor);
-    final Coder<VALUE> valueCoder = context.getCoder(valueExtractor);
+    final Coder<K> keyCoder = context.getCoder(keyExtractor);
+    final Coder<V> valueCoder = context.getCoder(valueExtractor);
 
-    final PCollection<IN> input;
+    final PCollection<InputT> input;
 
     // ~ apply windowing if specified
     if (operator.getWindowing() == null) {
@@ -72,21 +72,21 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
 
     // ~ create key & value extractor
-    final MapElements<IN, KV<KEY, VALUE>> extractor =
+    final MapElements<InputT, KV<K, V>> extractor =
         MapElements.via(
-            new SimpleFunction<IN, KV<KEY, VALUE>>() {
+            new SimpleFunction<InputT, KV<K, V>>() {
               @Override
-              public KV<KEY, VALUE> apply(IN in) {
+              public KV<K, V> apply(InputT in) {
                 return KV.of(keyExtractor.apply(in), valueExtractor.apply(in));
               }
             });
-    final PCollection<KV<KEY, VALUE>> extracted =
+    final PCollection<KV<K, V>> extracted =
         input
             .apply(operator.getName() + "::extract-keys", extractor)
             .setCoder(KvCoder.of(keyCoder, valueCoder));
 
     if (operator.isCombinable()) {
-      final PCollection<KV<KEY, VALUE>> combined =
+      final PCollection<KV<K, V>> combined =
           extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
 
       // remap from KVs to Pairs
@@ -94,9 +94,9 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
           combined.apply(
               operator.getName() + "::map-to-pairs",
               MapElements.via(
-                  new SimpleFunction<KV<KEY, VALUE>, Pair<KEY, VALUE>>() {
+                  new SimpleFunction<KV<K, V>, Pair<K, V>>() {
                     @Override
-                    public Pair<KEY, VALUE> apply(KV<KEY, VALUE> in) {
+                    public Pair<K, V> apply(KV<K, V> in) {
                       return Pair.of(in.getKey(), in.getValue());
                     }
                   }));
@@ -105,7 +105,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
       final AccumulatorProvider accumulators =
           new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
 
-      final PCollection<KV<KEY, Iterable<VALUE>>> grouped =
+      final PCollection<KV<K, Iterable<V>>> grouped =
           extracted
               .apply(operator.getName() + "::group", GroupByKey.create())
               .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
@@ -115,13 +115,13 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
   }
 
-  private static <IN, OUT> SerializableFunction<Iterable<IN>, IN> asCombiner(
-      ReduceFunctor<IN, OUT> reducer) {
+  private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
+      ReduceFunctor<InputT, OutputT> reducer) {
 
     @SuppressWarnings("unchecked")
-    final ReduceFunctor<IN, IN> combiner = (ReduceFunctor<IN, IN>) reducer;
-    final SingleValueCollector<IN> collector = new SingleValueCollector<>();
-    return (Iterable<IN> input) -> {
+    final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
+    final SingleValueCollector<InputT> collector = new SingleValueCollector<>();
+    return (Iterable<InputT> input) -> {
       combiner.apply(StreamSupport.stream(input.spliterator(), false), collector);
       return collector.get();
     };
@@ -133,12 +133,12 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     return doTranslate(operator, context);
   }
 
-  private static class ReduceDoFn<K, V, O> extends DoFn<KV<K, Iterable<V>>, Pair<K, O>> {
+  private static class ReduceDoFn<K, V, OutT> extends DoFn<KV<K, Iterable<V>>, Pair<K, OutT>> {
 
-    private final ReduceFunctor<V, O> reducer;
-    private final DoFnCollector<KV<K, Iterable<V>>, Pair<K, O>, O> collector;
+    private final ReduceFunctor<V, OutT> reducer;
+    private final DoFnCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> collector;
 
-    ReduceDoFn(ReduceFunctor<V, O> reducer, AccumulatorProvider accumulators) {
+    ReduceDoFn(ReduceFunctor<V, OutT> reducer, AccumulatorProvider accumulators) {
       this.reducer = reducer;
       this.collector = new DoFnCollector<>(accumulators, new Collector<>());
     }
@@ -151,11 +151,11 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
   }
 
-  private static class Collector<K, V, O>
-      implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, O>, O> {
+  private static class Collector<K, V, OutT>
+      implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> {
 
     @Override
-    public void collect(DoFn<KV<K, Iterable<V>>, Pair<K, O>>.ProcessContext ctx, O out) {
+    public void collect(DoFn<KV<K, Iterable<V>>, Pair<K, OutT>>.ProcessContext ctx, OutT out) {
       ctx.output(Pair.of(ctx.element().getKey(), out));
     }
   }

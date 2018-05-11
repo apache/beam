@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.Join.Type;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -48,14 +49,18 @@ import java.util.Optional;
 @Audience(Audience.Type.CLIENT)
 public class RightJoin {
 
-  public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(Dataset<LEFT> left, Dataset<RIGHT> right) {
+  /** */
+  public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
+      Dataset<LeftT> left, Dataset<RightT> right) {
     return new OfBuilder("RightJoin").of(left, right);
   }
 
+  /** */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
 
+  /** */
   public static class OfBuilder {
 
     private final String name;
@@ -64,7 +69,7 @@ public class RightJoin {
       this.name = name;
     }
 
-    public <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(Dataset<LEFT> left, Dataset<RIGHT> right) {
+    public <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right) {
       if (right.getFlow() != left.getFlow()) {
         throw new IllegalArgumentException("Pass inputs from the same flow");
       }
@@ -72,38 +77,40 @@ public class RightJoin {
     }
   }
 
-  public static class ByBuilder<LEFT, RIGHT> {
+  /** */
+  public static class ByBuilder<LeftT, RightT> {
 
     private final String name;
-    private final Dataset<LEFT> left;
-    private final Dataset<RIGHT> right;
+    private final Dataset<LeftT> left;
+    private final Dataset<RightT> right;
 
-    ByBuilder(String name, Dataset<LEFT> left, Dataset<RIGHT> right) {
+    ByBuilder(String name, Dataset<LeftT> left, Dataset<RightT> right) {
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
       this.right = Objects.requireNonNull(right);
     }
 
-    public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
-        UnaryFunction<LEFT, KEY> leftKeyExtractor, UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+    public <K> UsingBuilder<LeftT, RightT, K> by(
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
       return new UsingBuilder<>(name, left, right, leftKeyExtractor, rightKeyExtractor);
     }
   }
 
-  public static class UsingBuilder<LEFT, RIGHT, KEY> {
+  /** */
+  public static class UsingBuilder<LeftT, RightT, K> {
 
     private final String name;
-    private final Dataset<LEFT> left;
-    private final Dataset<RIGHT> right;
-    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
-    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+    private final Dataset<LeftT> left;
+    private final Dataset<RightT> right;
+    private final UnaryFunction<LeftT, K> leftKeyExtractor;
+    private final UnaryFunction<RightT, K> rightKeyExtractor;
 
     UsingBuilder(
         String name,
-        Dataset<LEFT> left,
-        Dataset<RIGHT> right,
-        UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+        Dataset<LeftT> left,
+        Dataset<RightT> right,
+        UnaryFunction<LeftT, K> leftKeyExtractor,
+        UnaryFunction<RightT, K> rightKeyExtractor) {
       this.name = name;
       this.left = left;
       this.right = right;
@@ -111,12 +118,12 @@ public class RightJoin {
       this.rightKeyExtractor = rightKeyExtractor;
     }
 
-    public <OUT> Join.WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
-        BinaryFunctor<Optional<LEFT>, RIGHT, OUT> functor) {
-      final BinaryFunctor<LEFT, RIGHT, OUT> wrappedFunctor =
+    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+        BinaryFunctor<Optional<LeftT>, RightT, OutputT> functor) {
+      final BinaryFunctor<LeftT, RightT, OutputT> wrappedFunctor =
           (left, right, context) -> functor.apply(Optional.ofNullable(left), right, context);
       return new Join.WindowingBuilder<>(
-          name, left, right, leftKeyExtractor, rightKeyExtractor, wrappedFunctor, Join.Type.RIGHT);
+          name, left, right, leftKeyExtractor, rightKeyExtractor, wrappedFunctor, Type.RIGHT);
     }
   }
 }

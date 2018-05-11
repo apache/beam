@@ -15,7 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
@@ -41,7 +42,7 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   @Nullable private Duration earlyTriggeringPeriod;
 
   private Session(long gapDurationMillis) {
-    Preconditions.checkArgument(gapDurationMillis > 0, "Windowing with zero duration");
+    checkArgument(gapDurationMillis > 0, "Windowing with zero duration");
     this.gapDurationMillis = gapDurationMillis;
   }
 

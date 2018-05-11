@@ -38,26 +38,26 @@ public class Builders {
     /**
      * Specifies the input dataset of the operator.
      *
-     * @param <IN> the type of elements in the input dataset
+     * @param <InputT> the type of elements in the input dataset
      * @param input the input dataset to recuce
      * @return the next builder to complete the setup of the operator
      */
-    <IN> Object of(Dataset<IN> input);
+    <InputT> Object of(Dataset<InputT> input);
   }
 
-  interface KeyBy<IN> {
+  interface KeyBy<InputT> {
 
     /**
      * Specifies the function to derive the keys from the operator's input elements.
      *
-     * @param <KEY> the type of the extracted key
+     * @param <K> the type of the extracted key
      * @param keyExtractor a user defined function to extract keys from the processed input
      *     dataset's elements
      * @return the next builder to complete the setup of the operator
      */
-    <KEY> Object keyBy(UnaryFunction<IN, KEY> keyExtractor);
+    <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor);
 
-    default <KEY> Object keyBy(UnaryFunction<IN, KEY> keyExtractor, TypeHint<KEY> typeHint) {
+    default <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
       return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
@@ -65,11 +65,11 @@ public class Builders {
   /**
    * Interface for builders of windowing.
    *
-   * @param <IN> data type of the input elements
-   * @param <BUILDER> the builder
+   * @param <InputT> data type of the input elements
+   * @param <BuilderT> the builder
    */
-  interface WindowBy<IN, BUILDER extends WindowBy<IN, BUILDER>>
-      extends OptionalMethodBuilder<BUILDER> {
+  interface WindowBy<InputT, BuilderT extends WindowBy<InputT, BuilderT>>
+      extends OptionalMethodBuilder<BuilderT> {
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
@@ -80,9 +80,10 @@ public class Builders {
      * @param windowing the windowing strategy to apply to the input dataset
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends Window<W>> Object windowBy(Windowing<IN, W> windowing);
+    <W extends Window<W>> Object windowBy(Windowing<InputT, W> windowing);
   }
 
+  /** */
   public interface Output<T> {
 
     /**
@@ -94,6 +95,7 @@ public class Builders {
     Dataset<T> output(OutputHint... outputHints);
   }
 
+  /** */
   public interface OutputValues<K, V> extends Output<Pair<K, V>> {
 
     /**

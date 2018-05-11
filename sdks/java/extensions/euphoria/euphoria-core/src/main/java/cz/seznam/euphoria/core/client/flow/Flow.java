@@ -106,13 +106,13 @@ public class Flow implements Serializable {
   /**
    * Adds a new operator to the flow.
    *
-   * @param <IN> the type of elements the operator is consuming
-   * @param <OUT> the type of elements the operator is producing
+   * @param <InputT> the type of elements the operator is consuming
+   * @param <OutputT> the type of elements the operator is producing
    * @param <T> the type of the operator itself
    * @param operator the operator
    * @return instance of the operator
    */
-  public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
+  public <InputT, OutputT, T extends Operator<InputT, OutputT>> T add(T operator) {
     return add(operator, null);
   }
 
@@ -129,15 +129,16 @@ public class Flow implements Serializable {
   /**
    * Adds a new operator to the flow.
    *
-   * @param <IN> the type of elements the operator is consuming
-   * @param <OUT> the type of elements the operator is producing
+   * @param <InputT> the type of elements the operator is consuming
+   * @param <OutputT> the type of elements the operator is producing
    * @param <T> the type of the operator itself
    * @param operator the operator to add to this flow.
    * @param logicalName the logical application specific name of the operator to be available for
    *     debugging purposes; can be {@code null}
    * @return the added operator
    */
-  <IN, OUT, T extends Operator<IN, OUT>> T add(T operator, @Nullable String logicalName) {
+  <InputT, OutputT, T extends Operator<InputT, OutputT>> T add(
+      T operator, @Nullable String logicalName) {
 
     operatorNames.put(operator, buildOperatorName(operator, logicalName));
     operators.add(operator);
@@ -147,7 +148,7 @@ public class Flow implements Serializable {
     validateSerializable(operator);
 
     // validate dependencies
-    for (Dataset<IN> d : operator.listInputs()) {
+    for (Dataset<InputT> d : operator.listInputs()) {
       if (!sources.contains(d) && !outputs.contains(d)) {
         throw new IllegalArgumentException(
             "Invalid input: All dependencies must already be present in the flow!");

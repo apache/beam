@@ -17,6 +17,7 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
+/** */
 @Audience(Audience.Type.CLIENT)
 public final class TimeInterval extends Window<TimeInterval> {
 
@@ -58,8 +59,12 @@ public final class TimeInterval extends Window<TimeInterval> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof TimeInterval)) return false;
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof TimeInterval)) {
+      return false;
+    }
 
     TimeInterval that = (TimeInterval) o;
 

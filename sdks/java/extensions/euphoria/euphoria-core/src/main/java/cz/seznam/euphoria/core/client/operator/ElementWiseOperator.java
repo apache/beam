@@ -26,18 +26,19 @@ import java.util.Set;
  * be defined on input.
  */
 @Audience(Audience.Type.INTERNAL)
-public abstract class ElementWiseOperator<IN, OUT> extends SingleInputOperator<IN, OUT> {
+public abstract class ElementWiseOperator<InputT, OutputT>
+    extends SingleInputOperator<InputT, OutputT> {
 
-  protected final Dataset<OUT> output;
+  protected final Dataset<OutputT> output;
 
   protected ElementWiseOperator(
-      String name, Flow flow, Dataset<IN> input, Set<OutputHint> outputHints) {
+      String name, Flow flow, Dataset<InputT> input, Set<OutputHint> outputHints) {
     super(name, flow, input);
     this.output = createOutput(input, outputHints);
   }
 
   @Override
-  public Dataset<OUT> output() {
+  public Dataset<OutputT> output() {
     return output;
   }
 }

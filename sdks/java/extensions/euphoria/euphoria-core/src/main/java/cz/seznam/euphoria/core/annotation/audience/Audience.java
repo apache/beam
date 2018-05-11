@@ -29,6 +29,7 @@ public @interface Audience {
 
   Type[] value();
 
+  /** usage type of Audience */
   enum Type {
     /** The API is intended to be used by client code. */
     CLIENT,

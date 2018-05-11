@@ -23,23 +23,23 @@ import java.util.Collections;
 
 /** Operator with single input. */
 @Audience(Audience.Type.INTERNAL)
-public abstract class SingleInputOperator<IN, OUT> extends Operator<IN, OUT> {
+public abstract class SingleInputOperator<InputT, OutputT> extends Operator<InputT, OutputT> {
 
-  final Dataset<IN> input;
+  final Dataset<InputT> input;
 
-  protected SingleInputOperator(String name, Flow flow, Dataset<IN> input) {
+  protected SingleInputOperator(String name, Flow flow, Dataset<InputT> input) {
     super(name, flow);
     this.input = input;
   }
 
   /** @return the (only) input dataset of this operator */
-  public Dataset<IN> input() {
+  public Dataset<InputT> input() {
     return input;
   }
 
   /** @return all of this operator's input as single element collection */
   @Override
-  public Collection<Dataset<IN>> listInputs() {
+  public Collection<Dataset<InputT>> listInputs() {
     return Collections.singletonList(input);
   }
 }

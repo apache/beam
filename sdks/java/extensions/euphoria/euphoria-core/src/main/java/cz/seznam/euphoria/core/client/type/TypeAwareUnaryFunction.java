@@ -19,20 +19,20 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 @Audience(Audience.Type.EXECUTOR)
-public class TypeAwareUnaryFunction<I, O> extends AbstractTypeAware<UnaryFunction<I, O>, O>
-    implements UnaryFunction<I, O> {
+public class TypeAwareUnaryFunction<InT, OutT> extends AbstractTypeAware<UnaryFunction<InT, OutT>, OutT>
+    implements UnaryFunction<InT, OutT> {
 
-  private TypeAwareUnaryFunction(UnaryFunction<I, O> function, TypeHint<O> resultType) {
+  private TypeAwareUnaryFunction(UnaryFunction<InT, OutT> function, TypeHint<OutT> resultType) {
     super(function, resultType);
   }
 
-  public static <I, O> TypeAwareUnaryFunction<I, O> of(
-      UnaryFunction<I, O> function, TypeHint<O> typeHint) {
+  public static <InT, OutT> TypeAwareUnaryFunction<InT, OutT> of(
+      UnaryFunction<InT, OutT> function, TypeHint<OutT> typeHint) {
     return new TypeAwareUnaryFunction<>(function, typeHint);
   }
 
   @Override
-  public O apply(I what) {
+  public OutT apply(InT what) {
     return getDelegate().apply(what);
   }
 }
