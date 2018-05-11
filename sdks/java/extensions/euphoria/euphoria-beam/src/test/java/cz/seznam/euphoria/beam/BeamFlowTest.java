@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Test for {@link BeamFlow}. */
@@ -144,6 +145,7 @@ public class BeamFlowTest implements Serializable {
   }
 
   @SuppressWarnings("unchecked")
+  @Ignore
   public void testPipelineWithRBK() {
     String raw = "hi there hi hi sue bob hi sue ZOW bob";
     List<String> words = Arrays.asList(raw.split(" "));
@@ -163,7 +165,7 @@ public class BeamFlowTest implements Serializable {
             Pair.of("bob", 2L));
     pipeline.run();
   }
-
+  @Ignore
   public void testPipelineWithEventTime() {
     List<Pair<Integer, Long>> raw =
         Arrays.asList(

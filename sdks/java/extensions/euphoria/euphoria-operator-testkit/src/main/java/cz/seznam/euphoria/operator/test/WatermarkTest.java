@@ -36,7 +36,7 @@ public class WatermarkTest extends AbstractOperatorTest {
   // ~ see https://github.com/seznam/euphoria/issues/119
   @Processing(Processing.Type.UNBOUNDED)
   @Test
-  public void JoinOnFastAndSlowInputs() {
+  public void joinOnFastAndSlowInputs() {
     execute(
         new JoinTest.JoinTestCase<
             Pair<String, Long>, Pair<String, Long>, Triple<TimeInterval, String, String>>() {
