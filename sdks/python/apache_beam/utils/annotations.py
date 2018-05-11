@@ -60,6 +60,8 @@ same function 'multiply'.::
   print exp_multiply(5,6)
 """
 
+from __future__ import absolute_import
+
 import warnings
 from functools import partial
 from functools import wraps
