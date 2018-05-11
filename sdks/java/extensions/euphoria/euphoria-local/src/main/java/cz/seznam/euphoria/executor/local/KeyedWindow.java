@@ -18,6 +18,11 @@ package cz.seznam.euphoria.executor.local;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import java.util.Objects;
 
+/**
+ * TODO: add javadoc.
+ * @param <W>
+ * @param <K>
+ */
 public final class KeyedWindow<W extends Window, K> {
   private final W window;
   private final K key;

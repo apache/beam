@@ -15,10 +15,10 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toSet;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -293,7 +293,7 @@ class ReduceStateByKeyReducer implements Runnable {
   private void processWindowTrigger(Datum.WindowTrigger trigger) {
     if (isAttachedWindowing) {
       // reregister trigger of given window
-      // FIXME: move this to windowing itself so that attached windowing
+      // TODO: move this to windowing itself so that attached windowing
       // can be implemented 'natively' as instance of generic windowing
       processing.onUpstreamWindowTrigger(trigger.getWindow(), trigger.getTimestamp());
     }
@@ -543,13 +543,13 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @Override
     public boolean registerTimer(long stamp, Window window) {
-      Preconditions.checkState(this.scope.window().equals(window));
+      checkState(this.scope.window().equals(window));
       return scheduler.scheduleAt(stamp, this.scope, guardTriggerable(createTriggerHandler()));
     }
 
     @Override
     public void deleteTimer(long stamp, Window window) {
-      Preconditions.checkState(this.scope.window().equals(window));
+      checkState(this.scope.window().equals(window));
       scheduler.cancel(stamp, this.scope);
     }
 

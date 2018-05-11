@@ -47,6 +47,9 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * Collection of windowing teats.
+ */
 public class WindowingTest {
 
   private LocalExecutor executor;
@@ -130,7 +133,7 @@ public class WindowingTest {
   @Test
   public void testAttachedWindowing_ContinuousOutput()
       throws InterruptedException, ExecutionException {
-    final Duration READ_DELAY = Duration.ofMillis(73L);
+    final Duration readDelay = Duration.ofMillis(73L);
     Flow flow = Flow.create("Test");
 
     // ~ one partition; supplying every READ_DELAYS a new element
@@ -138,7 +141,7 @@ public class WindowingTest {
         flow.createInput(
             ListDataSource.unbounded(
                     asList(("r-one r-two r-three s-one s-two s-three t-one").split(" ")))
-                .withReadDelay(READ_DELAY));
+                .withReadDelay(readDelay));
 
     // ~ emits after 3 input elements received due to "count windowing"
     Dataset<Set<String>> first =
@@ -179,7 +182,7 @@ public class WindowingTest {
             .collect(Collectors.toList());
     assertEquals(3, ordered.size());
     // ~ test that we receive the first element earlier than the second one
-    assertSmaller(ordered.get(0).getFirst() + 2 * READ_DELAY.toMillis(), ordered.get(1).getFirst());
+    assertSmaller(ordered.get(0).getFirst() + 2 * readDelay.toMillis(), ordered.get(1).getFirst());
     assertEquals(Sets.newHashSet("r-one", "r-two", "r-three"), ordered.get(0).getSecond());
     assertEquals(Sets.newHashSet("s-one", "s-two", "s-three"), ordered.get(1).getSecond());
     assertEquals(Sets.newHashSet("t-one"), ordered.get(2).getSecond());
@@ -247,7 +250,7 @@ public class WindowingTest {
 
   @Test
   public void testWindowing_EndOfWindow_RBK() throws InterruptedException, ExecutionException {
-    final Duration READ_DELAY = Duration.ofMillis(50L);
+    final Duration readDelay = Duration.ofMillis(50L);
     Flow flow = Flow.create("Test");
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(1));
@@ -256,8 +259,8 @@ public class WindowingTest {
         flow.createInput(
             ListDataSource.unbounded(
                     asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
-                .withReadDelay(READ_DELAY)
-                .withFinalDelay(READ_DELAY.multipliedBy(2)));
+                .withReadDelay(readDelay)
+                .withFinalDelay(readDelay.multipliedBy(2)));
 
     // ~ create windows of size three
     Dataset<Pair<String, Set<String>>> first =

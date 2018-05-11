@@ -44,11 +44,11 @@ public interface TriggerScheduler<W extends Window, K> {
    */
   long getCurrentTimestamp();
 
-  /** Cancel all scheduled tasks */
+  /** Cancel all scheduled tasks. */
   void cancelAll();
 
   /**
-   * Cancel previously registered timer
+   * Cancel previously registered timer.
    *
    * @param stamp the time stamp of a previously registered schedule
    * @param window the window for this to cancel the timer

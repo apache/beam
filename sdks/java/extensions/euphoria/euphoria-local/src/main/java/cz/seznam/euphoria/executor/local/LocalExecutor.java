@@ -139,10 +139,14 @@ public class LocalExecutor implements Executor {
     }
 
     // watermark already handled
-    if (item.isWatermark()) return true;
+    if (item.isWatermark()) {
+      return true;
+    }
 
     // do not hadle elements
-    if (item.isElement()) return false;
+    if (item.isElement()) {
+      return false;
+    }
 
     // propagate window triggers to downstream consumers
     if (item.isWindowTrigger()) {

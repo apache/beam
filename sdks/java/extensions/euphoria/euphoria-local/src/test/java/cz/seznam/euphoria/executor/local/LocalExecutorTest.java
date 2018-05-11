@@ -263,8 +263,8 @@ public class LocalExecutorTest {
 
   @Test(timeout = 5000L)
   public void testInputMultiConsumption() throws InterruptedException, ExecutionException {
-    final int N = 1000;
-    Dataset<Integer> input = flow.createInput(ListDataSource.unbounded(sequenceInts(0, N)));
+    final int count = 1000;
+    Dataset<Integer> input = flow.createInput(ListDataSource.unbounded(sequenceInts(0, count)));
 
     // there seems to be bug in LocalExecutor
     // that makes it impossible to consume the
@@ -284,18 +284,18 @@ public class LocalExecutorTest {
 
     executor.submit(flow).get();
 
-    DatasetAssert.unorderedEquals(sumOut.getOutputs(), Pair.of(0, 2 * (N - 1) * N / 2));
+    DatasetAssert.unorderedEquals(sumOut.getOutputs(), Pair.of(0, 2 * (count - 1) * count / 2));
   }
 
   @Test
   public void testWithWatermarkAndEventTime() throws Exception {
 
-    int N = 2000;
+    int count = 2000;
 
     // generate some small ints, use them as event time and count them
     // in 10s windows
 
-    Dataset<Integer> input = flow.createInput(ListDataSource.unbounded(sequenceInts(0, N)));
+    Dataset<Integer> input = flow.createInput(ListDataSource.unbounded(sequenceInts(0, count)));
 
     ListDataSink<Long> outputs = ListDataSink.get();
 
@@ -341,13 +341,13 @@ public class LocalExecutorTest {
   @Test
   public void testWithWatermarkAndEventTimeAndDiscarding() throws Exception {
 
-    int N = 2000;
+    int count = 2000;
 
     // generate some small ints, use them as event time and count them
     // in 10s windows
 
     Dataset<Integer> input =
-        flow.createInput(ListDataSource.unbounded(reversed(sequenceInts(0, N))));
+        flow.createInput(ListDataSource.unbounded(reversed(sequenceInts(0, count))));
 
     ListDataSink<Long> outputs = ListDataSink.get();
 
@@ -373,14 +373,14 @@ public class LocalExecutorTest {
   @Test
   public void testWithWatermarkAndEventTimeMixed() throws Exception {
 
-    int N = 2000;
+    int count = 2000;
 
     // generate some small ints, use them as event time and count them
     // in 10s windows
 
     Dataset<Integer> input =
         flow.createInput(
-            ListDataSource.unbounded(sequenceInts(0, N)).withReadDelay(Duration.ofMillis(2)));
+            ListDataSource.unbounded(sequenceInts(0, count)).withReadDelay(Duration.ofMillis(2)));
 
     // first add some fake operator operating on processing time
     // doing virtually nothing
@@ -441,13 +441,13 @@ public class LocalExecutorTest {
   @Test
   public void testWatermarkSchedulerWithLatecomers()
       throws InterruptedException, ExecutionException {
-    int N = 2000;
+    int count = 2000;
 
     // generate some small ints, use them as event time and count them
     // in 10s windows
 
     Dataset<Integer> input =
-        flow.createInput(ListDataSource.unbounded(reversed(sequenceInts(0, N))));
+        flow.createInput(ListDataSource.unbounded(reversed(sequenceInts(0, count))));
 
     ListDataSink<Integer> outputs = ListDataSink.get();
 

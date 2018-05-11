@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Base class for various time triggering strategies */
+/** Base class for various time triggering strategies. */
 public abstract class AbstractTriggerScheduler implements TriggerScheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractTriggerScheduler.class);
@@ -118,7 +118,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     this.initializeScheduler();
   }
 
-  /** Trigger task to be scheduled */
+  /** Trigger task to be scheduled. */
   class TriggerTask implements Callable<Void> {
     private final long timestamp;
     private final KeyedWindow window;
@@ -155,7 +155,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     }
   }
 
-  /** Trigger task in scheduled state that can be cancelled */
+  /** Trigger task in scheduled state that can be cancelled. */
   class ScheduledTriggerTask extends TriggerTask {
     private final ScheduledFuture<Void> future;
 

@@ -38,6 +38,9 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * Test of Join operator.
+ */
 public class JoinOperatorTest {
 
   private Executor executor;
@@ -63,13 +66,13 @@ public class JoinOperatorTest {
     final Flow flow = Flow.create("Test");
 
     final Dataset<String> first =
-        MapElements.of(flow.createInput(ListDataSource.of(bounded, leftInput), i -> i._time))
-            .using(i -> i._e)
+        MapElements.of(flow.createInput(ListDataSource.of(bounded, leftInput), i -> i.time))
+            .using(i -> i.element)
             .output();
 
     final Dataset<String> second =
-        MapElements.of(flow.createInput(ListDataSource.of(bounded, rightInput), i -> i._time))
-            .using(i -> i._e)
+        MapElements.of(flow.createInput(ListDataSource.of(bounded, rightInput), i -> i.time))
+            .using(i -> i.element)
             .output();
 
     final UnaryFunctor<String, Pair<String, Integer>> toPair =
@@ -220,18 +223,18 @@ public class JoinOperatorTest {
         true);
   }
 
-  static final class I<E> {
-    E _e;
-    long _time;
+  static final class I<T> {
+    T element;
+    long time;
 
-    static <E> I<E> of(E e) {
+    static <T> I<T> of(T e) {
       return of(e, 0L);
     }
 
-    static <E> I<E> of(E e, long time) {
-      I<E> i = new I<>();
-      i._e = e;
-      i._time = time;
+    static <T> I<T> of(T e, long time) {
+      I<T> i = new I<>();
+      i.element = e;
+      i.time = time;
       return i;
     }
   }
