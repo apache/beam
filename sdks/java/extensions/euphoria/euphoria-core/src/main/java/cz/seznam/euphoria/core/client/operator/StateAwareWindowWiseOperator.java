@@ -25,29 +25,30 @@ import javax.annotation.Nullable;
 /** Operator with internal state. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
-        IN,
-        WIN,
-        KIN,
-        KEY,
-        OUT,
+        InputT,
+        WindowInT,
+        KeyInT,
+        K,
+        OutputT,
         W extends Window<W>,
-        OP extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
-    extends WindowWiseOperator<IN, WIN, OUT, W> implements StateAware<KIN, KEY> {
+        OperatorT extends
+            StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
+    extends WindowWiseOperator<InputT, WindowInT, OutputT, W> implements StateAware<KeyInT, K> {
 
-  protected final UnaryFunction<KIN, KEY> keyExtractor;
+  protected final UnaryFunction<KeyInT, K> keyExtractor;
 
   protected StateAwareWindowWiseOperator(
       String name,
       Flow flow,
-      @Nullable Windowing<WIN, W> windowing,
-      UnaryFunction<KIN, KEY> keyExtractor) {
+      @Nullable Windowing<WindowInT, W> windowing,
+      UnaryFunction<KeyInT, K> keyExtractor) {
 
     super(name, flow, windowing);
     this.keyExtractor = keyExtractor;
   }
 
   @Override
-  public UnaryFunction<KIN, KEY> getKeyExtractor() {
+  public UnaryFunction<KeyInT, K> getKeyExtractor() {
     return keyExtractor;
   }
 }

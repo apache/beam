@@ -64,18 +64,18 @@ import java.util.Set;
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
-public class Union<IN> extends Operator<IN, IN> {
+public class Union<InputT> extends Operator<InputT, InputT> {
 
-  final Dataset<IN> output;
-  private final List<Dataset<IN>> dataSets;
+  final Dataset<InputT> output;
+  private final List<Dataset<InputT>> dataSets;
 
   @SuppressWarnings("unchecked")
-  Union(String name, Flow flow, List<Dataset<IN>> dataSets) {
+  Union(String name, Flow flow, List<Dataset<InputT>> dataSets) {
     this(name, flow, dataSets, Collections.emptySet());
   }
 
   @SuppressWarnings("unchecked")
-  Union(String name, Flow flow, List<Dataset<IN>> dataSets, Set<OutputHint> outputHints) {
+  Union(String name, Flow flow, List<Dataset<InputT>> dataSets, Set<OutputHint> outputHints) {
     super(name, flow);
     Preconditions.checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
     Preconditions.checkArgument(
@@ -88,27 +88,27 @@ public class Union<IN> extends Operator<IN, IN> {
   /**
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
-   * @param <IN> the type of elements in the data sets
+   * @param <InputT> the type of elements in the data sets
    * @param dataSets at least the two data sets
    * @return the next builder to complete the setup of the {@link Union} operator
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
   @SafeVarargs
-  public static <IN> OutputBuilder<IN> of(Dataset<IN>... dataSets) {
+  public static <InputT> OutputBuilder<InputT> of(Dataset<InputT>... dataSets) {
     return of(Arrays.asList(dataSets));
   }
 
   /**
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
-   * @param <IN> the type of elements in the data sets
+   * @param <InputT> the type of elements in the data sets
    * @param dataSets at least the two data sets
    * @return the next builder to complete the setup of the {@link Union} operator
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
-  public static <IN> OutputBuilder<IN> of(List<Dataset<IN>> dataSets) {
+  public static <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
     return new OfBuilder("Union").of(dataSets);
   }
 
@@ -128,7 +128,7 @@ public class Union<IN> extends Operator<IN, IN> {
    * @return the output dataset of this operator
    */
   @Override
-  public Dataset<IN> output() {
+  public Dataset<InputT> output() {
     return output;
   }
 
@@ -138,7 +138,7 @@ public class Union<IN> extends Operator<IN, IN> {
    * @return a collection of the two input datasets this union represents
    */
   @Override
-  public Collection<Dataset<IN>> listInputs() {
+  public Collection<Dataset<InputT>> listInputs() {
     return dataSets;
   }
 
@@ -152,32 +152,32 @@ public class Union<IN> extends Operator<IN, IN> {
     /**
      * Specifies the two data sets to be "unioned".
      *
-     * @param <IN> the type of elements in the two datasets
+     * @param <InputT> the type of elements in the two datasets
      * @param dataSets at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
     @SafeVarargs
-    public final <IN> OutputBuilder<IN> of(Dataset<IN>... dataSets) {
+    public final <InputT> OutputBuilder<InputT> of(Dataset<InputT>... dataSets) {
       return of(Arrays.asList(dataSets));
     }
 
     /**
      * Specifies the two data sets to be "unioned".
      *
-     * @param <IN> the type of elements in the two datasets
+     * @param <InputT> the type of elements in the two datasets
      * @param dataSets at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
-    public <IN> OutputBuilder<IN> of(List<Dataset<IN>> dataSets) {
+    public <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
       return new OutputBuilder<>(name, dataSets);
     }
   }
 
-  public static class OutputBuilder<IN> implements Builders.Output<IN> {
+  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
     private final String name;
-    private final List<Dataset<IN>> dataSets;
+    private final List<Dataset<InputT>> dataSets;
 
-    OutputBuilder(String name, List<Dataset<IN>> dataSets) {
+    OutputBuilder(String name, List<Dataset<InputT>> dataSets) {
       Preconditions.checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
       Preconditions.checkArgument(
           dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
@@ -187,9 +187,9 @@ public class Union<IN> extends Operator<IN, IN> {
     }
 
     @Override
-    public Dataset<IN> output(OutputHint... outputHints) {
+    public Dataset<InputT> output(OutputHint... outputHints) {
       final Flow flow = dataSets.get(0).getFlow();
-      final Union<IN> union = new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints));
+      final Union<InputT> union = new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints));
       flow.add(union);
       return union.output();
     }

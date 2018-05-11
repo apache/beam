@@ -507,19 +507,19 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  public abstract static class JoinTestCase<LEFT, RIGHT, OUT> implements TestCase<OUT> {
+  public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
     @Override
-    public Dataset<OUT> getOutput(Flow flow, boolean bounded) {
-      Dataset<LEFT> left = flow.createInput(ListDataSource.of(bounded, getLeftInput()));
-      Dataset<RIGHT> right = flow.createInput(ListDataSource.of(bounded, getRightInput()));
+    public Dataset<OutputT> getOutput(Flow flow, boolean bounded) {
+      Dataset<LeftT> left = flow.createInput(ListDataSource.of(bounded, getLeftInput()));
+      Dataset<RightT> right = flow.createInput(ListDataSource.of(bounded, getRightInput()));
       return getOutput(left, right);
     }
 
-    protected abstract Dataset<OUT> getOutput(Dataset<LEFT> left, Dataset<RIGHT> right);
+    protected abstract Dataset<OutputT> getOutput(Dataset<LeftT> left, Dataset<RightT> right);
 
-    protected abstract List<LEFT> getLeftInput();
+    protected abstract List<LeftT> getLeftInput();
 
-    protected abstract List<RIGHT> getRightInput();
+    protected abstract List<RightT> getRightInput();
   }
 
   /** Stable windowing for test purposes. */

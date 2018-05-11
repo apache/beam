@@ -23,19 +23,19 @@ import javax.annotation.Nullable;
 
 /** Operator working on some context. */
 @Audience(Audience.Type.INTERNAL)
-public abstract class WindowWiseOperator<IN, WIN, OUT, W extends Window<W>>
-    extends Operator<IN, OUT> implements WindowAware<WIN, W> {
+public abstract class WindowWiseOperator<InputT, WindowInT, OutputT, W extends Window<W>>
+    extends Operator<InputT, OutputT> implements WindowAware<WindowInT, W> {
 
-  @Nullable protected Windowing<WIN, W> windowing;
+  @Nullable protected Windowing<WindowInT, W> windowing;
 
-  public WindowWiseOperator(String name, Flow flow, @Nullable Windowing<WIN, W> windowing) {
+  public WindowWiseOperator(String name, Flow flow, @Nullable Windowing<WindowInT, W> windowing) {
     super(name, flow);
     this.windowing = windowing;
   }
 
   @Nullable
   @Override
-  public Windowing<WIN, W> getWindowing() {
+  public Windowing<WindowInT, W> getWindowing() {
     return windowing;
   }
 }

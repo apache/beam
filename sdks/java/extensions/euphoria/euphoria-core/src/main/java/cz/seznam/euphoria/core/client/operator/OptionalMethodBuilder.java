@@ -22,10 +22,10 @@ import java.util.Objects;
 /**
  * Class to be extended by operator builders that want to make use of `applyIf` call.
  *
- * @param <BUILDER> the class of the builder that extends this class
+ * @param <BuilderT> the class of the builder that extends this class
  */
 @Audience(Audience.Type.INTERNAL)
-public interface OptionalMethodBuilder<BUILDER> {
+public interface OptionalMethodBuilder<BuilderT> {
 
   /**
    * Apply given modification to builder when condition evaluates to {@code true}.
@@ -35,28 +35,28 @@ public interface OptionalMethodBuilder<BUILDER> {
    * @return next step builder
    */
   @SuppressWarnings("unchecked")
-  default BUILDER applyIf(boolean cond, UnaryFunction<BUILDER, BUILDER> apply) {
+  default BuilderT applyIf(boolean cond, UnaryFunction<BuilderT, BuilderT> apply) {
     Objects.requireNonNull(apply);
-    return cond ? apply.apply((BUILDER) this) : (BUILDER) this;
+    return cond ? apply.apply((BuilderT) this) : (BuilderT) this;
   }
 
   /**
    * Apply given modifications to builder based on condition.
    *
    * @param cond the condition to evaluate
-   * @param applyTrue modification to apply when {@code cond} evaluates to {@code true}
+   * @param applyTrue modification to ap ply when {@code cond} evaluates to {@code true}
    * @param applyFalse modification to apply when {@code cond} evaluates to {@code false}
    * @return next step builder
    */
   @SuppressWarnings("unchecked")
-  default BUILDER applyIf(
+  default BuilderT applyIf(
       boolean cond,
-      UnaryFunction<BUILDER, BUILDER> applyTrue,
-      UnaryFunction<BUILDER, BUILDER> applyFalse) {
+      UnaryFunction<BuilderT, BuilderT> applyTrue,
+      UnaryFunction<BuilderT, BuilderT> applyFalse) {
 
     if (cond) {
-      return applyTrue.apply((BUILDER) this);
+      return applyTrue.apply((BuilderT) this);
     }
-    return applyFalse.apply((BUILDER) this);
+    return applyFalse.apply((BuilderT) this);
   }
 }

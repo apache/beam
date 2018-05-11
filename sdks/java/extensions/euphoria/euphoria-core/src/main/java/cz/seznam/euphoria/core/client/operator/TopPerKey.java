@@ -74,21 +74,21 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
-public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extends Window<W>>
+public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, W, TopPerKey<IN, KEY, VALUE, SCORE, W>> {
+        InputT, InputT, InputT, K, Triple<K, V, SCORE>, W, TopPerKey<InputT, K, V, SCORE, W>> {
 
-  private final UnaryFunction<IN, VALUE> valueFn;
-  private final UnaryFunction<IN, SCORE> scoreFn;
+  private final UnaryFunction<InputT, V> valueFn;
+  private final UnaryFunction<InputT, SCORE> scoreFn;
 
   TopPerKey(
       Flow flow,
       String name,
-      Dataset<IN> input,
-      UnaryFunction<IN, KEY> keyFn,
-      UnaryFunction<IN, VALUE> valueFn,
-      UnaryFunction<IN, SCORE> scoreFn,
-      @Nullable Windowing<IN, W> windowing,
+      Dataset<InputT> input,
+      UnaryFunction<InputT, K> keyFn,
+      UnaryFunction<InputT, V> valueFn,
+      UnaryFunction<InputT, SCORE> scoreFn,
+      @Nullable Windowing<InputT, W> windowing,
       Set<OutputHint> outputHints) {
     super(name, flow, input, keyFn, windowing, outputHints);
 
@@ -99,13 +99,13 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
   /**
    * Starts building a nameless {@link TopPerKey} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
     return new KeyByBuilder<>("TopPerKey", input);
   }
 
@@ -119,11 +119,11 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
     return new OfBuilder(name);
   }
 
-  public UnaryFunction<IN, VALUE> getValueExtractor() {
+  public UnaryFunction<InputT, V> getValueExtractor() {
     return valueFn;
   }
 
-  public UnaryFunction<IN, SCORE> getScoreExtractor() {
+  public UnaryFunction<InputT, SCORE> getScoreExtractor() {
     return scoreFn;
   }
 
@@ -131,25 +131,23 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
-    StateSupport.MergeFromStateMerger<
-            Pair<VALUE, SCORE>, Pair<VALUE, SCORE>, MaxScored<VALUE, SCORE>>
+    StateSupport.MergeFromStateMerger<Pair<V, SCORE>, Pair<V, SCORE>, MaxScored<V, SCORE>>
         stateCombiner = new StateSupport.MergeFromStateMerger<>();
-    ReduceStateByKey<IN, KEY, Pair<VALUE, SCORE>, Pair<VALUE, SCORE>, MaxScored<VALUE, SCORE>, W>
-        reduce =
-            new ReduceStateByKey<>(
-                getName() + "::ReduceStateByKey",
-                flow,
-                input,
-                keyExtractor,
-                e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
-                windowing,
-                (StateContext context, Collector<Pair<VALUE, SCORE>> collector) -> {
-                  return new MaxScored<>(context.getStorageProvider());
-                },
-                stateCombiner,
-                Collections.emptySet());
+    ReduceStateByKey<InputT, K, Pair<V, SCORE>, Pair<V, SCORE>, MaxScored<V, SCORE>, W> reduce =
+        new ReduceStateByKey<>(
+            getName() + "::ReduceStateByKey",
+            flow,
+            input,
+            keyExtractor,
+            e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
+            windowing,
+            (StateContext context, Collector<Pair<V, SCORE>> collector) -> {
+              return new MaxScored<>(context.getStorageProvider());
+            },
+            stateCombiner,
+            Collections.emptySet());
 
-    MapElements<Pair<KEY, Pair<VALUE, SCORE>>, Triple<KEY, VALUE, SCORE>> format =
+    MapElements<Pair<K, Pair<V, SCORE>>, Triple<K, V, SCORE>> format =
         new MapElements<>(
             getName() + "::MapElements",
             flow,
@@ -216,77 +214,80 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
     }
 
     @Override
-    public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
       return new KeyByBuilder<>(name, input);
     }
   }
 
-  public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
+  public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    KeyByBuilder(String name, Dataset<IN> input) {
+    KeyByBuilder(String name, Dataset<InputT> input) {
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
     }
 
     @Override
-    public <K> ValueByBuilder<IN, K> keyBy(UnaryFunction<IN, K> keyFn) {
+    public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyFn) {
       return new ValueByBuilder<>(name, input, requireNonNull(keyFn));
     }
   }
 
-  public static class ValueByBuilder<IN, K> {
+  public static class ValueByBuilder<InputT, K> {
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, K> keyFn;
+    private final Dataset<InputT> input;
+    private final UnaryFunction<InputT, K> keyFn;
 
-    ValueByBuilder(String name, Dataset<IN> input, UnaryFunction<IN, K> keyFn) {
+    ValueByBuilder(String name, Dataset<InputT> input, UnaryFunction<InputT, K> keyFn) {
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
       this.keyFn = requireNonNull(keyFn);
     }
 
-    public <V> ScoreByBuilder<IN, K, V> valueBy(UnaryFunction<IN, V> valueFn) {
+    public <V> ScoreByBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueFn) {
       return new ScoreByBuilder<>(name, input, keyFn, requireNonNull(valueFn));
     }
   }
 
-  public static class ScoreByBuilder<IN, K, V> {
+  public static class ScoreByBuilder<InputT, K, V> {
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, K> keyFn;
-    private final UnaryFunction<IN, V> valueFn;
+    private final Dataset<InputT> input;
+    private final UnaryFunction<InputT, K> keyFn;
+    private final UnaryFunction<InputT, V> valueFn;
 
     ScoreByBuilder(
-        String name, Dataset<IN> input, UnaryFunction<IN, K> keyFn, UnaryFunction<IN, V> valueFn) {
+        String name,
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyFn,
+        UnaryFunction<InputT, V> valueFn) {
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
       this.keyFn = requireNonNull(keyFn);
       this.valueFn = requireNonNull(valueFn);
     }
 
-    public <S extends Comparable<S>> WindowByBuilder<IN, K, V, S> scoreBy(
-        UnaryFunction<IN, S> scoreFn) {
+    public <S extends Comparable<S>> WindowByBuilder<InputT, K, V, S> scoreBy(
+        UnaryFunction<InputT, S> scoreFn) {
       return new WindowByBuilder<>(name, input, keyFn, valueFn, requireNonNull(scoreFn));
     }
   }
 
-  public static class WindowByBuilder<IN, K, V, S extends Comparable<S>>
-      implements Builders.WindowBy<IN, WindowByBuilder<IN, K, V, S>>,
+  public static class WindowByBuilder<InputT, K, V, S extends Comparable<S>>
+      implements Builders.WindowBy<InputT, WindowByBuilder<InputT, K, V, S>>,
           Builders.Output<Triple<K, V, S>> {
     final String name;
-    final Dataset<IN> input;
-    final UnaryFunction<IN, K> keyFn;
-    final UnaryFunction<IN, V> valueFn;
-    final UnaryFunction<IN, S> scoreFn;
+    final Dataset<InputT> input;
+    final UnaryFunction<InputT, K> keyFn;
+    final UnaryFunction<InputT, V> valueFn;
+    final UnaryFunction<InputT, S> scoreFn;
 
     WindowByBuilder(
         String name,
-        Dataset<IN> input,
-        UnaryFunction<IN, K> keyFn,
-        UnaryFunction<IN, V> valueFn,
-        UnaryFunction<IN, S> scoreFn) {
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyFn,
+        UnaryFunction<InputT, V> valueFn,
+        UnaryFunction<InputT, S> scoreFn) {
 
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
@@ -296,8 +297,8 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<IN, K, V, S, W> windowBy(
-        Windowing<IN, W> windowing) {
+    public <W extends Window<W>> OutputBuilder<InputT, K, V, S, W> windowBy(
+        Windowing<InputT, W> windowing) {
       return new OutputBuilder<>(name, input, keyFn, valueFn, scoreFn, requireNonNull(windowing));
     }
 
@@ -307,18 +308,18 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
     }
   }
 
-  public static class OutputBuilder<IN, K, V, S extends Comparable<S>, W extends Window<W>>
-      extends WindowByBuilder<IN, K, V, S> {
+  public static class OutputBuilder<InputT, K, V, S extends Comparable<S>, W extends Window<W>>
+      extends WindowByBuilder<InputT, K, V, S> {
 
-    @Nullable private final Windowing<IN, W> windowing;
+    @Nullable private final Windowing<InputT, W> windowing;
 
     OutputBuilder(
         String name,
-        Dataset<IN> input,
-        UnaryFunction<IN, K> keyFn,
-        UnaryFunction<IN, V> valueFn,
-        UnaryFunction<IN, S> scoreFn,
-        @Nullable Windowing<IN, W> windowing) {
+        Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyFn,
+        UnaryFunction<InputT, V> valueFn,
+        UnaryFunction<InputT, S> scoreFn,
+        @Nullable Windowing<InputT, W> windowing) {
 
       super(name, input, keyFn, valueFn, scoreFn);
       this.windowing = windowing;
@@ -327,7 +328,7 @@ public class TopPerKey<IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extend
     @Override
     public Dataset<Triple<K, V, S>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      TopPerKey<IN, K, V, S, W> top =
+      TopPerKey<InputT, K, V, S, W> top =
           new TopPerKey<>(
               flow, name, input, keyFn, valueFn, scoreFn, windowing, Sets.newHashSet(outputHints));
       flow.add(top);

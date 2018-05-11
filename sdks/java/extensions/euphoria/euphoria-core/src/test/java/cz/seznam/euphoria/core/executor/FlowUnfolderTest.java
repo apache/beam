@@ -219,16 +219,16 @@ public class FlowUnfolderTest {
     }
   }
 
-  static class MySingleInputOperator<IN, OUT> extends SingleInputOperator<IN, OUT> {
+  static class MySingleInputOperator<InputT, OutputT> extends SingleInputOperator<InputT, OutputT> {
 
-    final Dataset<OUT> output = Datasets.createOutputFor(true, this);
+    final Dataset<OutputT> output = Datasets.createOutputFor(true, this);
 
-    MySingleInputOperator(Dataset<IN> input) {
+    MySingleInputOperator(Dataset<InputT> input) {
       super("MySingleInputOperator", input.getFlow(), input);
     }
 
     @Override
-    public Dataset<OUT> output() {
+    public Dataset<OutputT> output() {
       return output;
     }
   }

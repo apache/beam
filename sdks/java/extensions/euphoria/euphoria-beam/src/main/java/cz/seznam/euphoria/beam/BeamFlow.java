@@ -171,7 +171,7 @@ public class BeamFlow extends Flow {
 
   @SuppressWarnings("unchecked")
   @Override
-  public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
+  public <InputT, OutputT, T extends Operator<InputT, OutputT>> T add(T operator) {
     T ret = super.add(operator);
     List<Operator<?, ?>> inputOperators =
         operator
@@ -190,8 +190,8 @@ public class BeamFlow extends Flow {
     context.setTranslationDAG(unfolded);
     FlowTranslator.updateContextBy(unfolded, context);
     // register the output of the sub-dag as output of the original operator
-    Dataset<OUT> output = operator.output();
-    Dataset<OUT> dagOutput = (Dataset) Iterables.getOnlyElement(unfolded.getLeafs()).get().output();
+    Dataset<OutputT> output = operator.output();
+    Dataset<OutputT> dagOutput = (Dataset) Iterables.getOnlyElement(unfolded.getLeafs()).get().output();
     if (output != dagOutput) {
       context.setPCollection(output, unwrapped(dagOutput));
     }

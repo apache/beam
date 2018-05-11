@@ -57,16 +57,16 @@ import javax.annotation.Nullable;
   state = StateComplexity.CONSTANT,
   repartitions = 1
 )
-public class Distinct<IN, ELEM, W extends Window<W>>
+public class Distinct<InputT, ELEM, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>> {
+        InputT, InputT, InputT, ELEM, ELEM, W, Distinct<InputT, ELEM, W>> {
 
   Distinct(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, ELEM> mapper,
-      @Nullable Windowing<IN, W> windowing,
+      Dataset<InputT> input,
+      UnaryFunction<InputT, ELEM> mapper,
+      @Nullable Windowing<InputT, W> windowing,
       Set<OutputHint> outputHints) {
 
     super(name, flow, input, mapper, windowing, outputHints);
@@ -75,13 +75,13 @@ public class Distinct<IN, ELEM, W extends Window<W>>
   /**
    * Starts building a nameless {@link Distinct} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> MappedBuilder<IN, IN> of(Dataset<IN> input) {
+  public static <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input) {
     return new MappedBuilder<>("Distinct", input);
   }
 
@@ -99,7 +99,7 @@ public class Distinct<IN, ELEM, W extends Window<W>>
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = input.getFlow();
     String name = getName() + "::" + "ReduceByKey";
-    ReduceByKey<IN, ELEM, Void, Void, W> reduce =
+    ReduceByKey<InputT, ELEM, Void, Void, W> reduce =
         new ReduceByKey<>(
             name,
             flow,
@@ -127,15 +127,15 @@ public class Distinct<IN, ELEM, W extends Window<W>>
     }
 
     @Override
-    public <IN> MappedBuilder<IN, IN> of(Dataset<IN> input) {
+    public <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input) {
       return new MappedBuilder<>(name, input);
     }
   }
 
-  public static class MappedBuilder<IN, ELEM> extends WindowingBuilder<IN, ELEM> {
+  public static class MappedBuilder<InputT, ELEM> extends WindowingBuilder<InputT, ELEM> {
 
     @SuppressWarnings("unchecked")
-    private MappedBuilder(String name, Dataset<IN> input) {
+    private MappedBuilder(String name, Dataset<InputT> input) {
 
       super(name, input, (UnaryFunction) e -> e);
     }
@@ -151,21 +151,22 @@ public class Distinct<IN, ELEM, W extends Window<W>>
      * @param mapper a transform function applied to input element
      * @return the next builder to complete the setup of the {@link Distinct} operator
      */
-    public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
+    public <ELEM> WindowingBuilder<InputT, ELEM> mapped(UnaryFunction<InputT, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
     }
   }
 
-  public static class WindowingBuilder<IN, ELEM>
-      implements Builders.WindowBy<IN, WindowingBuilder<IN, ELEM>>,
+  public static class WindowingBuilder<InputT, ELEM>
+      implements Builders.WindowBy<InputT, WindowingBuilder<InputT, ELEM>>,
           Builders.Output<ELEM>,
-          OptionalMethodBuilder<WindowingBuilder<IN, ELEM>> {
+          OptionalMethodBuilder<WindowingBuilder<InputT, ELEM>> {
 
     final String name;
-    final Dataset<IN> input;
-    final UnaryFunction<IN, ELEM> mapper;
+    final Dataset<InputT> input;
+    final UnaryFunction<InputT, ELEM> mapper;
 
-    private WindowingBuilder(String name, Dataset<IN> input, UnaryFunction<IN, ELEM> mapper) {
+    private WindowingBuilder(
+        String name, Dataset<InputT> input, UnaryFunction<InputT, ELEM> mapper) {
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -173,7 +174,8 @@ public class Distinct<IN, ELEM, W extends Window<W>>
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<IN, ELEM, W> windowBy(Windowing<IN, W> windowing) {
+    public <W extends Window<W>> OutputBuilder<InputT, ELEM, W> windowBy(
+        Windowing<InputT, W> windowing) {
       return new OutputBuilder<>(name, input, mapper, windowing);
     }
 
@@ -182,16 +184,16 @@ public class Distinct<IN, ELEM, W extends Window<W>>
     }
   }
 
-  public static class OutputBuilder<IN, ELEM, W extends Window<W>>
-      extends WindowingBuilder<IN, ELEM> implements Builders.Output<ELEM> {
+  public static class OutputBuilder<InputT, ELEM, W extends Window<W>>
+      extends WindowingBuilder<InputT, ELEM> implements Builders.Output<ELEM> {
 
-    @Nullable private final Windowing<IN, W> windowing;
+    @Nullable private final Windowing<InputT, W> windowing;
 
     OutputBuilder(
         String name,
-        Dataset<IN> input,
-        UnaryFunction<IN, ELEM> mapper,
-        @Nullable Windowing<IN, W> windowing) {
+        Dataset<InputT> input,
+        UnaryFunction<InputT, ELEM> mapper,
+        @Nullable Windowing<InputT, W> windowing) {
 
       super(name, input, mapper);
       this.windowing = windowing;
@@ -200,7 +202,7 @@ public class Distinct<IN, ELEM, W extends Window<W>>
     @Override
     public Dataset<ELEM> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      Distinct<IN, ELEM, W> distinct =
+      Distinct<InputT, ELEM, W> distinct =
           new Distinct<>(name, flow, input, mapper, windowing, Sets.newHashSet(outputHints));
       flow.add(distinct);
       return distinct.output();

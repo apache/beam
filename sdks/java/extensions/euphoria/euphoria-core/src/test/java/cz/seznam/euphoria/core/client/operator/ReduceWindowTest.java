@@ -100,9 +100,10 @@ public class ReduceWindowTest {
     assertTrue(producer.windowing instanceof Time);
   }
 
-  private <IN, OUT> OUT collectSingle(ReduceFunctor<IN, OUT> fn, Stream<IN> values) {
+  private <InputT, OutputT> OutputT collectSingle(
+      ReduceFunctor<InputT, OutputT> fn, Stream<InputT> values) {
 
-    SingleValueContext<OUT> context;
+    SingleValueContext<OutputT> context;
     context = new SingleValueContext<>();
     fn.apply(values, context);
     return context.getAndResetValue();

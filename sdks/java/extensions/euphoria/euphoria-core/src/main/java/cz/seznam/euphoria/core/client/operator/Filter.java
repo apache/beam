@@ -43,15 +43,15 @@ import java.util.Set;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class Filter<IN> extends ElementWiseOperator<IN, IN> {
+public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
 
-  final UnaryPredicate<IN> predicate;
+  final UnaryPredicate<InputT> predicate;
 
   Filter(
       String name,
       Flow flow,
-      Dataset<IN> input,
-      UnaryPredicate<IN> predicate,
+      Dataset<InputT> input,
+      UnaryPredicate<InputT> predicate,
       Set<OutputHint> outputHints) {
     super(name, flow, input, outputHints);
     this.predicate = predicate;
@@ -60,13 +60,13 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
   /**
    * Starts building a nameless {@link Filter} operator to process the given input dataset.
    *
-   * @param <IN> the type of elements of the input dataset
+   * @param <InputT> the type of elements of the input dataset
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> ByBuilder<IN> of(Dataset<IN> input) {
+  public static <InputT> ByBuilder<InputT> of(Dataset<InputT> input) {
     return new ByBuilder<>("Filter", input);
   }
 
@@ -80,7 +80,7 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
     return new OfBuilder(name);
   }
 
-  public UnaryPredicate<IN> getPredicate() {
+  public UnaryPredicate<InputT> getPredicate() {
     return predicate;
   }
 
@@ -109,16 +109,16 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
     }
 
     @Override
-    public <IN> ByBuilder<IN> of(Dataset<IN> input) {
+    public <InputT> ByBuilder<InputT> of(Dataset<InputT> input) {
       return new ByBuilder<>(name, input);
     }
   }
 
-  public static class ByBuilder<IN> {
+  public static class ByBuilder<InputT> {
     private final String name;
-    private final Dataset<IN> input;
+    private final Dataset<InputT> input;
 
-    ByBuilder(String name, Dataset<IN> input) {
+    ByBuilder(String name, Dataset<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
@@ -130,27 +130,28 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
      *     is false
      * @return the next builder to complete the setup of the operator
      */
-    public Builders.Output<IN> by(UnaryPredicate<IN> predicate) {
+    public Builders.Output<InputT> by(UnaryPredicate<InputT> predicate) {
       return new OutputBuilder<>(name, input, predicate);
     }
   }
 
-  public static class OutputBuilder<IN> implements Builders.Output<IN> {
+  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
 
     private final String name;
-    private final Dataset<IN> input;
-    private final UnaryPredicate<IN> predicate;
+    private final Dataset<InputT> input;
+    private final UnaryPredicate<InputT> predicate;
 
-    private OutputBuilder(String name, Dataset<IN> input, UnaryPredicate<IN> predicate) {
+    private OutputBuilder(String name, Dataset<InputT> input, UnaryPredicate<InputT> predicate) {
       this.name = name;
       this.input = input;
       this.predicate = predicate;
     }
 
     @Override
-    public Dataset<IN> output(OutputHint... outputHints) {
+    public Dataset<InputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      Filter<IN> filter = new Filter<>(name, flow, input, predicate, Sets.newHashSet(outputHints));
+      Filter<InputT> filter =
+          new Filter<>(name, flow, input, predicate, Sets.newHashSet(outputHints));
       flow.add(filter);
 
       return filter.output();

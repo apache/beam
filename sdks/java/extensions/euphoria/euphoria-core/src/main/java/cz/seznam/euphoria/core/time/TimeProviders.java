@@ -35,7 +35,7 @@ public class TimeProviders {
   }
 
   /**
-   * Retrieves a time provider based on the default timezone
+   * Retrieves a time provider based on the default timezone.
    *
    * @return a default time provider based on the jvm's "current" time zone and the machines local
    *     datetime
@@ -45,7 +45,7 @@ public class TimeProviders {
   }
 
   /**
-   * Retrieves a time provider parametrized by the specified timezone
+   * Retrieves a time provider parametrized by the specified timezone.
    *
    * @param tz timezone
    * @return a time provider based on the specified time zone
@@ -55,7 +55,7 @@ public class TimeProviders {
   }
 
   /**
-   * Retrieves a time provider with fixed datetime
+   * Retrieves a time provider with fixed datetime.
    *
    * @param d the fixed point in time
    * @return a time provider based on the a fixed point in time
@@ -64,6 +64,7 @@ public class TimeProviders {
     return new FixedTimeProvider(d);
   }
 
+  /** */
   public abstract static class AbstractTimeProvider implements TimeProvider {
 
     @Override
@@ -92,7 +93,7 @@ public class TimeProviders {
     public abstract Calendar nowAsCalendar();
   } // ~ end of AbstractTimeProvider
 
-  /** {@link TimeProvider} implementation based on the real system time and default timezone */
+  /** {@link TimeProvider} implementation based on the real system time and default timezone. */
   static class DefaultTimeProvider extends AbstractTimeProvider {
     @Override
     public Calendar nowAsCalendar() {
@@ -127,7 +128,7 @@ public class TimeProviders {
     }
   } // ~ end of FixedTimeProvider
 
-  /** {@link TimeProvider} implementation based on the real system time and given timezone */
+  /** {@link TimeProvider} implementation based on the real system time and given timezone. */
   static class TimezoneTimeProvider extends AbstractTimeProvider {
     private final TimeZone timezone;
 

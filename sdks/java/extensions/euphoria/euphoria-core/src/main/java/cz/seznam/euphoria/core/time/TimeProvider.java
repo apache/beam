@@ -28,14 +28,14 @@ import java.util.Date;
 public interface TimeProvider extends Serializable {
 
   /**
-   * Retrieves the current moment of time (timestamp of "now")
+   * Retrieves the current moment of time (timestamp of "now").
    *
    * @return the "current" timestamp; never {@code null}
    */
   Date now();
 
   /**
-   * Retrieves he current moment of time (timestamp of "now") with given offset added
+   * Retrieves he current moment of time (timestamp of "now") with given offset added.
    *
    * @param offset offset in milliseconds
    * @return the "current" timestamp with offset; never {@code null}
