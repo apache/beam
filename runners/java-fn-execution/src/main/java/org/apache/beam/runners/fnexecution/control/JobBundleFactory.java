@@ -27,5 +27,5 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
  * <p>Releases all job-scoped resources when closed.
  */
 public interface JobBundleFactory extends AutoCloseable {
-  StageBundleFactory forStage(ExecutableStage executableStage);
+  <T> StageBundleFactory<T> forStage(ExecutableStage executableStage);
 }
