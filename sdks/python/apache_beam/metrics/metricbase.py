@@ -32,6 +32,10 @@ Available classes:
 - MetricName - Namespace and name used to refer to a Metric.
 """
 
+from __future__ import absolute_import
+
+from builtins import object
+
 from apache_beam.portability.api import beam_fn_api_pb2
 
 __all__ = ['Metric', 'Counter', 'Distribution', 'Gauge', 'MetricName']
