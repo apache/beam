@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.beam.testkit;
 
 import cz.seznam.euphoria.operator.test.FlatMapTest;
-import cz.seznam.euphoria.operator.test.ReduceByKeyTest;
 import cz.seznam.euphoria.operator.test.UnionTest;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProviderRunner;
@@ -24,28 +23,26 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
- * This is a copy of {@link cz.seznam.euphoria.operator.test.AllOperatorsSuite} to allow us
- * track progress on incrementally implementing operator and their tests.
- * TODO: When done, this class should go away and original should be used instead
+ * This is a copy of {@link cz.seznam.euphoria.operator.test.AllOperatorsSuite} to allow us track
+ * progress on incrementally implementing operator and their tests. TODO: When done, this class
+ * should go away and original should be used instead
  */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({
-//    CountByKeyTest.class,
-//    DistinctTest.class,
-//    FilterTest.class,
-    FlatMapTest.class,
-//    JoinTest.class,
-//    JoinWindowEnforcementTest.class,
-//    MapElementsTest.class,
-//    ReduceByKeyTest.class,
-//    ReduceStateByKeyTest.class,
-//    SumByKeyTest.class,
-//    TopPerKeyTest.class,
-//    SortTest.class,
-    UnionTest.class,
-//    WindowingTest.class,
-//    WatermarkTest.class,
+  //    CountByKeyTest.class,
+  //    DistinctTest.class,
+  //    FilterTest.class,
+  FlatMapTest.class,
+  //    JoinTest.class,
+  //    JoinWindowEnforcementTest.class,
+  //    MapElementsTest.class,
+  //    ReduceByKeyTest.class,
+  //    ReduceStateByKeyTest.class,
+  //    SumByKeyTest.class,
+  //    TopPerKeyTest.class,
+  //    SortTest.class,
+  UnionTest.class,
+  //    WindowingTest.class,
+  //    WatermarkTest.class,
 })
-public abstract class BeamOperatorsSuite implements ExecutorProvider {
-
-}
+public abstract class BeamOperatorsSuite implements ExecutorProvider {}

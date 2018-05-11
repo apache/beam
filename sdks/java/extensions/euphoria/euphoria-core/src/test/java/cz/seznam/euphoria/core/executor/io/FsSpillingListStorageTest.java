@@ -15,27 +15,25 @@
  */
 package cz.seznam.euphoria.core.executor.io;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class FsSpillingListStorageTest {
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   TmpFolderSpillFileFactory spillFiles;
 
@@ -46,8 +44,8 @@ public class FsSpillingListStorageTest {
 
   @Test
   public void testAddMaxElemsDoesNotSpill() {
-    FsSpillingListStorage<String> storage = new FsSpillingListStorage<>(
-        new JavaSerializationFactory(), spillFiles, 3);
+    FsSpillingListStorage<String> storage =
+        new FsSpillingListStorage<>(new JavaSerializationFactory(), spillFiles, 3);
 
     // ~ add exactly 3 elements
     storage.add("foo");
@@ -66,8 +64,8 @@ public class FsSpillingListStorageTest {
 
   @Test
   public void testAddOneExactSpill() {
-    FsSpillingListStorage<String> storage = new FsSpillingListStorage<>(
-        new JavaSerializationFactory(), spillFiles, 3);
+    FsSpillingListStorage<String> storage =
+        new FsSpillingListStorage<>(new JavaSerializationFactory(), spillFiles, 3);
     storage.addAll(Arrays.asList("one", "two", "three", "four"));
 
     // ~ assert the data was spilled
@@ -76,13 +74,9 @@ public class FsSpillingListStorageTest {
 
     // ~ assert we can read the content (repeatedly)
     Iterable<String> elements = storage.get();
-    assertEquals(
-        Arrays.asList("one", "two", "three", "four"),
-        Lists.newArrayList(elements));
+    assertEquals(Arrays.asList("one", "two", "three", "four"), Lists.newArrayList(elements));
 
-    assertEquals(
-        Arrays.asList("one", "two", "three", "four"),
-        Lists.newArrayList(elements));
+    assertEquals(Arrays.asList("one", "two", "three", "four"), Lists.newArrayList(elements));
 
     // ~ assert that the spill files get properly cleaned up
     storage.clear();
@@ -91,9 +85,8 @@ public class FsSpillingListStorageTest {
 
   @Test
   public void testMixedIteration() {
-    List<String> input = Arrays.asList(
-        "one", "two", "three", "four", "five", "six", "seven", "eight");
-
+    List<String> input =
+        Arrays.asList("one", "two", "three", "four", "five", "six", "seven", "eight");
 
     FsSpillingListStorage<String> storage =
         new FsSpillingListStorage<>(new JavaSerializationFactory(), spillFiles, 5);
@@ -112,7 +105,7 @@ public class FsSpillingListStorageTest {
     assertEquals(input.get(0), first.next());
     assertEquals(input.get(1), first.next());
     for (int i = 0; i < input.size(); i++) {
-      if (i+2 < input.size()) {
+      if (i + 2 < input.size()) {
         assertEquals(input.get(i + 2), first.next());
       }
       assertEquals(input.get(i), second.next());
@@ -127,16 +120,15 @@ public class FsSpillingListStorageTest {
 
   @Test
   public void testCloseOutput() {
-    List<String> input = Arrays.asList(
-        "one", "two", "three", "four", "five", "six", "seven", "eight");
-
+    List<String> input =
+        Arrays.asList("one", "two", "three", "four", "five", "six", "seven", "eight");
 
     FsSpillingListStorage<String> storage =
         new FsSpillingListStorage<>(new JavaSerializationFactory(), spillFiles, 5);
     storage.addAll(input);
     storage.closeOutput();
-    assertEquals(input, StreamSupport
-        .stream(storage.get().spliterator(), false)
-        .collect(Collectors.toList()));
+    assertEquals(
+        input,
+        StreamSupport.stream(storage.get().spliterator(), false).collect(Collectors.toList()));
   }
 }

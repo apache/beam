@@ -18,9 +18,7 @@ package cz.seznam.euphoria.core.client.operator.state;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 
-/**
- * A state for stateful operations.
- */
+/** A state for stateful operations. */
 @Audience(Audience.Type.CLIENT)
 public interface State<IN, OUT> {
 
@@ -32,18 +30,15 @@ public interface State<IN, OUT> {
   void add(IN element);
 
   /**
-   * Flush the state to output. Invoked when window this
-   * state is part of gets disposed/triggered.
+   * Flush the state to output. Invoked when window this state is part of gets disposed/triggered.
    *
-   * @param context the context to utilize for emitting output elements;
-   *                 never {@code null}
+   * @param context the context to utilize for emitting output elements; never {@code null}
    */
   void flush(Collector<OUT> context);
 
   /**
-   * Closes this state. Invoked after {@link #flush(Collector)} and before
-   * this state gets disposed to allow clean-up of temporary state storage.
+   * Closes this state. Invoked after {@link #flush(Collector)} and before this state gets disposed
+   * to allow clean-up of temporary state storage.
    */
   void close();
-
 }

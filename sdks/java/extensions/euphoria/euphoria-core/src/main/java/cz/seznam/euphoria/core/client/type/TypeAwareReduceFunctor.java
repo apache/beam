@@ -17,21 +17,13 @@ package cz.seznam.euphoria.core.client.type;
 
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
-
 import java.util.stream.Stream;
 
-public class TypeAwareReduceFunctor<I, O>
-    extends AbstractTypeAware<ReduceFunctor<I, O>, O>
+public class TypeAwareReduceFunctor<I, O> extends AbstractTypeAware<ReduceFunctor<I, O>, O>
     implements ReduceFunctor<I, O> {
 
   private TypeAwareReduceFunctor(ReduceFunctor<I, O> functor, TypeHint<O> resultType) {
     super(functor, resultType);
-  }
-
-  @Override
-  public void apply(Stream<I> elem, Collector<O> collector) {
-    getDelegate().apply(elem, collector);
-
   }
 
   public static <I, O> TypeAwareReduceFunctor<I, O> of(
@@ -39,4 +31,8 @@ public class TypeAwareReduceFunctor<I, O>
     return new TypeAwareReduceFunctor<>(functor, typeHint);
   }
 
+  @Override
+  public void apply(Stream<I> elem, Collector<O> collector) {
+    getDelegate().apply(elem, collector);
+  }
 }

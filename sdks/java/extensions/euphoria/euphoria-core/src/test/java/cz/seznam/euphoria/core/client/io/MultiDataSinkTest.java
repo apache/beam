@@ -15,14 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import org.junit.Test;
-import org.mockito.Mockito;
-
-import java.io.IOException;
-
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
+import java.io.IOException;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class MultiDataSinkTest {
 
@@ -31,8 +30,8 @@ public class MultiDataSinkTest {
     ListDataSink<String> firstDataSink = ListDataSink.get();
     ListDataSink<String> secondDataSink = ListDataSink.get();
     ListDataSink<String> thirdDataSink = ListDataSink.get();
-    DataSink<InputElement> output = createMultiDataSink(firstDataSink, secondDataSink,
-        thirdDataSink);
+    DataSink<InputElement> output =
+        createMultiDataSink(firstDataSink, secondDataSink, thirdDataSink);
 
     // write to first sink
     Writer<InputElement> wr = output.openWriter(0);
@@ -54,8 +53,7 @@ public class MultiDataSinkTest {
   }
 
   /**
-   *  Added one datasink twice to test if multiDataSink is calling commit on
-   *  all his added DataSinks
+   * Added one datasink twice to test if multiDataSink is calling commit on all his added DataSinks
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -75,11 +73,8 @@ public class MultiDataSinkTest {
   }
 
   private DataSink<InputElement> createMultiDataSink(
-      ListDataSink<String> sink1,
-      ListDataSink<String> sink2,
-      ListDataSink<String> sink3) {
-    return MultiDataSink
-        .selectBy(InputElement::getType)
+      ListDataSink<String> sink1, ListDataSink<String> sink2, ListDataSink<String> sink3) {
+    return MultiDataSink.selectBy(InputElement::getType)
         .addSink(InputElement.Type.FIRST, InputElement::getPayload, sink1)
         .addSink(InputElement.Type.SECOND, InputElement::getPayload, sink2)
         .addSink(InputElement.Type.THIRD, InputElement::getPayload, sink3)
@@ -87,12 +82,6 @@ public class MultiDataSinkTest {
   }
 
   private static class InputElement {
-
-    enum Type {
-      FIRST,
-      SECOND,
-      THIRD
-    }
 
     private final Type type;
     private final String payload;
@@ -108,6 +97,12 @@ public class MultiDataSinkTest {
 
     String getPayload() {
       return payload;
+    }
+
+    enum Type {
+      FIRST,
+      SECOND,
+      THIRD
     }
   }
 }

@@ -15,12 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class MapElementsTest {
 
@@ -29,10 +31,7 @@ public class MapElementsTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> mapped = MapElements.named("Map1")
-       .of(dataset)
-       .using(s -> s)
-       .output();
+    Dataset<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
 
     assertEquals(flow, mapped.getFlow());
     assertEquals(1, flow.size());
@@ -49,14 +48,16 @@ public class MapElementsTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> mapped = MapElements.named("Map1")
+    Dataset<String> mapped =
+        MapElements.named("Map1")
             .of(dataset)
-            .using((input, context) -> {
-              // use simple counter
-              context.getCounter("my-counter").increment();
+            .using(
+                (input, context) -> {
+                  // use simple counter
+                  context.getCounter("my-counter").increment();
 
-              return input.toLowerCase();
-            })
+                  return input.toLowerCase();
+                })
             .output();
 
     assertEquals(flow, mapped.getFlow());
@@ -74,9 +75,7 @@ public class MapElementsTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> mapped = MapElements.of(dataset)
-            .using(s -> s)
-            .output();
+    Dataset<String> mapped = MapElements.of(dataset).using(s -> s).output();
 
     MapElements map = (MapElements) flow.operators().iterator().next();
     assertEquals("MapElements", map.getName());
@@ -87,7 +86,8 @@ public class MapElementsTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> dataSetWithHint = MapElements.of(dataset).using(i -> i).output(SizeHint.FITS_IN_MEMORY);
+    Dataset<String> dataSetWithHint =
+        MapElements.of(dataset).using(i -> i).output(SizeHint.FITS_IN_MEMORY);
 
     assertTrue(dataSetWithHint.getProducer().getHints().contains(SizeHint.FITS_IN_MEMORY));
     assertEquals(1, dataSetWithHint.getProducer().getHints().size());

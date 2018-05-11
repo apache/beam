@@ -15,6 +15,11 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.assertTrue;
+
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
@@ -34,10 +39,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.testing.DatasetAssert;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -46,14 +48,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.Test;
 
-import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.assertTrue;
-
-/**
- * Test basic operator functionality and ability to compile.
- */
+/** Test basic operator functionality and ability to compile. */
 public class BasicOperatorTest {
 
   private LocalExecutor executor = new LocalExecutor();
@@ -73,28 +70,25 @@ public class BasicOperatorTest {
   @Test
   public void testWordCountStream() throws Exception {
     ListDataSource<String> input =
-        ListDataSource.unbounded(asList(
-            "one two three four four two two",
-            "one one one two two three"))
+        ListDataSource.unbounded(
+                asList("one two three four four two two", "one one one two two three"))
             .withReadDelay(Duration.ofSeconds(2));
 
     Flow flow = Flow.create("Test");
     Dataset<String> lines = flow.createInput(input);
 
     // expand it to words
-    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using(toWordCountPair())
-        .output();
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines).using(toWordCountPair()).output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
     Dataset<Pair<String, Long>> streamOutput =
         ReduceByKey.of(words)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(1)))
-        .output();
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .output();
 
     ListDataSink<Pair<String, Long>> out = ListDataSink.get();
     streamOutput.persist(out);
@@ -115,10 +109,9 @@ public class BasicOperatorTest {
   @Test
   public void testWordCountStreamWithWindowLabel() throws Exception {
     ListDataSource<String> input =
-        ListDataSource.unbounded(asList(
-            "one two three four four two two",
-            "one one one two two three"))
-        .withReadDelay(Duration.ofSeconds(2));
+        ListDataSource.unbounded(
+                asList("one two three four four two two", "one one one two two three"))
+            .withReadDelay(Duration.ofSeconds(2));
 
     Flow flow = Flow.create("Test");
     // FIXME: this is basically wrong and cannot function this way outside of local executor
@@ -128,9 +121,7 @@ public class BasicOperatorTest {
     Dataset<String> lines = flow.createInput(input, e -> time.addAndGet(2000L));
 
     // expand it to words
-    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using(toWordCountPair())
-        .output();
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines).using(toWordCountPair()).output();
 
     Dataset<Pair<String, Long>> streamOutput =
         ReduceByKey.of(words)
@@ -142,12 +133,14 @@ public class BasicOperatorTest {
 
     ListDataSink<Pair<String, Long>> out = ListDataSink.get();
 
-    Dataset<Triple<TimeInterval, String, Long>> withWindow = FlatMap.of(streamOutput)
-        .using((Pair<String, Long> p, Collector<Triple<TimeInterval, String, Long>> c) -> {
-          // ~ just access the windows testifying their accessibility
-          c.collect(Triple.of((TimeInterval) c.getWindow(), p.getFirst(), p.getSecond()));
-        })
-        .output();
+    Dataset<Triple<TimeInterval, String, Long>> withWindow =
+        FlatMap.of(streamOutput)
+            .using(
+                (Pair<String, Long> p, Collector<Triple<TimeInterval, String, Long>> c) -> {
+                  // ~ just access the windows testifying their accessibility
+                  c.collect(Triple.of((TimeInterval) c.getWindow(), p.getFirst(), p.getSecond()));
+                })
+            .output();
 
     // strip the window again after
     MapElements.of(withWindow)
@@ -157,7 +150,8 @@ public class BasicOperatorTest {
 
     executor
         .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler<>(0))
-        .submit(flow).get();
+        .submit(flow)
+        .get();
 
     List<Pair<String, Long>> fs = out.getOutputs();
 
@@ -175,28 +169,26 @@ public class BasicOperatorTest {
   @Test
   public void testMapWithOutputGroupping() throws InterruptedException, ExecutionException {
     ListDataSource<String> input =
-        ListDataSource.unbounded(asList(
-            "one two three four four two two",
-            "one one one two two three"));
+        ListDataSource.unbounded(
+            asList("one two three four four two two", "one one one two two three"));
 
     Flow flow = Flow.create("Test");
     Dataset<String> lines = flow.createInput(input);
 
     // expand it to words
-    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using(toWordCountPair())
-        .output();
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines).using(toWordCountPair()).output();
 
     ListDataSink<Pair<String, Long>> sink = ListDataSink.get();
     // apply wordcount transform in output sink
     words.persist(
-        sink.withPrepareDataset(d ->
-          ReduceByKey.of(d)
-              .keyBy(Pair::getFirst)
-              .valueBy(Pair::getSecond)
-              .combineBy(Sums.ofLongs())
-              .output()
-              .persist(sink)));
+        sink.withPrepareDataset(
+            d ->
+                ReduceByKey.of(d)
+                    .keyBy(Pair::getFirst)
+                    .valueBy(Pair::getSecond)
+                    .combineBy(Sums.ofLongs())
+                    .output()
+                    .persist(sink)));
 
     executor.submit(flow).get();
 
@@ -211,34 +203,35 @@ public class BasicOperatorTest {
   @Test
   public void testWordCountStreamEarlyTriggered() throws Exception {
     ListDataSource<Pair<String, Integer>> input =
-        ListDataSource.unbounded(asList(
-            Pair.of("one two three four four two two", 1_000),
-            Pair.of("one one one two two three", 4_000)));
+        ListDataSource.unbounded(
+            asList(
+                Pair.of("one two three four four two two", 1_000),
+                Pair.of("one one one two two three", 4_000)));
 
     Flow flow = Flow.create("Test");
     Dataset<Pair<String, Integer>> lines = flow.createInput(input);
 
     // expand it to words
-    Dataset<Triple<String, Long, Integer>> words = FlatMap.of(lines)
-        .using((Pair<String, Integer> p, Collector<Triple<String, Long, Integer>> out) -> {
-          for (String word : p.getFirst().split(" ")) {
-            out.collect(Triple.of(word, 1L, p.getSecond()));
-          }
-        })
-        .output();
+    Dataset<Triple<String, Long, Integer>> words =
+        FlatMap.of(lines)
+            .using(
+                (Pair<String, Integer> p, Collector<Triple<String, Long, Integer>> out) -> {
+                  for (String word : p.getFirst().split(" ")) {
+                    out.collect(Triple.of(word, 1L, p.getSecond()));
+                  }
+                })
+            .output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
     words = AssignEventTime.of(words).using(Triple::getThird).output();
-    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
-        .of(words)
-        .keyBy(Triple::getFirst)
-        .valueBy(Triple::getSecond)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofMillis(1_003)))
-        .output();
-
+    Dataset<Pair<String, Long>> streamOutput =
+        ReduceByKey.of(words)
+            .keyBy(Triple::getFirst)
+            .valueBy(Triple::getSecond)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofSeconds(10)).earlyTriggering(Duration.ofMillis(1_003)))
+            .output();
 
     ListDataSink<Pair<String, Long>> s = ListDataSink.get();
     streamOutput.persist(s);
@@ -272,45 +265,49 @@ public class BasicOperatorTest {
   @Test
   public void testWordCountStreamEarlyTriggeredInSession() throws Exception {
     ListDataSource<Pair<String, Integer>> input =
-        ListDataSource.unbounded(asList(
-            Pair.of("one", 150),    // early trigger at 1153
-            Pair.of("two", 450),    // early trigger at 1453
-            Pair.of("three", 999),  // early trigger at 2002
-            Pair.of("four", 1111),  // early trigger at 2114
-            Pair.of("four", 1500),  // 1st triggers `one` (next 2156) and `two` (2456)
-            Pair.of("two", 1777),
-            Pair.of("two", 1999),
-            Pair.of("one", 4003),   // 2nd triggers `one` (4162), `two` (4462), `three` (4008)  and `four` (4120)
-            Pair.of("one", 4158),   // 3rd triggers `three` (5011) and `four` (5123)
-            Pair.of("one", 4899),   // 4th triggers `one` (5165) and `two` (5465)
-            Pair.of("two", 5001),
-            Pair.of("two", 5123),   // 5th triggers `three` (6014) and `four` (5126)
-            Pair.of("three", 5921))); // 6th triggers `one` and `two`
+        ListDataSource.unbounded(
+            asList(
+                Pair.of("one", 150), // early trigger at 1153
+                Pair.of("two", 450), // early trigger at 1453
+                Pair.of("three", 999), // early trigger at 2002
+                Pair.of("four", 1111), // early trigger at 2114
+                Pair.of("four", 1500), // 1st triggers `one` (next 2156) and `two` (2456)
+                Pair.of("two", 1777),
+                Pair.of("two", 1999),
+                Pair.of(
+                    "one",
+                    4003), // 2nd triggers `one` (4162), `two` (4462), `three` (4008)  and `four`
+                           // (4120)
+                Pair.of("one", 4158), // 3rd triggers `three` (5011) and `four` (5123)
+                Pair.of("one", 4899), // 4th triggers `one` (5165) and `two` (5465)
+                Pair.of("two", 5001),
+                Pair.of("two", 5123), // 5th triggers `three` (6014) and `four` (5126)
+                Pair.of("three", 5921))); // 6th triggers `one` and `two`
 
     Flow flow = Flow.create("Test");
     Dataset<Pair<String, Integer>> lines = flow.createInput(input);
 
     // expand it to words
-    Dataset<Triple<String, Long, Integer>> words = FlatMap.of(lines)
-        .using((Pair<String, Integer> p, Collector<Triple<String, Long, Integer>> out) -> {
-          for (String word : p.getFirst().split(" ")) {
-            out.collect(Triple.of(word, 1L, p.getSecond()));
-          }
-        })
-        .output();
+    Dataset<Triple<String, Long, Integer>> words =
+        FlatMap.of(lines)
+            .using(
+                (Pair<String, Integer> p, Collector<Triple<String, Long, Integer>> out) -> {
+                  for (String word : p.getFirst().split(" ")) {
+                    out.collect(Triple.of(word, 1L, p.getSecond()));
+                  }
+                })
+            .output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
     words = AssignEventTime.of(words).using(Triple::getThird).output();
-    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
-        .of(words)
-        .keyBy(Triple::getFirst)
-        .valueBy(Triple::getSecond)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Session.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofMillis(1_003)))
-        .output();
-
+    Dataset<Pair<String, Long>> streamOutput =
+        ReduceByKey.of(words)
+            .keyBy(Triple::getFirst)
+            .valueBy(Triple::getSecond)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Session.of(Duration.ofSeconds(10)).earlyTriggering(Duration.ofMillis(1_003)))
+            .output();
 
     ListDataSink<Pair<String, Long>> s = ListDataSink.get();
     streamOutput.persist(s);
@@ -331,15 +328,14 @@ public class BasicOperatorTest {
 
     //  ~ second (final) window
     results.containsAll(asList("one-4", "three-2", "two-5"));
-
   }
 
   private List<String> sublist(
-      List<? extends Pair<String, Long>> xs, int start, int len, boolean sort)
-  {
-    Stream<String> s = xs.subList(start, len < 0 ? xs.size() : start + len)
-        .stream()
-        .map(p -> p.getFirst() + "-" + p.getSecond());
+      List<? extends Pair<String, Long>> xs, int start, int len, boolean sort) {
+    Stream<String> s =
+        xs.subList(start, len < 0 ? xs.size() : start + len)
+            .stream()
+            .map(p -> p.getFirst() + "-" + p.getSecond());
     if (sort) {
       s = s.sorted();
     }
@@ -349,25 +345,22 @@ public class BasicOperatorTest {
   @Test
   public void testWordCountBatch() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(ListDataSource.bounded(
-        asList("one two three four",
-               "one two three",
-               "one two",
-               "one")));
+    Dataset<String> lines =
+        flow.createInput(
+            ListDataSource.bounded(
+                asList("one two three four", "one two three", "one two", "one")));
 
     // expand it to words
-    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using(toWordCountPair())
-        .output();
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines).using(toWordCountPair()).output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
-    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
-        .of(words)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
-        .combineBy(Sums.ofLongs())
-        .output();
+    Dataset<Pair<String, Long>> streamOutput =
+        ReduceByKey.of(words)
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .combineBy(Sums.ofLongs())
+            .output();
 
     ListDataSink<Pair<String, Long>> out = ListDataSink.get();
     streamOutput.persist(out);
@@ -385,13 +378,13 @@ public class BasicOperatorTest {
   @Test
   public void testDistinctOnBatchWithoutWindowingLabels() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(ListDataSource.bounded(
-        asList("one two three four", "one two three", "one two", "one")));
+    Dataset<String> lines =
+        flow.createInput(
+            ListDataSource.bounded(
+                asList("one two three four", "one two three", "one two", "one")));
 
     // expand it to words
-    Dataset<String> words = FlatMap.of(lines)
-        .using(toWords(w -> w))
-        .output();
+    Dataset<String> words = FlatMap.of(lines).using(toWords(w -> w)).output();
 
     Dataset<String> output = Distinct.of(words).output();
     ListDataSink<String> out = ListDataSink.get();
@@ -399,28 +392,22 @@ public class BasicOperatorTest {
 
     executor.submit(flow).get();
 
-    DatasetAssert.unorderedEquals(
-        out.getOutputs(),
-        "four", "one", "three", "two");
+    DatasetAssert.unorderedEquals(out.getOutputs(), "four", "one", "three", "two");
   }
 
   @Test
   public void testDistinctOnStreamWithoutWindowingLabels() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(
-        ListDataSource.unbounded(asList(
-            "one two three four one one two",
-            "one two three three three"))
-            .withReadDelay(Duration.ofSeconds(2)));
+    Dataset<String> lines =
+        flow.createInput(
+            ListDataSource.unbounded(
+                    asList("one two three four one one two", "one two three three three"))
+                .withReadDelay(Duration.ofSeconds(2)));
 
     // expand it to words
-    Dataset<String> words = FlatMap.of(lines)
-        .using(toWords(w -> w))
-        .output();
+    Dataset<String> words = FlatMap.of(lines).using(toWords(w -> w)).output();
 
-    Dataset<String> output = Distinct.of(words)
-        .windowBy(Time.of(Duration.ofSeconds(1)))
-        .output();
+    Dataset<String> output = Distinct.of(words).windowBy(Time.of(Duration.ofSeconds(1))).output();
 
     ListDataSink<String> out = ListDataSink.get();
     output.persist(out);
@@ -428,65 +415,55 @@ public class BasicOperatorTest {
     executor.submit(flow).get();
 
     DatasetAssert.unorderedEquals(
-        out.getOutputs(),
-        "four", "one", "three", "two",
-        "one", "three", "two");
+        out.getOutputs(), "four", "one", "three", "two", "one", "three", "two");
   }
 
   @Test
   public void testDistinctOnStreamUsingWindowingLabels() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(
-        ListDataSource.unbounded(asList(
-            "one two three four one one two",
-            "one two three three three"))
-            .withReadDelay(Duration.ofSeconds(2)));
+    Dataset<String> lines =
+        flow.createInput(
+            ListDataSource.unbounded(
+                    asList("one two three four one one two", "one two three three three"))
+                .withReadDelay(Duration.ofSeconds(2)));
 
     // expand it to words
-    Dataset<String> words = FlatMap.of(lines)
-        .using(toWords(w -> w))
-        .output();
+    Dataset<String> words = FlatMap.of(lines).using(toWords(w -> w)).output();
 
     Dataset<Pair<TimeInterval, String>> output =
         FlatMap.of(Distinct.of(words).windowBy(Time.of(Duration.ofSeconds(1))).output())
-            .using((UnaryFunctor<String, Pair<TimeInterval, String>>) (elem, context) ->
-                context.collect(Pair.of((TimeInterval) context.getWindow(), elem)))
-        .output();
+            .using(
+                (UnaryFunctor<String, Pair<TimeInterval, String>>)
+                    (elem, context) ->
+                        context.collect(Pair.of((TimeInterval) context.getWindow(), elem)))
+            .output();
 
     ListDataSink<String> out = ListDataSink.get();
     // strip the labels again because we cannot test them
-    MapElements.of(output)
-        .using(Pair::getSecond)
-        .output()
-        .persist(out);
+    MapElements.of(output).using(Pair::getSecond).output().persist(out);
 
     executor.submit(flow).get();
 
     DatasetAssert.unorderedEquals(
-        out.getOutputs(),
-        "four", "one", "three", "two",
-        "one", "three", "two");
+        out.getOutputs(), "four", "one", "three", "two", "one", "three", "two");
   }
 
   @Test
   public void testReduceWindow() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(
-        ListDataSource.unbounded(
-            asList("1-one 1-two 1-three 2-three 2-four 2-one 2-one 2-two".split(" ")),
-            asList("1-one 1-two 1-four 2-three 2-three 2-three".split(" "))));
+    Dataset<String> lines =
+        flow.createInput(
+            ListDataSource.unbounded(
+                asList("1-one 1-two 1-three 2-three 2-four 2-one 2-one 2-two".split(" ")),
+                asList("1-one 1-two 1-four 2-three 2-three 2-three".split(" "))));
 
     ListDataSink<Set<String>> out = ListDataSink.get();
 
     // expand it to words
-    Dataset<String> words = FlatMap.of(lines)
-        .using(toWords(w -> w))
-        .output();
+    Dataset<String> words = FlatMap.of(lines).using(toWords(w -> w)).output();
 
     // window it, use the first character as time
-    words = AssignEventTime.of(words)
-        .using(s -> (int) s.charAt(0) * 3_600_000L)
-        .output();
+    words = AssignEventTime.of(words).using(s -> (int) s.charAt(0) * 3_600_000L).output();
     ReduceWindow.of(words)
         .reduceBy(s -> s.collect(Collectors.toSet()))
         .windowBy(Time.of(Duration.ofMinutes(1)))

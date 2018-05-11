@@ -25,17 +25,16 @@ public class Sums {
 
   private static final CombinableReduceFunction<Long> SUMS_OF_LONG =
       (CombinableReduceFunction<Long>) s -> s.collect(Collectors.summingLong(e -> e));
+  private static final CombinableReduceFunction<Integer> SUMS_OF_INT =
+      (CombinableReduceFunction<Integer>) s -> s.collect(Collectors.summingInt(e -> e));
+
+  private Sums() {}
 
   public static CombinableReduceFunction<Long> ofLongs() {
     return SUMS_OF_LONG;
   }
 
-  private static final CombinableReduceFunction<Integer> SUMS_OF_INT =
-      (CombinableReduceFunction<Integer>) s -> s.collect(Collectors.summingInt(e -> e));
-
   public static CombinableReduceFunction<Integer> ofInts() {
     return SUMS_OF_INT;
   }
-
-  private Sums() {}
 }

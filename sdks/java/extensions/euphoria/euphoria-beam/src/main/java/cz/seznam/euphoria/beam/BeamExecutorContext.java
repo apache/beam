@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.beam;
 
+import static java.util.stream.Collectors.toList;
+
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.beam.coder.PairCoder;
 import cz.seznam.euphoria.beam.io.KryoCoder;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
@@ -34,7 +37,11 @@ import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -42,27 +49,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-
-import static java.util.stream.Collectors.toList;
-
-/**
- * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
- */
+/** Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}. */
 class BeamExecutorContext {
 
-  private DAG<Operator<?, ?>> dag;
   private final Map<Dataset<?>, PCollection<?>> datasetToPCollection = new HashMap<>();
   private final Pipeline pipeline;
   private final Duration allowedLateness;
-
   private final Settings settings;
-
   private final AccumulatorProvider.Factory accumulatorFactory;
+  private DAG<Operator<?, ?>> dag;
 
   BeamExecutorContext(
       DAG<Operator<?, ?>> dag,
@@ -84,18 +79,20 @@ class BeamExecutorContext {
 
   @SuppressWarnings("unchecked")
   <IN> List<PCollection<IN>> getInputs(Operator<IN, ?> operator) {
-    return dag
-        .getNode(operator)
+    return dag.getNode(operator)
         .getParents()
         .stream()
         .map(Node::get)
-        .map(parent -> {
-          final PCollection<IN> out = (PCollection<IN>) datasetToPCollection.get(parent.output());
-          if (out == null) {
-            throw new IllegalArgumentException("Output missing for operator " + parent.getName());
-          }
-          return out;
-        })
+        .map(
+            parent -> {
+              final PCollection<IN> out =
+                  (PCollection<IN>) datasetToPCollection.get(parent.output());
+              if (out == null) {
+                throw new IllegalArgumentException(
+                    "Output missing for operator " + parent.getName());
+              }
+              return out;
+            })
         .collect(toList());
   }
 
@@ -107,9 +104,9 @@ class BeamExecutorContext {
   <T> void setPCollection(Dataset<T> dataset, PCollection<T> coll) {
     final PCollection<?> prev = datasetToPCollection.put(dataset, coll);
     if (prev != null && prev != coll) {
-      throw new IllegalStateException(
-         "Dataset(" + dataset + ") already materialized.");
-    } if (prev == null) {
+      throw new IllegalStateException("Dataset(" + dataset + ") already materialized.");
+    }
+    if (prev == null) {
       coll.setCoder(getOutputCoder(dataset));
     }
   }
@@ -127,8 +124,7 @@ class BeamExecutorContext {
       return getCoder(((TypeAwareUnaryFunction<IN, OUT>) unaryFunction).getTypeHint());
     }
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException(
-          "Missing type information for function " + unaryFunction);
+      throw new IllegalArgumentException("Missing type information for function " + unaryFunction);
     }
     return new KryoCoder<>();
   }
@@ -138,8 +134,7 @@ class BeamExecutorContext {
       return getCoder(((TypeAwareUnaryFunctor<IN, OUT>) unaryFunctor).getTypeHint());
     }
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException(
-          "Missing type information for funtion " + unaryFunctor);
+      throw new IllegalArgumentException("Missing type information for funtion " + unaryFunctor);
     }
     return new KryoCoder<>();
   }
@@ -149,8 +144,7 @@ class BeamExecutorContext {
       return getCoder(((TypeAwareReduceFunctor<IN, OUT>) reduceFunctor).getTypeHint());
     }
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException(
-          "Missing type information for function " + reduceFunctor);
+      throw new IllegalArgumentException("Missing type information for function " + reduceFunctor);
     }
     return new KryoCoder<>();
   }
@@ -158,8 +152,9 @@ class BeamExecutorContext {
   @SuppressWarnings("unchecked")
   private <T> Coder<T> getCoder(TypeHint<T> typeHint) {
     try {
-      return pipeline.getCoderRegistry().getCoder(
-          (TypeDescriptor<T>) TypeDescriptor.of(typeHint.getType()));
+      return pipeline
+          .getCoderRegistry()
+          .getCoder((TypeDescriptor<T>) TypeDescriptor.of(typeHint.getType()));
     } catch (CannotProvideCoderException e) {
       throw new IllegalArgumentException("Unable to provide coder for type hint.", e);
     }
@@ -181,8 +176,7 @@ class BeamExecutorContext {
       return getCoder(m.getFunctor());
     } else if (op instanceof Union) {
       Union<T> u = (Union) op;
-      Dataset<T> first = Objects.requireNonNull(
-          Iterables.getFirst(u.listInputs(), null));
+      Dataset<T> first = Objects.requireNonNull(Iterables.getFirst(u.listInputs(), null));
       return getOutputCoder(first);
     } else if (op instanceof ReduceByKey) {
       ReduceByKey rb = (ReduceByKey) op;
@@ -210,5 +204,4 @@ class BeamExecutorContext {
   void setTranslationDAG(DAG<Operator<?, ?>> dag) {
     this.dag = dag;
   }
-
 }

@@ -20,20 +20,17 @@ import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Streams;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 
-import java.util.Collection;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-/**
- * A {@code WindowFn} wrapper of {@code Windowing}.
- */
+/** A {@code WindowFn} wrapper of {@code Windowing}. */
 public class BeamWindowFn<T, W extends Window<W>> extends WindowFn<T, BeamWindow<W>> {
 
   private final Windowing<T, W> windowing;
@@ -42,26 +39,26 @@ public class BeamWindowFn<T, W extends Window<W>> extends WindowFn<T, BeamWindow
     this.windowing = Objects.requireNonNull(windowing);
   }
 
+  public static <T, W extends Window<W>> BeamWindowFn<T, W> wrap(Windowing<T, W> windowing) {
+    return new BeamWindowFn<>(windowing);
+  }
+
   @Override
   public void mergeWindows(MergeContext ctx) throws Exception {
     if (windowing instanceof MergingWindowing) {
       final MergingWindowing<T, W> merge = (MergingWindowing<T, W>) windowing;
-      merge.mergeWindows(ctx.windows()
-          .stream()
-          .map(BeamWindow::get)
-          .collect(Collectors.toList()))
-          .forEach(p -> {
-            try {
-              ctx.merge(
-                  p.getFirst()
-                      .stream()
-                      .map(BeamWindow::wrap)
-                      .collect(Collectors.toList()),
-                  BeamWindow.wrap(p.getSecond()));
-            } catch (Exception e) {
-              throw new RuntimeException(e);
-            }
-          });
+      merge
+          .mergeWindows(ctx.windows().stream().map(BeamWindow::get).collect(Collectors.toList()))
+          .forEach(
+              p -> {
+                try {
+                  ctx.merge(
+                      p.getFirst().stream().map(BeamWindow::wrap).collect(Collectors.toList()),
+                      BeamWindow.wrap(p.getSecond()));
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
     }
   }
 
@@ -78,12 +75,16 @@ public class BeamWindowFn<T, W extends Window<W>> extends WindowFn<T, BeamWindow
   @Override
   @SuppressWarnings("unchecked")
   public Collection<BeamWindow<W>> assignWindows(AssignContext ctx) throws Exception {
-    final Window<? extends Window<?>> window = ctx.window() instanceof GlobalWindow
-        ? GlobalWindowing.Window.get()
-        : ((BeamWindow<W>) ctx.window()).get();
-    return Streams.stream(windowing
-        .assignWindowsToElement(BeamWindowedElement.of(
-            ctx.element(), window, ctx.timestamp().getMillis())))
+    final Window<? extends Window<?>> window =
+        ctx.window() instanceof GlobalWindow
+            ? GlobalWindowing.Window.get()
+            : ((BeamWindow<W>) ctx.window()).get();
+    return StreamSupport.stream(
+            windowing
+                .assignWindowsToElement(
+                    BeamWindowedElement.of(ctx.element(), window, ctx.timestamp().getMillis()))
+                .spliterator(),
+            false)
         .map(BeamWindow::wrap)
         .collect(Collectors.toList());
   }
@@ -102,9 +103,4 @@ public class BeamWindowFn<T, W extends Window<W>> extends WindowFn<T, BeamWindow
       }
     };
   }
-
-  public static <T, W extends Window<W>> BeamWindowFn<T, W> wrap(Windowing<T, W> windowing) {
-    return new BeamWindowFn<>(windowing);
-  }
-
 }

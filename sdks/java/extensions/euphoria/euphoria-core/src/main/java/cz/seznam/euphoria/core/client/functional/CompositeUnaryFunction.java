@@ -17,24 +17,21 @@ package cz.seznam.euphoria.core.client.functional;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-/**
- * A function that is composition of two unary functions.
- */
+/** A function that is composition of two unary functions. */
 @Audience(Audience.Type.CLIENT)
 public class CompositeUnaryFunction<IN, OUT, X> implements UnaryFunction<IN, OUT> {
 
   private final UnaryFunction<IN, X> first;
   private final UnaryFunction<X, OUT> second;
 
+  private CompositeUnaryFunction(UnaryFunction<IN, X> first, UnaryFunction<X, OUT> second) {
+    this.first = first;
+    this.second = second;
+  }
+
   public static <IN, OUT, X> CompositeUnaryFunction<IN, OUT, X> of(
       UnaryFunction<IN, X> first, UnaryFunction<X, OUT> second) {
     return new CompositeUnaryFunction<>(first, second);
-  }
-
-  private CompositeUnaryFunction(
-      UnaryFunction<IN, X> first, UnaryFunction<X, OUT> second) {
-    this.first = first;
-    this.second = second;
   }
 
   @Override
@@ -42,5 +39,4 @@ public class CompositeUnaryFunction<IN, OUT, X> implements UnaryFunction<IN, OUT
   public OUT apply(IN what) {
     return second.apply(first.apply(what));
   }
-
 }

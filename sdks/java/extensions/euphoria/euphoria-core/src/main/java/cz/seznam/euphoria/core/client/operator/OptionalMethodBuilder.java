@@ -20,8 +20,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import java.util.Objects;
 
 /**
- * Class to be extended by operator builders that want to make use
- * of `applyIf` call.
+ * Class to be extended by operator builders that want to make use of `applyIf` call.
  *
  * @param <BUILDER> the class of the builder that extends this class
  */
@@ -30,6 +29,7 @@ public interface OptionalMethodBuilder<BUILDER> {
 
   /**
    * Apply given modification to builder when condition evaluates to {@code true}.
+   *
    * @param cond the condition
    * @param apply the modification
    * @return next step builder
@@ -42,6 +42,7 @@ public interface OptionalMethodBuilder<BUILDER> {
 
   /**
    * Apply given modifications to builder based on condition.
+   *
    * @param cond the condition to evaluate
    * @param applyTrue modification to apply when {@code cond} evaluates to {@code true}
    * @param applyFalse modification to apply when {@code cond} evaluates to {@code false}
@@ -58,5 +59,4 @@ public interface OptionalMethodBuilder<BUILDER> {
     }
     return applyFalse.apply((BUILDER) this);
   }
-
 }

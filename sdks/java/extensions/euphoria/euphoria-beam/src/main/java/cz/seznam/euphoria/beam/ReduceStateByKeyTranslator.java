@@ -62,5 +62,4 @@ public class ReduceStateByKeyTranslator implements OperatorTranslator<ReduceStat
     */
     throw new UnsupportedOperationException("Not supported yet");
   }
-
 }

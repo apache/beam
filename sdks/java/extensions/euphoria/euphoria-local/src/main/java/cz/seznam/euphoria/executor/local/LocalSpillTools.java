@@ -15,10 +15,10 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.io.SpillTools;
 import cz.seznam.euphoria.core.executor.util.InMemExternalIterable;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,9 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * {@code SpillTools} that actually don't spill and use memory instead.
- */
+/** {@code SpillTools} that actually don't spill and use memory instead. */
 class LocalSpillTools implements SpillTools {
 
   @Override
@@ -43,9 +41,6 @@ class LocalSpillTools implements SpillTools {
     List<T> list = new ArrayList<>();
     Iterables.addAll(list, what);
     return Collections.singletonList(
-        new InMemExternalIterable<>(
-            list.stream()
-                .sorted(comparator).collect(Collectors.toList())));
+        new InMemExternalIterable<>(list.stream().sorted(comparator).collect(Collectors.toList())));
   }
-
 }

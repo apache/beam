@@ -18,9 +18,7 @@ package cz.seznam.euphoria.core.client.util;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.util.Objects;
 
-/**
- * Triple of any types.
- */
+/** Triple of any types. */
 @Audience(Audience.Type.CLIENT)
 public final class Triple<F, S, T> {
   final F first;
@@ -33,7 +31,7 @@ public final class Triple<F, S, T> {
     this.third = third;
   }
 
-  public static <F, S, T> Triple<F, S, T>of(F first, S second, T third) {
+  public static <F, S, T> Triple<F, S, T> of(F first, S second, T third) {
     return new Triple<>(first, second, third);
   }
 
@@ -53,9 +51,9 @@ public final class Triple<F, S, T> {
   public boolean equals(Object o) {
     if (o instanceof Triple) {
       Triple<?, ?, ?> triple = (Triple<?, ?, ?>) o;
-      return Objects.equals(first, triple.first) &&
-          Objects.equals(second, triple.second) &&
-          Objects.equals(third, triple.third);
+      return Objects.equals(first, triple.first)
+          && Objects.equals(second, triple.second)
+          && Objects.equals(third, triple.third);
     }
     return false;
   }
@@ -67,10 +65,6 @@ public final class Triple<F, S, T> {
 
   @Override
   public String toString() {
-    return "Triple{" +
-        "first=" + first +
-        ", second=" + second +
-        ", third=" + third +
-        '}';
+    return "Triple{" + "first=" + first + ", second=" + second + ", third=" + third + '}';
   }
 }

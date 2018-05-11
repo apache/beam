@@ -21,44 +21,37 @@ import cz.seznam.euphoria.core.client.operator.SumByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.Test;
 
-
-/**
- * Test operator {@code SumByKey}.
- */
+/** Test operator {@code SumByKey}. */
 @Processing(Processing.Type.ALL)
 public class SumByKeyTest extends AbstractOperatorTest {
 
   @Test
   public void testSumByKey() {
-    execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
-      @Override
-      protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
-        return SumByKey.of(input)
-            .keyBy(e -> e % 2)
-            .valueBy(e -> (long) e)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
-            .output();
-      }
+    execute(
+        new AbstractTestCase<Integer, Pair<Integer, Long>>() {
+          @Override
+          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+            return SumByKey.of(input)
+                .keyBy(e -> e % 2)
+                .valueBy(e -> (long) e)
+                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .output();
+          }
 
-      @Override
-      protected List<Integer> getInput() {
-        return Arrays.asList(
-            1, 2, 3, 4, 5,
-            6, 7, 8, 9);
-      }
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9);
+          }
 
-
-      @Override
-      public List<Pair<Integer, Long>> getUnorderedOutput() {
-        return Arrays.asList(Pair.of(0, 20L), Pair.of(1, 25L));
-      }
-    });
+          @Override
+          public List<Pair<Integer, Long>> getUnorderedOutput() {
+            return Arrays.asList(Pair.of(0, 20L), Pair.of(1, 25L));
+          }
+        });
   }
-
 }

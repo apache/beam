@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
@@ -22,9 +23,6 @@ import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,33 +31,29 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
-/**
- * Session windowing.
- */
+/** Session windowing. */
 @Audience(Audience.Type.CLIENT)
 public final class Session<T> implements MergingWindowing<T, TimeInterval> {
 
   private final long gapDurationMillis;
-  @Nullable
-  private Duration earlyTriggeringPeriod;
-
-  public static <T> Session<T> of(Duration gapDuration) {
-    return new Session<>(gapDuration.toMillis());
-  }
+  @Nullable private Duration earlyTriggeringPeriod;
 
   private Session(long gapDurationMillis) {
     Preconditions.checkArgument(gapDurationMillis > 0, "Windowing with zero duration");
     this.gapDurationMillis = gapDurationMillis;
   }
 
+  public static <T> Session<T> of(Duration gapDuration) {
+    return new Session<>(gapDuration.toMillis());
+  }
+
   /**
    * Early results will be triggered periodically until the window is finally closed.
    *
    * @param <T> the type of elements dealt with
-   *
    * @param timeout the period after which to periodically trigger windows
-   *
    * @return this instance (for method chaining purposes)
    */
   @Experimental("https://github.com/seznam/euphoria/issues/43")
@@ -81,17 +75,17 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   @Override
   public Trigger<TimeInterval> getTrigger() {
     if (earlyTriggeringPeriod != null) {
-      return new AfterFirstCompositeTrigger<>(Arrays.asList(
-              new TimeTrigger(),
-              new PeriodicTimeTrigger(earlyTriggeringPeriod.toMillis())));
+      return new AfterFirstCompositeTrigger<>(
+          Arrays.asList(
+              new TimeTrigger(), new PeriodicTimeTrigger(earlyTriggeringPeriod.toMillis())));
     }
 
     return new TimeTrigger();
   }
 
   @Override
-  public Collection<Pair<Collection<TimeInterval>, TimeInterval>>
-  mergeWindows(Collection<TimeInterval> actives) {
+  public Collection<Pair<Collection<TimeInterval>, TimeInterval>> mergeWindows(
+      Collection<TimeInterval> actives) {
     if (actives.size() < 2) {
       return Collections.emptyList();
     }
@@ -160,5 +154,4 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   public int hashCode() {
     return Objects.hash(earlyTriggeringPeriod, gapDurationMillis);
   }
-
 }

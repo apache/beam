@@ -18,23 +18,17 @@ package cz.seznam.euphoria.executor.local;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 
-/**
- * A series of transformations with single output operator.
- */
+/** A series of transformations with single output operator. */
 class ExecPath {
 
   /** A DAG of operators. */
   private final DAG<Operator<?, ?>> dag;
 
-
   private ExecPath(DAG<Operator<?, ?>> dag) {
     this.dag = dag;
   }
 
-
-  /**
-   * Create new ExecPath.
-   */
+  /** Create new ExecPath. */
   static ExecPath of(DAG<Operator<?, ?>> dag) {
     return new ExecPath(dag);
   }
@@ -42,5 +36,4 @@ class ExecPath {
   public DAG<Operator<?, ?>> dag() {
     return dag;
   }
-
 }

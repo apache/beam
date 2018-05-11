@@ -18,8 +18,8 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 /**
- * A single data element flowing in dataset. Every such element
- * is associated with a window identifier and timestamp.
+ * A single data element flowing in dataset. Every such element is associated with a window
+ * identifier and timestamp.
  *
  * @param <W> type of the window
  * @param <T> type of the data element
@@ -27,19 +27,12 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 @Audience(Audience.Type.CLIENT)
 public interface WindowedElement<W extends Window, T> {
 
-  /**
-   * @return window of element.
-   */
+  /** @return window of element. */
   W getWindow();
 
-  /**
-   * @return associated timestamp
-   */
+  /** @return associated timestamp */
   long getTimestamp();
 
-  /**
-   * @return the data element itself
-   */
+  /** @return the data element itself */
   T getElement();
-
 }

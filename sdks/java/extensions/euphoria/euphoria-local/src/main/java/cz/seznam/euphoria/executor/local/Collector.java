@@ -18,5 +18,4 @@ package cz.seznam.euphoria.executor.local;
 interface Collector<T> {
 
   void collect(T elem);
-
 }

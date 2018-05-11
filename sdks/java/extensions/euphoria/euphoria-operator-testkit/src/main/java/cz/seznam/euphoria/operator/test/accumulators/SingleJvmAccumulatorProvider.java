@@ -18,7 +18,6 @@ package cz.seznam.euphoria.operator.test.accumulators;
 import cz.seznam.euphoria.core.client.accumulators.Accumulator;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.util.Settings;
-
 import java.io.ObjectStreamException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -27,18 +26,32 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * An accumulator provider gathering accumulators in-memory.<p>
+ * An accumulator provider gathering accumulators in-memory.
  *
- * Safe for use for unit testing purposes.
+ * <p>Safe for use for unit testing purposes.
  */
 public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
 
-  private static final SingleJvmAccumulatorProvider INSTANCE
-      = new SingleJvmAccumulatorProvider();
+  private static final SingleJvmAccumulatorProvider INSTANCE = new SingleJvmAccumulatorProvider();
+  private final ConcurrentMap<String, Accumulator> accs = new ConcurrentHashMap<>();
 
   private SingleJvmAccumulatorProvider() {}
 
-  private final ConcurrentMap<String, Accumulator> accs = new ConcurrentHashMap<>();
+  @SuppressWarnings("unchecked")
+  private static <T> T assertType(String name, Class<T> expectedType, Accumulator actualAcc) {
+    if (actualAcc.getClass() != expectedType) {
+      // ~ provide a nice message (that's why we don't simply use `expectedType.cast(..)`)
+      throw new IllegalStateException(
+          "Ambiguously named accumulators! Got "
+              + actualAcc.getClass()
+              + " for "
+              + name
+              + " but expected "
+              + expectedType
+              + "!");
+    }
+    return (T) actualAcc;
+  }
 
   @Override
   public cz.seznam.euphoria.core.client.accumulators.Counter getCounter(String name) {
@@ -55,37 +68,26 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
     return assertType(name, Timer.class, accs.computeIfAbsent(name, s -> new Timer()));
   }
 
-  @SuppressWarnings("unchecked")
-  private static <T> T assertType(String name, Class<T> expectedType, Accumulator actualAcc) {
-    if (actualAcc.getClass() != expectedType) {
-      // ~ provide a nice message (that's why we don't simply use `expectedType.cast(..)`)
-      throw new IllegalStateException("Ambiguously named accumulators! Got "
-          + actualAcc.getClass() + " for "
-          + name + " but expected " + expectedType + "!");
-    }
-    return (T) actualAcc;
-  }
-
   void clear() {
     accs.clear();
   }
 
   <V, T extends Snapshotable<V>> Map<String, V> getSnapshots(Class<T> type) {
     HashMap<String, V> m = new HashMap<>();
-    accs.forEach((name, accumulator) -> {
-      if (type.isAssignableFrom(accumulator.getClass())) {
-        @SuppressWarnings("unchecked")
-        T acc = (T) accumulator;
-        m.put(name, acc.getSnapshot());
-      }
-    });
+    accs.forEach(
+        (name, accumulator) -> {
+          if (type.isAssignableFrom(accumulator.getClass())) {
+            @SuppressWarnings("unchecked")
+            T acc = (T) accumulator;
+            m.put(name, acc.getSnapshot());
+          }
+        });
     return m;
   }
 
   // ~ -----------------------------------------------------------------------
 
-  public static final class Factory implements
-      AccumulatorProvider.Factory, SnapshotProvider {
+  public static final class Factory implements AccumulatorProvider.Factory, SnapshotProvider {
 
     private static final Factory INSTANCE = new Factory();
 

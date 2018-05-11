@@ -23,7 +23,6 @@ import java.time.Duration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
-
 public interface BeamExecutorProvider extends ExecutorProvider {
 
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
@@ -36,6 +35,7 @@ public interface BeamExecutorProvider extends ExecutorProvider {
       public Executor getExecutor() {
         return executor;
       }
+
       @Override
       public void shutdown() throws Exception {
         executor.shutdown();

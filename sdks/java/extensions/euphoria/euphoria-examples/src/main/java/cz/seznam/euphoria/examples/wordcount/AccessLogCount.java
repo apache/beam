@@ -40,34 +40,34 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Simple aggregation of logs in Apache log format. Counts the number of daily
- * hits per client. This is a word-count like program utilizing time windowing
- * based on event time.
- * <p>
- * If newly coming the euphoria API, you are advised to first study the
- * {@link SimpleWordCount} program.
- * <p>
+ * Simple aggregation of logs in Apache log format. Counts the number of daily hits per client. This
+ * is a word-count like program utilizing time windowing based on event time.
  *
- * Example usage on flink:
+ * <p>If newly coming the euphoria API, you are advised to first study the {@link SimpleWordCount}
+ * program.
+ *
+ * <p>Example usage on flink:
+ *
  * <pre>{@code
- *   $ flink run -m yarn-cluster \
- *      -yn 1 -ys 2 -ytm 800 \
- *      -c cz.seznam.euphoria.examples.wordcount.AccessLogCount \
- *      euphoria-examples/assembly/euphoria-examples.jar \
- *      "flink" \
- *      "hdfs:///tmp/access.log"
- *}</pre>
+ * $ flink run -m yarn-cluster \
+ *    -yn 1 -ys 2 -ytm 800 \
+ *    -c cz.seznam.euphoria.examples.wordcount.AccessLogCount \
+ *    euphoria-examples/assembly/euphoria-examples.jar \
+ *    "flink" \
+ *    "hdfs:///tmp/access.log"
+ * }</pre>
  *
  * Example usage on spark:
+ *
  * <pre>{@code
- *   $ spark-submit --verbose --deploy-mode cluster \
- *       --master yarn \
- *       --executor-memory 1g \
- *       --num-executors 1 \
- *       --class cz.seznam.euphoria.examples.wordcount.AccessLogCount \
- *       euphoria-examples/assembly/euphoria-examples.jar \
- *       "spark" \
- *       "hdfs:///tmp/access.log"
+ * $ spark-submit --verbose --deploy-mode cluster \
+ *     --master yarn \
+ *     --executor-memory 1g \
+ *     --num-executors 1 \
+ *     --class cz.seznam.euphoria.examples.wordcount.AccessLogCount \
+ *     euphoria-examples/assembly/euphoria-examples.jar \
+ *     "spark" \
+ *     "hdfs:///tmp/access.log"
  * }</pre>
  */
 public class AccessLogCount {
@@ -134,10 +134,8 @@ public class AccessLogCount {
     // `SimpleDateFormat` to make this point. In a read-world program you
     // would probably hand out to `DateTimeFormatter` which can be safely
     // be re-used across threads.)
-    final Dataset<LogLine> parsed = MapElements.named("LOG-PARSER")
-        .of(lines)
-        .using(LogParser::parseLine)
-        .output();
+    final Dataset<LogLine> parsed =
+        MapElements.named("LOG-PARSER").of(lines).using(LogParser::parseLine).output();
 
     // Since our log lines represent events which happened at a particular
     // point in time, we want our system to treat them as such, no matter in
@@ -146,9 +144,8 @@ public class AccessLogCount {
     // We do so by applying a so-called event-time-extractor function. As of
     // this moment, euphoria will treat the element as if it happended in the
     // corresponding time since it gets to know the timestamp the event occurred.
-    final Dataset<LogLine> parsedWithEventTime = AssignEventTime.of(parsed)
-        .using(line -> line.getDate().getTime())
-        .output();
+    final Dataset<LogLine> parsedWithEventTime =
+        AssignEventTime.of(parsed).using(line -> line.getDate().getTime()).output();
 
     // In the previous step we derived a data set specifying points in time
     // at which particular IPs accessed our web-server. Our goal is now to
@@ -191,13 +188,14 @@ public class AccessLogCount {
     // "filled" at which point the windows data can be processed, calculated,
     // and the corresponding results emitted. This makes endless stream
     // processing work.
-    final Dataset<Pair<String, Long>> aggregated = ReduceByKey.named("AGGREGATE")
-        .of(parsedWithEventTime)
-        .keyBy(LogLine::getIp)
-        .valueBy(line -> 1L)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofDays(1)))
-        .output();
+    final Dataset<Pair<String, Long>> aggregated =
+        ReduceByKey.named("AGGREGATE")
+            .of(parsedWithEventTime)
+            .keyBy(LogLine::getIp)
+            .valueBy(line -> 1L)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofDays(1)))
+            .output();
 
     // At the final stage of our flow, we nicely format the previously emitted
     // results before persisting them to a given data sink, e.g. external storage.
@@ -209,19 +207,20 @@ public class AccessLogCount {
     // parameter as demonstrated below.
     return FlatMap.named("FORMAT-OUTPUT")
         .of(aggregated)
-        .using(((Pair<String, Long> elem, Collector<String> context) -> {
-          Date d = new Date(((TimeInterval) context.getWindow()).getStartMillis());
+        .using(
+            ((Pair<String, Long> elem, Collector<String> context) -> {
+              Date d = new Date(((TimeInterval) context.getWindow()).getStartMillis());
 
-          SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy", Locale.ENGLISH);
-          context.collect(sdf.format(d) + "\t" + elem.getFirst() + "\t" + elem.getSecond());
-        }))
+              SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy", Locale.ENGLISH);
+              context.collect(sdf.format(d) + "\t" + elem.getFirst() + "\t" + elem.getSecond());
+            }))
         .output();
   }
 
   private static class LogParser {
 
-    private static Pattern pattern = Pattern.compile(
-        "^([[0-9a-zA-z-].]+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\].*");
+    private static Pattern pattern =
+        Pattern.compile("^([[0-9a-zA-z-].]+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\].*");
 
     static LogLine parseLine(String line) {
 
@@ -231,8 +230,7 @@ public class AccessLogCount {
           // SDF is not thread-safe, so we need to allocate one here. Ideally,
           // we'd use `DateTimeFormatter` and re-use it across input elements.
           // see the corresponding note at the operator utilizing `parseLine`.
-          SimpleDateFormat sdf =
-              new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
+          SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
 
           String ip = matcher.group(1);
           Date date = sdf.parse(matcher.group(4));

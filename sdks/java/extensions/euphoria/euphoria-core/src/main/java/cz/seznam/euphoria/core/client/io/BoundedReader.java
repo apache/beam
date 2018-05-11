@@ -21,10 +21,7 @@ import java.io.Serializable;
 /**
  * Reader of bounded data.
  *
- * The reader can split the bounded data into smaller pieces. By default it is
- * non splittable.
+ * <p>The reader can split the bounded data into smaller pieces. By default it is non splittable.
  */
 @Audience(Audience.Type.CLIENT)
-public interface BoundedReader<E> extends CloseableIterator<E>, Serializable {
-
-}
+public interface BoundedReader<E> extends CloseableIterator<E>, Serializable {}

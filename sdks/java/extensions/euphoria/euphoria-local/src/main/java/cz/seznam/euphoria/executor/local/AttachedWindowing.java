@@ -20,12 +20,13 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-
 import java.util.Collections;
 
 class AttachedWindowing<T, W extends Window<W>> implements Windowing<T, W> {
 
   static final AttachedWindowing INSTANCE = new AttachedWindowing();
+
+  private AttachedWindowing() {}
 
   @SuppressWarnings("unchecked")
   @Override
@@ -38,8 +39,6 @@ class AttachedWindowing<T, W extends Window<W>> implements Windowing<T, W> {
     return NoopTrigger.get();
   }
 
-  private AttachedWindowing() {}
-
   @Override
   public boolean equals(Object obj) {
     return obj instanceof AttachedWindowing;
@@ -49,5 +48,4 @@ class AttachedWindowing<T, W extends Window<W>> implements Windowing<T, W> {
   public int hashCode() {
     return 0;
   }
-
 }

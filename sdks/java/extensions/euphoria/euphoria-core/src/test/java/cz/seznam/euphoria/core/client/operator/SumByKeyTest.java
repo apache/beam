@@ -15,15 +15,17 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
-import org.junit.Test;
-
 import java.time.Duration;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class SumByKeyTest {
   @Test
@@ -31,10 +33,8 @@ public class SumByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = SumByKey.named("SumByKey1")
-        .of(dataset)
-        .keyBy(s -> s)
-        .output();
+    Dataset<Pair<String, Long>> counted =
+        SumByKey.named("SumByKey1").of(dataset).keyBy(s -> s).output();
 
     assertEquals(flow, counted.getFlow());
     assertEquals(1, flow.size());
@@ -52,9 +52,7 @@ public class SumByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    SumByKey.of(dataset)
-        .keyBy(s -> s)
-        .output();
+    SumByKey.of(dataset).keyBy(s -> s).output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertEquals("SumByKey", sum.getName());
@@ -89,5 +87,4 @@ public class SumByKeyTest {
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertTrue(sum.getWindowing() instanceof Time);
   }
-
 }

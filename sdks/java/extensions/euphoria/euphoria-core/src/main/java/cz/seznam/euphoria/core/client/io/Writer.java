@@ -31,16 +31,13 @@ public interface Writer<T> extends Closeable {
    * Write element to the output.
    *
    * @param elem the element to write
-   *
    * @throws IOException if performing the write fails for some reason
    */
   void write(T elem) throws IOException;
 
-
   /**
-   * Flush all pending writes to output.
-   * This method might be called multiple times, but is always called
-   * just before {@code commit} or {@code rollback}.
+   * Flush all pending writes to output. This method might be called multiple times, but is always
+   * called just before {@code commit} or {@code rollback}.
    *
    * @throws IOException failure upon writing pending data
    */
@@ -61,12 +58,11 @@ public interface Writer<T> extends Closeable {
   default void rollback() throws IOException {}
 
   /**
-   * Close the writer and release all its resources.
-   * This method will be called as the last method on this object.
+   * Close the writer and release all its resources. This method will be called as the last method
+   * on this object.
    *
    * @throws IOException failure to perform the corresponding clean up
    */
   @Override
   void close() throws IOException;
-
 }

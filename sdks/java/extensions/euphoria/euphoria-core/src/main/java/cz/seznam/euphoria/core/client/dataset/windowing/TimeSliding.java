@@ -15,41 +15,19 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
-
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
 
-/**
- * Time sliding windowing.
- */
+/** Time sliding windowing. */
 @Audience(Audience.Type.CLIENT)
-public final class TimeSliding<T>
-    implements Windowing<T, TimeInterval> {
-
-  public static <T> TimeSliding<T> of(Duration duration, Duration step) {
-    return new TimeSliding<>(duration.toMillis(), step.toMillis());
-  }
-
-  /**
-   * Helper method to extract window label from context.
-   *
-   * @param context the execution context
-   *
-   * @return the {@link TimeInterval} window of this execution
-   *
-   * @throws ClassCastException if the context is not part of a
-   *          time-sliding execution
-   */
-  public static TimeInterval getLabel(Collector<?> context) {
-    return (TimeInterval) context.getWindow();
-  }
+public final class TimeSliding<T> implements Windowing<T, TimeInterval> {
 
   private final long duration;
   private final long slide;
@@ -66,6 +44,21 @@ public final class TimeSliding<T>
     }
   }
 
+  public static <T> TimeSliding<T> of(Duration duration, Duration step) {
+    return new TimeSliding<>(duration.toMillis(), step.toMillis());
+  }
+
+  /**
+   * Helper method to extract window label from context.
+   *
+   * @param context the execution context
+   * @return the {@link TimeInterval} window of this execution
+   * @throws ClassCastException if the context is not part of a time-sliding execution
+   */
+  public static TimeInterval getLabel(Collector<?> context) {
+    return (TimeInterval) context.getWindow();
+  }
+
   @Override
   public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
     return new SlidingWindowSet(el.getTimestamp(), duration, slide);
@@ -78,10 +71,7 @@ public final class TimeSliding<T>
 
   @Override
   public String toString() {
-    return "TimeSliding{" +
-        "duration=" + duration +
-        ", slide=" + slide +
-        '}';
+    return "TimeSliding{" + "duration=" + duration + ", slide=" + slide + '}';
   }
 
   public long getDuration() {
@@ -105,11 +95,8 @@ public final class TimeSliding<T>
   public int hashCode() {
     return Objects.hash(duration, slide);
   }
-  
 
-  /**
-   * Calculates window boundaries lazily during the iteration.
-   */
+  /** Calculates window boundaries lazily during the iteration. */
   public static class SlidingWindowSet implements Iterable<TimeInterval> {
 
     private final long elementStamp;
@@ -144,4 +131,3 @@ public final class TimeSliding<T>
     }
   }
 }
-

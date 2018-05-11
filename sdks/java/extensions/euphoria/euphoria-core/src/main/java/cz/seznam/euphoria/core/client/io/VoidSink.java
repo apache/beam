@@ -50,5 +50,4 @@ public class VoidSink<T> implements DataSink<T> {
   public void rollback() throws IOException {
     // ~ no-op
   }
-
 }

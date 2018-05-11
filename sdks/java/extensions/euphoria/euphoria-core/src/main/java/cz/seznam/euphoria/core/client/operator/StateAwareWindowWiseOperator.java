@@ -20,36 +20,34 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-
 import javax.annotation.Nullable;
 
-/**
- * Operator with internal state.
- */
+/** Operator with internal state. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
-    IN, WIN, KIN, KEY, OUT, W extends Window<W>,
-    OP extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
-    extends WindowWiseOperator<IN, WIN, OUT, W>
-    implements StateAware<KIN, KEY>
-{
+        IN,
+        WIN,
+        KIN,
+        KEY,
+        OUT,
+        W extends Window<W>,
+        OP extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
+    extends WindowWiseOperator<IN, WIN, OUT, W> implements StateAware<KIN, KEY> {
 
   protected final UnaryFunction<KIN, KEY> keyExtractor;
 
   protected StateAwareWindowWiseOperator(
-          String name,
-          Flow flow,
-          @Nullable Windowing<WIN, W> windowing,
-          UnaryFunction<KIN, KEY> keyExtractor) {
+      String name,
+      Flow flow,
+      @Nullable Windowing<WIN, W> windowing,
+      UnaryFunction<KIN, KEY> keyExtractor) {
 
     super(name, flow, windowing);
     this.keyExtractor = keyExtractor;
   }
 
-
   @Override
   public UnaryFunction<KIN, KEY> getKeyExtractor() {
     return keyExtractor;
   }
-
 }

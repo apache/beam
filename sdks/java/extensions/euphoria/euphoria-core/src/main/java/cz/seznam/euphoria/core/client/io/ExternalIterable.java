@@ -18,16 +18,11 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Closeable;
 
-/**
- * An {@code Iterable} that is externalized to external storage
- * (i.e. spilled to disk).
- */
+/** An {@code Iterable} that is externalized to external storage (i.e. spilled to disk). */
 @Audience(Audience.Type.EXECUTOR)
 public interface ExternalIterable<T> extends Iterable<T>, Closeable {
 
   // don't throw exceptions
   @Override
   void close();
-
-
 }

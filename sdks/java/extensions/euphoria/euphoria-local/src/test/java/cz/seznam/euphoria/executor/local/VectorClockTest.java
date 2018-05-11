@@ -15,14 +15,12 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import static org.junit.Assert.assertEquals;
+
 import cz.seznam.euphoria.core.executor.VectorClock;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-
-/**
- * Test vector clocks.
- */
+/** Test vector clocks. */
 public class VectorClockTest {
 
   @Test
@@ -48,5 +46,4 @@ public class VectorClockTest {
     clock.update(2, 1);
     assertEquals(3, clock.getCurrent());
   }
-
 }

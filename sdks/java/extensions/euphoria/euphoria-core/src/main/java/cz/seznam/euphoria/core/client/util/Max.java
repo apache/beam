@@ -20,32 +20,26 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import java.util.Comparator;
 
-/**
- * Calculate maximum.
- */
+/** Calculate maximum. */
 @Audience(Audience.Type.CLIENT)
 public class Max {
+
+  private Max() {}
 
   /**
    * Return {@code CombinableReduceFunction} to calculate maximum of input.
    *
    * @param <IN> the type of elements handled
    * @param <X> the type of key by which to compare the elements
-   *
    * @param extract the key extraction function
-   *
-   * @return a combiner function which delivers the "maximum" element seen;
-   *          never {@code null}
+   * @return a combiner function which delivers the "maximum" element seen; never {@code null}
    */
   public static <IN, X extends Comparable<X>> CombinableReduceFunction<IN> of(
       UnaryFunction<IN, X> extract) {
 
-    return values -> values
-          .max(Comparator.comparing(extract::apply))
-          .orElseThrow(
-              () -> new IllegalStateException("Got empty stream on input!"));
+    return values ->
+        values
+            .max(Comparator.comparing(extract::apply))
+            .orElseThrow(() -> new IllegalStateException("Got empty stream on input!"));
   }
-
-  private Max() { }
-
 }

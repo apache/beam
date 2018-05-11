@@ -38,8 +38,6 @@ class Util {
 
   @SuppressWarnings("unchecked")
   static <T, W extends Window> Dataset<Pair<W, T>> extractWindow(Dataset<T> input) {
-    return MapElements.of(input)
-        .using((e, ctx) -> Pair.of((W) ctx.getWindow(), e))
-        .output();
+    return MapElements.of(input).using((e, ctx) -> Pair.of((W) ctx.getWindow(), e)).output();
   }
 }

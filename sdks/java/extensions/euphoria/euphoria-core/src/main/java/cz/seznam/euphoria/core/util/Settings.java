@@ -15,30 +15,27 @@
  */
 package cz.seznam.euphoria.core.util;
 
+import static java.util.Objects.requireNonNull;
+
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.util.Pair;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
-import static java.util.Objects.requireNonNull;
+import javax.annotation.Nullable;
 
 /**
- * General utility class to store key/value pairs as strings providing converter
- * methods for primitives and frequently used types. Aims to help with presenting
- * a set of configuration/setting values.
+ * General utility class to store key/value pairs as strings providing converter methods for
+ * primitives and frequently used types. Aims to help with presenting a set of configuration/setting
+ * values.
  */
 @Audience(Audience.Type.CLIENT)
 public class Settings implements Serializable {
 
-  @Nullable
-  private final String prefix;
+  @Nullable private final String prefix;
   private final Map<String, String> map;
-
 
   public Settings() {
     this(null, new ConcurrentHashMap<>());
@@ -51,9 +48,14 @@ public class Settings implements Serializable {
    */
   public Settings(Settings other) {
     this();
-    other.getAll().entrySet().stream().forEach(p -> {
-      setString(p.getKey(), p.getValue());
-    });
+    other
+        .getAll()
+        .entrySet()
+        .stream()
+        .forEach(
+            p -> {
+              setString(p.getKey(), p.getValue());
+            });
   }
 
   private Settings(@Nullable String prefix, Map<String, String> map) {
@@ -66,12 +68,11 @@ public class Settings implements Serializable {
   }
 
   /**
-   * Returns a nested view on key/values with the given key prefix. The returned
-   * {@link Settings} instance will share the underlying storage with its parent,
-   * and will automatically and transparently strip/add the specified key prefix.
+   * Returns a nested view on key/values with the given key prefix. The returned {@link Settings}
+   * instance will share the underlying storage with its parent, and will automatically and
+   * transparently strip/add the specified key prefix.
    *
    * @param prefix the key prefix defining the nesting of the view in the parent storage
-   *
    * @return a "prefixed" view of this settings instance
    */
   public Settings nested(String prefix) {
@@ -129,7 +130,7 @@ public class Settings implements Serializable {
 
   public boolean getBoolean(String key, boolean def) {
     String stringVal = getString(key, null);
-    return stringVal == null ? def :  Boolean.parseBoolean(stringVal);
+    return stringVal == null ? def : Boolean.parseBoolean(stringVal);
   }
 
   public boolean getBoolean(String key) {

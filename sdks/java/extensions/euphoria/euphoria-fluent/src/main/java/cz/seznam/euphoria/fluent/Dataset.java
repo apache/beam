@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.fluent;
 
+import static java.util.Objects.requireNonNull;
+
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -24,8 +26,6 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.Executor;
-
-import static java.util.Objects.requireNonNull;
 
 public class Dataset<T> {
 
@@ -39,10 +39,8 @@ public class Dataset<T> {
     return this.wrap;
   }
 
-  public <S> Dataset<S>
-  apply(UnaryFunction<cz.seznam.euphoria.core.client.dataset.Dataset<T>,
-      Output<S>> output)
-  {
+  public <S> Dataset<S> apply(
+      UnaryFunction<cz.seznam.euphoria.core.client.dataset.Dataset<T>, Output<S>> output) {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
   }
 

@@ -15,19 +15,17 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import com.google.common.collect.Iterables;
+import com.google.common.io.Closeables;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.IOUtils;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.shadow.com.google.common.io.Closeables;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 
-/**
- * Tools that can be used to externalize a dataset to local storage.
- */
+/** Tools that can be used to externalize a dataset to local storage. */
 @Audience(Audience.Type.CLIENT)
 public interface SpillTools extends Serializable {
 
@@ -36,14 +34,13 @@ public interface SpillTools extends Serializable {
    *
    * @param <T> type of input
    * @param what an {@code Iterable} that is to be externalized
-   * @return {@code ExternalIterable} that is backed by policy implemented
-   * by this interface
+   * @return {@code ExternalIterable} that is backed by policy implemented by this interface
    */
   <T> ExternalIterable<T> externalize(Iterable<T> what);
 
   /**
-   * Externalize and sort given {@code Iterable} to
-   * sorted parts. These parts can then be merge sorted.
+   * Externalize and sort given {@code Iterable} to sorted parts. These parts can then be merge
+   * sorted.
    *
    * @param <T> type of input
    * @param what the {@code Iterable} that is to be split and sorted
@@ -51,12 +48,11 @@ public interface SpillTools extends Serializable {
    * @return collection of externalized iterables that are sorted
    * @throws InterruptedException if interrupted
    */
-  <T> Collection<ExternalIterable<T>> spillAndSortParts(
-      Iterable<T> what, Comparator<T> comparator) throws InterruptedException;
+  <T> Collection<ExternalIterable<T>> spillAndSortParts(Iterable<T> what, Comparator<T> comparator)
+      throws InterruptedException;
 
   /**
-   * Use external sort to return given {@code Iterable} sorted according
-   * to given comparator.
+   * Use external sort to return given {@code Iterable} sorted according to given comparator.
    *
    * @param <T> type of data in the {@code Iterable}.
    * @param what the {@code Iterable} to external sort
@@ -86,8 +82,6 @@ public interface SpillTools extends Serializable {
           throw new IllegalStateException(ex);
         }
       }
-
     };
   }
-
 }

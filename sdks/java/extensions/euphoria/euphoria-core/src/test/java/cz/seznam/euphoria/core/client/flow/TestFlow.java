@@ -15,29 +15,34 @@
  */
 package cz.seznam.euphoria.core.client.flow;
 
+import static org.junit.Assert.assertEquals;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.MockStreamDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Union;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.Before;
+import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-
-/**
- * Test some basic features of flow.
- */
+/** Test some basic features of flow. */
 public class TestFlow {
-  
+
   private Flow flow;
-  
+
+  private static <X> Set<X> toSet(Collection<X> c) {
+    return toSet(c.stream());
+  }
+
+  private static <X> Set<X> toSet(Stream<X> s) {
+    return s.collect(Collectors.toSet());
+  }
+
   @Before
   public void before() {
     flow = Flow.create("TestFlow");
@@ -56,17 +61,8 @@ public class TestFlow {
     assertEquals(0, union.getConsumers().size());
 
     // the 'transformed' data set is consumed by Filter and Union operators
-    assertEquals(toSet(Arrays.asList(Filter.class, Union.class)),
+    assertEquals(
+        toSet(Arrays.asList(Filter.class, Union.class)),
         toSet(transformed.getConsumers().stream().map(Object::getClass)));
-
-  }
-
-
-  private static <X> Set<X> toSet(Collection<X> c) {
-    return toSet(c.stream());
-  }
-
-  private static <X> Set<X> toSet(Stream<X> s) {
-    return s.collect(Collectors.toSet());
   }
 }

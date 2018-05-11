@@ -20,17 +20,13 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.testing.DatasetAssert;
+import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
-
-
-/**
- * Test {@code FlatMap} operator's integration with beam.
- */
+/** Test {@code FlatMap} operator's integration with beam. */
 public class FlatMapTest {
 
   @Test
@@ -40,22 +36,16 @@ public class FlatMapTest {
     String[] args = {"--runner=DirectRunner"};
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
 
-    final ListDataSource<Integer> input = ListDataSource.unbounded(
-        Arrays.asList(1, 2, 3),
-        Arrays.asList(2, 3, 4));
+    final ListDataSource<Integer> input =
+        ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
 
     final ListDataSink<Integer> output = ListDataSink.get();
 
-    MapElements.of(flow.createInput(input))
-        .using(i -> i + 1)
-        .output()
-        .persist(output);
+    MapElements.of(flow.createInput(input)).using(i -> i + 1).output().persist(output);
 
     BeamExecutor executor = new BeamExecutor(options);
     executor.execute(flow);
 
-    DatasetAssert.unorderedEquals(
-        output.getOutputs(),
-        2, 3, 3, 4, 4, 5);
+    DatasetAssert.unorderedEquals(output.getOutputs(), 2, 3, 3, 4, 4, 5);
   }
 }

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
@@ -23,31 +24,82 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-
 import java.util.Objects;
 import java.util.Set;
 
 /**
  * Operator performing a filter operation.
  *
- * Output elements that pass given condition.
+ * <p>Output elements that pass given condition.
  *
  * <h3>Builders:</h3>
+ *
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input dataset
  *   <li>{@code by .......................} apply {@link UnaryPredicate} to input elements
  *   <li>{@code output ...................} build output dataset
  * </ol>
- *
  */
 @Audience(Audience.Type.CLIENT)
-@Derived(
-    state = StateComplexity.ZERO,
-    repartitions = 0
-)
+@Derived(state = StateComplexity.ZERO, repartitions = 0)
 public class Filter<IN> extends ElementWiseOperator<IN, IN> {
+
+  final UnaryPredicate<IN> predicate;
+
+  Filter(
+      String name,
+      Flow flow,
+      Dataset<IN> input,
+      UnaryPredicate<IN> predicate,
+      Set<OutputHint> outputHints) {
+    super(name, flow, input, outputHints);
+    this.predicate = predicate;
+  }
+
+  /**
+   * Starts building a nameless {@link Filter} operator to process the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   * @param input the input data set to be processed
+   * @return a builder to complete the setup of the new operator
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> ByBuilder<IN> of(Dataset<IN> input) {
+    return new ByBuilder<>("Filter", input);
+  }
+
+  /**
+   * Starts building a named {@link Filter} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   * @return a builder to complete the setup of the new operator
+   */
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  public UnaryPredicate<IN> getPredicate() {
+    return predicate;
+  }
+
+  /** This operator can be implemented using FlatMap. */
+  @Override
+  public DAG<Operator<?, ?>> getBasicOps() {
+    return DAG.of(
+        new FlatMap<>(
+            getName(),
+            getFlow(),
+            input,
+            (elem, collector) -> {
+              if (predicate.apply(elem)) {
+                collector.collect(elem);
+              }
+            },
+            null,
+            getHints()));
+  }
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -74,14 +126,13 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
     /**
      * Specifies the function that is capable of input elements filtering.
      *
-     * @param predicate the function that filters out elements if the return value
-     *        for the element is false
+     * @param predicate the function that filters out elements if the return value for the element
+     *     is false
      * @return the next builder to complete the setup of the operator
      */
     public Builders.Output<IN> by(UnaryPredicate<IN> predicate) {
       return new OutputBuilder<>(name, input, predicate);
     }
-
   }
 
   public static class OutputBuilder<IN> implements Builders.Output<IN> {
@@ -104,61 +155,5 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
       return filter.output();
     }
-
-  }
-
-  /**
-   * Starts building a nameless {@link Filter} operator to process
-   * the given input dataset.
-   *
-   * @param <IN> the type of elements of the input dataset
-   *
-   * @param input the input data set to be processed
-   *
-   * @return a builder to complete the setup of the new operator
-   *
-   * @see #named(String)
-   * @see OfBuilder#of(Dataset)
-   */
-  public static <IN> ByBuilder<IN> of(Dataset<IN> input) {
-    return new ByBuilder<>("Filter", input);
-  }
-
-  /**
-   * Starts building a named {@link Filter} operator.
-   *
-   * @param name a user provided name of the new operator to build
-   *
-   * @return a builder to complete the setup of the new operator
-   */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
-  }
-
-  final UnaryPredicate<IN> predicate;
-
-  Filter(String name,
-         Flow flow, Dataset<IN> input,
-         UnaryPredicate<IN> predicate,
-         Set<OutputHint> outputHints) {
-    super(name, flow, input, outputHints);
-    this.predicate = predicate;
-  }
-
-  public UnaryPredicate<IN> getPredicate() {
-    return predicate;
-  }
-
-  /** This operator can be implemented using FlatMap. */
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(new FlatMap<>(getName(), getFlow(), input,
-        (elem, collector) -> {
-          if (predicate.apply(elem)) {
-            collector.collect(elem);
-          }
-        },
-        null,
-        getHints()));
   }
 }

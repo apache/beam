@@ -15,6 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -24,11 +29,8 @@ import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
-import org.junit.Test;
-
 import java.time.Duration;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class ReduceStateByKeyTest {
 
@@ -38,14 +40,15 @@ public class ReduceStateByKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Pair<String, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
-        .of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .stateFactory(WordCountState::new)
-        .mergeStatesBy(WordCountState::combine)
-        .windowBy(windowing)
-        .output();
+    Dataset<Pair<String, Long>> reduced =
+        ReduceStateByKey.named("ReduceStateByKey1")
+            .of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .stateFactory(WordCountState::new)
+            .mergeStatesBy(WordCountState::combine)
+            .windowBy(windowing)
+            .output();
 
     assertEquals(flow, reduced.getFlow());
     assertEquals(1, flow.size());
@@ -82,7 +85,8 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceStateByKey.of(dataset)
+    Dataset<Pair<String, Long>> reduced =
+        ReduceStateByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
@@ -111,16 +115,21 @@ public class ReduceStateByKeyTest {
     assertTrue(reduce.getWindowing() instanceof Time);
   }
 
-
-  /**
-   * Simple aggregating state.
-   */
+  /** Simple aggregating state. */
   private static class WordCountState implements State<Long, Long> {
     private final ValueStorage<Long> sum;
 
     protected WordCountState(StateContext context, Collector<Long> collector) {
-      sum = context.getStorageProvider().getValueStorage(
-          ValueStorageDescriptor.of("sum", Long.class, 0L));
+      sum =
+          context
+              .getStorageProvider()
+              .getValueStorage(ValueStorageDescriptor.of("sum", Long.class, 0L));
+    }
+
+    static void combine(WordCountState target, Iterable<WordCountState> others) {
+      for (WordCountState other : others) {
+        target.add(other.sum.get());
+      }
     }
 
     @Override
@@ -133,16 +142,9 @@ public class ReduceStateByKeyTest {
       ctx.collect(sum.get());
     }
 
-    static void combine(WordCountState target, Iterable<WordCountState> others) {
-      for (WordCountState other : others) {
-        target.add(other.sum.get());
-      }
-    }
-
     @Override
     public void close() {
       sum.clear();
     }
   }
-
 }

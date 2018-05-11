@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
@@ -30,84 +31,148 @@ import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunction;
 import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-
-import javax.annotation.Nullable;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
- * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api,
- * but very powerful processor and serves as the basis for easier-to-use
- * operators. Client API users have generally little motivation to use it
- * directly and should prefer {@link ReduceByKey} when possible.<p>
+ * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api, but very powerful
+ * processor and serves as the basis for easier-to-use operators. Client API users have generally
+ * little motivation to use it directly and should prefer {@link ReduceByKey} when possible.
  *
- * The operator assigns each input item to a set of windows (through a user
- * provided {@link Windowing} implementation) and turns the item into a
- * key/value pair. For each of the assigned windows the extracted value is
- * accumulated using a user provided {@link StateFactory state implementation}
- * under the extracted key. I.e. the value is accumulated into a state
- * identified by a key/window pair.<p>
+ * <p>The operator assigns each input item to a set of windows (through a user provided {@link
+ * Windowing} implementation) and turns the item into a key/value pair. For each of the assigned
+ * windows the extracted value is accumulated using a user provided {@link StateFactory state
+ * implementation} under the extracted key. I.e. the value is accumulated into a state identified by
+ * a key/window pair.
  *
- * Example:
+ * <p>Example:
  *
- * <pre>
- * {@code
- *  Dataset<String> words = ...;
- *  Dataset<Pair<String, Integer>> counts =
- *      ReduceStateByKey.named("WORD-COUNT")
- *          .of(words)
- *          .keyBy(s -> s)
- *          .valueBy(s -> 1)
- *          .stateFactory(WordCountState::new)
- *          .mergeStatesBy(WordCountState::merge)
- *          .windowBy(Time.of(Duration.ofHours(1))
- *          .output();
- * }
- * </pre>
+ * <pre>{@code
+ * Dataset<String> words = ...;
+ * Dataset<Pair<String, Integer>> counts =
+ *     ReduceStateByKey.named("WORD-COUNT")
+ *         .of(words)
+ *         .keyBy(s -> s)
+ *         .valueBy(s -> 1)
+ *         .stateFactory(WordCountState::new)
+ *         .mergeStatesBy(WordCountState::merge)
+ *         .windowBy(Time.of(Duration.ofHours(1))
+ *         .output();
+ * }</pre>
  *
- * This example constitutes a windowed word-count program. Each input element
- * is treated as a key to identify an imaginary {@code WordCountState} within
- * each time window assigned to the input element. For such a key/window
- * combination the value {@code 1} gets sent to the corresponding state.<p>
+ * This example constitutes a windowed word-count program. Each input element is treated as a key to
+ * identify an imaginary {@code WordCountState} within each time window assigned to the input
+ * element. For such a key/window combination the value {@code 1} gets sent to the corresponding
+ * state.
  *
- * States are emitted based on the used {@link Windowing} strategy. See that
- * for more information. Generally speaking, when a window is emitted/triggered,
- * the states of all keys within the emitted window are flushed.
+ * <p>States are emitted based on the used {@link Windowing} strategy. See that for more
+ * information. Generally speaking, when a window is emitted/triggered, the states of all keys
+ * within the emitted window are flushed.
  *
- * Note that defining a {@link Windowing} strategy is actually optional. If
- * none is defined the operator will act in the so-call "attached windowing"
- * mode, i.e. it will attach itself to the windowing strategy active on they
- * way from its input.
+ * <p>Note that defining a {@link Windowing} strategy is actually optional. If none is defined the
+ * operator will act in the so-call "attached windowing" mode, i.e. it will attach itself to the
+ * windowing strategy active on they way from its input.
  *
  * <h3>Builders:</h3>
+ *
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input dataset
  *   <li>{@code keyBy ....................} key extractor function
  *   <li>{@code valueBy ..................} value extractor function
- *   <li>{@code stateFactory .............} factory method for {@link State} (see {@link StateFactory})
+ *   <li>{@code stateFactory .............} factory method for {@link State} (see {@link
+ *       StateFactory})
  *   <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
- *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
+ *       attached windowing
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
- * @param <IN>     the type of input elements
- * @param <KEY>    the type of the key (result type of {@code #keyBy}
- * @param <VALUE>  the type of the accumulated values (result type of {@code #valueBy})
- * @param <OUT>    the type of the output elements (result type of the accumulated state)
+ * @param <IN> the type of input elements
+ * @param <KEY> the type of the key (result type of {@code #keyBy}
+ * @param <VALUE> the type of the accumulated values (result type of {@code #valueBy})
+ * @param <OUT> the type of the output elements (result type of the accumulated state)
  */
 @Audience(Audience.Type.CLIENT)
-@Basic(
-    state = StateComplexity.CONSTANT_IF_COMBINABLE,
-    repartitions = 1
-)
+@Basic(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceStateByKey<
-    IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window<W>>
+        IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Pair<KEY, OUT>, W, ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>>
-{
+        IN, IN, IN, KEY, Pair<KEY, OUT>, W, ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>> {
+
+  private final StateFactory<VALUE, OUT, STATE> stateFactory;
+
+  // builder classes used when input is Dataset<IN> ----------------------
+  private final UnaryFunction<IN, VALUE> valueExtractor;
+  private final StateMerger<VALUE, OUT, STATE> stateCombiner;
+
+  ReduceStateByKey(
+      String name,
+      Flow flow,
+      Dataset<IN> input,
+      UnaryFunction<IN, KEY> keyExtractor,
+      UnaryFunction<IN, VALUE> valueExtractor,
+      @Nullable Windowing<IN, W> windowing,
+      StateFactory<VALUE, OUT, STATE> stateFactory,
+      StateMerger<VALUE, OUT, STATE> stateMerger,
+      Set<OutputHint> outputHints) {
+    super(name, flow, input, keyExtractor, windowing, outputHints);
+    this.stateFactory = stateFactory;
+    this.valueExtractor = valueExtractor;
+    this.stateCombiner = stateMerger;
+  }
+
+  /**
+   * Starts building a nameless {@link ReduceStateByKey} operator to process the given input
+   * dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   * @param input the input data set to be processed
+   * @return a builder to complete the setup of the new operator
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+    return new KeyByBuilder<>("ReduceStateByKey", input);
+  }
+
+  /**
+   * Starts building a named {@link ReduceStateByKey} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   * @return a builder to complete the setup of the new operator
+   */
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  /**
+   * Retrieves the user defined state factory function.
+   *
+   * @return the user provided state factory
+   */
+  public StateFactory<VALUE, OUT, STATE> getStateFactory() {
+    return stateFactory;
+  }
+
+  /**
+   * Retrieves the user defined state merger function.
+   *
+   * @return the user provided state merger
+   */
+  public StateMerger<VALUE, OUT, STATE> getStateMerger() {
+    return stateCombiner;
+  }
+
+  /**
+   * Retrieves the user defined key extractor function.
+   *
+   * @return the user provided key extractor function
+   */
+  public UnaryFunction<IN, VALUE> getValueExtractor() {
+    return valueExtractor;
+  }
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -121,8 +186,6 @@ public class ReduceStateByKey<
       return new KeyByBuilder<>(name, input);
     }
   }
-
-  // builder classes used when input is Dataset<IN> ----------------------
 
   public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
 
@@ -157,20 +220,16 @@ public class ReduceStateByKey<
     }
 
     /**
-     * Specifies the function to derive a value from the
-     * {@link ReduceStateByKey} operator's input elements to get
-     * accumulated by a later supplied state implementation.
+     * Specifies the function to derive a value from the {@link ReduceStateByKey} operator's input
+     * elements to get accumulated by a later supplied state implementation.
      *
      * @param <VALUE> the type of the extracted values
-     *
-     * @param valueExtractor a user defined function to extract values from the
-     *                        processed input dataset's elements for later
-     *                        accumulation
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
+     * @param valueExtractor a user defined function to extract values from the processed input
+     *     dataset's elements for later accumulation
+     * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public <VALUE> DatasetBuilder3<IN, KEY, VALUE> valueBy(UnaryFunction<IN, VALUE> valueExtractor) {
+    public <VALUE> DatasetBuilder3<IN, KEY, VALUE> valueBy(
+        UnaryFunction<IN, VALUE> valueExtractor) {
       return new DatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
     }
   }
@@ -181,11 +240,11 @@ public class ReduceStateByKey<
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
 
-    DatasetBuilder3(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor)
-    {
+    DatasetBuilder3(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, VALUE> valueExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -195,39 +254,33 @@ public class ReduceStateByKey<
     /**
      * Specifies a factory for creating new/empty/blank state instances.
      *
-     * @param <OUT> the type of output elements state instances will produce;
-     *               along with the "key", this is part of the type of output
-     *               elements the {@link ReduceStateByKey} operator will produce
-     *               as such
+     * @param <OUT> the type of output elements state instances will produce; along with the "key",
+     *     this is part of the type of output elements the {@link ReduceStateByKey} operator will
+     *     produce as such
      * @param <STATE> the type of the state (implementation)
-     *
      * @param stateFactory a user supplied function to create new state instances
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
+     * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public <OUT, STATE extends State<VALUE, OUT>> DatasetBuilder4<
-            IN, KEY, VALUE, OUT, STATE> stateFactory(
+    public <OUT, STATE extends State<VALUE, OUT>>
+        DatasetBuilder4<IN, KEY, VALUE, OUT, STATE> stateFactory(
             StateFactory<VALUE, OUT, STATE> stateFactory) {
-      return new DatasetBuilder4<>(
-          name, input, keyExtractor, valueExtractor, stateFactory);
+      return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
     }
   }
 
-  public static class DatasetBuilder4<
-      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
+  public static class DatasetBuilder4<IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final StateFactory<VALUE, OUT, STATE> stateFactory;
 
-    DatasetBuilder4(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor,
-                    StateFactory<VALUE, OUT, STATE> stateFactory)
-    {
+    DatasetBuilder4(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, VALUE> valueExtractor,
+        StateFactory<VALUE, OUT, STATE> stateFactory) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -236,27 +289,24 @@ public class ReduceStateByKey<
     }
 
     /**
-     * Specifies the merging function to be utilized when states get merged
-     * as part of {@link cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing window merging}.
+     * Specifies the merging function to be utilized when states get merged as part of {@link
+     * cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing window merging}.
      *
-     * @param stateMerger a user defined function to merge mutilple states into
-     *                   a specified target state
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
+     * @param stateMerger a user defined function to merge mutilple states into a specified target
+     *     state
+     * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>
-    mergeStatesBy(StateMerger<VALUE, OUT, STATE> stateMerger) {
-      return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateMerger);
+    public DatasetBuilder5<IN, KEY, VALUE, OUT, STATE> mergeStatesBy(
+        StateMerger<VALUE, OUT, STATE> stateMerger) {
+      return new DatasetBuilder5<>(
+          name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
     }
   }
 
-  public static class DatasetBuilder5<
-      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
+  public static class DatasetBuilder5<IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
       implements Builders.WindowBy<IN, DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>,
-      Builders.Output<Pair<KEY, OUT>>,
-      Builders.OutputValues<KEY, OUT> {
+          Builders.Output<Pair<KEY, OUT>>,
+          Builders.OutputValues<KEY, OUT> {
 
     final String name;
     final Dataset<IN> input;
@@ -265,12 +315,13 @@ public class ReduceStateByKey<
     final StateFactory<VALUE, OUT, STATE> stateFactory;
     final StateMerger<VALUE, OUT, STATE> stateMerger;
 
-    DatasetBuilder5(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor,
-                    StateFactory<VALUE, OUT, STATE> stateFactory,
-                    StateMerger<VALUE, OUT, STATE> stateMerger) {
+    DatasetBuilder5(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, VALUE> valueExtractor,
+        StateFactory<VALUE, OUT, STATE> stateFactory,
+        StateMerger<VALUE, OUT, STATE> stateMerger) {
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -281,35 +332,40 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public <W extends Window<W>>
-    DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
-    windowBy(Windowing<IN, W> windowing) {
-      return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-          stateFactory, stateMerger, Objects.requireNonNull(windowing));
+    public <W extends Window<W>> DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W> windowBy(
+        Windowing<IN, W> windowing) {
+      return new DatasetBuilder6<>(
+          name,
+          input,
+          keyExtractor,
+          valueExtractor,
+          stateFactory,
+          stateMerger,
+          Objects.requireNonNull(windowing));
     }
 
     @Override
     public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
-      return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-          stateFactory, stateMerger, null)
+      return new DatasetBuilder6<>(
+              name, input, keyExtractor, valueExtractor, stateFactory, stateMerger, null)
           .output(outputHints);
     }
   }
 
   public static class DatasetBuilder6<
-      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window<W>>
+          IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window<W>>
       extends DatasetBuilder5<IN, KEY, VALUE, OUT, STATE> {
 
-    @Nullable
-    private final Windowing<IN, W> windowing;
+    @Nullable private final Windowing<IN, W> windowing;
 
-    DatasetBuilder6(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor,
-                    StateFactory<VALUE, OUT, STATE> stateFactory,
-                    StateMerger<VALUE, OUT, STATE> stateMerger,
-                    @Nullable Windowing<IN, W> windowing) {
+    DatasetBuilder6(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, VALUE> valueExtractor,
+        StateFactory<VALUE, OUT, STATE> stateFactory,
+        StateMerger<VALUE, OUT, STATE> stateMerger,
+        @Nullable Windowing<IN, W> windowing) {
       super(name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
       this.windowing = windowing;
     }
@@ -318,87 +374,20 @@ public class ReduceStateByKey<
     public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
 
-      ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>
-          reduceStateByKey =
-          new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, stateFactory, stateMerger, Sets.newHashSet(outputHints));
+      ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W> reduceStateByKey =
+          new ReduceStateByKey<>(
+              name,
+              flow,
+              input,
+              keyExtractor,
+              valueExtractor,
+              windowing,
+              stateFactory,
+              stateMerger,
+              Sets.newHashSet(outputHints));
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
     }
-  }
-
-  /**
-   * Starts building a nameless {@link ReduceStateByKey} operator to process
-   * the given input dataset.
-   *
-   * @param <IN> the type of elements of the input dataset
-   *
-   * @param input the input data set to be processed
-   *
-   * @return a builder to complete the setup of the new operator
-   *
-   * @see #named(String)
-   * @see OfBuilder#of(Dataset)
-   */
-  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
-    return new KeyByBuilder<>("ReduceStateByKey", input);
-  }
-
-  /**
-   * Starts building a named {@link ReduceStateByKey} operator.
-   *
-   * @param name a user provided name of the new operator to build
-   *
-   * @return a builder to complete the setup of the new operator
-   */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
-  }
-
-  private final StateFactory<VALUE, OUT, STATE> stateFactory;
-  private final UnaryFunction<IN, VALUE> valueExtractor;
-  private final StateMerger<VALUE, OUT, STATE> stateCombiner;
-
-  ReduceStateByKey(String name,
-                   Flow flow,
-                   Dataset<IN> input,
-                   UnaryFunction<IN, KEY> keyExtractor,
-                   UnaryFunction<IN, VALUE> valueExtractor,
-                   @Nullable Windowing<IN, W> windowing,
-                   StateFactory<VALUE, OUT, STATE> stateFactory,
-                   StateMerger<VALUE, OUT, STATE> stateMerger,
-                   Set<OutputHint> outputHints) {
-    super(name, flow, input, keyExtractor, windowing, outputHints);
-    this.stateFactory = stateFactory;
-    this.valueExtractor = valueExtractor;
-    this.stateCombiner = stateMerger;
-  }
-
-  /**
-   * Retrieves the user defined state factory function.
-   *
-   * @return the user provided state factory
-   */
-  public StateFactory<VALUE, OUT, STATE> getStateFactory() {
-    return stateFactory;
-  }
-
-  /**
-   * Retrieves the user defined state merger function.
-   *
-   * @return the user provided state merger
-   */
-  public StateMerger<VALUE, OUT, STATE> getStateMerger() {
-    return stateCombiner;
-  }
-
-  /**
-   * Retrieves the user defined key extractor function.
-   *
-   * @return the user provided key extractor function
-   */
-  public UnaryFunction<IN, VALUE> getValueExtractor() {
-    return valueExtractor;
   }
 }

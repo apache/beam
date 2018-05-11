@@ -15,12 +15,12 @@
  */
 package cz.seznam.euphoria.core.executor.io;
 
+import com.google.common.annotations.VisibleForTesting;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.io.SpillTools;
 import cz.seznam.euphoria.core.executor.Constants;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,27 +32,19 @@ import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * An implementation of {@code SpillTools} to be used by executors.
- */
+/** An implementation of {@code SpillTools} to be used by executors. */
 @Audience(Audience.Type.EXECUTOR)
 public class GenericSpillTools implements SpillTools {
 
   private static final Logger LOG = LoggerFactory.getLogger(GenericSpillTools.class);
 
-  /**
-   * Number of records to keep in list before spilling.
-   */
+  /** Number of records to keep in list before spilling. */
   private final int numSpillRecords;
 
-  /**
-   * Factory for creating files for spilling.
-   */
+  /** Factory for creating files for spilling. */
   private final SpillFileFactory spillFactory;
 
-  /**
-   * Factory for serializer used when spilling data to disk.
-   */
+  /** Factory for serializer used when spilling data to disk. */
   private final SerializerFactory serializer;
 
   /**
@@ -61,31 +53,28 @@ public class GenericSpillTools implements SpillTools {
    * @param settings settings to read configuration from
    */
   public GenericSpillTools(
-      SerializerFactory serializer,
-      SpillFileFactory spillFactory,
-      Settings settings) {
+      SerializerFactory serializer, SpillFileFactory spillFactory, Settings settings) {
 
-    this(serializer, spillFactory, settings.getInt(
-        Constants.SPILL_BUFFER_ITEMS, Constants.SPILL_BUFFER_ITEMS_DEFAULT));
+    this(
+        serializer,
+        spillFactory,
+        settings.getInt(Constants.SPILL_BUFFER_ITEMS, Constants.SPILL_BUFFER_ITEMS_DEFAULT));
   }
 
   /**
    * @param serializer path to temporary directory to use for spilling
    * @param settings settings to read configuration from
    */
-  public GenericSpillTools(
-      SerializerFactory serializer,
-      Settings settings) {
+  public GenericSpillTools(SerializerFactory serializer, Settings settings) {
 
-    this(serializer, spillFactory(settings), settings.getInt(
-        Constants.SPILL_BUFFER_ITEMS, Constants.SPILL_BUFFER_ITEMS_DEFAULT));
+    this(
+        serializer,
+        spillFactory(settings),
+        settings.getInt(Constants.SPILL_BUFFER_ITEMS, Constants.SPILL_BUFFER_ITEMS_DEFAULT));
   }
 
   @VisibleForTesting
-  GenericSpillTools(
-      SerializerFactory serializer,
-      SpillFileFactory spillFactory,
-      int spillRecords) {
+  GenericSpillTools(SerializerFactory serializer, SpillFileFactory spillFactory, int spillRecords) {
 
     this.serializer = serializer;
     this.spillFactory = spillFactory;
@@ -93,23 +82,23 @@ public class GenericSpillTools implements SpillTools {
   }
 
   private static SpillFileFactory spillFactory(Settings settings) {
-    final File tmpDir = new File(settings.getString(
-        Constants.LOCAL_TMP_DIR,
-        Constants.LOCAL_TMP_DIR_DEFAULT));
+    final File tmpDir =
+        new File(settings.getString(Constants.LOCAL_TMP_DIR, Constants.LOCAL_TMP_DIR_DEFAULT));
 
     if (tmpDir.exists()) {
       if (!tmpDir.isDirectory()) {
         throw new IllegalArgumentException(
-            "Path " + tmpDir
-            + " exists and is not directory! Tune your " + Constants.LOCAL_TMP_DIR
-            + " settings");
+            "Path "
+                + tmpDir
+                + " exists and is not directory! Tune your "
+                + Constants.LOCAL_TMP_DIR
+                + " settings");
       }
     } else {
       tmpDir.mkdirs();
     }
-    return () -> new File(
-        tmpDir, String.format(
-            "euphoria-spill-%s.bin", UUID.randomUUID().toString()));
+    return () ->
+        new File(tmpDir, String.format("euphoria-spill-%s.bin", UUID.randomUUID().toString()));
   }
 
   @Override
@@ -118,8 +107,8 @@ public class GenericSpillTools implements SpillTools {
   }
 
   private <T> ExternalIterable<T> externalize(Stream<T> what) {
-    FsSpillingListStorage<T> ret = new FsSpillingListStorage<>(
-        serializer, spillFactory, numSpillRecords);
+    FsSpillingListStorage<T> ret =
+        new FsSpillingListStorage<>(serializer, spillFactory, numSpillRecords);
     what.forEach(ret::add);
     ret.closeOutput();
     return ret;

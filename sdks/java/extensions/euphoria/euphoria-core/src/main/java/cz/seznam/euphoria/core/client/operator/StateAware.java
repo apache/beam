@@ -19,8 +19,8 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 /**
- * Interface marking operator as state aware.
- * State aware operators are global operators that work on some type of key.
+ * Interface marking operator as state aware. State aware operators are global operators that work
+ * on some type of key.
  *
  * @param <IN> the type of (input) elements being processed
  * @param <KEY> the type of the elements' keys
@@ -28,10 +28,6 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 @Audience(Audience.Type.INTERNAL)
 public interface StateAware<IN, KEY> {
 
-  /**
-   * @return the key extractor function on whose base this operator
-   *          carries out partitioning
-   */
+  /** @return the key extractor function on whose base this operator carries out partitioning */
   UnaryFunction<IN, KEY> getKeyExtractor();
-
 }

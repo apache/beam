@@ -28,9 +28,7 @@ public class Fluent {
     return Flow.create(name, settings);
   }
 
-  public static <T> Dataset<T>
-  lift(cz.seznam.euphoria.core.client.dataset.Dataset<T> xs) {
+  public static <T> Dataset<T> lift(cz.seznam.euphoria.core.client.dataset.Dataset<T> xs) {
     return new Dataset<>(xs);
   }
-
 }

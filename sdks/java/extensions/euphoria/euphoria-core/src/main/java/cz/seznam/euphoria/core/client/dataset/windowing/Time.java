@@ -15,46 +15,40 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import static java.util.Collections.singleton;
+
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
-import static java.util.Collections.singleton;
-
-/**
- * Time based tumbling windowing. Windows can't overlap.
- */
+/** Time based tumbling windowing. Windows can't overlap. */
 @Audience(Audience.Type.CLIENT)
 public class Time<T> implements Windowing<T, TimeInterval> {
 
   private final long durationMillis;
-  @Nullable
-  private Duration earlyTriggeringPeriod;
-
-  public static <T> Time<T> of(Duration duration) {
-    return new Time<>(duration.toMillis());
-  }
+  @Nullable private Duration earlyTriggeringPeriod;
 
   private Time(long durationMillis) {
     Preconditions.checkArgument(durationMillis > 0, "Windowing with zero duration");
     this.durationMillis = durationMillis;
   }
 
+  public static <T> Time<T> of(Duration duration) {
+    return new Time<>(duration.toMillis());
+  }
+
   /**
    * Early results will be triggered periodically until the window is finally closed.
    *
    * @param <T> the type of elements dealt with
-   *
    * @param timeout the period after which to periodically trigger windows
-   *
    * @return this instance (for method chaining purposes)
    */
   @SuppressWarnings("unchecked")
@@ -76,9 +70,9 @@ public class Time<T> implements Windowing<T, TimeInterval> {
   @Override
   public Trigger<TimeInterval> getTrigger() {
     if (earlyTriggeringPeriod != null) {
-      return new AfterFirstCompositeTrigger<>(Arrays.asList(
-              new TimeTrigger(),
-              new PeriodicTimeTrigger(earlyTriggeringPeriod.toMillis())));
+      return new AfterFirstCompositeTrigger<>(
+          Arrays.asList(
+              new TimeTrigger(), new PeriodicTimeTrigger(earlyTriggeringPeriod.toMillis())));
     }
     return new TimeTrigger();
   }
@@ -106,7 +100,4 @@ public class Time<T> implements Windowing<T, TimeInterval> {
   public int hashCode() {
     return Objects.hash(durationMillis, earlyTriggeringPeriod);
   }
-
-
 }
-

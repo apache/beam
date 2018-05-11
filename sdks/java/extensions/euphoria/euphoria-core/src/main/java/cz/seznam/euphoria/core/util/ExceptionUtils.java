@@ -17,14 +17,12 @@ package cz.seznam.euphoria.core.util;
 
 import java.util.function.Consumer;
 
-/**
- * Utils for easier exception handling.
- */
+/** Utils for easier exception handling. */
 public class ExceptionUtils {
 
   /**
-   * Catches any exception thrown by provided {@link Supplier}
-   * and rethrows it as {@link RuntimeException}.
+   * Catches any exception thrown by provided {@link Supplier} and rethrows it as {@link
+   * RuntimeException}.
    *
    * @param supplier to provide value, that can throw checked exception
    * @param <T> type of value the supplier returns
@@ -45,8 +43,8 @@ public class ExceptionUtils {
   }
 
   /**
-   * Catches any exception thrown by provided {@link Action}
-   * and rethrows it as {@link RuntimeException}.
+   * Catches any exception thrown by provided {@link Action} and rethrows it as {@link
+   * RuntimeException}.
    *
    * @param action that can throw checked exception
    */
@@ -65,8 +63,9 @@ public class ExceptionUtils {
   }
 
   /**
-   * Return consumer throwing {@link RuntimeException} on each exception
-   * thrown from given {@link ThrowingConsumer}.
+   * Return consumer throwing {@link RuntimeException} on each exception thrown from given {@link
+   * ThrowingConsumer}.
+   *
    * @param <T> type parameter
    * @param consumer the consumer that throws exception
    * @return consumer not throwing checked exceptions
@@ -86,6 +85,7 @@ public class ExceptionUtils {
 
   /**
    * Create supplier for {@link IllegalStateException} with given message.
+   *
    * @param message the message for exception
    * @return exception supplier
    */

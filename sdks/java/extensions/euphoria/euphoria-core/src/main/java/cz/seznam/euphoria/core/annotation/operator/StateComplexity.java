@@ -15,11 +15,8 @@
  */
 package cz.seznam.euphoria.core.annotation.operator;
 
-/**
- * Space complexity of an operator's state in each window
- * depending on the size of input.
- */
-public enum  StateComplexity {
+/** Space complexity of an operator's state in each window depending on the size of input. */
+public enum StateComplexity {
 
   /** The size of state will be O(N) in the size of input. */
   LINEAR,
@@ -29,13 +26,13 @@ public enum  StateComplexity {
 
   /** The size of state will be O(1) in the size of input. */
   CONSTANT,
-  
+
   /** There is no state in this operator. */
   ZERO,
 
   /**
-   * The size of state will be O(1) if the passed function
-   * is `combinable` (commutative, associative), otherwise it will be O(N).
+   * The size of state will be O(1) if the passed function is `combinable` (commutative,
+   * associative), otherwise it will be O(N).
    */
   CONSTANT_IF_COMBINABLE,
 }

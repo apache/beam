@@ -29,5 +29,4 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 public interface WindowAware<IN, W extends Window<W>> {
 
   Windowing<IN, W> getWindowing();
-
 }

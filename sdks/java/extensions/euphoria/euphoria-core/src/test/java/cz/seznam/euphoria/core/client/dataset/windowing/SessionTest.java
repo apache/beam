@@ -15,16 +15,15 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.core.client.util.Pair;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 public class SessionTest {
 
@@ -32,8 +31,7 @@ public class SessionTest {
   public void testWindowAssignment() {
     Session<?> windowing = Session.of(Duration.ofMillis(10));
 
-    Iterable<TimeInterval> windows =
-            windowing.assignWindowsToElement(new TimestampedElement<>(13));
+    Iterable<TimeInterval> windows = windowing.assignWindowsToElement(new TimestampedElement<>(13));
     assertEquals(1, Iterables.size(windows));
     assertEquals(new TimeInterval(13, 23), Iterables.getOnlyElement(windows));
   }
@@ -43,17 +41,13 @@ public class SessionTest {
     Session<?> windowing = Session.of(Duration.ofMillis(10));
 
     Collection<Pair<Collection<TimeInterval>, TimeInterval>> merged =
-            windowing.mergeWindows(Arrays.asList(
-                    new TimeInterval(5, 15),
-                    new TimeInterval(12, 22)));
+        windowing.mergeWindows(Arrays.asList(new TimeInterval(5, 15), new TimeInterval(12, 22)));
 
     assertEquals(1, merged.size());
     assertEquals(new TimeInterval(5, 22), Iterables.getOnlyElement(merged).getSecond());
 
     Collection<Pair<Collection<TimeInterval>, TimeInterval>> nonMerged =
-            windowing.mergeWindows(Arrays.asList(
-                    new TimeInterval(5, 15),
-                    new TimeInterval(16, 22)));
+        windowing.mergeWindows(Arrays.asList(new TimeInterval(5, 15), new TimeInterval(16, 22)));
 
     assertTrue(nonMerged.isEmpty());
   }

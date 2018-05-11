@@ -18,14 +18,10 @@ package cz.seznam.euphoria.core.client.functional;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
-/**
- * Function taking zero arguments.
- */
+/** Function taking zero arguments. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface VoidFunction<T> extends Serializable {
 
   T apply();
-
 }
-

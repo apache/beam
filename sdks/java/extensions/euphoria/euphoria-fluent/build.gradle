@@ -2,6 +2,6 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 dependencies {
-  compile project(':beam-sdks-java-extensions-euphoria-core')
-  testCompile project(':beam-sdks-java-extensions-euphoria-local')
+    compile project(':beam-sdks-java-extensions-euphoria-core')
+    testCompile project(':beam-sdks-java-extensions-euphoria-local')
 }

@@ -20,23 +20,11 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.testing.AbstractFlowTest;
-import org.junit.Test;
-
 import java.util.Arrays;
 import java.util.List;
+import org.junit.Test;
 
 public class SimpleWordCountTest {
-
-  private static abstract class FlowTest extends AbstractFlowTest<String> {
-
-    abstract List<String> getInput();
-
-    @Override
-    protected Dataset<String> buildFlow(Flow flow) {
-      return SimpleWordCount.buildFlow(
-          flow.createInput(ListDataSource.bounded(getInput())));
-    }
-  }
 
   private static void execute(FlowTest test) {
     test.execute(new LocalExecutor());
@@ -44,53 +32,53 @@ public class SimpleWordCountTest {
 
   @Test
   public void test_allLowercase() {
-    execute(new FlowTest() {
+    execute(
+        new FlowTest() {
 
-      @Override
-      List<String> getInput() {
-        return Arrays.asList(
-            "first second third fourth",
-            "first second third fourth",
-            "first second third fourth",
-            "first second third fourth"
-        );
-      }
+          @Override
+          List<String> getInput() {
+            return Arrays.asList(
+                "first second third fourth",
+                "first second third fourth",
+                "first second third fourth",
+                "first second third fourth");
+          }
 
-      @Override
-      protected List<String> getOutput() {
-        return Arrays.asList(
-            "first:4",
-            "second:4",
-            "third:4",
-            "fourth:4"
-        );
-      }
-    });
+          @Override
+          protected List<String> getOutput() {
+            return Arrays.asList("first:4", "second:4", "third:4", "fourth:4");
+          }
+        });
   }
 
   @Test
   public void test_firstLetterUppercase() {
-    execute(new FlowTest() {
+    execute(
+        new FlowTest() {
 
-      @Override
-      List<String> getInput() {
-        return Arrays.asList(
-            "First Second Third Fourth",
-            "First Second Third Fourth",
-            "First Second Third Fourth",
-            "First Second Third Fourth"
-        );
-      }
+          @Override
+          List<String> getInput() {
+            return Arrays.asList(
+                "First Second Third Fourth",
+                "First Second Third Fourth",
+                "First Second Third Fourth",
+                "First Second Third Fourth");
+          }
 
-      @Override
-      protected List<String> getOutput() {
-        return Arrays.asList(
-            "first:4",
-            "second:4",
-            "third:4",
-            "fourth:4"
-        );
-      }
-    });
+          @Override
+          protected List<String> getOutput() {
+            return Arrays.asList("first:4", "second:4", "third:4", "fourth:4");
+          }
+        });
+  }
+
+  private abstract static class FlowTest extends AbstractFlowTest<String> {
+
+    abstract List<String> getInput();
+
+    @Override
+    protected Dataset<String> buildFlow(Flow flow) {
+      return SimpleWordCount.buildFlow(flow.createInput(ListDataSource.bounded(getInput())));
+    }
   }
 }

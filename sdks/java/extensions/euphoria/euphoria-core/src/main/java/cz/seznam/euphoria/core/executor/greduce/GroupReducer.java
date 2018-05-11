@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor.greduce;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
@@ -40,8 +41,6 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -49,54 +48,35 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An implementation of a RSBK group reducer of an ordered stream
- * of already grouped (by a specific key) and windowed elements where
- * no late-comers are tolerated.
- * Use this class only in batch mode!
+ * An implementation of a RSBK group reducer of an ordered stream of already grouped (by a specific
+ * key) and windowed elements where no late-comers are tolerated. Use this class only in batch mode!
  */
 @Audience(Audience.Type.EXECUTOR)
-public class GroupReducer<WID extends Window, KEY, I> {
+public class GroupReducer<WidT extends Window, KEY, I> {
 
-  // ~ a thin facade around an executor dependent implementation
-  @FunctionalInterface
-  public interface Collector<T> {
-    void collect(T elem);
-  }
-
-  /**
-   * Creates a new instance of {@link WindowedElement}.
-   *
-   * @param <W> type of the window
-   * @param <T> type of the data element
-   */
-  @FunctionalInterface
-  public interface WindowedElementFactory<W extends Window, T> {
-    WindowedElement<W, T> create(W window, long timestamp, T element);
-  }
-
+  // ~ temporary store for trigger states
+  final TriggerStorage triggerStorage;
+  final TimerSupport<WidT> clock = new TimerSupport<>();
+  final HashMap<WidT, State> states = new HashMap<>();
   private final StateFactory<I, ?, State<I, ?>> stateFactory;
   private final StateMerger<I, ?, State<I, ?>> stateCombiner;
-  private final WindowedElementFactory<WID, Object> elementFactory;
+  private final WindowedElementFactory<WidT, Object> elementFactory;
   private final StateContext stateContext;
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
   private final Windowing windowing;
   private final Trigger trigger;
   private final AccumulatorProvider accumulators;
-
-  // ~ temporary store for trigger states
-  final TriggerStorage triggerStorage;
-  final TimerSupport<WID> clock = new TimerSupport<>();
-  final HashMap<WID, State> states = new HashMap<>();
   KEY key;
 
-  public GroupReducer(StateFactory<I, ?, State<I, ?>> stateFactory,
-                      StateMerger<I, ?, State<I, ?>> stateCombiner,
-                      StateContext stateContext,
-                      WindowedElementFactory<WID, Object> elementFactory,
-                      Windowing windowing,
-                      Trigger trigger,
-                      Collector<WindowedElement<?, Pair<KEY, ?>>> collector,
-                      AccumulatorProvider accumulators) {
+  public GroupReducer(
+      StateFactory<I, ?, State<I, ?>> stateFactory,
+      StateMerger<I, ?, State<I, ?>> stateCombiner,
+      StateContext stateContext,
+      WindowedElementFactory<WidT, Object> elementFactory,
+      Windowing windowing,
+      Trigger trigger,
+      Collector<WindowedElement<?, Pair<KEY, ?>>> collector,
+      AccumulatorProvider accumulators) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
@@ -110,7 +90,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   }
 
   @SuppressWarnings("unchecked")
-  public void process(WindowedElement<WID, Pair<KEY, I>> elem) {
+  public void process(WindowedElement<WidT, Pair<KEY, I>> elem) {
     // ~ make sure we have the key
     updateKey(elem);
 
@@ -118,7 +98,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     clock.updateStamp(elem.getTimestamp(), this::onTimerCallback);
 
     // ~ get the target window
-    WID window = elem.getWindow();
+    WidT window = elem.getWindow();
 
     // ~ merge the new window into existing ones if necessary
     if (windowing instanceof MergingWindowing) {
@@ -134,33 +114,32 @@ public class GroupReducer<WID extends Window, KEY, I> {
     // ~ process trigger#onElement
     {
       ElementTriggerContext trgCtx = new ElementTriggerContext(window);
-      Trigger.TriggerResult windowTr =
-              trigger.onElement(elem.getTimestamp(), window, trgCtx);
+      Trigger.TriggerResult windowTr = trigger.onElement(elem.getTimestamp(), window, trgCtx);
       processTriggerResult(window, trgCtx, windowTr);
     }
   }
 
   @SuppressWarnings("unchecked")
-  private State getStateForUpdate(WID window) {
-    return states.computeIfAbsent(window, w -> {
-      return stateFactory.createState(stateContext, null);
-    });
+  private State getStateForUpdate(WidT window) {
+    return states.computeIfAbsent(
+        window,
+        w -> {
+          return stateFactory.createState(stateContext, null);
+        });
   }
 
   public void close() {
     // ~ fire all pending timers
     clock.updateStamp(Long.MAX_VALUE, this::onTimerCallback);
     // ~ flush any pending states - if any (might trigger non-time based windows)
-    for (WID window : new ArrayList<>(states.keySet())) {
+    for (WidT window : new ArrayList<>(states.keySet())) {
       processTriggerResult(
-          window,
-          new ElementTriggerContext(window),
-          Trigger.TriggerResult.FLUSH_AND_PURGE);
+          window, new ElementTriggerContext(window), Trigger.TriggerResult.FLUSH_AND_PURGE);
     }
   }
 
   @SuppressWarnings("unchecked")
-  private void onTimerCallback(long stamp, WID window) {
+  private void onTimerCallback(long stamp, WidT window) {
     ElementTriggerContext trgCtx = new ElementTriggerContext(window);
     processTriggerResult(window, trgCtx, trigger.onTimer(stamp, window, trgCtx));
   }
@@ -170,17 +149,17 @@ public class GroupReducer<WID extends Window, KEY, I> {
   // placed into and a trigger indicating how to react on the window after adding
   // the element
   @SuppressWarnings("unchecked")
-  private WID mergeWindows(WID newWindow) {
+  private WidT mergeWindows(WidT newWindow) {
     if (states.containsKey(newWindow)) {
       // ~ the new window exists ... there's nothing to merge
       return newWindow;
     }
 
-    Collection<Pair<Collection<WID>, WID>> merges =
+    Collection<Pair<Collection<WidT>, WidT>> merges =
         ((MergingWindowing) windowing).mergeWindows(getActivesWindowsPlus(newWindow));
-    for (Pair<Collection<WID>, WID> merge : merges) {
-      Collection<WID> sources = merge.getFirst();
-      WID target = merge.getSecond();
+    for (Pair<Collection<WidT>, WidT> merge : merges) {
+      Collection<WidT> sources = merge.getFirst();
+      WidT target = merge.getSecond();
 
       // ~ if the newWindow is being merged, replace it with the merge target such
       // that the new element (from which newWindow is originating from) ends up there
@@ -213,7 +192,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       // ~ merge trigger states
       trigger.onMerge(target, new MergingTriggerContext(sources, target));
       // ~ clear the trigger states of the merged windows
-      for (WID source : sources) {
+      for (WidT source : sources) {
         if (!source.equals(newWindow)) {
           trigger.onClear(source, new ElementTriggerContext(source));
         }
@@ -223,16 +202,16 @@ public class GroupReducer<WID extends Window, KEY, I> {
     return newWindow;
   }
 
-  private List<WID> getActivesWindowsPlus(WID newWindow) {
-    ArrayList<WID> actives = new ArrayList<>(states.keySet().size() + 1);
+  private List<WidT> getActivesWindowsPlus(WidT newWindow) {
+    ArrayList<WidT> actives = new ArrayList<>(states.keySet().size() + 1);
     actives.addAll(states.keySet());
     actives.add(newWindow);
     return actives;
   }
 
-  private List<State> removeStatesForMerging(Collection<WID> windows) {
+  private List<State> removeStatesForMerging(Collection<WidT> windows) {
     ArrayList<State> xs = new ArrayList<>(windows.size());
-    for (WID window : windows) {
+    for (WidT window : windows) {
       State x = states.remove(window);
       if (x != null) {
         xs.add(x);
@@ -241,7 +220,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     return xs;
   }
 
-  private void updateKey(WindowedElement<WID, Pair<KEY, I>> elem) {
+  private void updateKey(WindowedElement<WidT, Pair<KEY, I>> elem) {
     if (key == null) {
       key = elem.getElement().getFirst();
     } else {
@@ -252,7 +231,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
   @SuppressWarnings("unchecked")
   private void processTriggerResult(
-      WID window, ElementTriggerContext trgCtx, Trigger.TriggerResult tr) {
+      WidT window, ElementTriggerContext trgCtx, Trigger.TriggerResult tr) {
     if (tr.isFlush() && tr.isPurge()) {
       // ~ close the window
       State state = states.remove(window);
@@ -265,13 +244,29 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
-  class ElementCollector<T>
-      implements Context, cz.seznam.euphoria.core.client.io.Collector<T> {
+  // ~ a thin facade around an executor dependent implementation
+  @FunctionalInterface
+  public interface Collector<T> {
+    void collect(T elem);
+  }
 
-    final Collector<WindowedElement<WID, Pair<KEY, T>>> out;
-    final WID window;
+  /**
+   * Creates a new instance of {@link WindowedElement}.
+   *
+   * @param <W> type of the window
+   * @param <T> type of the data element
+   */
+  @FunctionalInterface
+  public interface WindowedElementFactory<W extends Window, T> {
+    WindowedElement<W, T> create(W window, long timestamp, T element);
+  }
 
-    ElementCollector(Collector<WindowedElement<WID, Pair<KEY, T>>> out, WID window) {
+  class ElementCollector<T> implements Context, cz.seznam.euphoria.core.client.io.Collector<T> {
+
+    final Collector<WindowedElement<WidT, Pair<KEY, T>>> out;
+    final WidT window;
+
+    ElementCollector(Collector<WindowedElement<WidT, Pair<KEY, T>>> out, WidT window) {
       this.out = out;
       this.window = window;
     }
@@ -279,9 +274,9 @@ public class GroupReducer<WID extends Window, KEY, I> {
     @Override
     @SuppressWarnings("unchecked")
     public void collect(T elem) {
-      out.collect((WindowedElement) elementFactory.create(
-          window, window.maxTimestamp() - 1,
-          Pair.of(key, elem)));
+      out.collect(
+          (WindowedElement)
+              elementFactory.create(window, window.maxTimestamp() - 1, Pair.of(key, elem)));
     }
 
     @Override
@@ -308,8 +303,6 @@ public class GroupReducer<WID extends Window, KEY, I> {
     public Timer getTimer(String name) {
       return accumulators.getTimer(name);
     }
-
-
   }
 
   class ElementTriggerContext implements TriggerContext {
@@ -322,14 +315,14 @@ public class GroupReducer<WID extends Window, KEY, I> {
     @SuppressWarnings("unchecked")
     @Override
     public boolean registerTimer(long stamp, Window window) {
-      clock.registerTimer(stamp, (WID) window);
+      clock.registerTimer(stamp, (WidT) window);
       return true;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void deleteTimer(long stamp, Window window) {
-      clock.deleteTimer(stamp, (WID) window);
+      clock.deleteTimer(stamp, (WidT) window);
     }
 
     @Override
@@ -348,8 +341,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
-  class MergingTriggerContext
-      extends ElementTriggerContext
+  class MergingTriggerContext extends ElementTriggerContext
       implements TriggerContext.TriggerMergeContext {
 
     private Collection<? extends Window> sources;
@@ -389,5 +381,4 @@ public class GroupReducer<WID extends Window, KEY, I> {
       }
     }
   }
-
 }

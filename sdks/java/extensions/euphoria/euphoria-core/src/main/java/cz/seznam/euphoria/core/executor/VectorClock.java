@@ -19,9 +19,7 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Vector clock implementation for local executor.
- */
+/** Vector clock implementation for local executor. */
 @Audience(Audience.Type.EXECUTOR)
 public class VectorClock implements Serializable {
 
@@ -29,6 +27,7 @@ public class VectorClock implements Serializable {
 
   /**
    * Create vector clock with given dimensions.
+   *
    * @param dimensions number of dimensions
    */
   public VectorClock(int dimensions) {
@@ -40,6 +39,7 @@ public class VectorClock implements Serializable {
 
   /**
    * Retrieve current stamp as indicated by this clock.
+   *
    * @return current stamp
    */
   public long getCurrent() {
@@ -48,12 +48,12 @@ public class VectorClock implements Serializable {
 
   /**
    * Update clock in given dimension.
+   *
    * @param stamp the timestamp
    * @param dimension index of dimension
    */
   public void update(long stamp, int dimension) {
-    current[dimension].accumulateAndGet(
-        stamp, (old, update) -> old < update ? update : old);
+    current[dimension].accumulateAndGet(stamp, (old, update) -> old < update ? update : old);
   }
 
   private long _min(AtomicLong[] arr) {
@@ -66,5 +66,4 @@ public class VectorClock implements Serializable {
     }
     return min;
   }
-
 }

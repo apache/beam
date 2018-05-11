@@ -20,21 +20,16 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 
-/**
- * A context is given to {@link Trigger} methods to allow them to register
- * timer callbacks.
- */
+/** A context is given to {@link Trigger} methods to allow them to register timer callbacks. */
 @Audience(Audience.Type.CLIENT)
 public interface TriggerContext extends StorageProvider {
 
   /**
-   * Fire specific trigger on given time.
-   * Schedule the given trigger at the given stamp.
-   * The trigger will be fired as close to the time as possible.
+   * Fire specific trigger on given time. Schedule the given trigger at the given stamp. The trigger
+   * will be fired as close to the time as possible.
    *
    * @param stamp the timestamp to register a timer for
    * @param window the window to register the timer for
-   *
    * @return {@code true} when trigger was successfully scheduled
    */
   boolean registerTimer(long stamp, Window window);
@@ -44,20 +39,15 @@ public interface TriggerContext extends StorageProvider {
    *
    * @param stamp the stamp of a previously registered timer
    * @param window the window of the previously registered timer
-   *
    * @see #registerTimer(long, Window)
    */
   void deleteTimer(long stamp, Window window);
 
-  /**
-   * @return the current timestamp from runtime (may be different from real
-   * clock time).
-   */
+  /** @return the current timestamp from runtime (may be different from real clock time). */
   long getCurrentTimestamp();
 
   /**
-   * Extension of {@link TriggerContext} that is given to
-   * {@link Trigger#onMerge} as an argument.
+   * Extension of {@link TriggerContext} that is given to {@link Trigger#onMerge} as an argument.
    */
   interface TriggerMergeContext extends TriggerContext {
     void mergeStoredState(StorageDescriptor storageDescriptor);

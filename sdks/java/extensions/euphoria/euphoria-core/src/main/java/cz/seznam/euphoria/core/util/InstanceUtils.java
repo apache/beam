@@ -19,8 +19,8 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.lang.reflect.Constructor;
 
 /**
- * Util class that helps instantiations of objects throwing {@link RuntimeException}.
- * For core purposes only. Should not be used in client code.
+ * Util class that helps instantiations of objects throwing {@link RuntimeException}. For core
+ * purposes only. Should not be used in client code.
  */
 @Audience(Audience.Type.EXECUTOR)
 public class InstanceUtils {
@@ -52,5 +52,4 @@ public class InstanceUtils {
       throw new IllegalStateException(e);
     }
   }
-
 }

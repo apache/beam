@@ -49,5 +49,4 @@ public interface ListStorage<T> extends Storage<T> {
       add(e);
     }
   }
-
 }

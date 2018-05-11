@@ -18,27 +18,24 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
-/**
- * Source of data for dataset.
- */
+/** Source of data for dataset. */
 @Audience(Audience.Type.CLIENT)
 public interface DataSource<T> extends Serializable {
 
   /**
-   * @return {@code true} if this source is bounded,
-   *         {@code false} if it is unbounded or it is not known if it is bounded or unbounded.
+   * @return {@code true} if this source is bounded, {@code false} if it is unbounded or it is not
+   *     known if it is bounded or unbounded.
    */
   boolean isBounded();
 
-  /**
-   * @return {@code true} if this is not bounded source, {@code false} otherwise
-   */
+  /** @return {@code true} if this is not bounded source, {@code false} otherwise */
   default boolean isUnbounded() {
     return !isBounded();
   }
 
   /**
    * Retrieve batch {@code DataSource}.
+   *
    * @return {@code BoundedDataSource} if this is bounded source
    * @throws UnsupportedOperationException if this is not {@code BoundedDataSource}.
    */
@@ -48,11 +45,11 @@ public interface DataSource<T> extends Serializable {
 
   /**
    * Retrieve stream {@code DataSource}.
+   *
    * @return {@code UnboundedDataSource} if this is unbounded source
    * @throws UnsupportedOperationException if this is not {@code UnboundedDataSource}.
    */
   default UnboundedDataSource<T, ?> asUnbounded() {
     throw new UnsupportedOperationException("Not supported.");
   }
-
 }

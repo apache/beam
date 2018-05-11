@@ -24,28 +24,18 @@ import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
-import org.apache.beam.sdk.transforms.DoFn;
-
-import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.transforms.DoFn;
 
-/**
- * Collector that outputs elements to {@link BeamCollector}.
- */
+/** Collector that outputs elements to {@link BeamCollector}. */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
 public class DoFnCollector<IN, OUT, ELEM> implements Collector<ELEM>, Context, Serializable {
 
-  public interface BeamCollector<IN, OUT, ELEM> extends Serializable {
-
-    void collect(DoFn<IN, OUT>.ProcessContext ctx, ELEM elem);
-  }
-
   private final AccumulatorProvider accumulators;
-
   private final BeamCollector<IN, OUT, ELEM> beamCollector;
-
   private transient DoFn<IN, OUT>.ProcessContext context;
 
   DoFnCollector(AccumulatorProvider accumulators, BeamCollector<IN, OUT, ELEM> beamCollector) {
@@ -86,5 +76,10 @@ public class DoFnCollector<IN, OUT, ELEM> implements Collector<ELEM>, Context, S
 
   void setProcessContext(DoFn<IN, OUT>.ProcessContext context) {
     this.context = context;
+  }
+
+  public interface BeamCollector<IN, OUT, ELEM> extends Serializable {
+
+    void collect(DoFn<IN, OUT>.ProcessContext ctx, ELEM elem);
   }
 }

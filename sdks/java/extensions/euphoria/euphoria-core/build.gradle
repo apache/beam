@@ -4,8 +4,8 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
-  shadow library.java.guava
-  shadow library.java.slf4j_api
-  compileOnly library.java.findbugs_jsr305
-  testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
+    shadow library.java.guava
+    shadow library.java.slf4j_api
+    compileOnly library.java.findbugs_jsr305
+    testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
 }

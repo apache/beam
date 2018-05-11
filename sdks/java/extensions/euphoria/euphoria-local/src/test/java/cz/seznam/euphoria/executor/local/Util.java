@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 
 public class Util {
 
+  private Util() {}
+
   public static List<String> sorted(List<String> xs) {
     return xs.stream().sorted().collect(Collectors.toList());
   }
@@ -32,6 +34,4 @@ public class Util {
     list.sort(c);
     return list;
   }
-
-  private Util() {}
 }

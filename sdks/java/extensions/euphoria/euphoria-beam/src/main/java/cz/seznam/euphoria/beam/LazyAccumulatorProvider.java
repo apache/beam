@@ -20,13 +20,10 @@ import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.util.Settings;
-
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * Instantiate accumulator provider on the first usage.
- */
+/** Instantiate accumulator provider on the first usage. */
 class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
 
   private final AccumulatorProvider.Factory factory;
@@ -60,5 +57,4 @@ class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
     }
     return accumulators;
   }
-
 }

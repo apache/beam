@@ -19,11 +19,10 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
- * A function to merge specific types of states into a given target state.
- * The need for merging states into one arise typically from the utilization
- * of {@link cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing},
- * e.g. session windows, where individual session windows need occasionally
- * be merged and, thus, their states.
+ * A function to merge specific types of states into a given target state. The need for merging
+ * states into one arise typically from the utilization of {@link
+ * cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing}, e.g. session windows, where
+ * individual session windows need occasionally be merged and, thus, their states.
  *
  * @param <IN> the type of input elements for the states
  * @param <OUT> the type of output elements of the states
@@ -31,16 +30,14 @@ import java.io.Serializable;
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface StateMerger<IN, OUT, STATE extends State<IN, OUT>>
-        extends Serializable {
+public interface StateMerger<IN, OUT, STATE extends State<IN, OUT>> extends Serializable {
 
   /**
-   * Merges <tt>others</tt> into the given <tt>target</tt>, which itself
-   * is guaranteed by the caller not to be part of <tt>others</tt>.
+   * Merges <tt>others</tt> into the given <tt>target</tt>, which itself is guaranteed by the caller
+   * not to be part of <tt>others</tt>.
    *
    * @param target the target state to receive values from <tt>others</tt>
    * @param others the states to be merged into <tt>target</tt>
    */
   void merge(STATE target, Iterable<STATE> others);
-
 }

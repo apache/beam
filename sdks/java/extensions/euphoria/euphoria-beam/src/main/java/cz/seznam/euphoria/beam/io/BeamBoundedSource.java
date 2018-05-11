@@ -16,19 +16,16 @@
 package cz.seznam.euphoria.beam.io;
 
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * A {@link BoundedSource} created from {@link BoundedDataSource}.
- */
+/** A {@link BoundedSource} created from {@link BoundedDataSource}. */
 public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   private final BoundedDataSource<T> wrap;
@@ -37,9 +34,13 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
     this.wrap = Objects.requireNonNull(wrap);
   }
 
+  public static <T> BeamBoundedSource<T> wrap(BoundedDataSource<T> wrap) {
+    return new BeamBoundedSource<>(wrap);
+  }
+
   @Override
-  public List<? extends BoundedSource<T>> split(
-      long desiredBundleSizeBytes, PipelineOptions po) throws Exception {
+  public List<? extends BoundedSource<T>> split(long desiredBundleSizeBytes, PipelineOptions po)
+      throws Exception {
     return wrap.split(desiredBundleSizeBytes)
         .stream()
         .map(BeamBoundedSource::wrap)
@@ -110,9 +111,4 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
   public int hashCode() {
     return wrap.hashCode();
   }
-
-  public static <T> BeamBoundedSource<T> wrap(BoundedDataSource<T> wrap) {
-    return new BeamBoundedSource<>(wrap);
-  }
-
 }

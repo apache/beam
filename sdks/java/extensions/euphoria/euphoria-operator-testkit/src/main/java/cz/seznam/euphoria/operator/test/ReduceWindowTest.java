@@ -27,68 +27,64 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
 
-/**
- * Test operator {@code ReduceByKey}.
- */
+/** Test operator {@code ReduceByKey}. */
 @Processing(Processing.Type.ALL)
 public class ReduceWindowTest extends AbstractOperatorTest {
 
   @Test
   public void testReduceWithWindowing() {
-    execute(new AbstractTestCase<Integer, Integer>() {
-      @Override
-      protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-        Dataset<Integer> withEventTime = AssignEventTime.of(input)
-            .using(i -> 1000L * i)
-            .output();
+    execute(
+        new AbstractTestCase<Integer, Integer>() {
+          @Override
+          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+            Dataset<Integer> withEventTime =
+                AssignEventTime.of(input).using(i -> 1000L * i).output();
 
-        return ReduceWindow.of(withEventTime)
-            .combineBy(Sums.ofInts())
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
-      }
+            return ReduceWindow.of(withEventTime)
+                .combineBy(Sums.ofInts())
+                .windowBy(Time.of(Duration.ofHours(1)))
+                .output();
+          }
 
-      @Override
-      protected List<Integer> getInput() {
-        return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-      }
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+          }
 
-      @Override
-      public List<Integer> getUnorderedOutput() {
-        return Arrays.asList(55);
-      }
-    });
+          @Override
+          public List<Integer> getUnorderedOutput() {
+            return Arrays.asList(55);
+          }
+        });
   }
 
   @Test
   public void testReduceWithAttachedWindowing() {
-    execute(new AbstractTestCase<Integer, Integer>() {
-      @Override
-      protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-        Dataset<Integer> withEventTime = AssignEventTime.of(input)
-            .using(i -> 1000L * i)
-            .output();
+    execute(
+        new AbstractTestCase<Integer, Integer>() {
+          @Override
+          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+            Dataset<Integer> withEventTime =
+                AssignEventTime.of(input).using(i -> 1000L * i).output();
 
-        Dataset<Integer> first = ReduceWindow.of(withEventTime)
-            .combineBy(Sums.ofInts())
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+            Dataset<Integer> first =
+                ReduceWindow.of(withEventTime)
+                    .combineBy(Sums.ofInts())
+                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .output();
 
-        return ReduceWindow.of(first)
-            .combineBy(Sums.ofInts())
-            .output();
-      }
+            return ReduceWindow.of(first).combineBy(Sums.ofInts()).output();
+          }
 
-      @Override
-      protected List<Integer> getInput() {
-        return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-      }
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+          }
 
-      @Override
-      public List<Integer> getUnorderedOutput() {
-        return Arrays.asList(55);
-      }
-    });
+          @Override
+          public List<Integer> getUnorderedOutput() {
+            return Arrays.asList(55);
+          }
+        });
   }
-
 }

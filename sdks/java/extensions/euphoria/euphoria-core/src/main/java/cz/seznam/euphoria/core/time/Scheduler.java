@@ -29,9 +29,6 @@ public interface Scheduler {
    */
   void schedulePeriodically(Duration period, Runnable r);
 
-  /**
-   * Cancel all scheduled tasks
-   */
+  /** Cancel all scheduled tasks */
   void shutdown();
-
 }

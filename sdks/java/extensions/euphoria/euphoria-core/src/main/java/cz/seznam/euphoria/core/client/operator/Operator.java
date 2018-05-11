@@ -15,21 +15,18 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Set;
 
-/**
- * An operator base class. All operators inherit his class.
- */
+/** An operator base class. All operators inherit his class. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class Operator<IN, OUT> implements Serializable {
 
@@ -54,8 +51,8 @@ public abstract class Operator<IN, OUT> implements Serializable {
   }
 
   /**
-   * Retrieve basic operators that constitute this operator.
-   * Override this method for all non basic operators.
+   * Retrieve basic operators that constitute this operator. Override this method for all non basic
+   * operators.
    *
    * @return a DAG of basic operators this operator can be translated to
    */
@@ -67,14 +64,13 @@ public abstract class Operator<IN, OUT> implements Serializable {
   public abstract Collection<Dataset<IN>> listInputs();
 
   /**
-   * Create a new dataset that will be output of this operator.
-   * This is used when creating operator outputs.
+   * Create a new dataset that will be output of this operator. This is used when creating operator
+   * outputs.
    *
    * @param input an input associated with this operator
-   *
    * @return a newly created dataset associated with this operator as its output
    */
-  final Dataset<OUT> createOutput(final Dataset<IN> input,  Set<OutputHint> outputHints) {
+  final Dataset<OUT> createOutput(final Dataset<IN> input, Set<OutputHint> outputHints) {
     this.hints = outputHints;
     Preconditions.checkArgument(
         input.getFlow() == getFlow(),
@@ -86,8 +82,6 @@ public abstract class Operator<IN, OUT> implements Serializable {
     return hints;
   }
 
-  /**
-   * @return the output dataset
-   */
+  /** @return the output dataset */
   public abstract Dataset<OUT> output();
 }

@@ -15,8 +15,16 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
@@ -31,15 +39,6 @@ import org.junit.runners.model.Statement;
 import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 public class ExecutorProviderRunner extends Suite {
 
@@ -69,8 +68,7 @@ public class ExecutorProviderRunner extends Suite {
               cPType.isPresent() || mPType.isPresent(),
               "Processing annotation is missing either on method or class!");
           Optional<Type> definedPType = merged(cPType, mPType);
-          Preconditions.checkArgument(definedPType.isPresent(),
-              "Conflicting processings!");
+          Preconditions.checkArgument(definedPType.isPresent(), "Conflicting processings!");
 
           Optional<Type> rPType = merged(kPType, definedPType);
           if (rPType.isPresent()) {
@@ -88,22 +86,21 @@ public class ExecutorProviderRunner extends Suite {
   }
 
   private static void addRunner(
-      List<Runner> acc, Class<?> testClass, FrameworkMethod method,
-      ExecutorProvider execProvider, Processing.Type pType, List<Object[]> paramsList)
-      throws Throwable
-  {
+      List<Runner> acc,
+      Class<?> testClass,
+      FrameworkMethod method,
+      ExecutorProvider execProvider,
+      Processing.Type pType,
+      List<Object[]> paramsList)
+      throws Throwable {
     if (paramsList == null || paramsList.isEmpty()) {
       acc.add(new ExecutorProviderTestMethodRunner(testClass, method, execProvider, pType, null));
     } else {
-      for (Object [] params : paramsList) {
-        acc.add(new ExecutorProviderTestMethodRunner(testClass, method, execProvider, pType, params));
+      for (Object[] params : paramsList) {
+        acc.add(
+            new ExecutorProviderTestMethodRunner(testClass, method, execProvider, pType, params));
       }
     }
-  }
-
-  @Override
-  protected List<Runner> getChildren() {
-    return runners;
   }
 
   @SuppressWarnings("unchecked")
@@ -115,10 +112,8 @@ public class ExecutorProviderRunner extends Suite {
     return (List<Object[]>) parametersMethod.invokeExplosively(null);
   }
 
-  private static FrameworkMethod getParametersMethod(TestClass testClass)
-      throws Exception {
-    List<FrameworkMethod> methods = testClass
-        .getAnnotatedMethods(Parameterized.Parameters.class);
+  private static FrameworkMethod getParametersMethod(TestClass testClass) throws Exception {
+    List<FrameworkMethod> methods = testClass.getAnnotatedMethods(Parameterized.Parameters.class);
     if (methods.isEmpty()) {
       return null;
     }
@@ -129,35 +124,60 @@ public class ExecutorProviderRunner extends Suite {
         return each;
       }
     }
-    throw new Exception("No public static parameters method on class "
-        + testClass.getName());
+    throw new Exception("No public static parameters method on class " + testClass.getName());
   }
 
-  private static Class<?>[] getAnnotatedClasses(Class<?> klass)
-      throws InitializationError {
+  private static Class<?>[] getAnnotatedClasses(Class<?> klass) throws InitializationError {
 
     SuiteClasses annotation = klass.getAnnotation(SuiteClasses.class);
     if (annotation == null) {
-      return new Class[]{klass};
+      return new Class[] {klass};
     }
     return annotation.value();
   }
 
-  private static ExecutorProvider newExecProvider(Class<?> klass)
-      throws InitializationError {
+  private static ExecutorProvider newExecProvider(Class<?> klass) throws InitializationError {
 
     if (!ExecutorProvider.class.isAssignableFrom(klass)) {
-      throw new IllegalArgumentException("Annotated class must implement " + ExecutorProvider.class);
+      throw new IllegalArgumentException(
+          "Annotated class must implement " + ExecutorProvider.class);
     }
 
     try {
       return ExecutorProvider.class.cast(klass.newInstance());
     } catch (IllegalAccessException e) {
-      throw new InstantiationError("Default constructor of "
-          + klass + " must be public: " + e.getMessage());
+      throw new InstantiationError(
+          "Default constructor of " + klass + " must be public: " + e.getMessage());
     } catch (InstantiationException e) {
       throw new InstantiationError("Failed to initialize " + klass + ": " + e);
     }
+  }
+
+  // return defined processing type (bounded, unbounded, any) from annotation
+  private static Optional<Processing.Type> getProcessingType(AnnotatedElement element) {
+    if (element.isAnnotationPresent(Processing.class)) {
+      Processing proc = (Processing) element.getAnnotation(Processing.class);
+      return Optional.of(proc.value());
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  // merges the given processings. Optional.empty represents undefined
+  private static Optional<Type> merged(Optional<Type> x, Optional<Type> y) {
+    return Stream.of(x, y)
+        .filter(Optional::isPresent)
+        .reduce((acc, next) -> acc.flatMap(a -> a.merge(next.get())))
+        .orElse(Optional.empty());
+  }
+
+  static boolean isAbstractOperatorTest(Class<?> klass) {
+    return AbstractOperatorTest.class.isAssignableFrom(klass);
+  }
+
+  @Override
+  protected List<Runner> getChildren() {
+    return runners;
   }
 
   static class ExecutorProviderTestMethodRunner extends BlockJUnit4ClassRunner {
@@ -167,8 +187,10 @@ public class ExecutorProviderRunner extends Suite {
     private final Object[] parameterList;
 
     ExecutorProviderTestMethodRunner(
-        Class<?> testClass, FrameworkMethod method,
-        ExecutorProvider execProvider, Processing.Type ptype,
+        Class<?> testClass,
+        FrameworkMethod method,
+        ExecutorProvider execProvider,
+        Processing.Type ptype,
         Object[] parameterList)
         throws InitializationError {
       super(testClass);
@@ -236,9 +258,7 @@ public class ExecutorProviderRunner extends Suite {
     }
 
     @Override
-    protected Statement withAfters(FrameworkMethod method,
-                                   Object target,
-                                   Statement statement) {
+    protected Statement withAfters(FrameworkMethod method, Object target, Statement statement) {
 
       Statement result = super.withAfters(method, target, statement);
       if (target instanceof AbstractOperatorTest) {
@@ -248,8 +268,7 @@ public class ExecutorProviderRunner extends Suite {
             ExecutorEnvironment env = execProvider.newExecutorEnvironment();
 
             AbstractOperatorTest opTest = ((AbstractOperatorTest) target);
-            opTest.executor =
-                Objects.requireNonNull(env.getExecutor());
+            opTest.executor = Objects.requireNonNull(env.getExecutor());
             opTest.processing = procType;
             try {
               result.evaluate();
@@ -265,27 +284,5 @@ public class ExecutorProviderRunner extends Suite {
       }
       return result;
     }
-  }
-
-  // return defined processing type (bounded, unbounded, any) from annotation
-  private static Optional<Processing.Type> getProcessingType(AnnotatedElement element) {
-    if (element.isAnnotationPresent(Processing.class)) {
-      Processing proc = (Processing) element.getAnnotation(Processing.class);
-      return Optional.of(proc.value());
-    } else {
-      return Optional.empty();
-    }
-  }
-
-  // merges the given processings. Optional.empty represents undefined
-  private static Optional<Type> merged(Optional<Type> x, Optional<Type> y) {
-    return Stream.of(x, y)
-        .filter(Optional::isPresent)
-        .reduce((acc, next) -> acc.flatMap(a -> a.merge(next.get())))
-        .orElse(Optional.empty());
-  }
-
-  static boolean isAbstractOperatorTest(Class<?> klass) {
-    return AbstractOperatorTest.class.isAssignableFrom(klass);
   }
 }

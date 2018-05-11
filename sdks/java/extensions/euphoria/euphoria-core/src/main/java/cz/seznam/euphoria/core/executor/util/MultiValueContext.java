@@ -22,18 +22,16 @@ import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
-
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 
 @Audience(Audience.Type.EXECUTOR)
 public class MultiValueContext<T> implements Context, Collector<T> {
 
+  @Nullable final Context wrap;
   private final List<T> elements = new ArrayList<>(1);
-  @Nullable
-  final Context wrap;
 
   public MultiValueContext() {
     this(null);
@@ -58,14 +56,11 @@ public class MultiValueContext<T> implements Context, Collector<T> {
     return this;
   }
 
-  /**
-   * Retrieve window associated with the stored element.
-   */
+  /** Retrieve window associated with the stored element. */
   @Override
   public Window<?> getWindow() throws UnsupportedOperationException {
     if (wrap == null) {
-      throw new UnsupportedOperationException(
-          "The window is unknown in this context");
+      throw new UnsupportedOperationException("The window is unknown in this context");
     }
     return wrap.getWindow();
   }
@@ -73,8 +68,7 @@ public class MultiValueContext<T> implements Context, Collector<T> {
   @Override
   public Counter getCounter(String name) {
     if (wrap == null) {
-      throw new UnsupportedOperationException(
-          "Accumulators not supported in this context");
+      throw new UnsupportedOperationException("Accumulators not supported in this context");
     }
     return wrap.getCounter(name);
   }
@@ -82,21 +76,17 @@ public class MultiValueContext<T> implements Context, Collector<T> {
   @Override
   public Histogram getHistogram(String name) {
     if (wrap == null) {
-      throw new UnsupportedOperationException(
-          "Accumulators not supported in this context");
+      throw new UnsupportedOperationException("Accumulators not supported in this context");
     }
     return wrap.getHistogram(name);
-
   }
 
   @Override
   public Timer getTimer(String name) {
     if (wrap == null) {
-      throw new UnsupportedOperationException(
-          "Accumulators not supported in this context");
+      throw new UnsupportedOperationException("Accumulators not supported in this context");
     }
     return wrap.getTimer(name);
-
   }
 
   /**
@@ -119,4 +109,3 @@ public class MultiValueContext<T> implements Context, Collector<T> {
     return Collections.unmodifiableList(elements);
   }
 }
-

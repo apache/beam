@@ -19,35 +19,37 @@ import cz.seznam.euphoria.beam.io.BeamBoundedSource;
 import cz.seznam.euphoria.beam.io.BeamUnboundedSource;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import java.util.Objects;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.values.PCollection;
 
-import java.util.Objects;
-
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(
-      FlowUnfolder.InputOperator operator, BeamExecutorContext context) {
-    return doTranslate(operator, context);
-  }
-
-  private static <T> PCollection<T> doTranslate(FlowUnfolder.InputOperator<T> operator,
-                                                BeamExecutorContext context) {
+  private static <T> PCollection<T> doTranslate(
+      FlowUnfolder.InputOperator<T> operator, BeamExecutorContext context) {
     final DataSource<T> source = Objects.requireNonNull(operator.output().getSource());
     return doTranslate(source, context);
   }
 
   static <T> PCollection<T> doTranslate(DataSource<T> source, BeamExecutorContext context) {
     if (source.isBounded()) {
-      return context.getPipeline().apply(
-          "read::" + source.hashCode(),
-          Read.from(BeamBoundedSource.wrap(source.asBounded())));
+      return context
+          .getPipeline()
+          .apply(
+              "read::" + source.hashCode(), Read.from(BeamBoundedSource.wrap(source.asBounded())));
     } else {
-      return context.getPipeline().apply(
-          "read::" + source.hashCode(),
-          Read.from(BeamUnboundedSource.wrap(source.asUnbounded())));
+      return context
+          .getPipeline()
+          .apply(
+              "read::" + source.hashCode(),
+              Read.from(BeamUnboundedSource.wrap(source.asUnbounded())));
     }
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public PCollection<?> translate(
+      FlowUnfolder.InputOperator operator, BeamExecutorContext context) {
+    return doTranslate(operator, context);
   }
 }

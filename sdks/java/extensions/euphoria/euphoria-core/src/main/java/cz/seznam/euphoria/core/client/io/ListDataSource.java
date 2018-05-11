@@ -15,9 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -36,14 +35,35 @@ import java.util.stream.IntStream;
  *
  * @param <T> the type of elements this source provides
  */
-@Audience({ Audience.Type.CLIENT, Audience.Type.TESTS })
+@Audience({Audience.Type.CLIENT, Audience.Type.TESTS})
 @SuppressWarnings("unchecked")
-public class ListDataSource<T>
-    implements BoundedDataSource<T>, UnboundedDataSource<T, Integer> {
+public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSource<T, Integer> {
 
   // global storage for all existing ListDataSources
   private static final Map<ListDataSource<?>, List<List<?>>> storage =
       Collections.synchronizedMap(new WeakHashMap<>());
+  private final boolean bounded;
+  private final int id = System.identityHashCode(this);
+  private final int partition;
+  private final ListDataSource<T> parent;
+  private long sleepMs = 0;
+  private long finalSleepMs = 0;
+
+  @SuppressWarnings("unchecked")
+  private ListDataSource(boolean bounded, List<List<T>> partitions) {
+    this.bounded = bounded;
+    this.parent = null;
+    this.partition = -1;
+
+    // save partitions to static storage
+    storage.put(this, (List) partitions);
+  }
+
+  private ListDataSource(ListDataSource<T> parent, int partition) {
+    this.bounded = parent.bounded;
+    this.parent = parent;
+    this.partition = partition;
+  }
 
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
@@ -56,7 +76,7 @@ public class ListDataSource<T>
   }
 
   @SafeVarargs
-  public static <T> ListDataSource<T> of(boolean bounded, List<T> ... partitions) {
+  public static <T> ListDataSource<T> of(boolean bounded, List<T>... partitions) {
     return of(bounded, Lists.newArrayList(partitions));
   }
 
@@ -64,13 +84,113 @@ public class ListDataSource<T>
     return new ListDataSource<>(bounded, partitions);
   }
 
-  private final boolean bounded;
-  private long sleepMs = 0;
-  private long finalSleepMs = 0;
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof ListDataSource) {
+      ListDataSource that = (ListDataSource) o;
+      return this.id == that.id;
+    }
+    return false;
+  }
 
-  private final int id = System.identityHashCode(this);
-  private final int partition;
-  private final ListDataSource<T> parent;
+  @Override
+  public int hashCode() {
+    return id;
+  }
+
+  @Override
+  public List<UnboundedPartition<T, Integer>> getPartitions() {
+    final int n = storage.get(this).size();
+    List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
+    for (int i = 0; i < n; i++) {
+      final int partition = i;
+      partitions.add(
+          () -> new UnboundedListReader((List<T>) storage.get(ListDataSource.this).get(partition)));
+    }
+    return partitions;
+  }
+
+  @Override
+  public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
+    int partition = 0;
+    List<BoundedDataSource<T>> ret = new ArrayList<>();
+    for (List l : storage.get(this)) {
+      ret.add(new ListDataSource(this, partition++));
+    }
+    return ret;
+  }
+
+  @Override
+  public Set<String> getLocations() {
+    return Collections.singleton("localhost");
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public BoundedReader<T> openReader() throws IOException {
+    final List<Integer> partitions;
+    final ListDataSource<T> ref;
+    if (partition == -1) {
+      partitions =
+          IntStream.range(0, storage.get(this).size())
+              .mapToObj(Integer::valueOf)
+              .collect(Collectors.toList());
+      ref = this;
+    } else {
+      partitions = Arrays.asList(partition);
+      ref = parent;
+    }
+    return new BoundedListReader(
+        (List)
+            partitions
+                .stream()
+                .flatMap(i -> storage.get(ref).get(i).stream())
+                .collect(Collectors.toList()));
+  }
+
+  @Override
+  public boolean isBounded() {
+    return bounded;
+  }
+
+  @Override
+  public ListDataSource<T> asBounded() {
+    if (isBounded()) {
+      return this;
+    }
+    throw new UnsupportedOperationException("Source is unbounded.");
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ListDataSource<T> asUnbounded() {
+    if (!isBounded()) {
+      return this;
+    }
+    throw new UnsupportedOperationException("Source is bounded.");
+  }
+
+  /**
+   * Set sleep time between emitting of elements.
+   *
+   * @param timeout the duration to sleep between delivering individual elements
+   * @return this instance (for method chaining purposes)
+   */
+  public ListDataSource<T> withReadDelay(Duration timeout) {
+    this.sleepMs = timeout.toMillis();
+    return this;
+  }
+
+  /**
+   * Sets the sleep time to wait after having served the last element.
+   *
+   * @param timeout the time to sleep before signaling end-of-stream
+   * @return this instance (for method chaining purposes)
+   */
+  public ListDataSource<T> withFinalDelay(Duration timeout) {
+    this.finalSleepMs = timeout.toMillis();
+    return this;
+  }
 
   private class DataIterator implements CloseableIterator<T> {
 
@@ -126,7 +246,6 @@ public class ListDataSource<T>
       pos++;
       return ret;
     }
-
   }
 
   private class BoundedListReader extends DataIterator implements BoundedReader<T> {
@@ -134,7 +253,6 @@ public class ListDataSource<T>
     BoundedListReader(List<T> data) {
       super(data);
     }
-
   }
 
   private class UnboundedListReader extends DataIterator implements UnboundedReader<T, Integer> {
@@ -157,132 +275,5 @@ public class ListDataSource<T>
     public void commitOffset(Integer offset) {
       // nop
     }
-
   }
-
-  @SuppressWarnings("unchecked")
-  private ListDataSource(boolean bounded, List<List<T>> partitions) {
-    this.bounded = bounded;
-    this.parent = null;
-    this.partition = -1;
-
-    // save partitions to static storage
-    storage.put(this, (List) partitions);
-  }
-
-  private ListDataSource(ListDataSource<T> parent, int partition) {
-    this.bounded = parent.bounded;
-    this.parent = parent;
-    this.partition = partition;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (o instanceof ListDataSource) {
-      ListDataSource that = (ListDataSource) o;
-      return this.id == that.id;
-    }
-    return false;
-  }
-
-  @Override
-  public int hashCode() {
-    return id;
-  }
-
-  @Override
-  public List<UnboundedPartition<T, Integer>> getPartitions() {
-    final int n = storage.get(this).size();
-    List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
-    for (int i = 0; i < n; i++) {
-      final int partition = i;
-      partitions.add(() -> new UnboundedListReader(
-            (List<T>) storage.get(ListDataSource.this).get(partition)));
-    }
-    return partitions;
-  }
-
-  @Override
-  public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
-    int partition = 0;
-    List<BoundedDataSource<T>> ret = new ArrayList<>();
-    for (List l : storage.get(this)) {
-      ret.add(new ListDataSource(this, partition++));
-    }
-    return ret;
-  }
-
-  @Override
-  public Set<String> getLocations() {
-    return Collections.singleton("localhost");
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public BoundedReader<T> openReader() throws IOException {
-    final List<Integer> partitions;
-    final ListDataSource<T> ref;
-    if (partition == -1) {
-      partitions = IntStream.range(0, storage.get(this).size())
-          .mapToObj(Integer::valueOf)
-          .collect(Collectors.toList());
-      ref = this;
-    } else {
-      partitions = Arrays.asList(partition);
-      ref = parent;
-    }
-    return new BoundedListReader(
-        (List) partitions.stream()
-            .flatMap(i -> storage.get(ref).get(i).stream())
-            .collect(Collectors.toList()));
-  }
-
-  @Override
-  public boolean isBounded() {
-    return bounded;
-  }
-
-
-  @Override
-  public ListDataSource<T> asBounded() {
-    if (isBounded()) {
-      return this;
-    }
-    throw new UnsupportedOperationException("Source is unbounded.");
-  }
-
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public ListDataSource<T> asUnbounded() {
-    if (!isBounded()) {
-      return this;
-    }
-    throw new UnsupportedOperationException("Source is bounded.");
-  }
-
-  /**
-   * Set sleep time between emitting of elements.
-   *
-   * @param timeout the duration to sleep between delivering individual elements
-   *
-   * @return this instance (for method chaining purposes)
-   */
-  public ListDataSource<T> withReadDelay(Duration timeout) {
-    this.sleepMs = timeout.toMillis();
-    return this;
-  }
-
-  /**
-   * Sets the sleep time to wait after having served the last element.
-   *
-   * @param timeout the time to sleep before signaling end-of-stream
-   *
-   * @return this instance (for method chaining purposes)
-   */
-  public ListDataSource<T> withFinalDelay(Duration timeout) {
-    this.finalSleepMs = timeout.toMillis();
-    return this;
-  }
-
 }

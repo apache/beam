@@ -44,5 +44,4 @@ class TmpFolderSpillFileFactory implements SpillFileFactory {
   public List<File> getCreatedFiles() {
     return created;
   }
-
 }

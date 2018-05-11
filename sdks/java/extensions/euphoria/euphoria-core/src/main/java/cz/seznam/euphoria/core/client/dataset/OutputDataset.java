@@ -20,13 +20,10 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-
-import javax.annotation.Nullable;
 import java.util.Collection;
+import javax.annotation.Nullable;
 
-/**
- * {@code OutputDataset} that is output of some operator.
- */
+/** {@code OutputDataset} that is output of some operator. */
 @Audience(Audience.Type.EXECUTOR)
 class OutputDataset<T> implements Dataset<T> {
 

@@ -15,6 +15,10 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -23,14 +27,9 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import java.time.Duration;
 import java.util.stream.Stream;
-
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
-/**
- * Test behavior of operator {@code ReduceWindow}.
- */
+/** Test behavior of operator {@code ReduceWindow}. */
 public class ReduceWindowTest {
 
   @Test
@@ -39,15 +38,11 @@ public class ReduceWindowTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Long> output = ReduceWindow.of(dataset)
-        .valueBy(e -> "")
-        .reduceBy(e -> 1L)
-        .output();
+    Dataset<Long> output = ReduceWindow.of(dataset).valueBy(e -> "").reduceBy(e -> 1L).output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertEquals(1L, (long) collectSingle(
-        producer.getReducer(), Stream.of("blah")));
+    assertEquals(1L, (long) collectSingle(producer.getReducer(), Stream.of("blah")));
     assertEquals("", producer.valueExtractor.apply("blah"));
   }
 
@@ -58,15 +53,11 @@ public class ReduceWindowTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
     Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
 
-    Dataset<Long> output = ReduceWindow.of(dataset)
-        .reduceBy(e -> 1L)
-        .windowBy(windowing)
-        .output();
+    Dataset<Long> output = ReduceWindow.of(dataset).reduceBy(e -> 1L).windowBy(windowing).output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertEquals(1L, (long) collectSingle(
-        producer.getReducer(), Stream.of("blah")));
+    assertEquals(1L, (long) collectSingle(producer.getReducer(), Stream.of("blah")));
     assertEquals("blah", producer.valueExtractor.apply("blah"));
     assertEquals(windowing, producer.windowing);
   }
@@ -78,11 +69,12 @@ public class ReduceWindowTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
     Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
 
-    Dataset<Long> output = ReduceWindow.of(dataset)
-        .reduceBy(e -> 1L)
-        .withSortedValues((l, r) -> l.compareTo(r))
-        .windowBy(windowing)
-        .output();
+    Dataset<Long> output =
+        ReduceWindow.of(dataset)
+            .reduceBy(e -> 1L)
+            .withSortedValues((l, r) -> l.compareTo(r))
+            .windowBy(windowing)
+            .output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
@@ -96,25 +88,23 @@ public class ReduceWindowTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
     Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
 
-    Dataset<Long> output = ReduceWindow.of(dataset)
-        .reduceBy(e -> 1L)
-        .withSortedValues((l, r) -> l.compareTo(r))
-        .applyIf(true, b -> b.windowBy(windowing))
-        .output();
+    Dataset<Long> output =
+        ReduceWindow.of(dataset)
+            .reduceBy(e -> 1L)
+            .withSortedValues((l, r) -> l.compareTo(r))
+            .applyIf(true, b -> b.windowBy(windowing))
+            .output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertTrue(producer.windowing instanceof Time);
   }
 
-  private <IN, OUT> OUT collectSingle(
-      ReduceFunctor<IN, OUT> fn, Stream<IN> values) {
+  private <IN, OUT> OUT collectSingle(ReduceFunctor<IN, OUT> fn, Stream<IN> values) {
 
     SingleValueContext<OUT> context;
     context = new SingleValueContext<>();
     fn.apply(values, context);
     return context.getAndResetValue();
   }
-
-
 }
