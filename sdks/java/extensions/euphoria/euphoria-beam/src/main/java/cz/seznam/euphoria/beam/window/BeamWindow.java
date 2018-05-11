@@ -19,9 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
-/**
- * Wrapper around euphoria's {@code Window} into beam.
- */
+/** Wrapper around euphoria's {@code Window} into beam. */
 public class BeamWindow<W extends Window<W>> extends BoundedWindow {
 
   private static final Instant MAX_TIMESTAMP = BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1);
@@ -31,13 +29,17 @@ public class BeamWindow<W extends Window<W>> extends BoundedWindow {
     this.wrapped = wrap;
   }
 
+  public static <W extends Window<W>> BeamWindow<W> wrap(W wrap) {
+    return new BeamWindow<>(wrap);
+  }
+
   @Override
   public Instant maxTimestamp() {
     // We cannot return more than MAX_TIMESTAMP-1 since beam's WatermarkManager checks every
     // window max timestamp to be smaller than BoundedWindow.TIMESTAMP_MAX_VALUE.
 
     long wrappedWindowMaxTimestamp = wrapped.maxTimestamp();
-    if(wrappedWindowMaxTimestamp > MAX_TIMESTAMP.getMillis()){
+    if (wrappedWindowMaxTimestamp > MAX_TIMESTAMP.getMillis()) {
       return MAX_TIMESTAMP;
     }
 
@@ -57,9 +59,4 @@ public class BeamWindow<W extends Window<W>> extends BoundedWindow {
   public W get() {
     return wrapped;
   }
-
-  public static <W extends Window<W>> BeamWindow<W> wrap(W wrap) {
-    return new BeamWindow<>(wrap);
-  }
-
 }

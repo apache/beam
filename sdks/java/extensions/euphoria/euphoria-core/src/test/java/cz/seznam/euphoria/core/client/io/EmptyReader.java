@@ -21,8 +21,7 @@ import java.util.NoSuchElementException;
 class EmptyReader<T> implements UnboundedReader<T, MockStreamDataSource.Offset> {
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 
   @Override
   public boolean hasNext() {
@@ -48,5 +47,4 @@ class EmptyReader<T> implements UnboundedReader<T, MockStreamDataSource.Offset> 
   public void commitOffset(MockStreamDataSource.Offset offset) {
     // nop
   }
-
 }

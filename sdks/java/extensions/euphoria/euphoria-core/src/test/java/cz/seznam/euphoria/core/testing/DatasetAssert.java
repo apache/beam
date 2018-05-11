@@ -16,20 +16,17 @@
 package cz.seznam.euphoria.core.testing;
 
 import java.util.Arrays;
-import org.junit.Assert;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.Assert;
 
-/**
- * This is duplicated from {@code euphoria-testing} due to maven
- * lifecycle cyclic dependency.
- */
+/** This is duplicated from {@code euphoria-testing} due to maven lifecycle cyclic dependency. */
 public class DatasetAssert {
 
   /**
    * Compare two datasets, no matter how they are ordered.
+   *
    * @param <T> type of input data
    * @param tested the tested dataset as list
    * @param values varargs values
@@ -39,7 +36,6 @@ public class DatasetAssert {
     unorderedEquals(Arrays.asList(values), tested);
   }
 
-
   /**
    * Compare two data sets, no matter how they are ordered.
    *
@@ -48,10 +44,10 @@ public class DatasetAssert {
    * @param <T> type of data, that data sets contain
    */
   public static <T> void unorderedEquals(List<T> left, List<T> right) {
-    final Map<T, Integer> leftCounted = left.stream()
-        .collect(Collectors.toMap(e -> e, e -> 1, (a, b) -> a + b));
-    final Map<T, Integer> rightCounted = right.stream()
-        .collect(Collectors.toMap(e -> e, e -> 1, (a, b) -> a + b));
+    final Map<T, Integer> leftCounted =
+        left.stream().collect(Collectors.toMap(e -> e, e -> 1, (a, b) -> a + b));
+    final Map<T, Integer> rightCounted =
+        right.stream().collect(Collectors.toMap(e -> e, e -> 1, (a, b) -> a + b));
     Assert.assertEquals(leftCounted, rightCounted);
   }
 }

@@ -20,9 +20,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
 
-/**
- * Various dataset related utils.
- */
+/** Various dataset related utils. */
 @Audience(Audience.Type.EXECUTOR)
 public class Datasets {
 
@@ -31,14 +29,11 @@ public class Datasets {
    *
    * @param <IN> the type of elements of the input dataset
    * @param <OUT> the type of elements in the output dataset
-   *
    * @param bounded {@code true} if the output dataset should be bounded
    * @param op the operator producing the output dataset
-   *
    * @return a dataset representing the output of the given operator
    */
-  public static <IN, OUT> Dataset<OUT> createOutputFor(
-      boolean bounded, Operator<IN, OUT> op) {
+  public static <IN, OUT> Dataset<OUT> createOutputFor(boolean bounded, Operator<IN, OUT> op) {
 
     return new OutputDataset<>(op.getFlow(), op, bounded);
   }
@@ -47,14 +42,11 @@ public class Datasets {
    * Create dataset from {@code DataSource}.
    *
    * @param <T> the type of elements in the dataset
-   *
    * @param flow the flow to associate the dataset with
    * @param source the source producing the returned dataset
-   *
    * @return a dataset representing the given source
    */
-  public static <T> Dataset<T> createInputFromSource(
-      Flow flow, DataSource<T> source) {
+  public static <T> Dataset<T> createInputFromSource(Flow flow, DataSource<T> source) {
     return new InputDataset<>(flow, source, source.isBounded());
   }
 }

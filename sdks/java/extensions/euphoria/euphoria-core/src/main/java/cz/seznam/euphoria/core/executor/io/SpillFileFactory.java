@@ -23,22 +23,24 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Factory for creating files for spilling.
- */
+/** Factory for creating files for spilling. */
 @Audience(Audience.Type.EXECUTOR)
 @FunctionalInterface
 public interface SpillFileFactory extends Serializable {
 
   /**
-   * The default spill file factory to create new files in the current
-   * working directory.
+   * Invoked to request a unique path to a new spill file.
+   *
+   * @return the path to a new spill file
    */
+  File newSpillFile();
+
+  /** The default spill file factory to create new files in the current working directory. */
   class DefaultSpillFileFactory implements SpillFileFactory {
 
     private static final SpillFileFactory INSTANCE = new DefaultSpillFileFactory();
 
-    private DefaultSpillFileFactory() { }
+    private DefaultSpillFileFactory() {}
 
     public static SpillFileFactory getInstance() {
       return INSTANCE;
@@ -54,14 +56,4 @@ public interface SpillFileFactory extends Serializable {
       }
     }
   }
-
-
-  /**
-   * Invoked to request a unique path to a new spill file.
-   *
-   * @return the path to a new spill file
-   */
-  File newSpillFile();
-
-
 }

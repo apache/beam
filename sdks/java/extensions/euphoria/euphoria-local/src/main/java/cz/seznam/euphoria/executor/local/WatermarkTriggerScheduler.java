@@ -15,10 +15,9 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,28 +28,22 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-/**
- * Trigger scheduler based on watermarks. Uses event-time instead of real
- * wall-clock time.
- */
-public class WatermarkTriggerScheduler<W extends Window, K>
-    implements TriggerScheduler<W, K> {
+/** Trigger scheduler based on watermarks. Uses event-time instead of real wall-clock time. */
+public class WatermarkTriggerScheduler<W extends Window, K> implements TriggerScheduler<W, K> {
 
   // how delayed is the watermark time after the event time (how long are
   // we going to accept latecomers)
   private final long watermarkDuration;
-  
+  // following fields are accessed from owner thread only
+  private final SortedMap<Long, List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>>> scheduledEvents =
+      new TreeMap<>();
+  private final Map<KeyedWindow<W, K>, Set<Long>> eventStampsForWindow = new HashMap<>();
   // read-only accessed from multiple threads
   private volatile long currentWatermark;
 
-  // following fields are accessed from owner thread only
-  private final SortedMap<Long, List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>>>
-      scheduledEvents = new TreeMap<>();
-  private final Map<KeyedWindow<W, K>, Set<Long>>
-      eventStampsForWindow = new HashMap<>();
- 
   /**
    * Create the triggering with specified duration in ms.
+   *
    * @param duration duration of the watermark in ms.
    */
   public WatermarkTriggerScheduler(long duration) {
@@ -69,17 +62,20 @@ public class WatermarkTriggerScheduler<W extends Window, K>
       SortedMap<Long, List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>>> headMap;
       headMap = scheduledEvents.headMap(triggeringStamp);
 
-      headMap.entrySet().stream()
+      headMap
+          .entrySet()
+          .stream()
           .flatMap(e -> e.getValue().stream().map(p -> Pair.of(e.getKey(), p)))
           // need to collect to list to prevent ConcurrentModificationException
           .collect(Collectors.toList())
-          .forEach(p -> {
-            // move the clock to the triggering time
-            currentWatermark = p.getFirst();
-            KeyedWindow<W, K> w = p.getSecond().getFirst();
-            Triggerable<W, K> purged = purge(w, currentWatermark);
-            purged.fire(currentWatermark, w);
-          });
+          .forEach(
+              p -> {
+                // move the clock to the triggering time
+                currentWatermark = p.getFirst();
+                KeyedWindow<W, K> w = p.getSecond().getFirst();
+                Triggerable<W, K> purged = purge(w, currentWatermark);
+                purged.fire(currentWatermark, w);
+              });
 
       // and set the final watermark
       currentWatermark = stamp;
@@ -92,8 +88,7 @@ public class WatermarkTriggerScheduler<W extends Window, K>
   }
 
   @Override
-  public boolean scheduleAt(
-      long stamp, KeyedWindow<W, K> window, Triggerable<W, K> trigger) {
+  public boolean scheduleAt(long stamp, KeyedWindow<W, K> window, Triggerable<W, K> trigger) {
     if (stamp <= currentWatermark - watermarkDuration) return false;
     purge(window, stamp);
     add(stamp, trigger, window);
@@ -126,13 +121,10 @@ public class WatermarkTriggerScheduler<W extends Window, K>
     List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>> eventsForWindow;
     eventsForWindow = scheduledEvents.get(stamp);
 
-    List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>> filtered
-        = eventsForWindow.stream()
-        .filter(p -> w.equals(p.getFirst()))
-        .collect(Collectors.toList());
+    List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>> filtered =
+        eventsForWindow.stream().filter(p -> w.equals(p.getFirst())).collect(Collectors.toList());
 
-    Pair<KeyedWindow<W, K>, Triggerable<W, K>> event =
-        Iterables.getOnlyElement(filtered);
+    Pair<KeyedWindow<W, K>, Triggerable<W, K>> event = Iterables.getOnlyElement(filtered);
 
     eventsForWindow.remove(event);
 
@@ -144,14 +136,11 @@ public class WatermarkTriggerScheduler<W extends Window, K>
       eventStampsForWindow.remove(w);
     }
 
-
     return event.getSecond();
   }
 
-
   private void add(long stamp, Triggerable<W, K> trigger, KeyedWindow<W, K> w) {
-    List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>> scheduledForTime =
-        scheduledEvents.get(stamp);
+    List<Pair<KeyedWindow<W, K>, Triggerable<W, K>>> scheduledForTime = scheduledEvents.get(stamp);
     if (scheduledForTime == null) {
       scheduledEvents.put(stamp, scheduledForTime = new ArrayList<>());
     }
@@ -166,5 +155,4 @@ public class WatermarkTriggerScheduler<W extends Window, K>
   public long getWatermarkDuration() {
     return watermarkDuration;
   }
-
 }

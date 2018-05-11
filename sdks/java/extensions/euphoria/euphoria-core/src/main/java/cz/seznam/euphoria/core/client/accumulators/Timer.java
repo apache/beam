@@ -20,20 +20,22 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Timer provides convenience API very similar to {@link Histogram}
- * but extended by time unit support.
+ * Timer provides convenience API very similar to {@link Histogram} but extended by time unit
+ * support.
  */
 @Audience(Audience.Type.CLIENT)
 public interface Timer extends Accumulator {
 
   /**
    * Add specific duration.
+   *
    * @param duration Duration to be added.
    */
   void add(Duration duration);
 
   /**
    * Add specific duration with given time unit
+   *
    * @param duration Duration to be added.
    * @param unit Time unit.
    */

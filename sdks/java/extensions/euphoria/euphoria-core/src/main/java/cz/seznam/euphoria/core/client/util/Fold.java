@@ -24,67 +24,64 @@ import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import java.io.Serializable;
 import java.util.stream.Stream;
 
-/**
- * Apply a folding function.
- */
+/** Apply a folding function. */
 public class Fold implements Serializable {
 
   /**
-   * Return a {@link CombinableReduceFunction} that performs a fold
-   * operation and emits result after fold of all input data.
+   * Return a {@link CombinableReduceFunction} that performs a fold operation and emits result after
+   * fold of all input data.
    *
    * @param <T> element type
    * @param fold the fold function
    * @return the {@link CombinableReduceFunction}
    */
-  public static <T> CombinableReduceFunction<T> of(
-      BinaryFunction<T, T, T> fold) {
-    return s -> s.reduce(fold::apply).orElseThrow(
-        () -> new IllegalStateException("Received empty stream on input!"));
+  public static <T> CombinableReduceFunction<T> of(BinaryFunction<T, T, T> fold) {
+    return s ->
+        s.reduce(fold::apply)
+            .orElseThrow(() -> new IllegalStateException("Received empty stream on input!"));
   }
 
-
   /**
-   * Return a {@link CombinableReduceFunction} that performs a fold
-   * operation and emits result after fold of all input data.
+   * Return a {@link CombinableReduceFunction} that performs a fold operation and emits result after
+   * fold of all input data.
    *
    * @param <T> element type
    * @param identity the zero element
    * @param fold the fold function
    * @return the {@link CombinableReduceFunction}
    */
-  public static <T> CombinableReduceFunction<T> of(
-      T identity, BinaryFunction<T, T, T> fold) {
+  public static <T> CombinableReduceFunction<T> of(T identity, BinaryFunction<T, T, T> fold) {
 
     return s -> s.reduce(identity, fold::apply);
   }
 
   /**
-   * Return a {@link ReduceFunctor} that performs a fold
-   * operation and emits result after fold of all input data.
+   * Return a {@link ReduceFunctor} that performs a fold operation and emits result after fold of
+   * all input data.
    *
    * @param <T> element type
    * @param identity the zero element
    * @param fold the fold function
    * @return the {@link CombinableReduceFunction}
    */
-  public static <T> ReduceFunctor<T, T> of(
-      T identity, BinaryFunctor<T, T, T> fold) {
+  public static <T> ReduceFunctor<T, T> of(T identity, BinaryFunctor<T, T, T> fold) {
 
     return (Stream<T> s, Collector<T> ctx) -> {
       SingleValueContext<T> wrap = new SingleValueContext<>(ctx.asContext());
-      T ret = s.reduce(identity, (a, b) -> {
-        fold.apply(a, b, wrap);
-        return wrap.getAndResetValue();
-      });
+      T ret =
+          s.reduce(
+              identity,
+              (a, b) -> {
+                fold.apply(a, b, wrap);
+                return wrap.getAndResetValue();
+              });
       ctx.collect(ret);
     };
   }
 
-
   /**
-   * Return a {@link ReduceFunctor} that performs a fold operation and
-   * emits partial results after each input element.
+   * Return a {@link ReduceFunctor} that performs a fold operation and emits partial results after
+   * each input element.
    *
    * @param <IN> type of input value
    * @param <OUT> type of output value
@@ -92,22 +89,23 @@ public class Fold implements Serializable {
    * @param fold the fold function
    * @return the {@link ReduceFunctor}
    */
+  @SuppressWarnings("ReturnValueIgnored") // TODO : remove
   public static <IN, OUT> ReduceFunctor<IN, OUT> whileEmittingEach(
       OUT identity, BinaryFunction<OUT, IN, OUT> fold) {
 
-    return (s, ctx) -> s.reduce(identity,
-        (a, b) -> {
-          OUT v = fold.apply(a, b);
-          ctx.collect(v);
-          return v;
-        },
-        (a, b) -> {
-          if (b != null) {
-            throw new UnsupportedOperationException(
-                "Please use sequential streams only!");
-          }
-          return a;
-        });
+    return (s, ctx) ->
+        s.reduce(
+            identity,
+            (a, b) -> {
+              OUT v = fold.apply(a, b);
+              ctx.collect(v);
+              return v;
+            },
+            (a, b) -> {
+              if (b != null) {
+                throw new UnsupportedOperationException("Please use sequential streams only!");
+              }
+              return a;
+            });
   }
-
 }

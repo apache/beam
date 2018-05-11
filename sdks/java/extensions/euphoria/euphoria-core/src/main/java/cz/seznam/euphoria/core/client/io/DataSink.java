@@ -29,10 +29,9 @@ import java.io.Serializable;
 public interface DataSink<T> extends Serializable {
 
   /**
-   *  Perform initialization before writing to the sink.
-   *  Called before writing begins. It must be ensured that
-   *  implementation of this method is idempotent (may be called
-   *  more than once in the case of failure/retry).
+   * Perform initialization before writing to the sink. Called before writing begins. It must be
+   * ensured that implementation of this method is idempotent (may be called more than once in the
+   * case of failure/retry).
    */
   default void initialize() {}
 
@@ -40,7 +39,6 @@ public interface DataSink<T> extends Serializable {
    * Open {@link Writer} for given partition id (zero based).
    *
    * @param partitionId the id of the partition to open for write access
-   *
    * @return a writer to the specified partition
    */
   Writer<T> openWriter(int partitionId);
@@ -59,20 +57,18 @@ public interface DataSink<T> extends Serializable {
    */
   void rollback() throws IOException;
 
-
   /**
-   * Called when adding output sink to the resulting DAG for processing.
-   * Purpose of this method is to enable sink to add arbitrary transformations
-   * to the dataset, before it gets persisted via this sink.
+   * Called when adding output sink to the resulting DAG for processing. Purpose of this method is
+   * to enable sink to add arbitrary transformations to the dataset, before it gets persisted via
+   * this sink.
    *
    * @param output the dataset being written by this sink
-   * @return true if the flow was modified, i.e. if any transformation was
-   * applied on the output. Note that, in that case you have to call
-   * {@link Dataset#persist} manually on the resulting dataset.
+   * @return true if the flow was modified, i.e. if any transformation was applied on the output.
+   *     Note that, in that case you have to call {@link Dataset#persist} manually on the resulting
+   *     dataset.
    */
   default boolean prepareDataset(Dataset<T> output) {
     // by default do nothing
     return false;
   }
-
 }

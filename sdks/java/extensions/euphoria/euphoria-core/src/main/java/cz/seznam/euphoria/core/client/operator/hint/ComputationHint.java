@@ -17,14 +17,10 @@ package cz.seznam.euphoria.core.client.operator.hint;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-/**
- * Extra information for runner about Dataset computation
- */
+/** Extra information for runner about Dataset computation */
 @Audience(Audience.Type.CLIENT)
 public enum ComputationHint implements OutputHint {
 
-  /**
-   * Dataset is expensive to compute
-   */
+  /** Dataset is expensive to compute */
   EXPENSIVE
 }

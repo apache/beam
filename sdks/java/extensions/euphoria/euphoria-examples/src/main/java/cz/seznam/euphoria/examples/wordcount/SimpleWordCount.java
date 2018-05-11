@@ -36,33 +36,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Demonstrates a very simple word-count supporting batched input
- * without windowing.
+ * Demonstrates a very simple word-count supporting batched input without windowing.
  *
- * Example usage on flink:
+ * <p>Example usage on flink:
+ *
  * <pre>{@code
- *   $ flink run -m yarn-cluster \
- *      -yn 1 -ys 2 -ytm 800 \
- *      -c cz.seznam.euphoria.examples.wordcount.SimpleWordCount \
- *      euphoria-examples/assembly/euphoria-examples.jar \
- *      "flink" \
- *      "hdfs:///tmp/swc-input" \
- *      "hdfs:///tmp/swc-output" \
- *      "2"
- *}</pre>
+ * $ flink run -m yarn-cluster \
+ *    -yn 1 -ys 2 -ytm 800 \
+ *    -c cz.seznam.euphoria.examples.wordcount.SimpleWordCount \
+ *    euphoria-examples/assembly/euphoria-examples.jar \
+ *    "flink" \
+ *    "hdfs:///tmp/swc-input" \
+ *    "hdfs:///tmp/swc-output" \
+ *    "2"
+ * }</pre>
  *
  * Example usage on spark:
+ *
  * <pre>{@code
- *   $ spark-submit --verbose --deploy-mode cluster \
- *       --master yarn \
- *       --executor-memory 1g \
- *       --num-executors 1 \
- *       --class cz.seznam.euphoria.examples.wordcount.SimpleWordCount \
- *       euphoria-examples/assembly/euphoria-examples.jar \
- *       "spark" \
- *       "hdfs:///tmp/swc-input" \
- *       "hdfs:///tmp/swc-output" \
- *       "1"
+ * $ spark-submit --verbose --deploy-mode cluster \
+ *     --master yarn \
+ *     --executor-memory 1g \
+ *     --num-executors 1 \
+ *     --class cz.seznam.euphoria.examples.wordcount.SimpleWordCount \
+ *     euphoria-examples/assembly/euphoria-examples.jar \
+ *     "spark" \
+ *     "hdfs:///tmp/swc-input" \
+ *     "hdfs:///tmp/swc-output" \
+ *     "1"
  * }</pre>
  */
 public class SimpleWordCount {
@@ -73,8 +74,8 @@ public class SimpleWordCount {
 
   public static void main(String[] args) {
     if (args.length < 3) {
-      System.err.println("Usage: " + SimpleWordCount.class
-          + " <executor-name> <input-path> <output-path>");
+      System.err.println(
+          "Usage: " + SimpleWordCount.class + " <executor-name> <input-path> <output-path>");
       System.exit(1);
     }
     final String executorName = args[0];
@@ -153,7 +154,6 @@ public class SimpleWordCount {
    * This method defines the executor independent business logic of the program.
    *
    * @param lines lines of text
-   *
    * @return output dataset, containing words with its count
    */
   static Dataset<String> buildFlow(Dataset<String> lines) {
@@ -170,10 +170,12 @@ public class SimpleWordCount {
     // It processes one input element at a time and allows user code to emit
     // zero, one, or more output elements. We use it here to chop up a long
     // string into individual words and emit each individually instead.
-    final Dataset<String> words = FlatMap.named("TOKENIZER")
+    final Dataset<String> words =
+        FlatMap.named("TOKENIZER")
             .of(lines)
-            .using((String line, Collector<String> c) ->
-                SPLIT_RE.splitAsStream(line).forEach(c::collect))
+            .using(
+                (String line, Collector<String> c) ->
+                    SPLIT_RE.splitAsStream(line).forEach(c::collect))
             .output();
 
     // Given the "words" data set, we want to reduce it to a collection
@@ -187,12 +189,13 @@ public class SimpleWordCount {
     // defined function to these values. The result of this user defined
     // function is then emitted to the output along with its corresponding
     // key.
-    final Dataset<Pair<String, Long>> counted = ReduceByKey.named("REDUCE")
-        .of(words)
-        .keyBy(String::toLowerCase)
-        .valueBy(e -> 1L)
-        .combineBy(Sums.ofLongs())
-        .output();
+    final Dataset<Pair<String, Long>> counted =
+        ReduceByKey.named("REDUCE")
+            .of(words)
+            .keyBy(String::toLowerCase)
+            .valueBy(e -> 1L)
+            .combineBy(Sums.ofLongs())
+            .output();
 
     // Lastly we merely format the output of the preceding operator and
     // call `.persist()` with a data sink specifying the "persistent"

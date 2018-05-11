@@ -29,19 +29,34 @@ import java.util.Objects;
 public final class Pair<K, V> {
 
   private static final Comparator<Pair> CMP_BY_FIRST =
-          (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());
+      (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());
 
   private static final Comparator<Pair> CMP_BY_SECOND =
-          (o1, o2) -> doCompare(o1.getSecond(), o2.getSecond());
+      (o1, o2) -> doCompare(o1.getSecond(), o2.getSecond());
+  final K first;
+  final V second;
+
+  private Pair(K first, V second) {
+    this.first = first;
+    this.second = second;
+  }
+
+  // ~ -----------------------------------------------------------------------------
 
   @SuppressWarnings("unchecked")
   private static int doCompare(Object a, Object b) {
     Comparable ca = (Comparable) a;
     Comparable cb = (Comparable) b;
     // ~ ensure nulls are produced last
-    if (ca == cb) { return 0; }
-    if (ca == null) { return 1; }
-    if (cb == null) { return -1; }
+    if (ca == cb) {
+      return 0;
+    }
+    if (ca == null) {
+      return 1;
+    }
+    if (cb == null) {
+      return -1;
+    }
     return ca.compareTo(cb);
   }
 
@@ -49,9 +64,8 @@ public final class Pair<K, V> {
    * Retrieves a comparator which compares pairs by their {@link #getFirst()} member.
    *
    * @param <K> the type of key of the pairs to compare
-   * @param <V> type of the value of the pairs - can be anything since the returned
-   *             comparator does not used it at all
-   *
+   * @param <V> type of the value of the pairs - can be anything since the returned comparator does
+   *     not used it at all
    * @return a comparator based on the {@link #getFirst()} property of pairs
    */
   @SuppressWarnings({"unchecked", "UnusedDeclaration"})
@@ -62,10 +76,9 @@ public final class Pair<K, V> {
   /**
    * Retrieves a comparator which compares pairs by their {@link #getSecond()} member.
    *
-   * @param <K> the type of key of the pairs - can be anything since the returned
-   *             comparator does not used it at all
+   * @param <K> the type of key of the pairs - can be anything since the returned comparator does
+   *     not used it at all
    * @param <V> type of the value of the pairs to compare
-   *
    * @return a comparator based on the {@link #getSecond()} ()} property of pairs
    */
   @SuppressWarnings({"unchecked", "UnusedDeclaration"})
@@ -73,25 +86,13 @@ public final class Pair<K, V> {
     return (Comparator) CMP_BY_SECOND;
   }
 
-  // ~ -----------------------------------------------------------------------------
-
-  final K first;
-  final V second;
-
-  private Pair(K first, V second) {
-    this.first = first;
-    this.second = second;
-  }
-
   /**
    * Construct the pair.
    *
    * @param <K> type of the key of the pair
    * @param <V> type of the value of the pair
-   *
    * @param first the first element of the pair
    * @param second the second element of the pair
-   *
    * @return a newly constructed pair
    */
   public static <K, V> Pair<K, V> of(K first, V second) {

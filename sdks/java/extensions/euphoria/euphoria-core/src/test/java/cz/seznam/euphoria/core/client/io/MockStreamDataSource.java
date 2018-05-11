@@ -15,20 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A mock factory creating a stream datasource.
- */
+/** A mock factory creating a stream datasource. */
 public class MockStreamDataSource<T>
     implements UnboundedDataSource<T, MockStreamDataSource.Offset> {
-
-  public static final class Offset implements Serializable {
-    public static Offset get() { return null; }
-  }
 
   private final List<UnboundedPartition<T, Offset>> partitions;
 
@@ -45,4 +38,9 @@ public class MockStreamDataSource<T>
     return partitions;
   }
 
+  public static final class Offset implements Serializable {
+    public static Offset get() {
+      return null;
+    }
+  }
 }

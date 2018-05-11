@@ -2,19 +2,19 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 ext {
-  kryoVersion = '2.24.0'
+    kryoVersion = '2.24.0'
 }
 
 dependencies {
-  compile project(':beam-sdks-java-extensions-euphoria-core')
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
-  testCompile project(':beam-sdks-java-extensions-euphoria-operator-testkit')
-  testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-  testCompile project(':beam-runners-direct-java')
-  testCompile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  compileOnly library.java.findbugs_jsr305
+    compile project(':beam-sdks-java-extensions-euphoria-core')
+    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+    compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
+    testCompile project(':beam-sdks-java-extensions-euphoria-operator-testkit')
+    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
+    testCompile project(':beam-runners-direct-java')
+    testCompile library.java.slf4j_api
+    testCompile library.java.hamcrest_core
+    compileOnly library.java.findbugs_jsr305
 }
 
 test.testLogging.showStandardStreams = true

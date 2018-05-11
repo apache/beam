@@ -17,33 +17,22 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-
 import java.io.Serializable;
 
-
-/**
- * A windowing policy of a dataset.
- * All implementations must implement equals/hashCode.
- */
+/** A windowing policy of a dataset. All implementations must implement equals/hashCode. */
 @Audience(Audience.Type.CLIENT)
 public interface Windowing<T, W extends Window<W>> extends Serializable {
 
   /**
-   * Assign a set of windows to a given input element. The input element
-   * provides its so-far assigned window, i.e. a window the element was
-   * assigned at some point earlier. Note: elements read directly from
-   * an input source are assigned the {@link GlobalWindowing.Window}
-   * by default.
+   * Assign a set of windows to a given input element. The input element provides its so-far
+   * assigned window, i.e. a window the element was assigned at some point earlier. Note: elements
+   * read directly from an input source are assigned the {@link GlobalWindowing.Window} by default.
    *
    * @param el The element to which windows should be assigned.
-   *
    * @return collection of windows to be assigned this element into, never {@code null}.
    */
   Iterable<W> assignWindowsToElement(WindowedElement<?, T> el);
 
-  /**
-   * @return a {@link Trigger} associated with the current windowing strategy
-   */
+  /** @return a {@link Trigger} associated with the current windowing strategy */
   Trigger<W> getTrigger();
-
 }

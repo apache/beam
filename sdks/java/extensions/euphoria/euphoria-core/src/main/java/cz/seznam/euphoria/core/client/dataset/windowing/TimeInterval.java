@@ -40,21 +40,15 @@ public final class TimeInterval extends Window<TimeInterval> {
     return endMillis - startMillis;
   }
 
-  /**
-   * Returns {@code true} if this window intersects the given window.
-   */
+  /** Returns {@code true} if this window intersects the given window. */
   boolean intersects(TimeInterval that) {
-    return this.startMillis < that.endMillis
-            && this.endMillis > that.startMillis;
+    return this.startMillis < that.endMillis && this.endMillis > that.startMillis;
   }
 
-  /**
-   * Returns the minimal window covers both this window and the given window.
-   */
+  /** Returns the minimal window covers both this window and the given window. */
   TimeInterval cover(TimeInterval that) {
     return new TimeInterval(
-            Math.min(this.startMillis, that.startMillis),
-            Math.max(this.endMillis, that.endMillis));
+        Math.min(this.startMillis, that.startMillis), Math.max(this.endMillis, that.endMillis));
   }
 
   @Override
@@ -81,10 +75,7 @@ public final class TimeInterval extends Window<TimeInterval> {
 
   @Override
   public String toString() {
-    return "TimeInterval{" +
-        "startMillis=" + startMillis +
-        ", endMillis=" + endMillis +
-        '}';
+    return "TimeInterval{" + "startMillis=" + startMillis + ", endMillis=" + endMillis + '}';
   }
 
   @Override

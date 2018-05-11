@@ -23,7 +23,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.util.Settings;
-
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -32,14 +31,14 @@ class WindowedElementCollector<T> implements Context, Collector<T> {
   private final Supplier<Long> stampSupplier;
   private final AccumulatorProvider.Factory accumulatorFactory;
   private final Settings settings;
-
-  private AccumulatorProvider accumulators;
   protected Window window;
+  private AccumulatorProvider accumulators;
 
-  WindowedElementCollector(cz.seznam.euphoria.executor.local.Collector<Datum> wrap,
-                           Supplier<Long> stampSupplier,
-                           AccumulatorProvider.Factory accumulatorFactory,
-                           Settings settings) {
+  WindowedElementCollector(
+      cz.seznam.euphoria.executor.local.Collector<Datum> wrap,
+      Supplier<Long> stampSupplier,
+      AccumulatorProvider.Factory accumulatorFactory,
+      Settings settings) {
     this.wrap = Objects.requireNonNull(wrap);
     this.stampSupplier = stampSupplier;
     this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
@@ -58,13 +57,13 @@ class WindowedElementCollector<T> implements Context, Collector<T> {
     return this;
   }
 
-  void setWindow(Window window) {
-    this.window = window;
-  }
-
   @Override
   public Window<?> getWindow() {
     return window;
+  }
+
+  void setWindow(Window window) {
+    this.window = window;
   }
 
   @Override

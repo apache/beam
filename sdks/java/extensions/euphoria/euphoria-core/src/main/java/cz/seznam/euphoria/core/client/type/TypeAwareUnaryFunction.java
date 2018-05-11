@@ -19,17 +19,11 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 @Audience(Audience.Type.EXECUTOR)
-public class TypeAwareUnaryFunction<I, O>
-    extends AbstractTypeAware<UnaryFunction<I, O>, O>
+public class TypeAwareUnaryFunction<I, O> extends AbstractTypeAware<UnaryFunction<I, O>, O>
     implements UnaryFunction<I, O> {
 
   private TypeAwareUnaryFunction(UnaryFunction<I, O> function, TypeHint<O> resultType) {
     super(function, resultType);
-  }
-
-  @Override
-  public O apply(I what) {
-    return getDelegate().apply(what);
   }
 
   public static <I, O> TypeAwareUnaryFunction<I, O> of(
@@ -37,4 +31,8 @@ public class TypeAwareUnaryFunction<I, O>
     return new TypeAwareUnaryFunction<>(function, typeHint);
   }
 
+  @Override
+  public O apply(I what) {
+    return getDelegate().apply(what);
+  }
 }

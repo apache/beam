@@ -15,12 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import org.junit.Test;
-
-import java.time.Duration;
-
 import static org.junit.Assert.assertEquals;
+
+import com.google.common.collect.Iterables;
+import java.time.Duration;
+import org.junit.Test;
 
 public class TimeTest {
 
@@ -28,8 +27,7 @@ public class TimeTest {
   public void testWindowAssignment() {
     Time<?> windowing = Time.of(Duration.ofMillis(10));
 
-    Iterable<TimeInterval> windows =
-            windowing.assignWindowsToElement(new TimestampedElement<>(11));
+    Iterable<TimeInterval> windows = windowing.assignWindowsToElement(new TimestampedElement<>(11));
 
     assertEquals(1, Iterables.size(windows));
     assertEquals(new TimeInterval(10, 20), Iterables.getOnlyElement(windows));
@@ -42,5 +40,4 @@ public class TimeTest {
     assertEquals(1, Iterables.size(windows));
     assertEquals(new TimeInterval(0, 10), Iterables.getOnlyElement(windows));
   }
-
 }

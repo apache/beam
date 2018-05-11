@@ -15,34 +15,13 @@
  */
 package cz.seznam.euphoria.executor.local;
 
-import cz.seznam.euphoria.shadow.com.google.common.util.concurrent.ThreadFactoryBuilder;
-
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Strategy for emitting watermarks.
- */
+/** Strategy for emitting watermarks. */
 public interface WatermarkEmitStrategy {
-
-  /**
-   * Default strategy used in local executor.
-   */
-  class Default implements WatermarkEmitStrategy {
-
-    final static ScheduledExecutorService scheduler =
-        new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder()
-            .setNameFormat("watermark-%d")
-            .setDaemon(true)
-            .build());
-
-    @Override
-    public void schedule(Runnable action) {
-      scheduler.scheduleAtFixedRate(action, 100, 100, TimeUnit.MILLISECONDS);
-    }
-
-  }
 
   /**
    * Schedule for periodic emitting.
@@ -51,4 +30,16 @@ public interface WatermarkEmitStrategy {
    */
   void schedule(Runnable action);
 
+  /** Default strategy used in local executor. */
+  class Default implements WatermarkEmitStrategy {
+
+    static final ScheduledExecutorService scheduler =
+        new ScheduledThreadPoolExecutor(
+            1, new ThreadFactoryBuilder().setNameFormat("watermark-%d").setDaemon(true).build());
+
+    @Override
+    public void schedule(Runnable action) {
+      scheduler.scheduleAtFixedRate(action, 100, 100, TimeUnit.MILLISECONDS);
+    }
+  }
 }

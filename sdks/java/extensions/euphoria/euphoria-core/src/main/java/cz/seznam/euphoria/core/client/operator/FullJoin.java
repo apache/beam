@@ -21,31 +21,40 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-
 import java.util.Objects;
 import java.util.Optional;
 
 /**
  * Full outer join of two input datasets producing single new dataset.
  *
- * When joining two streams, the join has to specify {@link Windowing}
- * which groups elements from streams into {@link Window}s. The join operation
- * is performed within same windows produced on left and right side of
- * input {@link Dataset}s.
+ * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements from
+ * streams into {@link Window}s. The join operation is performed within same windows produced on
+ * left and right side of input {@link Dataset}s.
  *
  * <h3>Builders:</h3>
+ *
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} left and right input dataset
- *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right elements into keys
- *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element from joined window
- *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right
+ *       elements into keys
+ *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element
+ *       from joined window
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
+ *       attached windowing
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
- *
  */
 @Audience(Audience.Type.CLIENT)
 public class FullJoin {
+
+  public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(Dataset<LEFT> left, Dataset<RIGHT> right) {
+    return new OfBuilder("RightJoin").of(left, right);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
 
   public static class OfBuilder {
 
@@ -76,8 +85,7 @@ public class FullJoin {
     }
 
     public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
-        UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+        UnaryFunction<LEFT, KEY> leftKeyExtractor, UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
       return new UsingBuilder<>(name, left, right, leftKeyExtractor, rightKeyExtractor);
     }
   }
@@ -90,11 +98,12 @@ public class FullJoin {
     private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
     private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
 
-    UsingBuilder(String name,
-                 Dataset<LEFT> left,
-                 Dataset<RIGHT> right,
-                 UnaryFunction<LEFT, KEY> leftKeyExtractor,
-                 UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+    UsingBuilder(
+        String name,
+        Dataset<LEFT> left,
+        Dataset<RIGHT> right,
+        UnaryFunction<LEFT, KEY> leftKeyExtractor,
+        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
       this.name = name;
       this.left = left;
       this.right = right;
@@ -104,20 +113,11 @@ public class FullJoin {
 
     public <OUT> Join.WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
         BinaryFunctor<Optional<LEFT>, Optional<RIGHT>, OUT> functor) {
-      final BinaryFunctor<LEFT, RIGHT, OUT> wrappedFunctor = (left, right, context) ->
-          functor.apply(Optional.ofNullable(left), Optional.ofNullable(right), context);
-      return new Join.WindowingBuilder<>(name, left, right,
-          leftKeyExtractor, rightKeyExtractor, wrappedFunctor, Join.Type.FULL);
+      final BinaryFunctor<LEFT, RIGHT, OUT> wrappedFunctor =
+          (left, right, context) ->
+              functor.apply(Optional.ofNullable(left), Optional.ofNullable(right), context);
+      return new Join.WindowingBuilder<>(
+          name, left, right, leftKeyExtractor, rightKeyExtractor, wrappedFunctor, Join.Type.FULL);
     }
   }
-
-  public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
-      Dataset<LEFT> left, Dataset<RIGHT> right) {
-    return new OfBuilder("RightJoin").of(left, right);
-  }
-
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
-  }
-
 }

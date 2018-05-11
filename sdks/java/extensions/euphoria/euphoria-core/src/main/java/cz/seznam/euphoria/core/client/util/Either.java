@@ -15,54 +15,44 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
+import static java.util.Objects.requireNonNull;
+
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import javax.annotation.Nullable;
 
-import static java.util.Objects.requireNonNull;
-
-/**
- * Either LEFT or RIGHT element.
- */
+/** Either LEFT or RIGHT element. */
 @Audience(Audience.Type.INTERNAL)
 public final class Either<LEFT, RIGHT> {
 
-  @Nullable
-  final LEFT left;
-  @Nullable
-  final RIGHT right;
-
-  public static <LEFT, RIGHT> Either<LEFT, RIGHT> left(LEFT left) {
-    requireNonNull(left);
-    return new Either<>(left, (RIGHT) null);
-  }
-
-
-  public static <LEFT, RIGHT> Either<LEFT, RIGHT> right(RIGHT right) {
-    requireNonNull(right);
-    return new Either<>((LEFT) null, right);
-  }
-
+  @Nullable final LEFT left;
+  @Nullable final RIGHT right;
 
   private Either(@Nullable LEFT left, @Nullable RIGHT right) {
     this.left = left;
     this.right = right;
   }
 
+  public static <LEFT, RIGHT> Either<LEFT, RIGHT> left(LEFT left) {
+    requireNonNull(left);
+    return new Either<>(left, (RIGHT) null);
+  }
+
+  public static <LEFT, RIGHT> Either<LEFT, RIGHT> right(RIGHT right) {
+    requireNonNull(right);
+    return new Either<>((LEFT) null, right);
+  }
 
   public boolean isLeft() {
     return left != null;
   }
 
-
   public boolean isRight() {
     return right != null;
   }
 
-
   public LEFT left() {
     return left;
   }
-
 
   public RIGHT right() {
     return right;
@@ -70,10 +60,6 @@ public final class Either<LEFT, RIGHT> {
 
   @Override
   public String toString() {
-    return "Either{" +
-        "left=" + left +
-        ", right=" + right +
-        '}';
+    return "Either{" + "left=" + left + ", right=" + right + '}';
   }
 }
-

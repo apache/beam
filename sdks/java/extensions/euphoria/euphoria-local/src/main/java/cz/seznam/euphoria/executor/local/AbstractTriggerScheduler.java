@@ -15,13 +15,10 @@
  */
 package cz.seznam.euphoria.executor.local;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.ArrayListMultimap;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Multimap;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Multimaps;
-import cz.seznam.euphoria.shadow.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -32,27 +29,24 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Base class for various time triggering strategies
- */
+/** Base class for various time triggering strategies */
 public abstract class AbstractTriggerScheduler implements TriggerScheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractTriggerScheduler.class);
-
-  private transient ScheduledThreadPoolExecutor scheduler;
   private final Multimap<KeyedWindow, ScheduledTriggerTask> activeTasks =
-          Multimaps.synchronizedMultimap(ArrayListMultimap.create());
+      Multimaps.synchronizedMultimap(ArrayListMultimap.create());
+  private transient ScheduledThreadPoolExecutor scheduler;
 
   public AbstractTriggerScheduler() {
     this.initializeScheduler();
   }
 
   private void initializeScheduler() {
-    ThreadFactory namedThreadFactory = new ThreadFactoryBuilder()
-            .setNameFormat("trigger-%d")
-            .setDaemon(true)
-            .build();
+    ThreadFactory namedThreadFactory =
+        new ThreadFactoryBuilder().setNameFormat("trigger-%d").setDaemon(true).build();
 
     this.scheduler = new ScheduledThreadPoolExecutor(1, namedThreadFactory);
     scheduler.setRemoveOnCancelPolicy(true);
@@ -69,12 +63,8 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     return true;
   }
 
-  private ScheduledFuture<Void> scheduleAfter(
-      long duration, KeyedWindow w, TriggerTask task) {
-    ScheduledFuture<Void> future = scheduler.schedule(
-            task,
-            duration,
-            TimeUnit.MILLISECONDS);
+  private ScheduledFuture<Void> scheduleAfter(long duration, KeyedWindow w, TriggerTask task) {
+    ScheduledFuture<Void> future = scheduler.schedule(task, duration, TimeUnit.MILLISECONDS);
     activeTasks.put(w, new ScheduledTriggerTask(task, future));
     return future;
   }
@@ -119,15 +109,16 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     }
   }
 
-  /**
-   * @return current timestamp determined according to chosen triggering strategy
-   */
+  /** @return current timestamp determined according to chosen triggering strategy */
   @Override
   public abstract long getCurrentTimestamp();
 
-  /**
-   * Trigger task to be scheduled
-   */
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    this.initializeScheduler();
+  }
+
+  /** Trigger task to be scheduled */
   class TriggerTask implements Callable<Void> {
     private final long timestamp;
     private final KeyedWindow window;
@@ -164,9 +155,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     }
   }
 
-  /**
-   * Trigger task in scheduled state that can be cancelled
-   */
+  /** Trigger task in scheduled state that can be cancelled */
   class ScheduledTriggerTask extends TriggerTask {
     private final ScheduledFuture<Void> future;
 
@@ -178,12 +167,5 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     public void cancel() {
       future.cancel(false);
     }
-  }
-
-  private void readObject(ObjectInputStream in)
-          throws IOException, ClassNotFoundException
-  {
-    in.defaultReadObject();
-    this.initializeScheduler();
   }
 }

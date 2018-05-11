@@ -19,17 +19,24 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 
 /**
- * Object passed inside local executor's processing pipelines.
- * This is wrapper for
- *  * client data
- *  * end-of-stream marks
- *  * watermarks
+ * Object passed inside local executor's processing pipelines. This is wrapper for * client data *
+ * end-of-stream marks * watermarks
  */
 class Datum implements WindowedElement<Window, Object> {
 
   private final Window window;
   private final Object element;
   private long timestamp;
+
+  private Datum(long stamp) {
+    this(null, null, stamp);
+  }
+
+  private Datum(Window window, Object element, long stamp) {
+    this.window = window;
+    this.element = element;
+    this.timestamp = stamp;
+  }
 
   @SuppressWarnings("unchecked")
   static Datum of(Window window, Object element, long stamp) {
@@ -47,59 +54,6 @@ class Datum implements WindowedElement<Window, Object> {
   @SuppressWarnings("unchecked")
   static Datum windowTrigger(Window window, long stamp) {
     return new WindowTrigger(window, stamp);
-  }
-
-  static class EndOfStream extends Datum {
-    EndOfStream() {
-      super(Long.MAX_VALUE);
-    }
-    @Override
-    public boolean isEndOfStream() {
-      return true;
-    }
-    @Override
-    public String toString() {
-      return "EndOfStream";
-    }
-  }
-
-  static class Watermark extends Datum {
-    Watermark(long stamp) {
-      super(stamp);
-    }
-    @Override
-    public boolean isWatermark() {
-      return true;
-    }
-    @Override
-    public String toString() {
-      return "Watermark(" + getTimestamp() + ")";
-    }
-  }
-
-  static class WindowTrigger extends Datum {
-    @SuppressWarnings("unchecked")
-    WindowTrigger(Window window, long stamp) {
-      super(window, null, stamp);
-    }
-    @Override
-    public boolean isWindowTrigger() {
-      return true;
-    }
-    @Override
-    public String toString() {
-      return "WindowTrigger(" + getWindow() + ", " + getTimestamp() + ")";
-    }
-  }
-
-  private Datum(long stamp) {
-    this(null, null, stamp);
-  }
-
-  private Datum(Window window, Object element, long stamp) {
-    this.window = window;
-    this.element = element;
-    this.timestamp = stamp;
   }
 
   @Override
@@ -146,4 +100,52 @@ class Datum implements WindowedElement<Window, Object> {
     return "Datum(" + getWindow() + ", " + getTimestamp() + ", " + getElement() + ")";
   }
 
+  static class EndOfStream extends Datum {
+    EndOfStream() {
+      super(Long.MAX_VALUE);
+    }
+
+    @Override
+    public boolean isEndOfStream() {
+      return true;
+    }
+
+    @Override
+    public String toString() {
+      return "EndOfStream";
+    }
+  }
+
+  static class Watermark extends Datum {
+    Watermark(long stamp) {
+      super(stamp);
+    }
+
+    @Override
+    public boolean isWatermark() {
+      return true;
+    }
+
+    @Override
+    public String toString() {
+      return "Watermark(" + getTimestamp() + ")";
+    }
+  }
+
+  static class WindowTrigger extends Datum {
+    @SuppressWarnings("unchecked")
+    WindowTrigger(Window window, long stamp) {
+      super(window, null, stamp);
+    }
+
+    @Override
+    public boolean isWindowTrigger() {
+      return true;
+    }
+
+    @Override
+    public String toString() {
+      return "WindowTrigger(" + getWindow() + ", " + getTimestamp() + ")";
+    }
+  }
 }

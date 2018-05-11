@@ -17,8 +17,7 @@ package cz.seznam.euphoria.executor.local;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
-public class NoopTriggerScheduler<W extends Window, K>
-    implements TriggerScheduler<W, K> {
+public class NoopTriggerScheduler<W extends Window, K> implements TriggerScheduler<W, K> {
 
   private volatile long currentWatermark;
 
@@ -36,18 +35,11 @@ public class NoopTriggerScheduler<W extends Window, K>
   }
 
   @Override
-  public void cancelAll() {
-
-  }
+  public void cancelAll() {}
 
   @Override
-  public void cancel(long stamp, KeyedWindow<W, K> window) {
-
-  }
+  public void cancel(long stamp, KeyedWindow<W, K> window) {}
 
   @Override
-  public void close() {
-
-  }
-
+  public void close() {}
 }
