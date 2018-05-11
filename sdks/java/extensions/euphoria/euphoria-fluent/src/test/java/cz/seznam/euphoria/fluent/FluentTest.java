@@ -29,17 +29,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.Test;
 
+/** Test behavior of Fluent API. */
 public class FluentTest {
 
   @Test
   public void testBasics() throws Exception {
-    final Duration READ_DELAY = Duration.ofMillis(100L);
+    final Duration readDelay = Duration.ofMillis(100L);
     ListDataSink<Set<String>> out = ListDataSink.get();
     Fluent.flow("Test")
         .read(
             ListDataSource.unbounded(
                     asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
-                .withReadDelay(READ_DELAY))
+                .withReadDelay(readDelay))
         // ~ create windows of size three
         .apply(
             input ->

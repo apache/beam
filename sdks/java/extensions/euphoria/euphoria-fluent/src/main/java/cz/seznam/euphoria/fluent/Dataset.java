@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.Executor;
 
+/** TODO: complete javadoc. */
 public class Dataset<T> {
 
   private final cz.seznam.euphoria.core.client.dataset.Dataset<T> wrap;
@@ -39,16 +40,16 @@ public class Dataset<T> {
     return this.wrap;
   }
 
-  public <S> Dataset<S> apply(
-      UnaryFunction<cz.seznam.euphoria.core.client.dataset.Dataset<T>, Output<S>> output) {
+  public <OutputT> Dataset<OutputT> apply(
+      UnaryFunction<cz.seznam.euphoria.core.client.dataset.Dataset<T>, Output<OutputT>> output) {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
   }
 
-  public <S> Dataset<S> mapElements(UnaryFunction<T, S> f) {
+  public <OutputT> Dataset<OutputT> mapElements(UnaryFunction<T, OutputT> f) {
     return new Dataset<>(MapElements.of(this.wrap).using(requireNonNull(f)).output());
   }
 
-  public <S> Dataset<S> flatMap(UnaryFunctor<T, S> f) {
+  public <OutputT> Dataset<OutputT> flatMap(UnaryFunctor<T, OutputT> f) {
     return new Dataset<>(FlatMap.of(this.wrap).using(requireNonNull(f)).output());
   }
 
@@ -60,7 +61,7 @@ public class Dataset<T> {
     return new Dataset<>(Union.of(this.wrap, other.wrap).output());
   }
 
-  public <S extends DataSink<T>> Dataset<T> persist(S dst) {
+  public <OutputT extends DataSink<T>> Dataset<T> persist(OutputT dst) {
     this.wrap.persist(dst);
     return this;
   }

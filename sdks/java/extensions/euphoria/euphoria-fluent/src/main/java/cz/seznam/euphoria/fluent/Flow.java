@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.util.Settings;
 
+/** TODO: complete javadoc. */
 public class Flow {
   private final cz.seznam.euphoria.core.client.flow.Flow wrap;
 
