@@ -4,4 +4,5 @@ applyJavaNature()
 dependencies {
     compile project(':beam-sdks-java-extensions-euphoria-core')
     testCompile project(':beam-sdks-java-extensions-euphoria-local')
+    testCompile library.java.junit
 }
