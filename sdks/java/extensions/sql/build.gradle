@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -157,4 +159,27 @@ task runPojoExample(type: JavaExec) {
   main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
+}
+
+
+task integrationTest(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--project=${gcpProject}",
+          "--blockOnRun=false"
+  ])
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = project(":beam-sdks-java-extensions-sql").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn integrationTest
 }
