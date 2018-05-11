@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import org.junit.Test;
 
+/** Test operator Filter.  */
 public class FilterTest {
 
   @Test

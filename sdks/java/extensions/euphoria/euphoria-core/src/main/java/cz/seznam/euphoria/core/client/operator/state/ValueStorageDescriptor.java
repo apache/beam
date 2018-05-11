@@ -72,6 +72,7 @@ public class ValueStorageDescriptor<T> extends StorageDescriptor {
     return defVal;
   }
 
+  /** TODO: complete javadoc. */
   public static final class MergingValueStorageDescriptor<T> extends ValueStorageDescriptor<T>
       implements MergingStorageDescriptor<T> {
 

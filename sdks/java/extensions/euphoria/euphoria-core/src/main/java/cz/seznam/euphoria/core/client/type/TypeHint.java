@@ -21,7 +21,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 
-/** */
+/** TODO: complete javadoc. */
 public abstract class TypeHint<T> implements Serializable {
 
   private final TypeToken<T> type;

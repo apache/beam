@@ -35,9 +35,10 @@ import java.time.Duration;
 import java.util.Set;
 import org.junit.Test;
 
+/** Test usage of hints in different operators.  */
 public class HintTest {
 
-  /** Test every node in DAG which was unfolded from original operator, if preserves hints */
+  /** Test every node in DAG which was unfolded from original operator, if preserves hints. */
   @Test
   @SuppressWarnings("unchecked")
   public void testHintsAfterUnfold() {

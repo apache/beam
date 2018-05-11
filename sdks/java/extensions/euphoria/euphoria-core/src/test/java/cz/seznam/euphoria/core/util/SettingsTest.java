@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+/** TODO: complete javadoc. */
 public class SettingsTest {
 
   @Test

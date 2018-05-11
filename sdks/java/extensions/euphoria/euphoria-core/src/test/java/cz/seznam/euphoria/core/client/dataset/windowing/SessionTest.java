@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.junit.Test;
 
+/** TODO: complete javadoc. */
 public class SessionTest {
 
   @Test

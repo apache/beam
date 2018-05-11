@@ -18,9 +18,10 @@ package cz.seznam.euphoria.core.client.type;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
+/** TODO: complete javadoc. */
 @Audience(Audience.Type.EXECUTOR)
-public class TypeAwareUnaryFunction<InT, OutT> extends AbstractTypeAware<UnaryFunction<InT, OutT>, OutT>
-    implements UnaryFunction<InT, OutT> {
+public class TypeAwareUnaryFunction<InT, OutT>
+    extends AbstractTypeAware<UnaryFunction<InT, OutT>, OutT> implements UnaryFunction<InT, OutT> {
 
   private TypeAwareUnaryFunction(UnaryFunction<InT, OutT> function, TypeHint<OutT> resultType) {
     super(function, resultType);

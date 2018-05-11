@@ -28,6 +28,7 @@ import cz.seznam.euphoria.core.client.util.Triple;
 import java.time.Duration;
 import org.junit.Test;
 
+/** Test behavior of operator {@code TopPerKey}. */
 public class TopPerKeyTest {
   @Test
   public void testBuild() {

@@ -56,7 +56,7 @@ import javax.annotation.Nullable;
  *      .output();
  * }</pre>
  *
- * The examples above finds global maximum of all elements.
+ * <p>The examples above finds global maximum of all elements.
  *
  * <h3>Builders:</h3>
  *
@@ -74,12 +74,12 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
-public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends Window<W>>
+public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, K, Triple<K, V, SCORE>, W, TopPerKey<InputT, K, V, SCORE, W>> {
+        InputT, InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>> {
 
   private final UnaryFunction<InputT, V> valueFn;
-  private final UnaryFunction<InputT, SCORE> scoreFn;
+  private final UnaryFunction<InputT, ScoreT> scoreFn;
 
   TopPerKey(
       Flow flow,
@@ -87,7 +87,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyFn,
       UnaryFunction<InputT, V> valueFn,
-      UnaryFunction<InputT, SCORE> scoreFn,
+      UnaryFunction<InputT, ScoreT> scoreFn,
       @Nullable Windowing<InputT, W> windowing,
       Set<OutputHint> outputHints) {
     super(name, flow, input, keyFn, windowing, outputHints);
@@ -123,7 +123,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     return valueFn;
   }
 
-  public UnaryFunction<InputT, SCORE> getScoreExtractor() {
+  public UnaryFunction<InputT, ScoreT> getScoreExtractor() {
     return scoreFn;
   }
 
@@ -131,9 +131,9 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
-    StateSupport.MergeFromStateMerger<Pair<V, SCORE>, Pair<V, SCORE>, MaxScored<V, SCORE>>
+    StateSupport.MergeFromStateMerger<Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>>
         stateCombiner = new StateSupport.MergeFromStateMerger<>();
-    ReduceStateByKey<InputT, K, Pair<V, SCORE>, Pair<V, SCORE>, MaxScored<V, SCORE>, W> reduce =
+    ReduceStateByKey<InputT, K, Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
         new ReduceStateByKey<>(
             getName() + "::ReduceStateByKey",
             flow,
@@ -141,13 +141,13 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
             keyExtractor,
             e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
             windowing,
-            (StateContext context, Collector<Pair<V, SCORE>> collector) -> {
+            (StateContext context, Collector<Pair<V, ScoreT>> collector) -> {
               return new MaxScored<>(context.getStorageProvider());
             },
             stateCombiner,
             Collections.emptySet());
 
-    MapElements<Pair<K, Pair<V, SCORE>>, Triple<K, V, SCORE>> format =
+    MapElements<Pair<K, Pair<V, ScoreT>>, Triple<K, V, ScoreT>> format =
         new MapElements<>(
             getName() + "::MapElements",
             flow,
@@ -161,13 +161,15 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     return dag;
   }
 
-  private static final class MaxScored<V, C extends Comparable<C>>
-      implements State<Pair<V, C>, Pair<V, C>>, StateSupport.MergeFrom<MaxScored<V, C>> {
+  /** TODO: complete javadoc. */
+  private static final class MaxScored<V, CompareT extends Comparable<CompareT>>
+      implements State<Pair<V, CompareT>, Pair<V, CompareT>>,
+          StateSupport.MergeFrom<MaxScored<V, CompareT>> {
 
     static final ValueStorageDescriptor<Pair> MAX_STATE_DESCR =
         ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null));
 
-    final ValueStorage<Pair<V, C>> curr;
+    final ValueStorage<Pair<V, CompareT>> curr;
 
     @SuppressWarnings("unchecked")
     MaxScored(StorageProvider storageProvider) {
@@ -175,16 +177,16 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
 
     @Override
-    public void add(Pair<V, C> element) {
-      Pair<V, C> c = curr.get();
+    public void add(Pair<V, CompareT> element) {
+      Pair<V, CompareT> c = curr.get();
       if (c.getFirst() == null || element.getSecond().compareTo(c.getSecond()) > 0) {
         curr.set(element);
       }
     }
 
     @Override
-    public void flush(Collector<Pair<V, C>> context) {
-      Pair<V, C> c = curr.get();
+    public void flush(Collector<Pair<V, CompareT>> context) {
+      Pair<V, CompareT> c = curr.get();
       if (c.getFirst() != null) {
         context.collect(c);
       }
@@ -196,8 +198,8 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
 
     @Override
-    public void mergeFrom(MaxScored<V, C> other) {
-      Pair<V, C> o = other.curr.get();
+    public void mergeFrom(MaxScored<V, CompareT> other) {
+      Pair<V, CompareT> o = other.curr.get();
       if (o.getFirst() != null) {
         this.add(o);
       }
@@ -206,6 +208,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
 
   // ~ -----------------------------------------------------------------------------
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -219,6 +222,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
     private final String name;
     private final Dataset<InputT> input;
@@ -234,6 +238,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ValueByBuilder<InputT, K> {
     private final String name;
     private final Dataset<InputT> input;
@@ -250,6 +255,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ScoreByBuilder<InputT, K, V> {
     private final String name;
     private final Dataset<InputT> input;
@@ -267,27 +273,28 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
       this.valueFn = requireNonNull(valueFn);
     }
 
-    public <S extends Comparable<S>> WindowByBuilder<InputT, K, V, S> scoreBy(
-        UnaryFunction<InputT, S> scoreFn) {
+    public <ScoreT extends Comparable<ScoreT>> WindowByBuilder<InputT, K, V, ScoreT> scoreBy(
+        UnaryFunction<InputT, ScoreT> scoreFn) {
       return new WindowByBuilder<>(name, input, keyFn, valueFn, requireNonNull(scoreFn));
     }
   }
 
-  public static class WindowByBuilder<InputT, K, V, S extends Comparable<S>>
-      implements Builders.WindowBy<InputT, WindowByBuilder<InputT, K, V, S>>,
-          Builders.Output<Triple<K, V, S>> {
+  /** TODO: complete javadoc. */
+  public static class WindowByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>>
+      implements Builders.WindowBy<InputT, WindowByBuilder<InputT, K, V, ScoreT>>,
+          Builders.Output<Triple<K, V, ScoreT>> {
     final String name;
     final Dataset<InputT> input;
     final UnaryFunction<InputT, K> keyFn;
     final UnaryFunction<InputT, V> valueFn;
-    final UnaryFunction<InputT, S> scoreFn;
+    final UnaryFunction<InputT, ScoreT> scoreFn;
 
     WindowByBuilder(
         String name,
         Dataset<InputT> input,
         UnaryFunction<InputT, K> keyFn,
         UnaryFunction<InputT, V> valueFn,
-        UnaryFunction<InputT, S> scoreFn) {
+        UnaryFunction<InputT, ScoreT> scoreFn) {
 
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
@@ -297,19 +304,21 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<InputT, K, V, S, W> windowBy(
+    public <W extends Window<W>> OutputBuilder<InputT, K, V, ScoreT, W> windowBy(
         Windowing<InputT, W> windowing) {
       return new OutputBuilder<>(name, input, keyFn, valueFn, scoreFn, requireNonNull(windowing));
     }
 
     @Override
-    public Dataset<Triple<K, V, S>> output(OutputHint... outputHints) {
+    public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(name, input, keyFn, valueFn, scoreFn, null).output(outputHints);
     }
   }
 
-  public static class OutputBuilder<InputT, K, V, S extends Comparable<S>, W extends Window<W>>
-      extends WindowByBuilder<InputT, K, V, S> {
+  /** TODO: complete javadoc. */
+  public static class OutputBuilder<
+          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends Window<W>>
+      extends WindowByBuilder<InputT, K, V, ScoreT> {
 
     @Nullable private final Windowing<InputT, W> windowing;
 
@@ -318,7 +327,7 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
         Dataset<InputT> input,
         UnaryFunction<InputT, K> keyFn,
         UnaryFunction<InputT, V> valueFn,
-        UnaryFunction<InputT, S> scoreFn,
+        UnaryFunction<InputT, ScoreT> scoreFn,
         @Nullable Windowing<InputT, W> windowing) {
 
       super(name, input, keyFn, valueFn, scoreFn);
@@ -326,9 +335,9 @@ public class TopPerKey<InputT, K, V, SCORE extends Comparable<SCORE>, W extends 
     }
 
     @Override
-    public Dataset<Triple<K, V, S>> output(OutputHint... outputHints) {
+    public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      TopPerKey<InputT, K, V, S, W> top =
+      TopPerKey<InputT, K, V, ScoreT, W> top =
           new TopPerKey<>(
               flow, name, input, keyFn, valueFn, scoreFn, windowing, Sets.newHashSet(outputHints));
       flow.add(top);

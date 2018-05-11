@@ -56,7 +56,7 @@ import javax.annotation.Nullable;
  *           .output();
  * }</pre>
  *
- * The above example tries to parse incoming strings as integers, silently skipping those which
+ * <p>The above example tries to parse incoming strings as integers, silently skipping those which
  * cannot be successfully converted. While {@link Collector#collect(Object)} has been used only once
  * here, a {@link FlatMap} operator is free to invoke it multiple times or not at all to generate
  * that many elements to the output dataset.
@@ -142,6 +142,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     return eventTimeFn;
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -155,6 +156,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<InputT> {
     private final String name;
     private final Dataset<InputT> input;
@@ -179,6 +181,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class EventTimeBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final UsingBuilder<InputT> using;
     private final UnaryFunctor<InputT, OutputT> functor;
@@ -207,6 +210,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
     private final Dataset<InputT> input;
