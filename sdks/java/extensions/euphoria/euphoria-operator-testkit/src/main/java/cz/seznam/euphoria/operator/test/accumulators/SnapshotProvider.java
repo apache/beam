@@ -18,6 +18,9 @@ package cz.seznam.euphoria.operator.test.accumulators;
 import java.time.Duration;
 import java.util.Map;
 
+/**
+ * Provider of snapshots.
+ */
 public interface SnapshotProvider {
 
   Map<String, Long> getCounterSnapshots();

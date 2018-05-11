@@ -33,6 +33,9 @@ public @interface Processing {
 
   Type value();
 
+  /**
+   * Types of processing.
+   */
   enum Type {
     BOUNDED,
     UNBOUNDED,
@@ -43,9 +46,15 @@ public @interface Processing {
     }
 
     Optional<Type> merge(Type that) {
-      if (this == ALL) return Optional.of(that);
-      if (that == ALL) return Optional.of(this);
-      if (this == that) return Optional.of(this);
+      if (this == ALL) {
+        return  Optional.of(that);
+      }
+      if (that == ALL) {
+        return  Optional.of(this);
+      }
+      if (this == that) {
+        return Optional.of(this);
+      }
       return Optional.empty();
     }
   }

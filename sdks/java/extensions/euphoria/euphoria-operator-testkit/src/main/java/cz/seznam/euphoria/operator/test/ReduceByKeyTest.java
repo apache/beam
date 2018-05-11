@@ -745,43 +745,45 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   // ~ ------------------------------------------------------------------------------
 
-  // ~ every instance is unique: this allows us to exercise merging
+  /**
+   * Every instance is unique: this allows us to exercise merging.
+   */
   public static final class CWindow extends Window<CWindow> {
 
-    static final Object _idCounterMutex = new Object();
-    static int _idCounter = 0;
-    private final int _id;
+    private static final Object idCounterMutex = new Object();
+    static int idCounter = 0;
+    private final int id;
     private final int bucket;
 
     public CWindow(int bucket) {
-      this._id = new_id();
+      this.id = new_id();
       this.bucket = bucket;
     }
 
     static int new_id() {
-      synchronized (_idCounterMutex) {
-        return ++_idCounter;
+      synchronized (idCounterMutex) {
+        return ++idCounter;
       }
     }
 
     @Override
     public int hashCode() {
-      return this._id;
+      return this.id;
     }
 
     @Override
     public boolean equals(Object obj) {
-      return obj instanceof CWindow && this._id == ((CWindow) obj)._id;
+      return obj instanceof CWindow && this.id == ((CWindow) obj).id;
     }
 
     @Override
     public int compareTo(CWindow that) {
-      return Integer.compare(this._id, that._id);
+      return Integer.compare(this.id, that.id);
     }
 
     @Override
     public String toString() {
-      return "CWindow{" + "bucket=" + bucket + ", identity=" + _id + '}';
+      return "CWindow{" + "bucket=" + bucket + ", identity=" + id + '}';
     }
   }
 
@@ -907,8 +909,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (!(o instanceof Word)) return false;
+      if (this == o) {
+        return true;
+      }
+
+      if (!(o instanceof Word)) {
+        return false;
+      }
 
       Word word = (Word) o;
 
