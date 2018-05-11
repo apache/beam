@@ -441,7 +441,7 @@ class DataflowApplicationClient(object):
     if google_cloud_options.temp_location is None:
       raise RuntimeError('The --temp_location option must be specified.')
 
-    resource_stager = GCSStager(self._gcs_file_copy)
+    resource_stager = _ParameterizedStager(self._gcs_file_copy)
     resource_stager.get_sdk_package_name = dependency.get_sdk_package_name()
     return resource_stager.stage_job_resources(
         options,
@@ -746,13 +746,13 @@ class MetricUpdateTranslators(object):
     metric_update_proto.floatingPoint = accumulator.value
 
 
-class GCSStager(Stager):
+class _ParameterizedStager(Stager):
   def __init__(self, stage_artifact):
-    super(GCSStager, self).__init__()
+    super(_ParameterizedStager, self).__init__()
     self.stage_artifact_method = stage_artifact
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
-    self.stage_artifact(local_path_to_artifact, artifact_name)
+    self.stage_artifact_method(local_path_to_artifact, artifact_name)
 
   def commit_manifest(self):
     pass
