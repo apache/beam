@@ -17,7 +17,10 @@
 
 """Pipeline options obtained from command line parsing."""
 
+from __future__ import absolute_import
+
 import argparse
+from builtins import object
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -175,7 +178,7 @@ class PipelineOptions(HasDisplayData):
       A PipelineOptions object representing the given arguments.
     """
     flags = []
-    for k, v in options.iteritems():
+    for k, v in options.items():
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
@@ -233,7 +236,7 @@ class PipelineOptions(HasDisplayData):
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
-    return sorted(dir(type(self)) + self.__dict__.keys() +
+    return sorted(dir(type(self)) + list(self.__dict__.keys()) +
                   self._visible_option_list())
 
   def __getattr__(self, name):
