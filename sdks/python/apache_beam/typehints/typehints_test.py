@@ -16,9 +16,15 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
+
+from __future__ import absolute_import
+
 import functools
 import inspect
 import unittest
+from builtins import next
+from builtins import object
+from builtins import range
 
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
@@ -1034,8 +1040,14 @@ class DecoratorHelpers(TypeHintTestCase):
   def test_hint_helper(self):
     self.assertTrue(is_consistent_with(Any, int))
     self.assertTrue(is_consistent_with(int, Any))
-    self.assertTrue(is_consistent_with(str, object))
-    self.assertFalse(is_consistent_with(object, str))
+    # object builtin is shadowed by object imported from future.builtins on
+    # Python 2. Get the native object class from its baseclass.
+    try:
+      native_object = object.__bases__[0]
+    except IndexError:
+      native_object = object
+    self.assertTrue(is_consistent_with(str, native_object))
+    self.assertFalse(is_consistent_with(native_object, str))
     self.assertTrue(is_consistent_with(str, Union[str, int]))
     self.assertFalse(is_consistent_with(Union[str, int], str))
 
