@@ -38,6 +38,12 @@ job('beam_PreCommit_Python_GradleBuild') {
     archiveJunit('**/nosetests.xml')
   }
 
+  wrappers {
+    buildInDocker {
+      dockerfile('.test-infra/jenkins/', 'Dockerfile')
+    }
+  }
+
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, './gradlew :pythonPreCommit', 'Run Python PreCommit')
   steps {
