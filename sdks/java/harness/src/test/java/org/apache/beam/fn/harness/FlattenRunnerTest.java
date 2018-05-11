@@ -24,8 +24,10 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,11 +94,72 @@ public class FlattenRunnerTest {
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
     Iterables.getOnlyElement(consumers.get("inputBTarget")).accept(valueInGlobalWindow("B"));
     Iterables.getOnlyElement(consumers.get("inputCTarget")).accept(valueInGlobalWindow("C"));
-    assertThat(mainOutputValues, contains(
-        valueInGlobalWindow("A1"),
-        valueInGlobalWindow("A2"),
-        valueInGlobalWindow("B"),
-        valueInGlobalWindow("C")));
+    assertThat(
+        mainOutputValues,
+        contains(
+            valueInGlobalWindow("A1"),
+            valueInGlobalWindow("A2"),
+            valueInGlobalWindow("B"),
+            valueInGlobalWindow("C")));
+
+    mainOutputValues.clear();
+  }
+
+  /**
+   * Create a Flatten that has 4 inputs (inputATarget1, inputATarget2, inputBTarget, inputCTarget)
+   * and one output (mainOutput). Validate that inputs are flattened together and directed to the
+   * output.
+   */
+  @Test
+  public void testFlattenWithDuplicateInputCollectionProducesMultipleOutputs() throws Exception {
+    String pTransformId = "pTransformId";
+    String mainOutputId = "101";
+
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
+            .build();
+    RunnerApi.PTransform pTransform =
+        RunnerApi.PTransform.newBuilder()
+            .setSpec(functionSpec)
+            .putInputs("inputA", "inputATarget")
+            .putInputs("inputAAgain", "inputATarget")
+            .putOutputs(mainOutputId, "mainOutputTarget")
+            .build();
+
+    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    consumers.put(
+        "mainOutputTarget",
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+
+    new FlattenRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            pTransformId,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            consumers,
+            null /* addStartFunction */,
+            null /* addFinishFunction */);
+
+    mainOutputValues.clear();
+    assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
+
+    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
+    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
+    assertThat(
+        mainOutputValues,
+        containsInAnyOrder(
+            valueInGlobalWindow("A1"),
+            valueInGlobalWindow("A1"),
+            valueInGlobalWindow("A2"),
+            valueInGlobalWindow("A2")));
 
     mainOutputValues.clear();
   }
