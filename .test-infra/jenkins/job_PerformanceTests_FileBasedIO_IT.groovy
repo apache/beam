@@ -76,6 +76,18 @@ def testsConfigurations = [
                         numberOfRecords: '100000000',
                         charset: 'UTF-8'
                 ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_ParquetIOIT',
+                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_ParquetIOIT',
+                itClass           : 'org.apache.beam.sdk.io.parquet.ParquetIOIT',
+                bqTable           : 'beam_performance.parquetioit_pkb_results',
+                prCommitStatusName: 'Java ParquetIOPerformance Test',
+                prTriggerPhase    : 'Run Java ParquetIO Performance Test',
+                extraPipelineArgs: [
+                        numberOfRecords: '100000000',
+                        charset: 'UTF-8'
+                ]
         ]
 ]
 

@@ -29,6 +29,7 @@ dependencies {
   shadowTest project(":beam-sdks-java-io-common")
   shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   shadowTest project(":beam-sdks-java-io-xml")
+  shadowTest project(":beam-sdks-java-io-parquet")
   shadowTest library.java.guava
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core

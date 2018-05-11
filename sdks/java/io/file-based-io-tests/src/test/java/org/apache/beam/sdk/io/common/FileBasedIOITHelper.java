@@ -59,6 +59,7 @@ public class FileBasedIOITHelper {
 
   public static String getExpectedHashForLineCount(int lineCount) {
     Map<Integer, String> expectedHashes = ImmutableMap.of(
+        1000, "8604c70b43405ef9803cb49b77235ea2",
         100_000, "4c8bb3b99dcc59459b20fefba400d446",
         1_000_000, "9796db06e7a7960f974d5a91164afff1",
         100_000_000, "6ce05f456e2fdc846ded2abd0ec1de95"
