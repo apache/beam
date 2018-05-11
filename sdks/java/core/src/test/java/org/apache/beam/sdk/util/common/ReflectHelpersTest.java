@@ -34,7 +34,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ReflectHelpersTest {
-
   @Test
   public void testClassName() {
     assertEquals(getClass().getName(), ReflectHelpers.CLASS_NAME.apply(getClass()));

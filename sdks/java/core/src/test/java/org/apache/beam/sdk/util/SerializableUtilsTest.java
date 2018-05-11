@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.testing.ClassLoaderRule;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,6 +43,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SerializableUtilsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ClassLoaderRule resetClassLoader = ClassLoaderRule.build().create();
 
   /** A class that is serializable by Java. */
   private static class SerializableByJava implements Serializable {
@@ -57,7 +59,8 @@ public class SerializableUtilsTest {
   @Test
   public void customClassLoader() throws Exception {
     // define a classloader with test-classes in it
-    final ClassLoader testLoader = Thread.currentThread().getContextClassLoader();
+    final Thread thread = Thread.currentThread();
+    final ClassLoader testLoader = thread.getContextClassLoader();
     final ClassLoader loader = new InterceptingUrlClassLoader(testLoader, MySource.class.getName());
     final Class<?> source = loader.loadClass(
             "org.apache.beam.sdk.util.SerializableUtilsTest$MySource");
@@ -66,13 +69,8 @@ public class SerializableUtilsTest {
     // validate if the caller set the classloader that it works well
     final Serializable customLoaderSourceInstance = Serializable.class.cast(
             source.getConstructor().newInstance());
-    final Thread thread = Thread.currentThread();
     thread.setContextClassLoader(loader);
-    try {
-      assertSerializationClassLoader(loader, customLoaderSourceInstance);
-    } finally {
-      thread.setContextClassLoader(testLoader);
-    }
+    assertSerializationClassLoader(loader, customLoaderSourceInstance);
 
     // now let beam be a little be more fancy and try to ensure it by itself from the incoming value
     assertSerializationClassLoader(loader, customLoaderSourceInstance);
