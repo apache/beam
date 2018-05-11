@@ -26,7 +26,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
-/** Test {@code FlatMap} operator's integration with beam. */
+/**
+ * Test {@code FlatMap} operator's integration with beam.
+ */
 public class FlatMapTest {
 
   @Test

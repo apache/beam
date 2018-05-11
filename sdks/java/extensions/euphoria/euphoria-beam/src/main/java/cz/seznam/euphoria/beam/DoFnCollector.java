@@ -29,22 +29,26 @@ import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.transforms.DoFn;
 
-/** Collector that outputs elements to {@link BeamCollector}. */
+/**
+ * Collector that outputs elements to {@link BeamCollector}.
+ */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
-public class DoFnCollector<InputT, OutputT, ELEM> implements Collector<ELEM>, Context, Serializable {
+public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, Context,
+    Serializable {
 
   private final AccumulatorProvider accumulators;
-  private final BeamCollector<InputT, OutputT, ELEM> beamCollector;
+  private final BeamCollector<InputT, OutputT, ElemT> beamCollector;
   private transient DoFn<InputT, OutputT>.ProcessContext context;
 
-  DoFnCollector(AccumulatorProvider accumulators, BeamCollector<InputT, OutputT, ELEM> beamCollector) {
+  DoFnCollector(AccumulatorProvider accumulators,
+      BeamCollector<InputT, OutputT, ElemT> beamCollector) {
     this.accumulators = accumulators;
     this.beamCollector = beamCollector;
   }
 
   @Override
-  public void collect(ELEM elem) {
+  public void collect(ElemT elem) {
     beamCollector.collect(Objects.requireNonNull(context), elem);
   }
 
@@ -55,7 +59,7 @@ public class DoFnCollector<InputT, OutputT, ELEM> implements Collector<ELEM>, Co
 
   @Override
   public Window<?> getWindow() {
-    // FIXME: we need to return the element's window here
+    // TODO: we need to return the element's window here
     return GlobalWindowing.Window.get();
   }
 
@@ -78,8 +82,14 @@ public class DoFnCollector<InputT, OutputT, ELEM> implements Collector<ELEM>, Co
     this.context = context;
   }
 
-  public interface BeamCollector<InputT, OutputT, ELEM> extends Serializable {
+  /**
+   * TODO: write javadoc.
+   * @param <InputT>
+   * @param <OutputT>
+   * @param <ElemT>
+   */
+  public interface BeamCollector<InputT, OutputT, ElemT> extends Serializable {
 
-    void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ELEM elem);
+    void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ElemT elem);
   }
 }

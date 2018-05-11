@@ -32,10 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
-/** Coder using Kryo as (de)serialization mechanism. FIXME: we should entirely drop this class */
+/**
+ * Coder using Kryo as (de)serialization mechanism. TODO: we should drop this class entirely
+ */
 public class KryoCoder<T> extends CustomCoder<T> {
 
-  private static VoidFunction<Kryo> FACTORY =
+  private static final VoidFunction<Kryo> FACTORY =
       () -> {
         final Kryo instance = new Kryo();
         ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())
@@ -47,11 +49,6 @@ public class KryoCoder<T> extends CustomCoder<T> {
   // factory that need to be serialized and deserialized
   // use the current static factory, that has been set
   private final VoidFunction<Kryo> factory = FACTORY;
-
-  public static void withKryoFactory(VoidFunction<Kryo> factory) {
-    FACTORY = factory;
-    kryo = ThreadLocal.withInitial(FACTORY::apply);
-  }
 
   @Override
   public void encode(T t, OutputStream out) throws IOException {

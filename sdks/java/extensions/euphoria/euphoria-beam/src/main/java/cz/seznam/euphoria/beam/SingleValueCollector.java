@@ -23,7 +23,9 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
 import java.io.Serializable;
 
-/** {@code Collector} for combinable functors. */
+/**
+ * {@code Collector} for combinable functors.
+ */
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   private T elem;

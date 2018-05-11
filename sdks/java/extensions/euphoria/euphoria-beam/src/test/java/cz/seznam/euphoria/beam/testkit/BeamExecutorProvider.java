@@ -23,6 +23,9 @@ import java.time.Duration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
+/**
+ * Local {@link ExecutorProvider}.
+ */
 public interface BeamExecutorProvider extends ExecutorProvider {
 
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {

@@ -36,7 +36,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
-/** This class converts Euphoria's {@code Flow} into Beam's Pipeline. */
+/**
+ * This class converts Euphoria's {@code Flow} into Beam's Pipeline.
+ */
 class FlowTranslator {
 
   private static final Map<Class, OperatorTranslator> translators = new IdentityHashMap<>();

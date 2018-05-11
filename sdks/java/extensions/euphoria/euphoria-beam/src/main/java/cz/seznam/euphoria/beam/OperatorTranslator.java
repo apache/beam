@@ -21,10 +21,10 @@ import org.apache.beam.sdk.values.PCollection;
 /**
  * A functor to translate an operator into a beam execution.
  *
- * @param <O> the type of the user defined euphoria operator definition
+ * @param <OperatorT> the type of the user defined euphoria operator definition
  */
 @FunctionalInterface
-interface OperatorTranslator<O extends Operator> {
+interface OperatorTranslator<OperatorT extends Operator> {
 
   /**
    * Translates the given a operator it into a concrete beam transformation.
@@ -33,5 +33,5 @@ interface OperatorTranslator<O extends Operator> {
    * @param context the execution context aware of all inputs of the given operator
    * @return a beam transformation
    */
-  PCollection<?> translate(O operator, BeamExecutorContext context);
+  PCollection<?> translate(OperatorT operator, BeamExecutorContext context);
 }

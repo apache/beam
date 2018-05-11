@@ -28,29 +28,32 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
 
-/** A {@link UnboundedSource} created from {@link UnboundedDataSource}. */
-public class BeamUnboundedSource<T, OFFSET extends Serializable>
-    extends UnboundedSource<T, BeamUnboundedSource.BeamCheckpointMark<OFFSET>> {
+/**
+ * A {@link UnboundedSource} created from {@link UnboundedDataSource}.
+ */
+public class BeamUnboundedSource<T, OffsetT extends Serializable>
+    extends UnboundedSource<T, BeamUnboundedSource.BeamCheckpointMark<OffsetT>> {
 
-  private final UnboundedDataSource<T, OFFSET> wrap;
+  private final UnboundedDataSource<T, OffsetT> wrap;
   private final int partitionId;
 
-  private BeamUnboundedSource(UnboundedDataSource<T, OFFSET> wrap) {
+  private BeamUnboundedSource(UnboundedDataSource<T, OffsetT> wrap) {
     this(wrap, -1);
   }
-  private BeamUnboundedSource(UnboundedDataSource<T, OFFSET> wrap, int partitionId) {
+
+  private BeamUnboundedSource(UnboundedDataSource<T, OffsetT> wrap, int partitionId) {
     this.wrap = Objects.requireNonNull(wrap);
     this.partitionId = partitionId;
   }
 
-  public static <T, OFFSET extends Serializable> BeamUnboundedSource<T, OFFSET> wrap(
-      UnboundedDataSource<T, OFFSET> wrap) {
+  public static <T, OffsetT extends Serializable> BeamUnboundedSource<T, OffsetT> wrap(
+      UnboundedDataSource<T, OffsetT> wrap) {
     return new BeamUnboundedSource<>(wrap);
   }
 
   @Override
   public void validate() {
-    // FIXME
+    // TODO
   }
 
   @Override
@@ -73,10 +76,10 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
   }
 
   @Override
-  public List<? extends UnboundedSource<T, BeamCheckpointMark<OFFSET>>> split(
+  public List<? extends UnboundedSource<T, BeamCheckpointMark<OffsetT>>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     if (partitionId == -1) {
-      final List<BeamUnboundedSource<T, OFFSET>> splits;
+      final List<BeamUnboundedSource<T, OffsetT>> splits;
       splits = new ArrayList<>(wrap.getPartitions().size());
       for (int i = 0; i < wrap.getPartitions().size(); i++) {
         splits.add(new BeamUnboundedSource<>(wrap, i));
@@ -89,13 +92,13 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
 
   @Override
   public UnboundedReader<T> createReader(
-      PipelineOptions options, BeamCheckpointMark<OFFSET> checkpointMark) throws IOException {
+      PipelineOptions options, BeamCheckpointMark<OffsetT> checkpointMark) throws IOException {
 
-    final cz.seznam.euphoria.core.client.io.UnboundedReader<T, OFFSET> reader;
+    final cz.seznam.euphoria.core.client.io.UnboundedReader<T, OffsetT> reader;
     reader = wrap.getPartitions().get(partitionId).openReader();
     return new UnboundedReader<T>() {
 
-      private OFFSET offset = checkpointMark == null ? null : checkpointMark.offset;
+      private OffsetT offset = checkpointMark == null ? null : checkpointMark.offset;
       private T current = null;
       private boolean hasNext = false;
 
@@ -153,16 +156,20 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
   }
 
   @Override
-  public Coder<BeamCheckpointMark<OFFSET>> getCheckpointMarkCoder() {
+  public Coder<BeamCheckpointMark<OffsetT>> getCheckpointMarkCoder() {
     return new KryoCoder<>();
   }
 
-  public static class BeamCheckpointMark<OFFSET>
+  /**
+   * TODO: add javadoc.
+   * @param <OffsetT>
+   */
+  public static class BeamCheckpointMark<OffsetT>
       implements UnboundedSource.CheckpointMark, Serializable {
 
-    private final OFFSET offset;
+    private final OffsetT offset;
 
-    public BeamCheckpointMark(OFFSET off) {
+    public BeamCheckpointMark(OffsetT off) {
       this.offset = off;
     }
 

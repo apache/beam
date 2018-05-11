@@ -22,13 +22,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 final class TypeUtils {
 
-  private TypeUtils() {}
+  private TypeUtils() {
+  }
 
   @SuppressWarnings("unchecked")
   static <K, V> TypeDescriptor<KV<K, V>> kvOf(TypeToken<K> keyType, TypeToken<V> valueType) {
     final TypeToken<KV<K, V>> type =
-        new TypeToken<KV<K, V>>() {}.where(new TypeParameter<K>() {}, keyType)
-            .where(new TypeParameter<V>() {}, valueType);
+        new TypeToken<KV<K, V>>() {
+        }.where(new TypeParameter<K>() {
+        }, keyType)
+            .where(new TypeParameter<V>() {
+            }, valueType);
     return (TypeDescriptor) TypeDescriptor.of(type.getType());
   }
 }

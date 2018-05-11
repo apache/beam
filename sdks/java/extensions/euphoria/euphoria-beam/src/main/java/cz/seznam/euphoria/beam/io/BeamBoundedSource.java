@@ -25,7 +25,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/** A {@link BoundedSource} created from {@link BoundedDataSource}. */
+/**
+ * A {@link BoundedSource} created from {@link BoundedDataSource}.
+ */
 public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   private final BoundedDataSource<T> wrap;
@@ -93,12 +95,12 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   @Override
   public void validate() {
-    // FIXME
+    // TODO
   }
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
-    // FIXME
+    // TODO
     return new KryoCoder<>();
   }
 
