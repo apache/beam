@@ -398,7 +398,7 @@ public class JoinTest extends AbstractOperatorTest {
   // ~ we expect the result to reflect this fact
   // ~ note: no early triggering
   @Test
-  public void JoinOnSessionWindowingNoEarlyTriggering() {
+  public void joinOnSessionWindowingNoEarlyTriggering() {
     execute(
         new JoinTestCase<
             Pair<String, Long>, Pair<String, Long>, Triple<TimeInterval, String, String>>() {

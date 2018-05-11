@@ -1,5 +1,5 @@
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
@@ -7,5 +7,6 @@ dependencies {
     shadow library.java.guava
     shadow library.java.slf4j_api
     compileOnly library.java.findbugs_jsr305
+    testCompile library.java.mockito_core
     testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
 }

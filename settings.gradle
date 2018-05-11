@@ -89,6 +89,8 @@ include "beam-sdks-java-extensions-euphoria-operator-testkit"
 project(":beam-sdks-java-extensions-euphoria-operator-testkit").dir = file("sdks/java/extensions/euphoria/euphoria-operator-testkit")
 include "beam-sdks-java-extensions-euphoria-local"
 project(":beam-sdks-java-extensions-euphoria-local").dir = file("sdks/java/extensions/euphoria/euphoria-local")
+include "beam-sdks-java-extensions-euphoria-fluent"
+project(":beam-sdks-java-extensions-euphoria-fluent").dir = file("sdks/java/extensions/euphoria/euphoria-fluent")
 
 
 include "beam-sdks-java-extensions-google-cloud-platform-core"
