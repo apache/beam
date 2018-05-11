@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 /** Factory for states. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface StateFactory<InputT, OutputT, STATE extends State<InputT, OutputT>>
+public interface StateFactory<InputT, OutputT, StateT extends State<InputT, OutputT>>
     extends Serializable {
 
   /**
@@ -35,7 +35,7 @@ public interface StateFactory<InputT, OutputT, STATE extends State<InputT, Outpu
    *     emit output elements
    * @return a newly created state
    */
-  STATE createState(
+  StateT createState(
       StateContext stateContext,
       @Experimental("https://github.com/seznam/euphoria/issues/118") @Nullable
           Collector<OutputT> context);

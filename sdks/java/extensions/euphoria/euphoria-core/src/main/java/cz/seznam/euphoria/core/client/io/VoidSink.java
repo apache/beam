@@ -18,6 +18,7 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.IOException;
 
+/** TODO: complete javadoc. */
 @Audience(Audience.Type.CLIENT)
 public class VoidSink<T> implements DataSink<T> {
 

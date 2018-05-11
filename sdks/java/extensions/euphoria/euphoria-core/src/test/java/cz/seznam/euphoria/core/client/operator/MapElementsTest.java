@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import org.junit.Test;
 
+/** Test operator MapElement.  */
 public class MapElementsTest {
 
   @Test

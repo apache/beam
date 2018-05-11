@@ -15,7 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
@@ -47,8 +48,8 @@ import java.util.Set;
  * Dataset<String> both = Union.named("XS-AND-YS").of(xs, ys).output();
  * }</pre>
  *
- * The "both" dataset from the above example can now be processed with an operator expecting only a
- * single input dataset, e.g. {@link FlatMap}, which will then effectively process both "xs" and
+ * <p>The "both" dataset from the above example can now be processed with an operator expecting only
+ * a single input dataset, e.g. {@link FlatMap}, which will then effectively process both "xs" and
  * "ys".
  *
  * <p>Note: the order of the dataset does not matter. Indeed, the order of the elements themselves
@@ -77,8 +78,8 @@ public class Union<InputT> extends Operator<InputT, InputT> {
   @SuppressWarnings("unchecked")
   Union(String name, Flow flow, List<Dataset<InputT>> dataSets, Set<OutputHint> outputHints) {
     super(name, flow);
-    Preconditions.checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
-    Preconditions.checkArgument(
+    checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
+    checkArgument(
         dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
         "Only data sets from the same flow can be passed to Union.");
     this.dataSets = dataSets;
@@ -123,7 +124,7 @@ public class Union<InputT> extends Operator<InputT, InputT> {
   }
 
   /**
-   * Retrieves the single-view dataset representing the union of two input datasets
+   * Retrieves the single-view dataset representing the union of two input datasets.
    *
    * @return the output dataset of this operator
    */
@@ -142,6 +143,7 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     return dataSets;
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
     private final String name;
 
@@ -173,13 +175,14 @@ public class Union<InputT> extends Operator<InputT, InputT> {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
     private final String name;
     private final List<Dataset<InputT>> dataSets;
 
     OutputBuilder(String name, List<Dataset<InputT>> dataSets) {
-      Preconditions.checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
-      Preconditions.checkArgument(
+      checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
+      checkArgument(
           dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
           "Only data sets from the same flow can be passed to Union.");
       this.name = Objects.requireNonNull(name);

@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import java.time.Duration;
 import org.junit.Test;
 
+/** Test operator Distinct.  */
 public class DistinctTest {
 
   @Test

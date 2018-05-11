@@ -127,6 +127,7 @@ public class SumByKey<InputT, K, W extends Window<W>>
     return DAG.of(reduceByKey);
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -141,6 +142,7 @@ public class SumByKey<InputT, K, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
     private final String name;
     private final Dataset<InputT> input;
@@ -156,6 +158,7 @@ public class SumByKey<InputT, K, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ValueByBuilder<InputT, K>
       implements Builders.WindowBy<InputT, ByBuilder2<InputT, K>>,
           Builders.Output<Pair<K, Long>>,
@@ -187,6 +190,7 @@ public class SumByKey<InputT, K, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ByBuilder2<InputT, K>
       implements Builders.WindowBy<InputT, ByBuilder2<InputT, K>>,
           Builders.Output<Pair<K, Long>>,
@@ -221,6 +225,7 @@ public class SumByKey<InputT, K, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<InputT, K, W extends Window<W>> extends ByBuilder2<InputT, K> {
 
     @Nullable private final Windowing<InputT, W> windowing;

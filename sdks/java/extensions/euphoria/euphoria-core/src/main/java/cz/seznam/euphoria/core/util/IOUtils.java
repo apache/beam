@@ -52,7 +52,7 @@ public class IOUtils {
     forEach(stream::iterator, consumer);
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   @FunctionalInterface
   public interface IOConsumer<T> {
     void accept(T t) throws IOException;

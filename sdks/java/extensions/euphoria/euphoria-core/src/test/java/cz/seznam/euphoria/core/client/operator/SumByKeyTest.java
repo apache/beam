@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.time.Duration;
 import org.junit.Test;
 
+/** Test behavior of operator {@code SumByKey}. */
 public class SumByKeyTest {
   @Test
   public void testBuild() {

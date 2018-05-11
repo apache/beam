@@ -32,6 +32,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.time.Duration;
 import org.junit.Test;
 
+/** Test operator ReduceStateByKey.  */
 public class ReduceStateByKeyTest {
 
   @Test

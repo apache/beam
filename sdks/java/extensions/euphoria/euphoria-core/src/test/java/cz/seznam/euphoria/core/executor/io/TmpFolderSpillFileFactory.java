@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.rules.TemporaryFolder;
 
+/** TODO: complete javadoc. */
 class TmpFolderSpillFileFactory implements SpillFileFactory {
 
   private final TemporaryFolder folder;

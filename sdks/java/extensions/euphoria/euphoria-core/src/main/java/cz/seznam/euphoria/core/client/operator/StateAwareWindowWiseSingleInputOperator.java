@@ -36,7 +36,9 @@ public class StateAwareWindowWiseSingleInputOperator<
         K,
         OutputT,
         W extends Window<W>,
-        OperatorT extends StateAwareWindowWiseSingleInputOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
+        OperatorT extends
+            StateAwareWindowWiseSingleInputOperator<
+                    InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
     extends StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT> {
 
   protected final Dataset<InputT> input;

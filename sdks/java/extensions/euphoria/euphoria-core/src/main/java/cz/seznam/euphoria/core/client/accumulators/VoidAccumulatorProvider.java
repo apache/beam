@@ -54,7 +54,7 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
 
   // ------------------------
 
-  /** AccumulatorProvider Factory */
+  /** AccumulatorProvider Factory. */
   public static class Factory implements AccumulatorProvider.Factory {
 
     private static final Factory INSTANCE = new Factory();
@@ -80,6 +80,7 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
 
   // ------------------------
 
+  /** Empty implementation of Counter doesnt count anything. */
   private static class VoidCounter implements Counter {
 
     private static final VoidCounter INSTANCE = new VoidCounter();
@@ -96,7 +97,8 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
       // NOOP
     }
   }
-  /** Empty implementation of Histogram doesnt counting anything. */
+
+  /** Empty implementation of Histogram doesnt count anything. */
   public static class VoidHistogram implements Histogram {
 
     private static final VoidHistogram INSTANCE = new VoidHistogram();
@@ -113,6 +115,7 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
       // NOOP
     }
   }
+
   /** Empty implementation of Timer doesnt measure anything. */
   public static class VoidTimer implements Timer {
 

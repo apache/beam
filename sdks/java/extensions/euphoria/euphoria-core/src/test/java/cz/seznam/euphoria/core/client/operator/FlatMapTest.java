@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import java.math.BigDecimal;
 import org.junit.Test;
 
+/** Test operator FlatMap.  */
 public class FlatMapTest {
 
   @Test

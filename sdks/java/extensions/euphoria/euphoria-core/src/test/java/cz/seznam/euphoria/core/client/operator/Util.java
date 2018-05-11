@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Utility class for easier creating input datasets for operator testing. */
 public class Util {
 
   public static <T> Dataset<T> createMockDataset(Flow flow, int numPartitions) {
@@ -34,6 +35,7 @@ public class Util {
     return flow.createInput(ListDataSource.bounded(partitions));
   }
 
+  /** Empty implementation of OutputHint. */
   public static class TestHint implements OutputHint {
 
     @Override
@@ -47,6 +49,7 @@ public class Util {
     }
   }
 
+  /** Empty implementation of OutputHint. */
   public static class TestHint2 implements OutputHint {
 
     @Override

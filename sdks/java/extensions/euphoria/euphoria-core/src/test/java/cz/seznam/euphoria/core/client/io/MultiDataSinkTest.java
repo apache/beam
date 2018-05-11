@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+/** Tests behavior of {@link MultiDataSink}. */
 public class MultiDataSinkTest {
 
   @Test
@@ -53,7 +54,7 @@ public class MultiDataSinkTest {
   }
 
   /**
-   * Added one datasink twice to test if multiDataSink is calling commit on all his added DataSinks
+   * Added one datasink twice to test if multiDataSink is calling commit on all his added DataSinks.
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -81,6 +82,7 @@ public class MultiDataSinkTest {
         .build();
   }
 
+  /** Wrapper for input elements for saving each type to different DataSink. */
   private static class InputElement {
 
     private final Type type;
