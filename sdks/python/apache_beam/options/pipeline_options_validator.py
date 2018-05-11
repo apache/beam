@@ -19,7 +19,10 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import absolute_import
+
 import re
+from builtins import object
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
