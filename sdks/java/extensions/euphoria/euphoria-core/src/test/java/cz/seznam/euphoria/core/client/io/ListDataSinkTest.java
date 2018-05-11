@@ -21,6 +21,7 @@ import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.testing.DatasetAssert;
 import org.junit.Test;
 
+/** TODO: complete javadoc. */
 public class ListDataSinkTest {
 
   @Test

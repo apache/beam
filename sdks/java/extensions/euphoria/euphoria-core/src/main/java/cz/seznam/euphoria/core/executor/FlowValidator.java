@@ -17,7 +17,6 @@ package cz.seznam.euphoria.core.executor;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;

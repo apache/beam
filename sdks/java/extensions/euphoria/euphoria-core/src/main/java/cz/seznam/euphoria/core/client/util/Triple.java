@@ -20,30 +20,30 @@ import java.util.Objects;
 
 /** Triple of any types. */
 @Audience(Audience.Type.CLIENT)
-public final class Triple<FirstT, SecondT, ThirdT> {
-  final FirstT first;
-  final SecondT second;
-  final ThirdT third;
+public final class Triple<T1, T2, T3> {
+  final T1 first;
+  final T2 second;
+  final T3 third;
 
-  private Triple(FirstT first, SecondT second, ThirdT third) {
+  private Triple(T1 first, T2 second, T3 third) {
     this.first = first;
     this.second = second;
     this.third = third;
   }
 
-  public static <F, S, T> Triple<F, S, T> of(F first, S second, T third) {
+  public static <T1, T2, T3> Triple<T1, T2, T3> of(T1 first, T2 second, T3 third) {
     return new Triple<>(first, second, third);
   }
 
-  public FirstT getFirst() {
+  public T1 getFirst() {
     return first;
   }
 
-  public SecondT getSecond() {
+  public T2 getSecond() {
     return second;
   }
 
-  public ThirdT getThird() {
+  public T3 getThird() {
     return third;
   }
 

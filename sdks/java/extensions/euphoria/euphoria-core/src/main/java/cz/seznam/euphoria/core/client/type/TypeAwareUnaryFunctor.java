@@ -18,8 +18,9 @@ package cz.seznam.euphoria.core.client.type;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 
-public class TypeAwareUnaryFunctor<InT, OutT> extends AbstractTypeAware<UnaryFunctor<InT, OutT>, OutT>
-    implements UnaryFunctor<InT, OutT> {
+/** TODO: complete javadoc. */
+public class TypeAwareUnaryFunctor<InT, OutT>
+    extends AbstractTypeAware<UnaryFunctor<InT, OutT>, OutT> implements UnaryFunctor<InT, OutT> {
 
   private TypeAwareUnaryFunctor(UnaryFunctor<InT, OutT> function, TypeHint<OutT> resultType) {
     super(function, resultType);

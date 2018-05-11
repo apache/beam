@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import org.junit.Test;
 
+/** Test behavior of operator {@code Union}. */
 public class UnionTest {
 
   @Test

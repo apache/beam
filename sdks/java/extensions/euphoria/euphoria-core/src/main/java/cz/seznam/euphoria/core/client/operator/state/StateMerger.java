@@ -26,11 +26,11 @@ import java.io.Serializable;
  *
  * @param <InputT> the type of input elements for the states
  * @param <OutputT> the type of output elements of the states
- * @param <STATE> the type of states being merged
+ * @param <StateT> the type of states being merged
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface StateMerger<InputT, OutputT, STATE extends State<InputT, OutputT>>
+public interface StateMerger<InputT, OutputT, StateT extends State<InputT, OutputT>>
     extends Serializable {
 
   /**
@@ -40,5 +40,5 @@ public interface StateMerger<InputT, OutputT, STATE extends State<InputT, Output
    * @param target the target state to receive values from <tt>others</tt>
    * @param others the states to be merged into <tt>target</tt>
    */
-  void merge(STATE target, Iterable<STATE> others);
+  void merge(StateT target, Iterable<StateT> others);
 }

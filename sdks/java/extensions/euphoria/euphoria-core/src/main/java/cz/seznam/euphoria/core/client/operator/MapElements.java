@@ -120,6 +120,7 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     return mapper;
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -133,6 +134,7 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<InputT> {
     private final String name;
     private final Dataset<InputT> input;
@@ -167,6 +169,7 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
     private final Dataset<InputT> input;

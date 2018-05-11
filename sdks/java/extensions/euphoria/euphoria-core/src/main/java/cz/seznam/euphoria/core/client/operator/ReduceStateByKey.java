@@ -61,8 +61,8 @@ import javax.annotation.Nullable;
  *         .output();
  * }</pre>
  *
- * This example constitutes a windowed word-count program. Each input element is treated as a key to
- * identify an imaginary {@code WordCountState} within each time window assigned to the input
+ * <p>This example constitutes a windowed word-count program. Each input element is treated as a key
+ * to identify an imaginary {@code WordCountState} within each time window assigned to the input
  * element. For such a key/window combination the value {@code 1} gets sent to the corresponding
  * state.
  *
@@ -175,7 +175,7 @@ public class ReduceStateByKey<
     return valueExtractor;
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -189,7 +189,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final String name;
@@ -211,7 +211,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder2<InputT, K> {
     private final String name;
     private final Dataset<InputT> input;
@@ -237,7 +237,7 @@ public class ReduceStateByKey<
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder3<InputT, K, V> {
     private final String name;
     private final Dataset<InputT> input;
@@ -261,31 +261,31 @@ public class ReduceStateByKey<
      * @param <OutputT> the type of output elements state instances will produce; along with the
      *     "key", this is part of the type of output elements the {@link ReduceStateByKey} operator
      *     will produce as such
-     * @param <STATE> the type of the state (implementation)
+     * @param <StateT> the type of the state (implementation)
      * @param stateFactory a user supplied function to create new state instances
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public <OutputT, STATE extends State<V, OutputT>>
-        DatasetBuilder4<InputT, K, V, OutputT, STATE> stateFactory(
-            StateFactory<V, OutputT, STATE> stateFactory) {
+    public <OutputT, StateT extends State<V, OutputT>>
+        DatasetBuilder4<InputT, K, V, OutputT, StateT> stateFactory(
+            StateFactory<V, OutputT, StateT> stateFactory) {
       return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
     }
   }
 
-  /** */
-  public static class DatasetBuilder4<InputT, K, V, OutputT, STATE extends State<V, OutputT>> {
+  /** TODO: complete javadoc. */
+  public static class DatasetBuilder4<InputT, K, V, OutputT, StateT extends State<V, OutputT>> {
     private final String name;
     private final Dataset<InputT> input;
     private final UnaryFunction<InputT, K> keyExtractor;
     private final UnaryFunction<InputT, V> valueExtractor;
-    private final StateFactory<V, OutputT, STATE> stateFactory;
+    private final StateFactory<V, OutputT, StateT> stateFactory;
 
     DatasetBuilder4(
         String name,
         Dataset<InputT> input,
         UnaryFunction<InputT, K> keyExtractor,
         UnaryFunction<InputT, V> valueExtractor,
-        StateFactory<V, OutputT, STATE> stateFactory) {
+        StateFactory<V, OutputT, StateT> stateFactory) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -301,16 +301,16 @@ public class ReduceStateByKey<
      *     state
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public DatasetBuilder5<InputT, K, V, OutputT, STATE> mergeStatesBy(
-        StateMerger<V, OutputT, STATE> stateMerger) {
+    public DatasetBuilder5<InputT, K, V, OutputT, StateT> mergeStatesBy(
+        StateMerger<V, OutputT, StateT> stateMerger) {
       return new DatasetBuilder5<>(
           name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
     }
   }
 
-  /** */
-  public static class DatasetBuilder5<InputT, K, V, OutputT, STATE extends State<V, OutputT>>
-      implements Builders.WindowBy<InputT, DatasetBuilder5<InputT, K, V, OutputT, STATE>>,
+  /** TODO: complete javadoc. */
+  public static class DatasetBuilder5<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
+      implements Builders.WindowBy<InputT, DatasetBuilder5<InputT, K, V, OutputT, StateT>>,
           Builders.Output<Pair<K, OutputT>>,
           Builders.OutputValues<K, OutputT> {
 
@@ -318,16 +318,16 @@ public class ReduceStateByKey<
     final Dataset<InputT> input;
     final UnaryFunction<InputT, K> keyExtractor;
     final UnaryFunction<InputT, V> valueExtractor;
-    final StateFactory<V, OutputT, STATE> stateFactory;
-    final StateMerger<V, OutputT, STATE> stateMerger;
+    final StateFactory<V, OutputT, StateT> stateFactory;
+    final StateMerger<V, OutputT, StateT> stateMerger;
 
     DatasetBuilder5(
         String name,
         Dataset<InputT> input,
         UnaryFunction<InputT, K> keyExtractor,
         UnaryFunction<InputT, V> valueExtractor,
-        StateFactory<V, OutputT, STATE> stateFactory,
-        StateMerger<V, OutputT, STATE> stateMerger) {
+        StateFactory<V, OutputT, StateT> stateFactory,
+        StateMerger<V, OutputT, StateT> stateMerger) {
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -338,7 +338,7 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public <W extends Window<W>> DatasetBuilder6<InputT, K, V, OutputT, STATE, W> windowBy(
+    public <W extends Window<W>> DatasetBuilder6<InputT, K, V, OutputT, StateT, W> windowBy(
         Windowing<InputT, W> windowing) {
       return new DatasetBuilder6<>(
           name,
@@ -358,10 +358,10 @@ public class ReduceStateByKey<
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder6<
-          InputT, K, V, OutputT, STATE extends State<V, OutputT>, W extends Window<W>>
-      extends DatasetBuilder5<InputT, K, V, OutputT, STATE> {
+          InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends Window<W>>
+      extends DatasetBuilder5<InputT, K, V, OutputT, StateT> {
 
     @Nullable private final Windowing<InputT, W> windowing;
 
@@ -370,8 +370,8 @@ public class ReduceStateByKey<
         Dataset<InputT> input,
         UnaryFunction<InputT, K> keyExtractor,
         UnaryFunction<InputT, V> valueExtractor,
-        StateFactory<V, OutputT, STATE> stateFactory,
-        StateMerger<V, OutputT, STATE> stateMerger,
+        StateFactory<V, OutputT, StateT> stateFactory,
+        StateMerger<V, OutputT, StateT> stateMerger,
         @Nullable Windowing<InputT, W> windowing) {
       super(name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
       this.windowing = windowing;
@@ -381,7 +381,7 @@ public class ReduceStateByKey<
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
 
-      ReduceStateByKey<InputT, K, V, OutputT, STATE, W> reduceStateByKey =
+      ReduceStateByKey<InputT, K, V, OutputT, StateT, W> reduceStateByKey =
           new ReduceStateByKey<>(
               name,
               flow,

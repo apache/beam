@@ -15,5 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Euphoria Java 8 DSL. */
+/** TODO: complete javadoc. */
 package cz.seznam.euphoria.core.client.dataset.windowing;

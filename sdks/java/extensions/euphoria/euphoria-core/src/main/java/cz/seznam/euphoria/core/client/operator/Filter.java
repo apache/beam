@@ -101,6 +101,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
             getHints()));
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -114,6 +115,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ByBuilder<InputT> {
     private final String name;
     private final Dataset<InputT> input;
@@ -135,6 +137,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
 
     private final String name;
