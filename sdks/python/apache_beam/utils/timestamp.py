@@ -24,12 +24,19 @@ from __future__ import absolute_import
 from __future__ import division
 
 import datetime
+import functools
 import re
+from builtins import object
 
 import pytz
-from six import integer_types
+
+try:                # Python 2
+  long              # pylint: disable=long-builtin
+except NameError:   # Python 3
+  long = int
 
 
+@functools.total_ordering
 class Timestamp(object):
   """Represents a Unix second timestamp with microsecond granularity.
 
@@ -42,10 +49,10 @@ class Timestamp(object):
   """
 
   def __init__(self, seconds=0, micros=0):
-    if not isinstance(seconds, integer_types + (float,)):
+    if not isinstance(seconds, (int, long, float)):
       raise TypeError('Cannot interpret %s %s as seconds.' % (
           seconds, type(seconds)))
-    if not isinstance(micros, integer_types + (float,)):
+    if not isinstance(micros, (int, long, float)):
       raise TypeError('Cannot interpret %s %s as micros.' % (
           micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
@@ -63,7 +70,7 @@ class Timestamp(object):
       Corresponding Timestamp object.
     """
 
-    if not isinstance(seconds, integer_types + (float, Timestamp)):
+    if not isinstance(seconds, (int, long, float, Timestamp)):
       raise TypeError('Cannot interpret %s %s as Timestamp.' % (
           seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
@@ -143,11 +150,17 @@ class Timestamp(object):
     # Note that the returned value may have lost precision.
     return self.micros // 1000000
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
-    return cmp(self.micros, other.micros)
+    return self.micros == other.micros
+
+  def __lt__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, Duration):
+      other = Timestamp.of(other)
+    return self.micros < other.micros
 
   def __hash__(self):
     return hash(self.micros)
@@ -172,6 +185,7 @@ MIN_TIMESTAMP = Timestamp(micros=-0x7fffffffffffffff - 1)
 MAX_TIMESTAMP = Timestamp(micros=0x7fffffffffffffff)
 
 
+@functools.total_ordering
 class Duration(object):
   """Represents a second duration with microsecond granularity.
 
@@ -221,11 +235,17 @@ class Duration(object):
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
-    return cmp(self.micros, other.micros)
+    return self.micros == other.micros
+
+  def __lt__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, Timestamp):
+      other = Duration.of(other)
+    return self.micros < other.micros
 
   def __hash__(self):
     return hash(self.micros)
