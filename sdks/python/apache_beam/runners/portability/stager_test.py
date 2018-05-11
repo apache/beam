@@ -35,7 +35,7 @@ class StagerTest(unittest.TestCase):
 
   def setUp(self):
     self._temp_dir = None
-    self.stager = stager.Stager()
+    self.stager = TestStager()
 
   def tearDown(self):
     if self._temp_dir:
@@ -393,12 +393,11 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     with mock.patch('.'.join([
-        stager.FileHandler.__module__, stager.FileHandler.__name__,
-        stager.FileHandler.upload_file.__name__
+        self.__module__, TestStager.__name__, TestStager.stage_artifact.__name__
     ])):
       with mock.patch('.'.join([
-          stager.FileHandler.__module__, stager.FileHandler.__name__,
-          stager.FileHandler.download_file.__name__
+          self.__module__, TestStager.__name__,
+          TestStager._download_file.__name__
       ])):
         self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                          self.stager.stage_job_resources(
@@ -419,17 +418,16 @@ class StagerTest(unittest.TestCase):
       return path.startswith('/tmp/remote/')
 
     with mock.patch('.'.join([
-        stager.FileHandler.__module__, stager.FileHandler.__name__,
-        stager.FileHandler.upload_file.__name__
+        self.__module__, TestStager.__name__, TestStager.stage_artifact.__name__
     ])):
       with mock.patch('.'.join([
-          stager.FileHandler.__module__, stager.FileHandler.__name__,
-          stager.FileHandler.download_file.__name__
+          self.__module__, TestStager.__name__,
+          TestStager._download_file.__name__
       ])):
         with mock.patch(
             '.'.join([
-                stager.FileHandler.__module__, stager.FileHandler.__name__,
-                stager.FileHandler._is_remote_path.__name__
+                self.__module__, TestStager.__name__,
+                TestStager._is_remote_path.__name__
             ]), is_remote_path):
           self.assertEqual([sdk_filename],
                            self.stager.stage_job_resources(
@@ -450,8 +448,8 @@ class StagerTest(unittest.TestCase):
 
     with mock.patch(
         '.'.join([
-            stager.FileHandler.__module__, stager.FileHandler.__name__,
-            stager.FileHandler.download_file.__name__
+            self.__module__, TestStager.__name__,
+            TestStager._download_file.__name__
         ]), file_download):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        self.stager.stage_job_resources(
@@ -502,19 +500,19 @@ class StagerTest(unittest.TestCase):
 
     with mock.patch(
         '.'.join([
-            stager.FileHandler.__module__, stager.FileHandler.__name__,
-            stager.FileHandler.upload_file.__name__
+            self.__module__, TestStager.__name__,
+            TestStager.stage_artifact.__name__
         ]), file_copy):
 
       with mock.patch(
           '.'.join([
-              stager.FileHandler.__module__, stager.FileHandler.__name__,
-              stager.FileHandler.download_file.__name__
+              self.__module__, TestStager.__name__,
+              TestStager._download_file.__name__
           ]), file_copy):
         with mock.patch(
             '.'.join([
-                stager.FileHandler.__module__, stager.FileHandler.__name__,
-                stager.FileHandler._is_remote_path.__name__
+                self.__module__, TestStager.__name__,
+                TestStager._is_remote_path.__name__
             ]), is_remote_path):
           self.assertEqual([
               'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',
@@ -559,6 +557,22 @@ class StagerTest(unittest.TestCase):
         'The --extra_package option expects a full path ending with '
         '".tar", ".tar.gz", ".whl" or ".zip" '
         'instead of %s' % os.path.join(source_dir, 'abc.tgz'))
+
+
+class TestStager(stager.Stager):
+
+  def _copy_file(self, from_path, to_path):
+    logging.info('File copy from %s to %s.', from_path, to_path)
+    shutil.copyfile(from_path, to_path)
+
+  def _download_file(self, from_url, to_path):
+    self._copy_file(from_url, to_path)
+
+  def stage_artifact(self, local_path_to_artifact, artifact_name):
+    self._copy_file(local_path_to_artifact, artifact_name)
+
+  def commit_manifest(self):
+    pass
 
 
 if __name__ == '__main__':
