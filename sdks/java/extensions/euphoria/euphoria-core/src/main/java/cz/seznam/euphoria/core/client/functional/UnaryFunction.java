@@ -32,9 +32,7 @@ public interface UnaryFunction<IN, OUT> extends Serializable {
    * Return the result of this function.
    *
    * @param what the element applied to the function
-   *
    * @return the result of the function application
    */
   OUT apply(IN what);
-
 }

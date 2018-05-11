@@ -17,17 +17,16 @@ package cz.seznam.euphoria.core.client.functional;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.type.TypeHint;
-
 import java.io.Serializable;
 
 @Audience(Audience.Type.INTERNAL)
 public interface TypeHintAware<T> extends Serializable {
 
   /**
-   * Retrieve type hint associated with this object. Mostly this represents
-   * type returned by function.
+   * Retrieve type hint associated with this object. Mostly this represents type returned by
+   * function.
+   *
    * @return {@link TypeHint} associated with this object
    */
   TypeHint<T> getTypeHint();
-
 }

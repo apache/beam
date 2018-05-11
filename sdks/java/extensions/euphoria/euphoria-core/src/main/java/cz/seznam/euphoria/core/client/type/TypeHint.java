@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.type;
 
+import com.google.common.reflect.TypeParameter;
+import com.google.common.reflect.TypeToken;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.reflect.TypeParameter;
-import cz.seznam.euphoria.shadow.com.google.common.reflect.TypeToken;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 
@@ -31,14 +31,6 @@ public abstract class TypeHint<T> implements Serializable {
 
   private TypeHint(TypeToken<T> type) {
     this.type = type;
-  }
-
-  public final Type getType() {
-    return type.getType();
-  }
-
-  public final TypeToken<T> getTypeToken() {
-    return type;
   }
 
   public static <T> TypeHint<T> of(TypeToken<T> type) {
@@ -62,15 +54,23 @@ public abstract class TypeHint<T> implements Serializable {
   }
 
   public static <A, B> TypeHint<Pair<A, B>> ofPair(TypeToken<A> left, TypeToken<B> right) {
-    return new SimpleTypeHint<>(new TypeToken<Pair<A, B>>(Pair.class) { }
-        .where(new TypeParameter<A>() { }, left)
-        .where(new TypeParameter<B>() { }, right));
+    return new SimpleTypeHint<>(
+        new TypeToken<Pair<A, B>>(Pair.class) {}.where(new TypeParameter<A>() {}, left)
+            .where(new TypeParameter<B>() {}, right));
   }
 
   public static <A, B> TypeHint<Pair<A, B>> ofPair(Class<A> left, Class<B> right) {
-    return new SimpleTypeHint<>(new TypeToken<Pair<A, B>>(Pair.class) { }
-        .where(new TypeParameter<A>() { }, left)
-        .where(new TypeParameter<B>() { }, right));
+    return new SimpleTypeHint<>(
+        new TypeToken<Pair<A, B>>(Pair.class) {}.where(new TypeParameter<A>() {}, left)
+            .where(new TypeParameter<B>() {}, right));
+  }
+
+  public final Type getType() {
+    return type.getType();
+  }
+
+  public final TypeToken<T> getTypeToken() {
+    return type;
   }
 
   private static class SimpleTypeHint<T> extends TypeHint<T> {
@@ -79,5 +79,4 @@ public abstract class TypeHint<T> implements Serializable {
       super(tt);
     }
   }
-
 }

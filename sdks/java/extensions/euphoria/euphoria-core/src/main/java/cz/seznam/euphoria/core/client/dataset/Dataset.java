@@ -20,10 +20,9 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Collection;
+import javax.annotation.Nullable;
 
 /**
  * A dataset abstraction.
@@ -33,15 +32,12 @@ import java.util.Collection;
 @Audience(Audience.Type.CLIENT)
 public interface Dataset<T> extends Serializable {
 
-  /**
-   * @return the flow associated with this data set
-   */
+  /** @return the flow associated with this data set */
   Flow getFlow();
 
   /**
-   * Retrieve source of data associated with this dataset.
-   * This might be null, if this dataset has no explicit source,
-   * it is calculated. If this method returns null, getProducer returns non null
+   * Retrieve source of data associated with this dataset. This might be null, if this dataset has
+   * no explicit source, it is calculated. If this method returns null, getProducer returns non null
    * and vice versa.
    *
    * @return this dataset's explicit source - if any
@@ -49,24 +45,19 @@ public interface Dataset<T> extends Serializable {
   @Nullable
   DataSource<T> getSource();
 
-  /**
-   * @return the operator that produced this dataset - if any
-   */
+  /** @return the operator that produced this dataset - if any */
   @Nullable
   Operator<?, T> getProducer();
 
   /**
    * Retrieve collection of consumers of this dataset.
    *
-   * @return the list of currently known consumers (this can change
-   * if another consumer is added to the flow).
+   * @return the list of currently known consumers (this can change if another consumer is added to
+   *     the flow).
    */
   Collection<Operator<?, ?>> getConsumers();
 
-  /**
-   * @return {@code true} if this is a bounded data set,
-   *         {@code false} if it is unbounded.
-   */
+  /** @return {@code true} if this is a bounded data set, {@code false} if it is unbounded. */
   boolean isBounded();
 
   /**
@@ -79,13 +70,11 @@ public interface Dataset<T> extends Serializable {
   /**
    * Retrieve output sink for this dataset.
    *
-   * @return {@code null} if there is no explicitly set sink this
-   *          data set is supposed to be persisted to, otherwise the
-   *          sink provided through {@link #persist(DataSink)}.
+   * @return {@code null} if there is no explicitly set sink this data set is supposed to be
+   *     persisted to, otherwise the sink provided through {@link #persist(DataSink)}.
    */
   @Nullable
   default DataSink<T> getOutputSink() {
     return null;
   }
-
 }

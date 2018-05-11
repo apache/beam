@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.fluent;
 
+import static java.util.Arrays.asList;
+
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
@@ -22,13 +24,10 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Set;
-
-import static java.util.Arrays.asList;
 import java.util.stream.Collectors;
+import org.junit.Test;
 
 public class FluentTest {
 
@@ -37,29 +36,34 @@ public class FluentTest {
     final Duration READ_DELAY = Duration.ofMillis(100L);
     ListDataSink<Set<String>> out = ListDataSink.get();
     Fluent.flow("Test")
-        .read(ListDataSource.unbounded(
-            asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
-            .withReadDelay(READ_DELAY))
+        .read(
+            ListDataSource.unbounded(
+                    asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
+                .withReadDelay(READ_DELAY))
         // ~ create windows of size three
-        .apply(input -> ReduceByKey.of(input)
-            .keyBy(e -> "")
-            .valueBy(e -> e)
-            .reduceBy(s -> s.collect(Collectors.toSet()))
-            .windowBy(Count.of(3)))
+        .apply(
+            input ->
+                ReduceByKey.of(input)
+                    .keyBy(e -> "")
+                    .valueBy(e -> e)
+                    .reduceBy(s -> s.collect(Collectors.toSet()))
+                    .windowBy(Count.of(3)))
         // ~ strip the needless key and flatten out the elements thereby
         // creating multiple elements in the output belonging to the same window
-        .flatMap((Pair<String, Set<String>> e, Collector<String> c) ->
-            e.getSecond().stream().forEachOrdered(c::collect))
+        .flatMap(
+            (Pair<String, Set<String>> e, Collector<String> c) ->
+                e.getSecond().stream().forEachOrdered(c::collect))
         // ~ we now expect to reconstruct the same windowing
         // as the very initial step
-        .apply(input -> ReduceByKey.of(input)
-            .keyBy(e -> "")
-            .valueBy(e -> e)
-            .reduceBy(s -> s.collect(Collectors.toSet())))
+        .apply(
+            input ->
+                ReduceByKey.of(input)
+                    .keyBy(e -> "")
+                    .valueBy(e -> e)
+                    .reduceBy(s -> s.collect(Collectors.toSet())))
         // ~ strip the needless key
         .mapElements(Pair::getSecond)
         .persist(out)
         .execute(new LocalExecutor());
   }
-
 }

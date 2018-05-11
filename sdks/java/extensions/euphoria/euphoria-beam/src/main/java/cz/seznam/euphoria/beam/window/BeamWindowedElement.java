@@ -17,12 +17,9 @@ package cz.seznam.euphoria.beam.window;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
-
 import java.util.Objects;
 
-/**
- * A {@code WindowedElement} created from Beam's element.
- */
+/** A {@code WindowedElement} created from Beam's element. */
 public class BeamWindowedElement<W extends Window, T> implements WindowedElement<W, T> {
 
   private final T elem;
@@ -33,6 +30,10 @@ public class BeamWindowedElement<W extends Window, T> implements WindowedElement
     this.elem = Objects.requireNonNull(elem);
     this.window = Objects.requireNonNull(window);
     this.stamp = stamp;
+  }
+
+  public static <W extends Window, T> BeamWindowedElement<W, T> of(T elem, W window, long stamp) {
+    return new BeamWindowedElement<>(elem, window, stamp);
   }
 
   @Override
@@ -49,9 +50,4 @@ public class BeamWindowedElement<W extends Window, T> implements WindowedElement
   public T getElement() {
     return elem;
   }
-
-  public static <W extends Window, T> BeamWindowedElement<W, T> of(T elem, W window, long stamp) {
-    return new BeamWindowedElement<>(elem, window, stamp);
-  }
-
 }

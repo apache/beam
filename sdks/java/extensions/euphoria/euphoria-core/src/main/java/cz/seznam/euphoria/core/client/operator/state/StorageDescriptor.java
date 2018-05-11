@@ -18,9 +18,7 @@ package cz.seznam.euphoria.core.client.operator.state;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
-/**
- * Descriptor of storage.
- */
+/** Descriptor of storage. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StorageDescriptor implements Serializable {
 
@@ -31,6 +29,7 @@ public abstract class StorageDescriptor implements Serializable {
   }
 
   /** @return the name of the storage with scope of operator and key */
-  public String getName() { return name; }
-
+  public String getName() {
+    return name;
+  }
 }

@@ -21,13 +21,13 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Intended audience of API.
- */
+/** Intended audience of API. */
 @Documented
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Audience {
+
+  Type[] value();
 
   enum Type {
     /** The API is intended to be used by client code. */
@@ -39,7 +39,4 @@ public @interface Audience {
     /** The API is intended for use primarily for tests. */
     TESTS
   }
-
-  Type[] value();
-
 }

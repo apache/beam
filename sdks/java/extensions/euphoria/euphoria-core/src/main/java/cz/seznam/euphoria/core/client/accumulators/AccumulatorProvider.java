@@ -17,12 +17,11 @@ package cz.seznam.euphoria.core.client.accumulators;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.Settings;
-
 import java.io.Serializable;
 
 /**
- * Provides access to an accumulator backend service. It is intended to be
- * implemented by third party to support different type of services.
+ * Provides access to an accumulator backend service. It is intended to be implemented by third
+ * party to support different type of services.
  */
 @Audience(Audience.Type.EXECUTOR)
 public interface AccumulatorProvider {
@@ -52,10 +51,9 @@ public interface AccumulatorProvider {
   Timer getTimer(String name);
 
   /**
-   * Creates a new instance of {@link AccumulatorProvider}
-   * initialized by given settings.
-   * <p>
-   * It is required this factory is thread-safe.
+   * Creates a new instance of {@link AccumulatorProvider} initialized by given settings.
+   *
+   * <p>It is required this factory is thread-safe.
    */
   @FunctionalInterface
   interface Factory extends Serializable {

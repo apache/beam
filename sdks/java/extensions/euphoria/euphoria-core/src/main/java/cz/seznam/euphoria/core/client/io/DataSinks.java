@@ -20,21 +20,19 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import java.io.IOException;
 
-/**
- * Various {@link DataSink} related utilities.
- */
+/** Various {@link DataSink} related utilities. */
 public class DataSinks {
 
   /**
    * Create {@link DataSink} that re-maps input elements.
+   *
    * @param <IN> type of input elements
    * @param <OUT> type of output elements
    * @param sink the wrapped sink
    * @param mapper the mapping function
    * @return the {@link DataSink} capable of persisting re-mapped elements
    */
-  public static <IN, OUT> DataSink<OUT> mapping(
-      DataSink<IN> sink, UnaryFunction<OUT, IN> mapper) {
+  public static <IN, OUT> DataSink<OUT> mapping(DataSink<IN> sink, UnaryFunction<OUT, IN> mapper) {
 
     return new DataSink<OUT>() {
 
@@ -60,15 +58,11 @@ public class DataSinks {
 
       @Override
       public boolean prepareDataset(Dataset<OUT> output) {
-        Dataset<IN> mapped = MapElements.of(output)
-            .using(mapper)
-            .output();
+        Dataset<IN> mapped = MapElements.of(output).using(mapper).output();
         mapped.persist(sink);
         sink.prepareDataset(mapped);
         return true;
       }
-
     };
   }
-
 }

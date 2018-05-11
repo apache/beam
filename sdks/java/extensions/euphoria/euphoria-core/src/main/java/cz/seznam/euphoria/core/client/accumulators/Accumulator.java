@@ -18,12 +18,10 @@ package cz.seznam.euphoria.core.client.accumulators;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 /**
- * Accumulators collect values from user functions.
- * Accumulators allow user to calculate statistics during the flow execution.
- * <p>
- * Accumulators are inspired by the Hadoop/MapReduce counters.
+ * Accumulators collect values from user functions. Accumulators allow user to calculate statistics
+ * during the flow execution.
+ *
+ * <p>Accumulators are inspired by the Hadoop/MapReduce counters.
  */
 @Audience(Audience.Type.INTERNAL)
-public interface Accumulator {
-
-}
+public interface Accumulator {}

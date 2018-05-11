@@ -16,25 +16,22 @@
 package cz.seznam.euphoria.core.executor.graph;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
-/**
- * A single Node in DAG.
- */
+/** A single Node in DAG. */
 @Audience(Audience.Type.EXECUTOR)
 public final class Node<T> {
 
-  final List<Node<T>> children = new ArrayList<>();
-  @Nullable
-  final T value;
-  final List<Node<T>> parents = new ArrayList<>();
-
   @SuppressWarnings("unchecked")
   private static final Node NULL_NODE = new Node(null);
+
+  final List<Node<T>> children = new ArrayList<>();
+  @Nullable final T value;
+  final List<Node<T>> parents = new ArrayList<>();
 
   Node(@Nullable T value) {
     this.value = value;
@@ -46,8 +43,15 @@ public final class Node<T> {
   }
 
   /**
-   * @return {@code true} if this is root node, {@code false} otherwise
+   * @param <T> the type of value of the {@code null} node - can safely be any
+   * @return the {@code null} node - node with null value, no children and no parents.
    */
+  @SuppressWarnings("unchecked")
+  public static <T> Node<T> nullNode() {
+    return NULL_NODE;
+  }
+
+  /** @return {@code true} if this is root node, {@code false} otherwise */
   public boolean isRoot() {
     return parents.isEmpty();
   }
@@ -60,8 +64,7 @@ public final class Node<T> {
     if (parents.size() == 1) {
       return parents.get(0);
     }
-    throw new IllegalStateException("Asked for single parent while node has parents "
-        + parents);
+    throw new IllegalStateException("Asked for single parent while node has parents " + parents);
   }
 
   public Node<T> getSingleParentOrNull() {
@@ -117,15 +120,4 @@ public final class Node<T> {
   public String toString() {
     return "Node(" + String.valueOf(value) + ")";
   }
-
-  /**
-   * @param <T> the type of value of the {@code null} node - can safely be any
-   *
-   * @return the {@code null} node - node with null value, no children and no parents.
-   */
-  @SuppressWarnings("unchecked")
-  public static <T> Node<T> nullNode() {
-    return NULL_NODE;
-  }
-
 }

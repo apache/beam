@@ -22,13 +22,10 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-
 import java.util.Collections;
 import java.util.List;
 
-/**
- * A {@code BoundedPartition} that cannot be split into smaller pieces.
- */
+/** A {@code BoundedPartition} that cannot be split into smaller pieces. */
 @Audience(Audience.Type.EXECUTOR)
 public abstract class UnsplittableBoundedSource<T> implements BoundedDataSource<T> {
 
@@ -36,5 +33,4 @@ public abstract class UnsplittableBoundedSource<T> implements BoundedDataSource<
   public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
     return Collections.singletonList(this);
   }
-
 }

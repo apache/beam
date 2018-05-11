@@ -23,10 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * {@link Operator} that serves as a wrapper between a {@link PCollection}
- * and {@link Dataset}.
- */
+/** {@link Operator} that serves as a wrapper between a {@link PCollection} and {@link Dataset}. */
 class WrappedPCollectionOperator<T> extends Operator<T, T> {
 
   final Dataset<T> output;
@@ -44,6 +41,10 @@ class WrappedPCollectionOperator<T> extends Operator<T, T> {
     this.output = output;
   }
 
+  static PCollection<?> translate(Operator operator, BeamExecutorContext context) {
+    return ((WrappedPCollectionOperator) operator).input;
+  }
+
   @Override
   public Collection<Dataset<T>> listInputs() {
     return Collections.emptyList();
@@ -53,10 +54,4 @@ class WrappedPCollectionOperator<T> extends Operator<T, T> {
   public Dataset<T> output() {
     return output;
   }
-
-  static PCollection<?> translate(
-      Operator operator, BeamExecutorContext context) {
-    return ((WrappedPCollectionOperator) operator).input;
-  }
-
 }

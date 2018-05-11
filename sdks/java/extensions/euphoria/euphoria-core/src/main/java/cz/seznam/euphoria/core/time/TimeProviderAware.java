@@ -21,5 +21,4 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 public interface TimeProviderAware {
 
   TimeProvider getTimeProvider();
-
 }

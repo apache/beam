@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.operator.test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -31,73 +34,64 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
-/**
- * Test that a sub-flow applied on sink is correctly preserved.
- */
+/** Test that a sub-flow applied on sink is correctly preserved. */
 public class SinkTest extends AbstractOperatorTest {
-
 
   @Test
   public void testOutputGroupingSorting() {
-    execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
-      @Override
-      protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
-        // ~ use stable event-time watermark
-        input = AssignEventTime.of(input).using(e -> 0).output();
-        return CountByKey.of(input)
-            .keyBy(e -> e)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
-            .output();
-      }
+    execute(
+        new AbstractTestCase<Integer, Pair<Integer, Long>>() {
+          @Override
+          protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+            // ~ use stable event-time watermark
+            input = AssignEventTime.of(input).using(e -> 0).output();
+            return CountByKey.of(input)
+                .keyBy(e -> e)
+                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .output();
+          }
 
-      @Override
-      public ListDataSink<Pair<Integer, Long>> modifySink(
-          ListDataSink<Pair<Integer, Long>> sink) {
+          @Override
+          public ListDataSink<Pair<Integer, Long>> modifySink(
+              ListDataSink<Pair<Integer, Long>> sink) {
 
-        return sink.withPrepareDataset(d -> {
-          ReduceByKey.of(d)
-              .keyBy(p -> p.getFirst() % 2)
-              .valueBy(Pair::getSecond)
-              .reduceBy((Stream<Long> values, Collector<Long> c) -> values.forEach(c::collect))
-              .withSortedValues(Long::compare)
-              .output()
-              .persist(sink);
+            return sink.withPrepareDataset(
+                d -> {
+                  ReduceByKey.of(d)
+                      .keyBy(p -> p.getFirst() % 2)
+                      .valueBy(Pair::getSecond)
+                      .reduceBy(
+                          (Stream<Long> values, Collector<Long> c) -> values.forEach(c::collect))
+                      .withSortedValues(Long::compare)
+                      .output()
+                      .persist(sink);
+                });
+          }
+
+          @Override
+          protected List<Integer> getInput() {
+            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 10, 9, 8, 7, 6, 5, 4);
+          }
+
+          @Override
+          public void validate(List<Pair<Integer, Long>> outputs) throws AssertionError {
+
+            // the output should be two arbitrarily interleaved
+            // sorted sequences
+
+            // split these sequences by key and collect back
+            Map<Integer, List<Pair<Integer, Long>>> split =
+                outputs.stream().collect(Collectors.groupingBy(Pair::getFirst));
+
+            // then verify that these sequences are sorted
+            assertEquals(2, split.size());
+            assertNotNull(split.get(0));
+            assertNotNull(split.get(1));
+
+            assertEquals(Arrays.asList(2, 4, 4, 6, 6, 8, 10), split.get(0));
+            assertEquals(Arrays.asList(1, 3, 5, 5, 6, 6, 9), split.get(1));
+          }
         });
-      }
-
-
-      @Override
-      protected List<Integer> getInput() {
-        return Arrays.asList(
-            1, 2, 3, 4, 5, 6, 7,
-            10, 9, 8, 7, 6, 5, 4);
-      }
-
-      @Override
-      public void validate(
-          List<Pair<Integer, Long>> outputs) throws AssertionError {
-
-        // the output should be two arbitrarily interleaved
-        // sorted sequences
-
-        // split these sequences by key and collect back
-        Map<Integer, List<Pair<Integer, Long>>> split = outputs.stream()
-            .collect(Collectors.groupingBy(Pair::getFirst));
-
-        // then verify that these sequences are sorted
-        assertEquals(2, split.size());
-        assertNotNull(split.get(0));
-        assertNotNull(split.get(1));
-
-        assertEquals(Arrays.asList(2, 4, 4, 6, 6, 8, 10), split.get(0));
-        assertEquals(Arrays.asList(1, 3, 5, 5, 6, 6, 9), split.get(1));
-
-      }
-
-    });
   }
-
-
 }

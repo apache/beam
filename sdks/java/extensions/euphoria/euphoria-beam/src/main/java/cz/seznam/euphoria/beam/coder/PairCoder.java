@@ -16,18 +16,17 @@
 package cz.seznam.euphoria.beam.coder;
 
 import cz.seznam.euphoria.core.client.util.Pair;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.List;
 
 public class PairCoder<K, V> extends StructuredCoder<Pair<K, V>> {
 
@@ -37,6 +36,10 @@ public class PairCoder<K, V> extends StructuredCoder<Pair<K, V>> {
   private PairCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
+  }
+
+  public static <K, V> PairCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new PairCoder<>(keyCoder, valueCoder);
   }
 
   @Override
@@ -72,8 +75,7 @@ public class PairCoder<K, V> extends StructuredCoder<Pair<K, V>> {
       return pair;
     }
     return Pair.of(
-        keyCoder.structuralValue(pair.getFirst()),
-        valueCoder.structuralValue(pair.getSecond()));
+        keyCoder.structuralValue(pair.getFirst()), valueCoder.structuralValue(pair.getSecond()));
   }
 
   @Override
@@ -94,12 +96,8 @@ public class PairCoder<K, V> extends StructuredCoder<Pair<K, V>> {
 
   @Override
   public TypeDescriptor<Pair<K, V>> getEncodedTypeDescriptor() {
-    return new TypeDescriptor<Pair<K, V>>() {}
-        .where(new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
+    return new TypeDescriptor<Pair<K, V>>() {}.where(
+            new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
         .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
-  }
-
-  public static <K, V> PairCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
-    return new PairCoder<>(keyCoder, valueCoder);
   }
 }

@@ -15,11 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.testing.DatasetAssert;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
+
+import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.core.testing.DatasetAssert;
+import org.junit.Test;
 
 public class ListDataSinkTest {
 

@@ -15,14 +15,15 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import org.junit.Test;
-
 import java.time.Duration;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class DistinctTest {
 
@@ -32,11 +33,7 @@ public class DistinctTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<String> uniq =
-        Distinct.named("Distinct1")
-            .of(dataset)
-            .windowBy(windowing)
-            .output();
+    Dataset<String> uniq = Distinct.named("Distinct1").of(dataset).windowBy(windowing).output();
 
     assertEquals(flow, uniq.getFlow());
     assertEquals(1, flow.size());
@@ -64,9 +61,7 @@ public class DistinctTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<String> uniq = Distinct.of(dataset)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+    Dataset<String> uniq = Distinct.of(dataset).windowBy(Time.of(Duration.ofHours(1))).output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
     assertTrue(distinct.getWindowing() instanceof Time);
@@ -77,12 +72,9 @@ public class DistinctTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Distinct.of(dataset)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
-        .output();
+    Distinct.of(dataset).applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1)))).output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
     assertTrue(distinct.getWindowing() instanceof Time);
   }
-
 }

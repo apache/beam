@@ -20,14 +20,58 @@ import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.flink.FlinkExecutor;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import cz.seznam.euphoria.spark.SparkExecutor;
-
 import java.io.IOException;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 
-/**
- * A collection of helpers for easy allocation/creation of a specific executor.
- */
+/** A collection of helpers for easy allocation/creation of a specific executor. */
 public class Executors {
+
+  /**
+   * Creates an executor by name or fails if the specified name is not recognized. Supported names
+   * are:
+   *
+   * <ul>
+   *   <li>local - the local executor (suitable for unit tests)
+   *   <li>flink-test - a flink executor for running on the local machine (suitable for unit tests)
+   *   <li>flink - a flink executor capable of running in a distributed fashion
+   *   <li>spark-test - a local spark executor for running on the local machine (suitable for unit
+   *       tests)
+   *   <li>spark - a spark executor capable of running in a distributed fashion
+   * </ul>
+   *
+   * @param executorName the name of the executor to create
+   * @param classes classes used by the flow to be registered for serialization
+   * @return a newly created executor
+   * @throws IllegalArgumentException if the specified name is unknown
+   * @throws IOException if setting up the executor fails for some reason
+   */
+  public static Executor createExecutor(String executorName, Class<?>... classes)
+      throws IOException {
+
+    // ~ be sure to go through factories to leverage java lazy class loading;
+    // this avoids for example loading spark dependencies in a flink environment
+    final Factory f;
+    switch (executorName) {
+      case "local":
+        f = new LocalFactory();
+        break;
+      case "flink-test":
+        f = new FlinkFactory(true);
+        break;
+      case "flink":
+        f = new FlinkFactory(false);
+        break;
+      case "spark-test":
+        f = new SparkFactory(true);
+        break;
+      case "spark":
+        f = new SparkFactory(false);
+        break;
+      default:
+        throw new IllegalArgumentException("Executor not supported: " + executorName);
+    }
+    return f.create(classes);
+  }
 
   private interface Factory {
     Executor create(Class<?>... classes) throws IOException;
@@ -51,9 +95,8 @@ public class Executors {
 
     @Override
     public Executor create(Class<?>... classes) {
-      final SparkExecutor.Builder builder = SparkExecutor
-          .newBuilder("euphoria-example")
-          .registerKryoClasses(classes);
+      final SparkExecutor.Builder builder =
+          SparkExecutor.newBuilder("euphoria-example").registerKryoClasses(classes);
       if (test) {
         return builder.local().build();
       } else {
@@ -81,56 +124,4 @@ public class Executors {
       }
     }
   }
-
-  /**
-   * Creates an executor by name or fails if the specified name is not recognized.
-   * Supported names are:
-   *
-   * <ul>
-   *   <li>local - the local executor (suitable for unit tests)</li>
-   *   <li>flink-test - a flink executor for running on the local machine
-   *        (suitable for unit tests)</li>
-   *   <li>flink - a flink executor capable of running in a distributed fashion</li>
-   *   <li>spark-test - a local spark executor for running on the local machine
-   *        (suitable for unit tests)</li>
-   *   <li>spark - a spark executor capable of running in a distributed fashion</li>
-   * </ul>
-   *
-   * @param executorName the name of the executor to create
-   * @param classes classes used by the flow to be registered for serialization
-   *
-   * @return a newly created executor
-   *
-   * @throws IllegalArgumentException if the specified name is unknown
-   * @throws IOException if setting up the executor fails for some reason
-   */
-  public static Executor createExecutor(
-      String executorName,
-      Class<?>... classes) throws IOException {
-
-    // ~ be sure to go through factories to leverage java lazy class loading;
-    // this avoids for example loading spark dependencies in a flink environment
-    final Factory f;
-    switch (executorName) {
-      case "local":
-        f = new LocalFactory();
-        break;
-      case "flink-test":
-        f = new FlinkFactory(true);
-        break;
-      case "flink":
-        f = new FlinkFactory(false);
-        break;
-      case "spark-test":
-        f = new SparkFactory(true);
-        break;
-      case "spark":
-        f = new SparkFactory(false);
-        break;
-      default:
-        throw new IllegalArgumentException("Executor not supported: " + executorName);
-    }
-    return f.create(classes);
-  }
-
 }

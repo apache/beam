@@ -21,15 +21,15 @@ import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 /** Private helper class to provide utilities around state handling. */
 class StateSupport {
 
+  private StateSupport() {}
+
   interface MergeFrom<S> {
-    /**
-     * Requests to merge the <tt>other</tt> state into <tt>this</tt> instance.
-     */
+    /** Requests to merge the <tt>other</tt> state into <tt>this</tt> instance. */
     void mergeFrom(S other);
   }
 
   static class MergeFromStateMerger<I, O, S extends State<I, O> & MergeFrom<S>>
-        implements StateMerger<I, O, S> {
+      implements StateMerger<I, O, S> {
     @Override
     public void merge(S target, Iterable<S> others) {
       for (S other : others) {
@@ -37,6 +37,4 @@ class StateSupport {
       }
     }
   }
-
-  private StateSupport() {}
 }

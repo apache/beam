@@ -20,9 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link Trigger} that fires once the time passes the end of the window.
- */
+/** A {@link Trigger} that fires once the time passes the end of the window. */
 @Audience(Audience.Type.CLIENT)
 public class TimeTrigger implements Trigger<TimeInterval> {
 

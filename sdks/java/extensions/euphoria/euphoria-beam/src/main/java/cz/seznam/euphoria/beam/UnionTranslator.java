@@ -22,14 +22,14 @@ import org.apache.beam.sdk.values.PCollectionList;
 
 class UnionTranslator implements OperatorTranslator<Union> {
 
+  private static <T> PCollection<T> doTranslate(Union<T> operator, BeamExecutorContext context) {
+    return PCollectionList.of(context.getInputs(operator))
+        .apply(operator.getName(), Flatten.pCollections());
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public PCollection<?> translate(Union operator, BeamExecutorContext context) {
     return doTranslate(operator, context);
-  }
-
-  private static <T> PCollection<T> doTranslate(Union<T> operator, BeamExecutorContext context) {
-    return PCollectionList.of(context.getInputs(operator))
-        .apply(operator.getName(), Flatten.pCollections());
   }
 }

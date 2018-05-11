@@ -19,6 +19,8 @@ import javax.annotation.Nullable;
 
 class Util {
 
+  private Util() {}
+
   /**
    * Trim string (instead of empty string return null)
    *
@@ -36,6 +38,4 @@ class Util {
     }
     return s;
   }
-
-  private Util() {}
 }

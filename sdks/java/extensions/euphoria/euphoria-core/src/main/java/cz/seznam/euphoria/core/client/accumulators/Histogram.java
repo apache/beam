@@ -17,20 +17,20 @@ package cz.seznam.euphoria.core.client.accumulators;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-/**
- * Histogram is a type of accumulator recording a distribution of different values.
- */
+/** Histogram is a type of accumulator recording a distribution of different values. */
 @Audience(Audience.Type.CLIENT)
 public interface Histogram extends Accumulator {
 
   /**
    * Add specified value.
+   *
    * @param value Value to be added.
    */
   void add(long value);
 
   /**
    * Add specified value multiple times.
+   *
    * @param value Value to be added.
    * @param times Number of occurrences to add.
    */

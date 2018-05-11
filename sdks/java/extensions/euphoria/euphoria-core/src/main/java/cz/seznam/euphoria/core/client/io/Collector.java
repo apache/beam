@@ -18,8 +18,7 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 /**
- * Extends {@link Environment} with write capability. Used in
- * user defined functors.
+ * Extends {@link Environment} with write capability. Used in user defined functors.
  *
  * @param <T> the type of elements collected through this context
  */
@@ -34,9 +33,8 @@ public interface Collector<T> extends Environment {
   void collect(T elem);
 
   /**
-   * Returns {@link Context} view of the collector.
-   * Since {@link Collector} usually share the same methods
-   * as {@link Context} it can be safely casted.
+   * Returns {@link Context} view of the collector. Since {@link Collector} usually share the same
+   * methods as {@link Context} it can be safely casted.
    *
    * @return this instance as a context class
    */

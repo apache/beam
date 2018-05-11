@@ -26,11 +26,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * FIXME: this description is WRONG!
- * An {@code ExecUnit} is a series of transformation with no checkpointing.
- * {@code ExecUnit} has several inputs, several outputs and possibly
- * some intermediate datasets. Datasets might be shared across multiple
- * {@code ExecUnit}s.
+ * FIXME: this description is WRONG! An {@code ExecUnit} is a series of transformation with no
+ * checkpointing. {@code ExecUnit} has several inputs, several outputs and possibly some
+ * intermediate datasets. Datasets might be shared across multiple {@code ExecUnit}s.
  */
 class ExecUnit {
 
@@ -40,6 +38,10 @@ class ExecUnit {
   final List<Dataset<?>> outputs = new ArrayList<>();
   /** All dag consisting this exec unit. */
   final DAG<Operator<?, ?>> operators;
+
+  private ExecUnit(DAG<Operator<?, ?>> operators) {
+    this.operators = operators;
+  }
 
   /**
    * Split Flow into series of execution units.
@@ -51,42 +53,32 @@ class ExecUnit {
     return Arrays.asList(new ExecUnit(unfoldedFlow));
   }
 
-
-  private ExecUnit(DAG<Operator<?, ?>> operators) {
-    this.operators = operators;
-  }
-
-
   /** @return leaf operators */
   public Collection<Node<Operator<?, ?>>> getLeafs() {
     return operators.getLeafs();
   }
-
 
   /** @return the DAG of operators */
   public DAG<Operator<?, ?>> getDAG() {
     return operators;
   }
 
-
   /** @return all inputs of this unit */
   public Collection<Dataset<?>> getInputs() {
     return inputs;
   }
-
 
   /** @return all outputs of this unit */
   public Collection<Dataset<?>> getOutputs() {
     return outputs;
   }
 
-
   /** @return exec paths for this unit */
   public Collection<ExecPath> getPaths() {
     Collection<Node<Operator<?, ?>>> leafs = operators.getLeafs();
-    return leafs.stream()
+    return leafs
+        .stream()
         .map(l -> ExecPath.of(operators.parentSubGraph(l.get())))
         .collect(Collectors.toList());
   }
-
 }

@@ -21,12 +21,9 @@ import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
-
 import java.io.Serializable;
 
-/**
- * {@code Collector} for combinable functors.
- */
+/** {@code Collector} for combinable functors. */
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   private T elem;
@@ -69,5 +66,4 @@ public class SingleValueCollector<T> implements Collector<T>, Serializable {
     // this is not needed, the underlaying functor does not have access to this
     throw new UnsupportedOperationException("Not supported.");
   }
-
 }

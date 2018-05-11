@@ -18,11 +18,9 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 /**
- * A reader of data from unbounded partition.
- * The reader differs from {@code BoundedReader} by the fact, that it has to:
- *   * be able to reset itself to a defined position
- *   * be able to define a position for each emitted element
- *   * emit watermarks along with the data elements
+ * A reader of data from unbounded partition. The reader differs from {@code BoundedReader} by the
+ * fact, that it has to: * be able to reset itself to a defined position * be able to define a
+ * position for each emitted element * emit watermarks along with the data elements
  *
  * @param <T> the data type contained in the source
  * @param <OFFSET> data type of offset emitted with the elements
@@ -38,26 +36,22 @@ public interface UnboundedReader<T, OFFSET> extends CloseableIterator<T> {
   OFFSET getCurrentOffset();
 
   /**
-   * Reset the reader to given offset.
-   * Call to `next` will then return element with offset following the
-   * offset being reset to.
+   * Reset the reader to given offset. Call to `next` will then return element with offset following
+   * the offset being reset to.
    *
-   * @param offset the offset to reset to, element with offset following this
-   * one will be returned next
+   * @param offset the offset to reset to, element with offset following this one will be returned
+   *     next
    */
   void reset(OFFSET offset);
-
 
   /**
    * Commit given offset as being processed.
    *
-   * After all results incorporating the data element emitted with
-   * given offset is processed, executor might call this to commit
-   * the resulting offset.
+   * <p>After all results incorporating the data element emitted with given offset is processed,
+   * executor might call this to commit the resulting offset.
    *
-   * @param offset the offset to be committed for persistence across
-   * runs of the streaming processing
+   * @param offset the offset to be committed for persistence across runs of the streaming
+   *     processing
    */
   void commitOffset(OFFSET offset);
-
 }

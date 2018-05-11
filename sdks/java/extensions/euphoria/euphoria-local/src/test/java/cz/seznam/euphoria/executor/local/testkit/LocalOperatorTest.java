@@ -17,6 +17,4 @@ package cz.seznam.euphoria.executor.local.testkit;
 
 import cz.seznam.euphoria.operator.test.AllOperatorsSuite;
 
-public class LocalOperatorTest
-    extends AllOperatorsSuite
-    implements LocalExecutorProvider {}
+public class LocalOperatorTest extends AllOperatorsSuite implements LocalExecutorProvider {}

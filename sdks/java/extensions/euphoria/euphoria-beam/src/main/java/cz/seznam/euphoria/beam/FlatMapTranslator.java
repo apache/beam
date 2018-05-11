@@ -19,20 +19,13 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
-import javax.annotation.Nullable;
-
 class FlatMapTranslator implements OperatorTranslator<FlatMap> {
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(FlatMap operator, BeamExecutorContext context) {
-    return doTranslate(operator, context);
-  }
 
   private static <IN, OUT> PCollection<OUT> doTranslate(
       FlatMap<IN, OUT> operator, BeamExecutorContext context) {
@@ -43,6 +36,11 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
   }
 
+  @Override
+  @SuppressWarnings("unchecked")
+  public PCollection<?> translate(FlatMap operator, BeamExecutorContext context) {
+    return doTranslate(operator, context);
+  }
 
   private static class Mapper<IN, OUT> extends DoFn<IN, OUT> {
 

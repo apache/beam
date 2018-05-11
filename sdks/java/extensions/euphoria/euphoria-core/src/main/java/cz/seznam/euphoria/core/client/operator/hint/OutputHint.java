@@ -16,13 +16,8 @@
 package cz.seznam.euphoria.core.client.operator.hint;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-
 import java.io.Serializable;
 
-/**
- * Specify hints about runtime data characteristics
- */
+/** Specify hints about runtime data characteristics */
 @Audience(Audience.Type.INTERNAL)
-public interface OutputHint extends Serializable {
-
-}
+public interface OutputHint extends Serializable {}

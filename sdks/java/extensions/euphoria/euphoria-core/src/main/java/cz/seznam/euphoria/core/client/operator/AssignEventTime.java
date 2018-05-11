@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
@@ -23,28 +24,76 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-
 import java.util.Objects;
 import java.util.Set;
 
-/** A convenient alias for assignment of event time.
+/**
+ * A convenient alias for assignment of event time.
  *
- * Can be rewritten as:
+ * <p>Can be rewritten as:
+ *
  * <pre>{@code
- *   Dataset<T> input = ...;
- *   Dataset<T> withStamps = FlatMap.of(input)
- *      .using(t -> t)
- *      .eventTimeBy(evt-time-fn)
- *      .output();
+ * Dataset<T> input = ...;
+ * Dataset<T> withStamps = FlatMap.of(input)
+ *    .using(t -> t)
+ *    .eventTimeBy(evt-time-fn)
+ *    .output();
  * }</pre>
  */
 @Audience(Audience.Type.CLIENT)
-@Derived(
-    state = StateComplexity.ZERO,
-    repartitions = 0
-)
+@Derived(state = StateComplexity.ZERO, repartitions = 0)
 public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
+
+  private final ExtractEventTime<IN> eventTimeFn;
+
+  AssignEventTime(
+      String name,
+      Flow flow,
+      Dataset<IN> input,
+      ExtractEventTime<IN> eventTimeFn,
+      Set<OutputHint> outputHints) {
+    super(name, flow, input, outputHints);
+    this.eventTimeFn = eventTimeFn;
+  }
+
+  /**
+   * Starts building a named {@link AssignEventTime} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   * @return a builder to complete the setup of the new {@link AssignEventTime} operator
+   */
+  public static OfBuilder named(String name) {
+    return new OfBuilder(Objects.requireNonNull(name));
+  }
+
+  /**
+   * Starts building a nameless {@link AssignEventTime} operator to (re-)assign event time the given
+   * input dataset's elements.
+   *
+   * @param <IN> the type of elements of the input dataset
+   * @param input the input data set to be processed
+   * @return a builder to complete the setup of the new {@link AssignEventTime} operator
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    return new UsingBuilder<>("AssignEventTime", input);
+  }
+
+  @Override
+  public DAG<Operator<?, ?>> getBasicOps() {
+    return DAG.of(
+        new FlatMap<>(
+            getName(), getFlow(), input, (i, c) -> c.collect(i), eventTimeFn, getHints()));
+  }
+
+  /**
+   * @return the user defined event time assigner
+   * @see FlatMap#getEventTimeExtractor()
+   */
+  public ExtractEventTime<IN> getEventTimeExtractor() {
+    return eventTimeFn;
+  }
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -92,63 +141,10 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
     @Override
     public Dataset<IN> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      AssignEventTime<IN> op = new AssignEventTime<>(name, flow, input, eventTimeFn,
-          Sets.newHashSet(outputHints));
+      AssignEventTime<IN> op =
+          new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet(outputHints));
       flow.add(op);
       return op.output();
     }
-  }
-
-  private final ExtractEventTime<IN> eventTimeFn;
-
-  AssignEventTime(String name, Flow flow, Dataset<IN> input,
-                  ExtractEventTime<IN> eventTimeFn, Set<OutputHint> outputHints) {
-    super(name, flow, input, outputHints);
-    this.eventTimeFn = eventTimeFn;
-  }
-
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(new FlatMap<>(
-        getName(), getFlow(), input,
-        (i, c) -> c.collect(i), eventTimeFn, getHints()));
-  }
-
-  /**
-   * @return the user defined event time assigner
-   * @see FlatMap#getEventTimeExtractor()
-   */
-  public ExtractEventTime<IN> getEventTimeExtractor() {
-    return eventTimeFn;
-  }
-
-  /**
-   * Starts building a named {@link AssignEventTime} operator.
-   *
-   * @param name a user provided name of the new operator to build
-   *
-   * @return a builder to complete the setup of the new {@link AssignEventTime}
-   *          operator
-   */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(Objects.requireNonNull(name));
-  }
-
-  /**
-   * Starts building a nameless {@link AssignEventTime} operator to (re-)assign
-   * event time the given input dataset's elements.
-   *
-   * @param <IN> the type of elements of the input dataset
-   *
-   * @param input the input data set to be processed
-   *
-   * @return a builder to complete the setup of the new {@link AssignEventTime}
-   *          operator
-   *
-   * @see #named(String)
-   * @see OfBuilder#of(Dataset)
-   */
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
-    return new UsingBuilder<>("AssignEventTime", input);
   }
 }

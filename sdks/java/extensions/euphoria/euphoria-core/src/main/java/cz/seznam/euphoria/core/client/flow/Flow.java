@@ -23,9 +23,6 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -40,56 +37,35 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A dependency graph of operators.
- */
+/** A dependency graph of operators. */
 @Audience(Audience.Type.CLIENT)
 public class Flow implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(Flow.class);
 
-
   /** Flow-wide settings. */
   private final Settings settings;
 
-  /**
-   * An optional name of this flow. Typically used
-   * for debugging purposes.
-   */
+  /** An optional name of this flow. Typically used for debugging purposes. */
   private final String name;
 
-
-  /**
-   * A map of {@link Operator} to its symbolic name.
-   */
+  /** A map of {@link Operator} to its symbolic name. */
   private final Map<Operator<?, ?>, String> operatorNames = new HashMap<>();
 
-
-  /**
-   * A list of all operators in the flow. The ordering is unspecified.
-   */
+  /** A list of all operators in the flow. The ordering is unspecified. */
   private final List<Operator<?, ?>> operators = new ArrayList<>();
 
-
-  /**
-   * All outputs produced by all operators.
-   */
+  /** All outputs produced by all operators. */
   private final Set<Dataset<?>> outputs = new HashSet<>();
 
-
-  /**
-   * All input datasets.
-   */
+  /** All input datasets. */
   private final Set<Dataset<?>> sources = new HashSet<>();
 
-
-  /**
-   * Map of datasets to consumers.
-   */
-  private final Map<Dataset<?>, Set<Operator<?, ?>>> datasetConsumers
-      = new HashMap<>();
-
+  /** Map of datasets to consumers. */
+  private final Map<Dataset<?>, Set<Operator<?, ?>>> datasetConsumers = new HashMap<>();
 
   protected Flow(@Nullable String name, Settings settings) {
     this.name = name == null ? "" : name;
@@ -99,8 +75,8 @@ public class Flow implements Serializable {
   /**
    * Creates a new (anonymous) Flow.
    *
-   * @return a new flow with an undefined name,
-   *          i.e. either not named at all or with a system generated name
+   * @return a new flow with an undefined name, i.e. either not named at all or with a system
+   *     generated name
    */
   public static Flow create() {
     return create(null);
@@ -110,27 +86,22 @@ public class Flow implements Serializable {
    * Creates a new Flow.
    *
    * @param flowName a symbolic name of the flow; can be {@code null}
-   *
    * @return a newly created flow
    */
   public static Flow create(@Nullable String flowName) {
     return new Flow(flowName, new Settings());
   }
 
-
   /**
    * Creates a new Flow.
    *
    * @param flowName a symbolic name of the flow; can be {@code null}
    * @param settings euphoria settings to be associated with the new flow
-   *
    * @return a newly created flow
    */
   public static Flow create(String flowName, Settings settings) {
     return new Flow(flowName, settings);
   }
-
-
 
   /**
    * Adds a new operator to the flow.
@@ -138,18 +109,16 @@ public class Flow implements Serializable {
    * @param <IN> the type of elements the operator is consuming
    * @param <OUT> the type of elements the operator is producing
    * @param <T> the type of the operator itself
-   *
    * @param operator the operator
-   *
    * @return instance of the operator
    */
   public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
     return add(operator, null);
   }
 
-
   /**
    * Called when a {@link Dataset} is persisted via {@link Dataset#persist}.
+   *
    * @param <T> type parameter
    * @param dataset the dataset that was persisted
    */
@@ -163,11 +132,9 @@ public class Flow implements Serializable {
    * @param <IN> the type of elements the operator is consuming
    * @param <OUT> the type of elements the operator is producing
    * @param <T> the type of the operator itself
-   *
    * @param operator the operator to add to this flow.
-   * @param logicalName the logical application specific name of the operator
-   *          to be available for debugging purposes; can be {@code null}
-   *
+   * @param logicalName the logical application specific name of the operator to be available for
+   *     debugging purposes; can be {@code null}
    * @return the added operator
    */
   <IN, OUT, T extends Operator<IN, OUT>> T add(T operator, @Nullable String logicalName) {
@@ -195,30 +162,15 @@ public class Flow implements Serializable {
     return operator;
   }
 
-  // ~ counts the number of bytes written through the
-  // stream while discarding the data to be written
-  static class CountingOutputStream extends OutputStream {
-    long count;
-
-    @Override
-    public void write(int b) throws IOException {
-      count++;
-    }
-
-    @Override
-    public void write(byte[] b, int off, int len) throws IOException {
-      count += len;
-    }
-  }
-
   private void validateSerializable(Operator o) {
     try {
       final CountingOutputStream outCounter = new CountingOutputStream();
       try (ObjectOutputStream out = new ObjectOutputStream(outCounter)) {
         out.writeObject(o);
       }
-      LOG.debug("Serialized operator {} ({}) into {} bytes",
-              new Object[] {o.toString(), o.getClass(), outCounter.count});
+      LOG.debug(
+          "Serialized operator {} ({}) into {} bytes",
+          new Object[] {o.toString(), o.getClass(), outCounter.count});
     } catch (IOException e) {
       throw new IllegalStateException("Operator " + o + " not serializable!", e);
     }
@@ -238,50 +190,39 @@ public class Flow implements Serializable {
    * Retrieve a symbolic name of operator within the flow.
    *
    * @param what the operator whose symbolic name to retrieve within this flow
-   *
    * @return the operator's symbolic name
    */
   String getOperatorName(Operator what) {
     return operatorNames.get(what);
   }
 
-
   /**
    * Retrieves a list of this flow's operators.
-   * <p>
-   * Note: this is *not* part of client API.
    *
-   * @return an unmodifiable collection of this flow's operators
-   *          (in no particular order)
+   * <p>Note: this is *not* part of client API.
+   *
+   * @return an unmodifiable collection of this flow's operators (in no particular order)
    */
   public Collection<Operator<?, ?>> operators() {
     return Collections.unmodifiableList(operators);
   }
 
-
-  /**
-   * @return a list of all sources associated with this flow
-   */
+  /** @return a list of all sources associated with this flow */
   public Collection<Dataset<?>> sources() {
     return sources;
   }
 
-
-  /**
-   * @return the count of operators in the flow
-   */
+  /** @return the count of operators in the flow */
   public int size() {
     return operators.size();
   }
 
   /**
-   * Determines consumers of a given dataset assuming it is directly
-   * or indirectly associated with this flow.
+   * Determines consumers of a given dataset assuming it is directly or indirectly associated with
+   * this flow.
    *
    * @param dataset the data set to inspect
-   *
-   * @return a collection of the currently registered consumers of
-   *          the specified dataset
+   * @return a collection of the currently registered consumers of the specified dataset
    */
   public Collection<Operator<?, ?>> getConsumersOf(Dataset<?> dataset) {
     Set<Operator<?, ?>> consumers = this.datasetConsumers.get(dataset);
@@ -291,19 +232,14 @@ public class Flow implements Serializable {
     return new ArrayList<>();
   }
 
-
   public String getName() {
     return name;
   }
 
   @Override
   public String toString() {
-    return "Flow{" +
-            "name='" + name + '\'' +
-            ", size=" + size() +
-            '}';
+    return "Flow{" + "name='" + name + '\'' + ", size=" + size() + '}';
   }
-
 
   /** @return the settings associated with this this flow */
   public Settings getSettings() {
@@ -314,9 +250,7 @@ public class Flow implements Serializable {
    * Creates new input dataset.
    *
    * @param <T> the type of elements of the created input data set
-   *
    * @param source the data source to represent as a data set
-   *
    * @return a data set representing the specified source of data
    */
   public <T> Dataset<T> createInput(DataSource<T> source) {
@@ -327,16 +261,13 @@ public class Flow implements Serializable {
   }
 
   /**
-   * A convenience method to create a data set from the given source and
-   * assign the elements event time using the user defined function.
+   * A convenience method to create a data set from the given source and assign the elements event
+   * time using the user defined function.
    *
    * @param <T> the type of elements of the created input data set
-   *
    * @param source the data source to represent as a data set
    * @param evtTimeFn the user defined event time extraction function
-   *
-   * @return a data set representing the specified source of data with assigned
-   *          event time assigned
+   * @return a data set representing the specified source of data with assigned event time assigned
    */
   public <T> Dataset<T> createInput(DataSource<T> source, ExtractEventTime<T> evtTimeFn) {
     Dataset<T> input = createInput(source);
@@ -345,5 +276,21 @@ public class Flow implements Serializable {
 
   private Settings cloneSettings(Settings settings) {
     return new Settings(settings);
+  }
+
+  // ~ counts the number of bytes written through the
+  // stream while discarding the data to be written
+  static class CountingOutputStream extends OutputStream {
+    long count;
+
+    @Override
+    public void write(int b) throws IOException {
+      count++;
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      count += len;
+    }
   }
 }

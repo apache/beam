@@ -15,15 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,114 +31,66 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * The union of at least two datasets of the same type.<p>
+ * The union of at least two datasets of the same type.
  *
- * In the context of Euphoria, a union is merely a logical view on two datasets
- * as one. One can think of a union as a plain concatenation of at least two dataset
- * without any guarantees about the order of the datasets' elements. Unlike in
- * set theory, such a union has no notion of uniqueness, i.e. if the two input
- * dataset contain the same elements, these will all appear in the output
- * dataset (as duplicates) untouched.<p>
+ * <p>In the context of Euphoria, a union is merely a logical view on two datasets as one. One can
+ * think of a union as a plain concatenation of at least two dataset without any guarantees about
+ * the order of the datasets' elements. Unlike in set theory, such a union has no notion of
+ * uniqueness, i.e. if the two input dataset contain the same elements, these will all appear in the
+ * output dataset (as duplicates) untouched.
  *
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
- *   Dataset<String> xs = ...;
- *   Dataset<String> ys = ...;
- *   Dataset<String> both = Union.named("XS-AND-YS").of(xs, ys).output();
+ * Dataset<String> xs = ...;
+ * Dataset<String> ys = ...;
+ * Dataset<String> both = Union.named("XS-AND-YS").of(xs, ys).output();
  * }</pre>
  *
- * The "both" dataset from the above example can now be processed with
- * an operator expecting only a single input dataset, e.g. {@link FlatMap},
- * which will then effectively process both "xs" and "ys".<p>
+ * The "both" dataset from the above example can now be processed with an operator expecting only a
+ * single input dataset, e.g. {@link FlatMap}, which will then effectively process both "xs" and
+ * "ys".
  *
- * Note: the order of the dataset does not matter. Indeed, the order of the
- * elements themselves in the union is intentionally not specified at all.
+ * <p>Note: the order of the dataset does not matter. Indeed, the order of the elements themselves
+ * in the union is intentionally not specified at all.
  *
  * <h3>Builders:</h3>
+ *
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input datasets
  *   <li>{@code output ...................} build output dataset
  * </ol>
- *
  */
 @Audience(Audience.Type.CLIENT)
-@Basic(
-    state = StateComplexity.ZERO,
-    repartitions = 0
-)
+@Basic(state = StateComplexity.ZERO, repartitions = 0)
 public class Union<IN> extends Operator<IN, IN> {
 
-  public static class OfBuilder {
-    private final String name;
+  final Dataset<IN> output;
+  private final List<Dataset<IN>> dataSets;
 
-    OfBuilder(String name) {
-      this.name = name;
-    }
-
-    /**
-     * Specifies the two data sets to be "unioned".
-     *
-     * @param <IN> the type of elements in the two datasets
-     *
-     * @param dataSets at least two datSets
-     *
-     * @return the next builder to complete the setup of the {@link Union} operator
-     */
-    @SafeVarargs
-    public final <IN> OutputBuilder<IN> of(Dataset<IN>... dataSets) {
-      return of(Arrays.asList(dataSets));
-    }
-
-    /**
-     * Specifies the two data sets to be "unioned".
-     *
-     * @param <IN> the type of elements in the two datasets
-     *
-     * @param dataSets at least two datSets
-     *
-     * @return the next builder to complete the setup of the {@link Union} operator
-     */
-    public <IN> OutputBuilder<IN> of(List<Dataset<IN>> dataSets) {
-      return new OutputBuilder<>(name, dataSets);
-    }
+  @SuppressWarnings("unchecked")
+  Union(String name, Flow flow, List<Dataset<IN>> dataSets) {
+    this(name, flow, dataSets, Collections.emptySet());
   }
 
-  public static class OutputBuilder<IN>
-      implements Builders.Output<IN> {
-    private final String name;
-    private final List<Dataset<IN>> dataSets;
-
-    OutputBuilder(String name, List<Dataset<IN>> dataSets) {
-      Preconditions.checkArgument(
-          dataSets.size() > 1,
-          "Union needs at least two data sets.");
-      Preconditions.checkArgument(
-          dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
-          "Only data sets from the same flow can be passed to Union.");
-      this.name = Objects.requireNonNull(name);
-      this.dataSets = dataSets;
-    }
-
-    @Override
-    public Dataset<IN> output(OutputHint... outputHints) {
-      final Flow flow = dataSets.get(0).getFlow();
-      final Union<IN> union = new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints));
-      flow.add(union);
-      return union.output();
-    }
+  @SuppressWarnings("unchecked")
+  Union(String name, Flow flow, List<Dataset<IN>> dataSets, Set<OutputHint> outputHints) {
+    super(name, flow);
+    Preconditions.checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
+    Preconditions.checkArgument(
+        dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
+        "Only data sets from the same flow can be passed to Union.");
+    this.dataSets = dataSets;
+    this.output = createOutput(dataSets.get(0), outputHints);
   }
 
   /**
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
    * @param <IN> the type of elements in the data sets
-   *
    * @param dataSets at least the two data sets
-   *
    * @return the next builder to complete the setup of the {@link Union} operator
-   *
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
@@ -152,11 +103,8 @@ public class Union<IN> extends Operator<IN, IN> {
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
    * @param <IN> the type of elements in the data sets
-   *
    * @param dataSets at least the two data sets
-   *
    * @return the next builder to complete the setup of the {@link Union} operator
-   *
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
@@ -168,32 +116,10 @@ public class Union<IN> extends Operator<IN, IN> {
    * Starts building a named {@link Union} operator to view two datasets as one.
    *
    * @param name a user provided name of the new operator to build
-   *
    * @return the next builder to complete the setup of the new {@link Union} operator
    */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
-  }
-
-  private final List<Dataset<IN>> dataSets;
-  final Dataset<IN> output;
-
-  @SuppressWarnings("unchecked")
-  Union(String name, Flow flow, List<Dataset<IN>> dataSets) {
-    this(name, flow, dataSets, Collections.emptySet());
-  }
-
-  @SuppressWarnings("unchecked")
-  Union(String name, Flow flow, List<Dataset<IN>> dataSets, Set<OutputHint> outputHints) {
-    super(name, flow);
-    Preconditions.checkArgument(
-        dataSets.size() > 1,
-        "Union needs at least two data sets.");
-    Preconditions.checkArgument(
-        dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
-        "Only data sets from the same flow can be passed to Union.");
-    this.dataSets = dataSets;
-    this.output = createOutput(dataSets.get(0), outputHints);
   }
 
   /**
@@ -214,5 +140,58 @@ public class Union<IN> extends Operator<IN, IN> {
   @Override
   public Collection<Dataset<IN>> listInputs() {
     return dataSets;
+  }
+
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
+    }
+
+    /**
+     * Specifies the two data sets to be "unioned".
+     *
+     * @param <IN> the type of elements in the two datasets
+     * @param dataSets at least two datSets
+     * @return the next builder to complete the setup of the {@link Union} operator
+     */
+    @SafeVarargs
+    public final <IN> OutputBuilder<IN> of(Dataset<IN>... dataSets) {
+      return of(Arrays.asList(dataSets));
+    }
+
+    /**
+     * Specifies the two data sets to be "unioned".
+     *
+     * @param <IN> the type of elements in the two datasets
+     * @param dataSets at least two datSets
+     * @return the next builder to complete the setup of the {@link Union} operator
+     */
+    public <IN> OutputBuilder<IN> of(List<Dataset<IN>> dataSets) {
+      return new OutputBuilder<>(name, dataSets);
+    }
+  }
+
+  public static class OutputBuilder<IN> implements Builders.Output<IN> {
+    private final String name;
+    private final List<Dataset<IN>> dataSets;
+
+    OutputBuilder(String name, List<Dataset<IN>> dataSets) {
+      Preconditions.checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
+      Preconditions.checkArgument(
+          dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
+          "Only data sets from the same flow can be passed to Union.");
+      this.name = Objects.requireNonNull(name);
+      this.dataSets = dataSets;
+    }
+
+    @Override
+    public Dataset<IN> output(OutputHint... outputHints) {
+      final Flow flow = dataSets.get(0).getFlow();
+      final Union<IN> union = new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints));
+      flow.add(union);
+      return union.output();
+    }
   }
 }

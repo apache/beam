@@ -18,13 +18,10 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Operator with single input.
- */
+/** Operator with single input. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class SingleInputOperator<IN, OUT> extends Operator<IN, OUT> {
 
@@ -45,7 +42,4 @@ public abstract class SingleInputOperator<IN, OUT> extends Operator<IN, OUT> {
   public Collection<Dataset<IN>> listInputs() {
     return Collections.singletonList(input);
   }
-
-
-
 }

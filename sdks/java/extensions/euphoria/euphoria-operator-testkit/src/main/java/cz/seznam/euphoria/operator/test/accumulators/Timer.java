@@ -15,14 +15,14 @@
  */
 package cz.seznam.euphoria.operator.test.accumulators;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Maps;
-
+import com.google.common.collect.Maps;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-final class Timer implements
-    cz.seznam.euphoria.core.client.accumulators.Timer, Snapshotable<Map<Duration, Long>> {
+final class Timer
+    implements cz.seznam.euphoria.core.client.accumulators.Timer,
+        Snapshotable<Map<Duration, Long>> {
 
   private final Histogram hist = new Histogram();
 

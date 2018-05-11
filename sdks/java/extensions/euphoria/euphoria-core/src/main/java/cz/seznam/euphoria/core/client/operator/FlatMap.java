@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
@@ -24,62 +25,122 @@ import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-
-import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
- * A transformation of a dataset from one type into another allowing user code
- * to generate zero, one, or many output elements for a given input element.<p>
+ * A transformation of a dataset from one type into another allowing user code to generate zero,
+ * one, or many output elements for a given input element.
  *
- * The user supplied map function is supposed to be stateless. It is fed items
- * from the input in no specified order and the results of the map function are
- * "flattened" to the output (equally in no specified order.)<p>
+ * <p>The user supplied map function is supposed to be stateless. It is fed items from the input in
+ * no specified order and the results of the map function are "flattened" to the output (equally in
+ * no specified order.)
  *
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
- *  Dataset<String> strings = ...;
- *  Dataset<Integer> ints =
- *         FlatMap.named("TO-INT")
- *            .of(strings)
- *            .using((String s, Context<String> c) -> {
- *              try {
- *                int i = Integer.parseInt(s);
- *                c.collect(i);
- *              } catch (NumberFormatException e) {
- *                // ~ ignore the input if we failed to parse it
- *              }
- *            })
- *            .output();
+ * Dataset<String> strings = ...;
+ * Dataset<Integer> ints =
+ *        FlatMap.named("TO-INT")
+ *           .of(strings)
+ *           .using((String s, Context<String> c) -> {
+ *             try {
+ *               int i = Integer.parseInt(s);
+ *               c.collect(i);
+ *             } catch (NumberFormatException e) {
+ *               // ~ ignore the input if we failed to parse it
+ *             }
+ *           })
+ *           .output();
  * }</pre>
  *
- * The above example tries to parse incoming strings as integers, silently
- * skipping those which cannot be successfully converted. While
- * {@link Collector#collect(Object)} has
- * been used only once here, a {@link FlatMap} operator is free
- * to invoke it multiple times or not at all to generate that many elements
- * to the output dataset.
+ * The above example tries to parse incoming strings as integers, silently skipping those which
+ * cannot be successfully converted. While {@link Collector#collect(Object)} has been used only once
+ * here, a {@link FlatMap} operator is free to invoke it multiple times or not at all to generate
+ * that many elements to the output dataset.
  *
  * <h3>Builders:</h3>
+ *
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input dataset
  *   <li>{@code using ....................} apply {@link UnaryFunctor} to input elements
- *   <li>{@code [eventTimeBy] ............} change event time characteristic of output elements using {@link ExtractEventTime}
+ *   <li>{@code [eventTimeBy] ............} change event time characteristic of output elements
+ *       using {@link ExtractEventTime}
  *   <li>{@code output ...................} build output dataset
  * </ol>
- *
  */
 @Audience(Audience.Type.CLIENT)
-@Basic(
-    state = StateComplexity.ZERO,
-    repartitions = 0
-)
+@Basic(state = StateComplexity.ZERO, repartitions = 0)
 public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
+
+  private final UnaryFunctor<IN, OUT> functor;
+  private final ExtractEventTime<IN> eventTimeFn;
+
+  FlatMap(
+      String name,
+      Flow flow,
+      Dataset<IN> input,
+      UnaryFunctor<IN, OUT> functor,
+      @Nullable ExtractEventTime<IN> evtTimeFn,
+      Set<OutputHint> outputHints) {
+    super(name, flow, input, outputHints);
+    this.functor = functor;
+    this.eventTimeFn = evtTimeFn;
+  }
+
+  FlatMap(
+      String name,
+      Flow flow,
+      Dataset<IN> input,
+      UnaryFunctor<IN, OUT> functor,
+      @Nullable ExtractEventTime<IN> evtTimeFn) {
+    this(name, flow, input, functor, evtTimeFn, Collections.emptySet());
+  }
+
+  /**
+   * Starts building a nameless {@link FlatMap} operator to transform the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   * @param input the input data set to be transformed
+   * @return a builder to complete the setup of the new {@link FlatMap} operator
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    return new UsingBuilder<>("FlatMap", input);
+  }
+
+  /**
+   * Starts building a named {@link FlatMap} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   * @return a builder to complete the setup of the new {@link FlatMap} operator
+   */
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  /**
+   * Retrieves the user defined map function to be applied to this operator's input elements.
+   *
+   * @return the user defined map function; never {@code null}
+   */
+  public UnaryFunctor<IN, OUT> getFunctor() {
+    return functor;
+  }
+
+  /**
+   * Retrieves the optional user defined event time assigner.
+   *
+   * @return the user defined event time assigner or {@code null} if none is specified
+   */
+  @Nullable
+  public ExtractEventTime<IN> getEventTimeExtractor() {
+    return eventTimeFn;
+  }
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -104,16 +165,13 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     /**
-     * Specifies the user defined map function by which to transform
-     * the final operator's input dataset.
+     * Specifies the user defined map function by which to transform the final operator's input
+     * dataset.
      *
-     * @param <OUT> the type of elements the user defined map function
-     *            will produce to the output dataset
-     *
+     * @param <OUT> the type of elements the user defined map function will produce to the output
+     *     dataset
      * @param functor the user defined map function
-     *
-     * @return the next builder to complete the setup
-     *          of the {@link FlatMap} operator
+     * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
     public <OUT> EventTimeBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
       return new EventTimeBuilder<>(this, functor);
@@ -130,25 +188,21 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     /**
-     * Specifies a function to derive the input elements' event time. Processing
-     * of the input stream continues then to proceed with this event time.
+     * Specifies a function to derive the input elements' event time. Processing of the input stream
+     * continues then to proceed with this event time.
      *
      * @param eventTimeFn the event time extraction function
-     *
-     * @return the next builder to complete the setup
-     *          of the {@link FlatMap} operator
+     * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    public OutputBuilder<IN, OUT>
-    eventTimeBy(ExtractEventTime<IN> eventTimeFn) {
+    public OutputBuilder<IN, OUT> eventTimeBy(ExtractEventTime<IN> eventTimeFn) {
       return new OutputBuilder<>(
-          this.using.name, this.using.input, this.functor,
-          Objects.requireNonNull(eventTimeFn));
+          this.using.name, this.using.input, this.functor, Objects.requireNonNull(eventTimeFn));
     }
 
     @Override
     public Dataset<OUT> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(
-          this.using.name, this.using.input, this.functor, null).output(outputHints);
+      return new OutputBuilder<>(this.using.name, this.using.input, this.functor, null)
+          .output(outputHints);
     }
   }
 
@@ -156,13 +210,13 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunctor<IN, OUT> functor;
-    @Nullable
-    private final ExtractEventTime<IN> evtTimeFn;
+    @Nullable private final ExtractEventTime<IN> evtTimeFn;
 
-    OutputBuilder(String name,
-                  Dataset<IN> input,
-                  UnaryFunctor<IN, OUT> functor,
-                  @Nullable ExtractEventTime<IN> evtTimeFn) {
+    OutputBuilder(
+        String name,
+        Dataset<IN> input,
+        UnaryFunctor<IN, OUT> functor,
+        @Nullable ExtractEventTime<IN> evtTimeFn) {
       this.name = name;
       this.input = input;
       this.functor = functor;
@@ -172,77 +226,10 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     @Override
     public Dataset<OUT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor, evtTimeFn,
-          Sets.newHashSet(outputHints));
+      FlatMap<IN, OUT> map =
+          new FlatMap<>(name, flow, input, functor, evtTimeFn, Sets.newHashSet(outputHints));
       flow.add(map);
       return map.output();
     }
-  }
-
-  /**
-   * Starts building a nameless {@link FlatMap} operator to transform the given
-   * input dataset.
-   *
-   * @param <IN> the type of elements of the input dataset
-   *
-   * @param input the input data set to be transformed
-   *
-   * @return a builder to complete the setup of the new {@link FlatMap} operator
-   *
-   * @see #named(String)
-   * @see OfBuilder#of(Dataset)
-   */
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
-    return new UsingBuilder<>("FlatMap", input);
-  }
-
-  /**
-   * Starts building a named {@link FlatMap} operator.
-   *
-   * @param name a user provided name of the new operator to build
-   *
-   * @return a builder to complete the setup of the new {@link FlatMap} operator
-   */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
-  }
-
-  private final UnaryFunctor<IN, OUT> functor;
-  private final ExtractEventTime<IN> eventTimeFn;
-
-  FlatMap(String name, Flow flow, Dataset<IN> input,
-          UnaryFunctor<IN, OUT> functor,
-          @Nullable ExtractEventTime<IN> evtTimeFn,
-          Set<OutputHint> outputHints) {
-    super(name, flow, input, outputHints);
-    this.functor = functor;
-    this.eventTimeFn = evtTimeFn;
-  }
-
-  FlatMap(String name, Flow flow, Dataset<IN> input,
-          UnaryFunctor<IN, OUT> functor,
-          @Nullable ExtractEventTime<IN> evtTimeFn) {
-    this(name, flow, input, functor, evtTimeFn, Collections.emptySet());
-  }
-
-  /**
-   * Retrieves the user defined map function to be applied to this operator's
-   * input elements.
-   *
-   * @return the user defined map function; never {@code null}
-   */
-  public UnaryFunctor<IN, OUT> getFunctor() {
-    return functor;
-  }
-
-  /**
-   * Retrieves the optional user defined event time assigner.
-   *
-   * @return the user defined event time assigner or
-   *          {@code null} if none is specified
-   */
-  @Nullable
-  public ExtractEventTime<IN> getEventTimeExtractor() {
-    return eventTimeFn;
   }
 }

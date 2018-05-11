@@ -17,15 +17,14 @@ package cz.seznam.euphoria.core.client.accumulators;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.Settings;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
- * Placeholder implementation of {@link AccumulatorProvider} that
- * may be used in executors as a default.
+ * Placeholder implementation of {@link AccumulatorProvider} that may be used in executors as a
+ * default.
  */
 @Audience(Audience.Type.EXECUTOR)
 public class VoidAccumulatorProvider implements AccumulatorProvider {
@@ -33,6 +32,10 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
   private static final Logger LOG = LoggerFactory.getLogger(VoidAccumulatorProvider.class);
 
   private VoidAccumulatorProvider() {}
+
+  public static Factory getFactory() {
+    return Factory.get();
+  }
 
   @Override
   public Counter getCounter(String name) {
@@ -49,18 +52,13 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
     return VoidTimer.INSTANCE;
   }
 
-  public static Factory getFactory() {
-    return Factory.get();
-  }
-
   // ------------------------
 
   public static class Factory implements AccumulatorProvider.Factory {
 
     private static final Factory INSTANCE = new Factory();
 
-    private static final AccumulatorProvider PROVIDER =
-            new VoidAccumulatorProvider();
+    private static final AccumulatorProvider PROVIDER = new VoidAccumulatorProvider();
 
     private static final AtomicBoolean isLogged = new AtomicBoolean();
 

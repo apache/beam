@@ -18,26 +18,57 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-
 import java.io.ObjectStreamException;
 import java.util.Collections;
 
-/**
- * Windowing with single window across the whole dataset. Suitable for
- * batch processing.
- */
+/** Windowing with single window across the whole dataset. Suitable for batch processing. */
 @Audience(Audience.Type.CLIENT)
-public final class GlobalWindowing<T>
-    implements Windowing<T, GlobalWindowing.Window> {
+public final class GlobalWindowing<T> implements Windowing<T, GlobalWindowing.Window> {
+
+  private static final GlobalWindowing<?> INSTANCE = new GlobalWindowing<>();
+  private static final Iterable<Window> INSTANCE_ITER = Collections.singleton(Window.INSTANCE);
+
+  private GlobalWindowing() {}
+
+  @SuppressWarnings("unchecked")
+  public static <T> GlobalWindowing<T> get() {
+    return (GlobalWindowing) INSTANCE;
+  }
+
+  @Override
+  public Iterable<Window> assignWindowsToElement(WindowedElement<?, T> el) {
+    return INSTANCE_ITER;
+  }
+
+  @Override
+  public Trigger<Window> getTrigger() {
+    return NoopTrigger.get();
+  }
+
+  private Object readResolve() throws ObjectStreamException {
+    return INSTANCE;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof GlobalWindowing;
+  }
+
+  @Override
+  public int hashCode() {
+    return 314159265;
+  }
 
   public static final class Window
       extends cz.seznam.euphoria.core.client.dataset.windowing.Window<GlobalWindowing.Window> {
 
     static final Window INSTANCE = new Window();
 
-    public static Window get() { return INSTANCE; }
-
     private Window() {}
+
+    public static Window get() {
+      return INSTANCE;
+    }
 
     @Override
     public boolean equals(Object other) {
@@ -57,43 +88,5 @@ public final class GlobalWindowing<T>
     public int compareTo(GlobalWindowing.Window o) {
       return 0;
     }
-
   } // ~ end of Label
-
-  private final static GlobalWindowing<?> INSTANCE = new GlobalWindowing<>();
-  private final static Iterable<Window> INSTANCE_ITER =
-      Collections.singleton(Window.INSTANCE);
-
-  private GlobalWindowing() {}
-
-  @Override
-  public Iterable<Window> assignWindowsToElement(WindowedElement<?, T> el) {
-    return INSTANCE_ITER;
-  }
-
-  @Override
-  public Trigger<Window> getTrigger() {
-    return NoopTrigger.get();
-  }
-
-  @SuppressWarnings("unchecked")
-  public static <T> GlobalWindowing<T> get() {
-    return (GlobalWindowing) INSTANCE;
-  }
-
-  private Object readResolve() throws ObjectStreamException {
-    return INSTANCE;
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    return obj instanceof GlobalWindowing;
-  }
-
-  @Override
-  public int hashCode() {
-    return 314159265;
-  }
-
-
 }

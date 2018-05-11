@@ -19,10 +19,6 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Closeable;
 import java.util.Iterator;
 
-/**
- * {@link Iterator} that is {@link Closeable}.
- */
+/** {@link Iterator} that is {@link Closeable}. */
 @Audience(Audience.Type.EXECUTOR)
-public interface CloseableIterator<T> extends Iterator<T>, Closeable {
-
-}
+public interface CloseableIterator<T> extends Iterator<T>, Closeable {}

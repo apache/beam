@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-
 import java.io.Serializable;
 import java.util.List;
 
@@ -24,18 +23,17 @@ import java.util.List;
  * {@code DataSource} for unbounded data.
  *
  * @param <T> the data type
- * @param <OFFSET> the type of object that is being used to track progress
- * of the source. The object has to be serializable, because java serialization
- * is being used for checkpointing the state.
+ * @param <OFFSET> the type of object that is being used to track progress of the source. The object
+ *     has to be serializable, because java serialization is being used for checkpointing the state.
  */
 @Audience(Audience.Type.EXECUTOR)
 public interface UnboundedDataSource<T, OFFSET extends Serializable> extends DataSource<T> {
 
   /**
-   * Error should be reported via throwing RuntimeException
-   * (Do not return empty list on error)
+   * Error should be reported via throwing RuntimeException (Do not return empty list on error)
+   *
    * @return a list of all partitions of this source
-   * */
+   */
   List<UnboundedPartition<T, OFFSET>> getPartitions();
 
   @Override
@@ -47,5 +45,4 @@ public interface UnboundedDataSource<T, OFFSET extends Serializable> extends Dat
   default UnboundedDataSource<T, OFFSET> asUnbounded() {
     return this;
   }
-
 }

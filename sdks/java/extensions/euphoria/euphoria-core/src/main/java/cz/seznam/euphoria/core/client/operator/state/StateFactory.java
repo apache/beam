@@ -18,13 +18,10 @@ package cz.seznam.euphoria.core.client.operator.state;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.io.Collector;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
+import javax.annotation.Nullable;
 
-/**
- * Factory for states.
- */
+/** Factory for states. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Serializable {
@@ -33,13 +30,12 @@ public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Ser
    * Factory method to create new state instances.
    *
    * @param stateContext context provided by the executor
-   * @param context a context allowing the newly created state for the
-   *                duration of its existence to emit output elements
-   *
+   * @param context a context allowing the newly created state for the duration of its existence to
+   *     emit output elements
    * @return a newly created state
    */
-  STATE createState(StateContext stateContext,
-                    @Experimental("https://github.com/seznam/euphoria/issues/118")
-                    @Nullable Collector<OUT> context);
-
+  STATE createState(
+      StateContext stateContext,
+      @Experimental("https://github.com/seznam/euphoria/issues/118") @Nullable
+          Collector<OUT> context);
 }

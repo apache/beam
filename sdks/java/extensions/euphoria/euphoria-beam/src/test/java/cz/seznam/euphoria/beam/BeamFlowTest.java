@@ -45,9 +45,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 
-/**
- * Test for {@link BeamFlow}.
- */
+/** Test for {@link BeamFlow}. */
 public class BeamFlowTest implements Serializable {
 
   private PipelineOptions options() {
@@ -59,14 +57,10 @@ public class BeamFlowTest implements Serializable {
   public void testPipelineExec() {
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
-    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
-        1, 2, 3, 4, 5));
+    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
     ListDataSink<Integer> sink = ListDataSink.get();
     Dataset<Integer> input = flow.createInput(source);
-    MapElements.of(input)
-        .using(e -> e + 1)
-        .output()
-        .persist(sink);
+    MapElements.of(input).using(e -> e + 1).output().persist(sink);
 
     pipeline.run().waitUntilFinish();
     DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 3, 4, 5, 6);
@@ -75,58 +69,61 @@ public class BeamFlowTest implements Serializable {
   @Test
   public void testEuphoriaLoadBeamProcess() {
     {
-    Pipeline pipeline = Pipeline.create(options());
-    BeamFlow flow = BeamFlow.create(pipeline);
-    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
-        1, 2, 3, 4, 5));
-    Dataset<Integer> input = flow.createInput(source);
-    PCollection<Integer> unwrapped = flow.unwrapped(input);
-    PCollection<Integer> output = unwrapped.apply(ParDo.of(new DoFn<Integer, Integer>() {
-      @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
-      @ProcessElement
-      public void process(ProcessContext context) {
-        context.output(context.element() + 1);
-      }
-    })).setTypeDescriptor(TypeDescriptor.of(Integer.class));
-    PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
-    pipeline.run();
+      Pipeline pipeline = Pipeline.create(options());
+      BeamFlow flow = BeamFlow.create(pipeline);
+      ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
+      Dataset<Integer> input = flow.createInput(source);
+      PCollection<Integer> unwrapped = flow.unwrapped(input);
+      PCollection<Integer> output =
+          unwrapped
+              .apply(
+                  ParDo.of(
+                      new DoFn<Integer, Integer>() {
+                        @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
+                        @ProcessElement
+                        public void process(ProcessContext context) {
+                          context.output(context.element() + 1);
+                        }
+                      }))
+              .setTypeDescriptor(TypeDescriptor.of(Integer.class));
+      PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
+      pipeline.run();
     }
-
   }
 
   @Test
   public void testEuphoriaLoadBeamProcessWithEventTime() {
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
-    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
-        1, 2, 3, 4, 5));
+    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
     Dataset<Integer> input = flow.createInput(source, e -> System.currentTimeMillis());
     PCollection<Integer> unwrapped = flow.unwrapped(input);
-    PCollection<Integer> output = unwrapped.apply(ParDo.of(new DoFn<Integer, Integer>() {
-      @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
-      @ProcessElement
-      public void process(ProcessContext context) {
-        context.output(context.element() + 1);
-      }
-    })).setTypeDescriptor(TypeDescriptor.of(Integer.class));
+    PCollection<Integer> output =
+        unwrapped
+            .apply(
+                ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
+                      @ProcessElement
+                      public void process(ProcessContext context) {
+                        context.output(context.element() + 1);
+                      }
+                    }))
+            .setTypeDescriptor(TypeDescriptor.of(Integer.class));
     PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
     pipeline.run();
   }
-
 
   @Test
   public void testPipelineFromBeam() {
     List<Integer> inputs = Arrays.asList(1, 2, 3, 4, 5);
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
-    PCollection<Integer> input = pipeline.apply(Create.of(inputs))
-        .setTypeDescriptor(TypeDescriptor.of(Integer.class));
+    PCollection<Integer> input =
+        pipeline.apply(Create.of(inputs)).setTypeDescriptor(TypeDescriptor.of(Integer.class));
     Dataset<Integer> ds = flow.wrapped(input);
     ListDataSink<Integer> sink = ListDataSink.get();
-    MapElements.of(ds)
-        .using(e -> e + 1)
-        .output()
-        .persist(sink);
+    MapElements.of(ds).using(e -> e + 1).output().persist(sink);
     pipeline.run().waitUntilFinish();
     DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 3, 4, 5, 6);
   }
@@ -136,15 +133,13 @@ public class BeamFlowTest implements Serializable {
     List<Integer> inputs = Arrays.asList(1, 2, 3, 4, 5);
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
-    PCollection<Integer> input = pipeline.apply(Create.of(inputs))
-        .setTypeDescriptor(TypeDescriptor.of(Integer.class));
+    PCollection<Integer> input =
+        pipeline.apply(Create.of(inputs)).setTypeDescriptor(TypeDescriptor.of(Integer.class));
     Dataset<Integer> ds = flow.wrapped(input);
-    Dataset<Integer> output = FlatMap.of(ds)
-        .using((Integer e, Collector<Integer> c) -> c.collect(e + 1))
-        .output();
+    Dataset<Integer> output =
+        FlatMap.of(ds).using((Integer e, Collector<Integer> c) -> c.collect(e + 1)).output();
     PCollection<Integer> unwrapped = flow.unwrapped(output);
-    PAssert.that(unwrapped)
-        .containsInAnyOrder(2, 3, 4, 5, 6);
+    PAssert.that(unwrapped).containsInAnyOrder(2, 3, 4, 5, 6);
     pipeline.run();
   }
 
@@ -154,12 +149,10 @@ public class BeamFlowTest implements Serializable {
     List<String> words = Arrays.asList(raw.split(" "));
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
-    PCollection<String> input = pipeline.apply(
-        Create.of(words)).setTypeDescriptor(TypeDescriptor.of(String.class));
+    PCollection<String> input =
+        pipeline.apply(Create.of(words)).setTypeDescriptor(TypeDescriptor.of(String.class));
     Dataset<String> dataset = flow.wrapped(input);
-    Dataset<Pair<String, Long>> output = CountByKey.of(dataset)
-        .keyBy(e -> e)
-        .output();
+    Dataset<Pair<String, Long>> output = CountByKey.of(dataset).keyBy(e -> e).output();
     PCollection<Pair<String, Long>> beamOut = flow.unwrapped(output);
     PAssert.that(beamOut)
         .containsInAnyOrder(
@@ -172,25 +165,27 @@ public class BeamFlowTest implements Serializable {
   }
 
   public void testPipelineWithEventTime() {
-    List<Pair<Integer, Long>> raw = Arrays.asList(
-        Pair.of(1, 1000L), Pair.of(2, 1500L), Pair.of(3, 1800L), // first window
-        Pair.of(4, 2000L), Pair.of(5, 2500L));                   // second window
+    List<Pair<Integer, Long>> raw =
+        Arrays.asList(
+            Pair.of(1, 1000L),
+            Pair.of(2, 1500L),
+            Pair.of(3, 1800L), // first window
+            Pair.of(4, 2000L),
+            Pair.of(5, 2500L)); // second window
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
     PCollection<Pair<Integer, Long>> input = pipeline.apply(Create.of(raw));
     Dataset<Pair<Integer, Long>> dataset = flow.wrapped(input);
-    Dataset<Pair<Integer, Long>> timeAssigned = AssignEventTime.of(dataset)
-        .using(Pair::getSecond)
-        .output();
-    Dataset<Integer> output = ReduceWindow.of(timeAssigned)
-        .valueBy(Pair::getFirst)
-        .combineBy(Sums.ofInts())
-        .windowBy(Time.of(Duration.ofSeconds(1)))
-        .output();
+    Dataset<Pair<Integer, Long>> timeAssigned =
+        AssignEventTime.of(dataset).using(Pair::getSecond).output();
+    Dataset<Integer> output =
+        ReduceWindow.of(timeAssigned)
+            .valueBy(Pair::getFirst)
+            .combineBy(Sums.ofInts())
+            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .output();
     PCollection<Integer> beamOut = flow.unwrapped(output);
-    PAssert.that(beamOut)
-        .containsInAnyOrder(6, 9);
+    PAssert.that(beamOut).containsInAnyOrder(6, 9);
     pipeline.run();
   }
-
 }

@@ -24,13 +24,15 @@ import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 public interface LocalExecutorProvider extends ExecutorProvider {
   @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
-    LocalExecutor exec = new LocalExecutor()
-        .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(500L));
+    LocalExecutor exec =
+        new LocalExecutor()
+            .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(500L));
     return new ExecutorEnvironment() {
       @Override
       public Executor getExecutor() {
         return exec;
       }
+
       @Override
       public void shutdown() throws Exception {
         exec.shutdown();

@@ -20,9 +20,8 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import java.io.Serializable;
 
 /**
- * Functor of single argument.
- * Functor can produce zero or more elements in return to a call, for which it
- * uses a collector.
+ * Functor of single argument. Functor can produce zero or more elements in return to a call, for
+ * which it uses a collector.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
@@ -31,7 +30,7 @@ public interface UnaryFunctor<IN, OUT> extends Serializable {
   /**
    * Applies function to given element.
    *
-   * @param elem      Input element.
+   * @param elem Input element.
    * @param collector Collector to emit results.
    */
   void apply(IN elem, Collector<OUT> collector);

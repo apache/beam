@@ -17,7 +17,6 @@ package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.util.IOUtils;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -26,12 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
  * MultiDataSink allows to save to multiple {@link DataSink}
  *
- * Example usage:
- *<pre>
- * {@code
+ * <p>Example usage:
+ *
+ * <pre>{@code
  * interface InputElement {
  *   enum Type { FIRST, SECOND, THIRD }
  *   Type getKey();
@@ -46,8 +44,8 @@ import java.util.Map;
  *   .addSink(Type.SECOND, InputElement::getSecond, new StdoutSink<>(...))
  *   .addSink(Type.THIRD, InputElement::getThird, new StdoutSink<>(...))
  *   .build();
- * }
- *</pre>
+ * }</pre>
+ *
  * @param <KEY> key to select DataSink where to save the element
  * @param <IN> key of input element
  */
@@ -57,14 +55,14 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
   private final Map<KEY, DataSinkWrapper<KEY, IN, ?>> sinks;
 
   private MultiDataSink(
-      UnaryFunction<IN, KEY> selectFunction,
-      Map<KEY, DataSinkWrapper<KEY, IN, ?>> sinks) {
+      UnaryFunction<IN, KEY> selectFunction, Map<KEY, DataSinkWrapper<KEY, IN, ?>> sinks) {
     this.selectFunction = selectFunction;
     this.sinks = sinks;
   }
 
   /**
    * Selects DataSink where to save output elements
+   *
    * @param selectFunction transform
    * @param <KEY> key to select DataSink
    * @param <IN> key of input element
@@ -78,9 +76,12 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
   @SuppressWarnings("unchecked")
   public Writer<IN> openWriter(int partitionId) {
     Map<KEY, Writer<Object>> writerMap = new HashMap<>();
-    sinks.values().forEach((sink) -> writerMap.put(
-        sink.getKey(),
-        (Writer<Object>) sink.getDataSink().openWriter(partitionId)));
+    sinks
+        .values()
+        .forEach(
+            (sink) ->
+                writerMap.put(
+                    sink.getKey(), (Writer<Object>) sink.getDataSink().openWriter(partitionId)));
     return new Writer<IN>() {
 
       @Override
@@ -122,7 +123,6 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
     }
 
     /**
-     *
      * @param key key of elements for sink
      * @param mapper for mapping input to output
      * @param sink added DataSink
@@ -130,9 +130,7 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
      * @return Builder
      */
     public <OUT> Builder<KEY, IN> addSink(
-        KEY key,
-        UnaryFunction<IN, OUT> mapper,
-        DataSink<OUT> sink) {
+        KEY key, UnaryFunction<IN, OUT> mapper, DataSink<OUT> sink) {
       this.dataSinkWrappers.add(new DataSinkWrapper<>(key, mapper, sink));
       return this;
     }
@@ -167,5 +165,4 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
       return dataSink;
     }
   }
-
 }

@@ -26,9 +26,6 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 @Audience(Audience.Type.CLIENT)
 public interface MergingStorageDescriptor<T> {
 
-  /**
-   * @return the merging function for state storages.
-   */
+  /** @return the merging function for state storages. */
   BinaryFunction<? extends Storage<T>, ? extends Storage<T>, Void> getMerger();
-
 }

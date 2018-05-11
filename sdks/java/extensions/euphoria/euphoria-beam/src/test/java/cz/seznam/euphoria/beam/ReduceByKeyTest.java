@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.beam;
 
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -46,13 +48,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import static org.junit.Assert.assertTrue;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * Simple test suite for RBK.
- */
+/** Simple test suite for RBK. */
 public class ReduceByKeyTest {
 
   private BeamExecutor createExecutor() {
@@ -65,9 +64,8 @@ public class ReduceByKeyTest {
   public void testSimpleRBK() {
     final Flow flow = Flow.create();
 
-    final ListDataSource<Integer> input = ListDataSource.unbounded(
-        Arrays.asList(1, 2, 3),
-        Arrays.asList(2, 3, 4));
+    final ListDataSource<Integer> input =
+        ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
 
     final ListDataSink<Pair<Integer, Integer>> output = ListDataSink.get();
 
@@ -81,24 +79,37 @@ public class ReduceByKeyTest {
     BeamExecutor executor = createExecutor();
     executor.execute(flow);
 
-    DatasetAssert.unorderedEquals(
-        output.getOutputs(),
-        Pair.of(0, 8), Pair.of(1, 7));
+    DatasetAssert.unorderedEquals(output.getOutputs(), Pair.of(0, 8), Pair.of(1, 7));
   }
 
   @Test
   public void testEventTime() {
 
     Flow flow = Flow.create();
-    ListDataSource<Pair<Integer, Long>> source = ListDataSource.unbounded(Arrays.asList(
-        Pair.of(1, 300L), Pair.of(2, 600L), Pair.of(3, 900L),
-        Pair.of(2, 1300L), Pair.of(3, 1600L), Pair.of(1, 1900L),
-        Pair.of(3, 2300L), Pair.of(2, 2600L), Pair.of(1, 2900L),
-        Pair.of(2, 3300L),
-        Pair.of(2, 300L), Pair.of(4, 600L), Pair.of(3, 900L),
-        Pair.of(4, 1300L), Pair.of(2, 1600L), Pair.of(3, 1900L),
-        Pair.of(4, 2300L), Pair.of(1, 2600L), Pair.of(3, 2900L),
-        Pair.of(4, 3300L), Pair.of(3, 3600L)));
+    ListDataSource<Pair<Integer, Long>> source =
+        ListDataSource.unbounded(
+            Arrays.asList(
+                Pair.of(1, 300L),
+                Pair.of(2, 600L),
+                Pair.of(3, 900L),
+                Pair.of(2, 1300L),
+                Pair.of(3, 1600L),
+                Pair.of(1, 1900L),
+                Pair.of(3, 2300L),
+                Pair.of(2, 2600L),
+                Pair.of(1, 2900L),
+                Pair.of(2, 3300L),
+                Pair.of(2, 300L),
+                Pair.of(4, 600L),
+                Pair.of(3, 900L),
+                Pair.of(4, 1300L),
+                Pair.of(2, 1600L),
+                Pair.of(3, 1900L),
+                Pair.of(4, 2300L),
+                Pair.of(1, 2600L),
+                Pair.of(3, 2900L),
+                Pair.of(4, 3300L),
+                Pair.of(3, 3600L)));
 
     ListDataSink<Pair<Integer, Long>> sink = ListDataSink.get();
     Dataset<Pair<Integer, Long>> input = flow.createInput(source);
@@ -114,87 +125,23 @@ public class ReduceByKeyTest {
     BeamExecutor executor = createExecutor();
     executor.execute(flow);
 
-    DatasetAssert.unorderedEquals(sink.getOutputs(),
-            Pair.of(2, 2L), Pair.of(4, 1L),  // first window
-            Pair.of(2, 2L), Pair.of(4, 1L),  // second window
-            Pair.of(2, 1L), Pair.of(4, 1L),  // third window
-            Pair.of(2, 1L), Pair.of(4, 1L),  // fourth window
-            Pair.of(1, 1L), Pair.of(3, 2L),  // first window
-            Pair.of(1, 1L), Pair.of(3, 2L),  // second window
-            Pair.of(1, 2L), Pair.of(3, 2L),  // third window
-            Pair.of(3, 1L));                 // fourth window
-  }
-
-  static class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
-    @Override
-    public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
-      // ~ we expect the 'element time' to be the end of the window which produced the
-      // element in the preceding upstream (stateful and windowed) operator
-      assertTrue("Invalid timestamp " + el.getTimestamp(),
-          el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);
-      return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Trigger<TimeInterval> getTrigger() {
-      return new CountTrigger(1) {
-        @Override
-        public boolean isStateful() {
-          return false;
-        }
-
-        @Override
-        public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
-          // ~ we expect the 'time' to be the end of the window which produced the
-          // element in the preceding upstream (stateful and windowed) operator
-          assertTrue("Invalid timestamp " + time,
-              time == 15_000L - 1 || time == 25_000L - 1);
-          return super.onElement(time, window, ctx);
-        }
-      };
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof AssertingWindowing;
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-  }
-
-  static class SumState implements State<Integer, Integer> {
-    private final ValueStorage<Integer> sum;
-
-    SumState(StateContext context, Collector<Integer> collector) {
-      sum = context.getStorageProvider().getValueStorage(
-          ValueStorageDescriptor.of("sum-state", Integer.class, 0));
-    }
-
-    @Override
-    public void add(Integer element) {
-      sum.set(sum.get() + element);
-    }
-
-    @Override
-    public void flush(Collector<Integer> context) {
-      context.collect(sum.get());
-    }
-
-    @Override
-    public void close() {
-      sum.clear();
-    }
-
-    static void combine(SumState target, Iterable<SumState> others) {
-      for (SumState other : others) {
-        target.add(other.sum.get());
-      }
-    }
+    DatasetAssert.unorderedEquals(
+        sink.getOutputs(),
+        Pair.of(2, 2L),
+        Pair.of(4, 1L), // first window
+        Pair.of(2, 2L),
+        Pair.of(4, 1L), // second window
+        Pair.of(2, 1L),
+        Pair.of(4, 1L), // third window
+        Pair.of(2, 1L),
+        Pair.of(4, 1L), // fourth window
+        Pair.of(1, 1L),
+        Pair.of(3, 2L), // first window
+        Pair.of(1, 1L),
+        Pair.of(3, 2L), // second window
+        Pair.of(1, 2L),
+        Pair.of(3, 2L), // third window
+        Pair.of(3, 1L)); // fourth window
   }
 
   @Test
@@ -202,14 +149,16 @@ public class ReduceByKeyTest {
   public void testElementTimestamp() {
 
     Flow flow = Flow.create();
-    ListDataSource<Pair<Integer, Long>> source = ListDataSource.bounded(Arrays.asList(
-        // ~ Pair.of(value, time)
-        Pair.of(1, 10_123L),
-        Pair.of(2, 11_234L),
-        Pair.of(3, 12_345L),
-        // ~ note: exactly one element for the window on purpose (to test out
-        // all is well even in case our `.combineBy` user function is not called.)
-        Pair.of(4, 21_456L)));
+    ListDataSource<Pair<Integer, Long>> source =
+        ListDataSource.bounded(
+            Arrays.asList(
+                // ~ Pair.of(value, time)
+                Pair.of(1, 10_123L),
+                Pair.of(2, 11_234L),
+                Pair.of(3, 12_345L),
+                // ~ note: exactly one element for the window on purpose (to test out
+                // all is well even in case our `.combineBy` user function is not called.)
+                Pair.of(4, 21_456L)));
     ListDataSink<Integer> sink = ListDataSink.get();
     Dataset<Pair<Integer, Long>> input = flow.createInput(source);
 
@@ -233,8 +182,9 @@ public class ReduceByKeyTest {
             .windowBy(new AssertingWindowing<>())
             .output();
     FlatMap.of(output)
-        .using((UnaryFunctor<Pair<String, Integer>, Integer>)
-            (elem, context) -> context.collect(elem.getSecond()))
+        .using(
+            (UnaryFunctor<Pair<String, Integer>, Integer>)
+                (elem, context) -> context.collect(elem.getSecond()))
         .output()
         .persist(sink);
 
@@ -242,4 +192,76 @@ public class ReduceByKeyTest {
     DatasetAssert.unorderedEquals(sink.getOutputs(), 4, 6);
   }
 
+  static class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
+    @Override
+    public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+      // ~ we expect the 'element time' to be the end of the window which produced the
+      // element in the preceding upstream (stateful and windowed) operator
+      assertTrue(
+          "Invalid timestamp " + el.getTimestamp(),
+          el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);
+      return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Trigger<TimeInterval> getTrigger() {
+      return new CountTrigger(1) {
+        @Override
+        public boolean isStateful() {
+          return false;
+        }
+
+        @Override
+        public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
+          // ~ we expect the 'time' to be the end of the window which produced the
+          // element in the preceding upstream (stateful and windowed) operator
+          assertTrue("Invalid timestamp " + time, time == 15_000L - 1 || time == 25_000L - 1);
+          return super.onElement(time, window, ctx);
+        }
+      };
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof AssertingWindowing;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+  }
+
+  static class SumState implements State<Integer, Integer> {
+    private final ValueStorage<Integer> sum;
+
+    SumState(StateContext context, Collector<Integer> collector) {
+      sum =
+          context
+              .getStorageProvider()
+              .getValueStorage(ValueStorageDescriptor.of("sum-state", Integer.class, 0));
+    }
+
+    static void combine(SumState target, Iterable<SumState> others) {
+      for (SumState other : others) {
+        target.add(other.sum.get());
+      }
+    }
+
+    @Override
+    public void add(Integer element) {
+      sum.set(sum.get() + element);
+    }
+
+    @Override
+    public void flush(Collector<Integer> context) {
+      context.collect(sum.get());
+    }
+
+    @Override
+    public void close() {
+      sum.clear();
+    }
+  }
 }

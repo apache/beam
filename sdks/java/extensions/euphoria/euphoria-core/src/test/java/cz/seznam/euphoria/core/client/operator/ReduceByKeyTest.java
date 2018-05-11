@@ -15,16 +15,19 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.stream.StreamSupport;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class ReduceByKeyTest {
   @Test
@@ -33,13 +36,14 @@ public class ReduceByKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.named("ReduceByKey1")
-        .of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .windowBy(windowing)
-        .output();
+    Dataset<Pair<String, Long>> reduced =
+        ReduceByKey.named("ReduceByKey1")
+            .of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .windowBy(windowing)
+            .output();
 
     assertEquals(flow, reduced.getFlow());
     assertEquals(1, flow.size());
@@ -59,12 +63,13 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Long> reduced = ReduceByKey.named("ReduceByKeyValues")
-        .of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .outputValues();
+    Dataset<Long> reduced =
+        ReduceByKey.named("ReduceByKeyValues")
+            .of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .outputValues();
 
     assertEquals(flow, reduced.getFlow());
     assertEquals(2, flow.size());
@@ -107,7 +112,6 @@ public class ReduceByKeyTest {
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertNotNull(reduce.reducer);
   }
-
 
   @Test
   public void testBuild_Windowing() {
@@ -192,5 +196,4 @@ public class ReduceByKeyTest {
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
   }
-
 }

@@ -22,7 +22,30 @@ import java.util.NoSuchElementException;
 
 public class JavaSerializationFactory implements SerializerFactory {
 
+  @Override
+  public Serializer newSerializer() {
+    return new JavaSerializer();
+  }
+
   static class JavaSerializer implements Serializer {
+
+    @Override
+    public Output newOutput(java.io.OutputStream out) {
+      try {
+        return new ObjectOutputStreamAdapter(new ObjectOutputStream(out));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public Input newInput(java.io.InputStream in) {
+      try {
+        return new ObjectInputStreamAdapter(new ObjectInputStream(in));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
 
     static class ObjectOutputStreamAdapter implements Output {
       private final ObjectOutputStream out;
@@ -111,28 +134,5 @@ public class JavaSerializationFactory implements SerializerFactory {
         }
       }
     }
-
-    @Override
-    public Output newOutput(java.io.OutputStream out) {
-      try {
-        return new ObjectOutputStreamAdapter(new ObjectOutputStream(out));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    @Override
-    public Input newInput(java.io.InputStream in) {
-      try {
-        return new ObjectInputStreamAdapter(new ObjectInputStream(in));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
-
-  @Override
-  public Serializer newSerializer() {
-    return new JavaSerializer();
   }
 }

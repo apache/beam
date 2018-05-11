@@ -18,15 +18,14 @@ package cz.seznam.euphoria.core.client.functional;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
-/**
- * A consumer of given type.
- */
+/** A consumer of given type. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface Consumer<T> extends Serializable {
 
   /**
    * Consume given element.
+   *
    * @param element the element to be consumed.
    */
   void accept(T element);

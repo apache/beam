@@ -15,11 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class UnionTest {
 
@@ -29,9 +29,7 @@ public class UnionTest {
     final Dataset<String> left = Util.createMockDataset(flow, 2);
     final Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    final Dataset<String> unioned = Union.named("Union1")
-        .of(left, right)
-        .output();
+    final Dataset<String> unioned = Union.named("Union1").of(left, right).output();
 
     assertEquals(flow, unioned.getFlow());
     assertEquals(1, flow.size());
@@ -47,9 +45,7 @@ public class UnionTest {
   public void testBuild_OneDataSet() {
     final Flow flow = Flow.create("TEST");
     final Dataset<String> first = Util.createMockDataset(flow, 1);
-    Union.named("Union1")
-        .of(first)
-        .output();
+    Union.named("Union1").of(first).output();
   }
 
   @Test
@@ -59,9 +55,7 @@ public class UnionTest {
     final Dataset<String> second = Util.createMockDataset(flow, 2);
     final Dataset<String> third = Util.createMockDataset(flow, 3);
 
-    final Dataset<String> unioned = Union.named("Union1")
-        .of(first, second, third)
-        .output();
+    final Dataset<String> unioned = Union.named("Union1").of(first, second, third).output();
 
     assertEquals(flow, unioned.getFlow());
     assertEquals(1, flow.size());
@@ -81,9 +75,7 @@ public class UnionTest {
     final Dataset<String> second = Util.createMockDataset(flow, 2);
     final Dataset<String> third = Util.createMockDataset(flow2, 3);
 
-    Union.named("Union1")
-        .of(first, second, third)
-        .output();
+    Union.named("Union1").of(first, second, third).output();
   }
 
   @Test

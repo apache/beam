@@ -17,7 +17,6 @@ package cz.seznam.euphoria.core.executor.graph;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.util.Pair;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -45,15 +44,12 @@ public class DAG<T> {
   final List<Node<T>> roots = new ArrayList<>();
   final Map<T, Node<T>> nodeMap = new HashMap<>();
 
-  private DAG() {
-
-  }
+  private DAG() {}
 
   /**
    * Constructs a new, empty DAG.
    *
    * @param <T> the type of nodes to be stored in the new DAG
-   *
    * @return a new, empty dag
    */
   public static <T> DAG<T> empty() {
@@ -64,14 +60,11 @@ public class DAG<T> {
    * Construct a new DAG with given nodes as root nodes.
    *
    * @param <T> the type of the nodes
-   *
-   * @param rootElements the set of root elements to traverse
-   *         and build up the DAG from
-   *
+   * @param rootElements the set of root elements to traverse and build up the DAG from
    * @return the dag of the given root elements
    */
   @SuppressWarnings("unchecked")
-  public static <T> DAG<T> of(T ...rootElements) {
+  public static <T> DAG<T> of(T... rootElements) {
     return of(Arrays.asList(rootElements));
   }
 
@@ -79,10 +72,7 @@ public class DAG<T> {
    * Construct a new DAG with given nodes as root nodes.
    *
    * @param <T> the type of the elements/values in the new DAG
-   *
-   * @param rootElements the set of root elements to traverse
-   *         and build up the DAG from
-   *
+   * @param rootElements the set of root elements to traverse and build up the DAG from
    * @return the dag of the given root elements
    */
   public static <T> DAG<T> of(Iterable<T> rootElements) {
@@ -93,13 +83,11 @@ public class DAG<T> {
     return ret;
   }
 
-
   /**
    * Add new element. If no parents, add this as a root element.
    *
    * @param elem the element to be added to this DAG
    * @param parents the parent elements of <tt>elem</tt>
-   *
    * @return this instance (for method chaining purposes)
    */
   @SafeVarargs
@@ -108,13 +96,11 @@ public class DAG<T> {
     return this;
   }
 
-
   /**
    * Add new element. If no parents, add this as a root element.
    *
    * @param elem the element to be added to this DAG
    * @param parents the parent elements of <tt>elem</tt>
-   *
    * @return this instance (for method chaining purposes)
    */
   public DAG<T> add(T elem, List<T> parents) {
@@ -122,37 +108,32 @@ public class DAG<T> {
     if (parents.isEmpty()) {
       roots.add(node = new Node<>(elem));
     } else {
-      List<Node<T>> parentNodes = parents.stream()
-          .map(this::getNode).collect(Collectors.toList());
+      List<Node<T>> parentNodes = parents.stream().map(this::getNode).collect(Collectors.toList());
       node = new Node<>(elem, parentNodes);
       parentNodes.forEach(p -> p.children.add(node));
     }
     if (nodeMap.containsKey(elem)) {
-      throw new IllegalArgumentException(
-          "Element " + elem + " is already added to the graph.");
+      throw new IllegalArgumentException("Element " + elem + " is already added to the graph.");
     }
     nodeMap.put(elem, node);
     return this;
   }
 
-
   /**
    * Check if the graph already contains given element.
+   *
    * @param elem the element to search for
    * @return {@code true} if the graph contains the element, {@code false} otherwise
    */
   public boolean contains(T elem) {
     return nodeMap.get(elem) != null;
   }
-  
 
   /**
    * Retrieves the node for the given value.
    *
    * @param elem the element to find in this DAG
-   *
    * @return the node within this DAG hosting the given element
-   *
    * @throws IllegalStateException if there is no such node
    */
   public Node<T> getNode(T elem) {
@@ -163,30 +144,21 @@ public class DAG<T> {
     return ret;
   }
 
-
-  /**
-   * @return the list of root nodes of this DAG
-   */
+  /** @return the list of root nodes of this DAG */
   public Collection<Node<T>> getRoots() {
     return roots;
   }
 
-
-  /**
-   * @return a collection of leaf nodes of this DAG, i.e. nodes with no children
-   */
+  /** @return a collection of leaf nodes of this DAG, i.e. nodes with no children */
   public Collection<Node<T>> getLeafs() {
-    return nodeMap.values().stream().filter(n -> n.children.isEmpty())
-        .collect(Collectors.toList());
+    return nodeMap.values().stream().filter(n -> n.children.isEmpty()).collect(Collectors.toList());
   }
 
-
   /**
-   * Retrieve a subgraph containing the given node as a single leaf node and
-   * a transitive closure of parents.
+   * Retrieve a subgraph containing the given node as a single leaf node and a transitive closure of
+   * parents.
    *
    * @param elem the element whose sub-graph to identify
-   *
    * @return the identified sub-graph
    */
   public DAG<T> parentSubGraph(T elem) {
@@ -208,21 +180,17 @@ public class DAG<T> {
     }
     // iterate over the nodeList reversed and add nodes
     for (Node<T> node : reversedNodes) {
-      List<T> parents = node.parents
-          .stream().map(n -> n.value)
-          .collect(Collectors.toList());
+      List<T> parents = node.parents.stream().map(n -> n.value).collect(Collectors.toList());
       ret.add(node.value, parents);
     }
 
     return ret;
   }
 
-
   /** @return the number of nodes in this DAG */
   public int size() {
     return nodeMap.size();
   }
-
 
   /** @return all nodes of this DAG in no particular order */
   public Stream<T> nodes() {
@@ -230,13 +198,12 @@ public class DAG<T> {
   }
 
   /**
-   * Retrieves a stream of nodes in traversal order (i.e. from non-dependent nodes
-   * to those depending on the already served ones.)
-   * <p>
-   * In the returned stream, a node at a certain position is likely to be a
-   * dependency of a node at a later position; reversely, a node at a certain
-   * position is guaranteed <i>not to be</i> a dependency of all nodes at earlier
-   * positions.
+   * Retrieves a stream of nodes in traversal order (i.e. from non-dependent nodes to those
+   * depending on the already served ones.)
+   *
+   * <p>In the returned stream, a node at a certain position is likely to be a dependency of a node
+   * at a later position; reversely, a node at a certain position is guaranteed <i>not to be</i> a
+   * dependency of all nodes at earlier positions.
    *
    * @return a stream of all nodes in traversal order
    */
@@ -278,10 +245,8 @@ public class DAG<T> {
       }
       sb.append(poll.getSecond().get());
       sb.append("\n");
-      poll.getSecond().children
-          .forEach(n -> open.addFirst(Pair.of(poll.getFirst() + 1, n)));
+      poll.getSecond().children.forEach(n -> open.addFirst(Pair.of(poll.getFirst() + 1, n)));
     }
     return sb.toString();
   }
-
 }

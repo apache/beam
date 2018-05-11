@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Streams;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -37,16 +37,8 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-import java.util.stream.StreamSupport;
-
 /** Translator for {@code ReduceByKey} operator. */
 class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(ReduceByKey operator, BeamExecutorContext context) {
-    return doTranslate(operator, context);
-  }
 
   @SuppressWarnings("unchecked")
   private static <IN, KEY, VALUE, OUT, W extends Window<W>> PCollection<Pair<KEY, OUT>> doTranslate(
@@ -130,9 +122,15 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     final ReduceFunctor<IN, IN> combiner = (ReduceFunctor<IN, IN>) reducer;
     final SingleValueCollector<IN> collector = new SingleValueCollector<>();
     return (Iterable<IN> input) -> {
-      combiner.apply(Streams.stream(input), collector);
+      combiner.apply(StreamSupport.stream(input.spliterator(), false), collector);
       return collector.get();
     };
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public PCollection<?> translate(ReduceByKey operator, BeamExecutorContext context) {
+    return doTranslate(operator, context);
   }
 
   private static class ReduceDoFn<K, V, O> extends DoFn<KV<K, Iterable<V>>, Pair<K, O>> {

@@ -28,14 +28,11 @@ import java.io.Serializable;
 public interface UnboundedPartition<T, OFFSET> extends Serializable {
 
   /**
-   * Opens a reader over this partition. It the caller's
-   * responsibility to close the reader once not needed anymore.
+   * Opens a reader over this partition. It the caller's responsibility to close the reader once not
+   * needed anymore.
    *
    * @return an opened reader to this partition's data
-   *
-   * @throws IOException if opening a reader to this partitions
-   *          data fails for some reason
+   * @throws IOException if opening a reader to this partitions data fails for some reason
    */
   UnboundedReader<T, OFFSET> openReader() throws IOException;
-
 }

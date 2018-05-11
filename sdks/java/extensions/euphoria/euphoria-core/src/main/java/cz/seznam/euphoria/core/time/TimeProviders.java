@@ -23,8 +23,8 @@ import java.util.Objects;
 import java.util.TimeZone;
 
 /**
- * A set of pre-defined time provider implementations all based on utilities
- * provided by the underlying JDK.
+ * A set of pre-defined time provider implementations all based on utilities provided by the
+ * underlying JDK.
  */
 @Audience(Audience.Type.EXECUTOR)
 public class TimeProviders {
@@ -37,8 +37,8 @@ public class TimeProviders {
   /**
    * Retrieves a time provider based on the default timezone
    *
-   * @return a default time provider based on the jvm's "current" time zone and
-   *          the machines local datetime
+   * @return a default time provider based on the jvm's "current" time zone and the machines local
+   *     datetime
    */
   public static TimeProvider getInstance() {
     return new DefaultTimeProvider();
@@ -48,7 +48,6 @@ public class TimeProviders {
    * Retrieves a time provider parametrized by the specified timezone
    *
    * @param tz timezone
-   *
    * @return a time provider based on the specified time zone
    */
   public static TimeProvider getInstance(TimeZone tz) {
@@ -59,14 +58,13 @@ public class TimeProviders {
    * Retrieves a time provider with fixed datetime
    *
    * @param d the fixed point in time
-   *
    * @return a time provider based on the a fixed point in time
    */
   public static FixedTimeProvider getFixedTimeInstance(Date d) {
     return new FixedTimeProvider(d);
   }
 
-  public static abstract class AbstractTimeProvider implements TimeProvider {
+  public abstract static class AbstractTimeProvider implements TimeProvider {
 
     @Override
     public Date now() {
@@ -92,13 +90,9 @@ public class TimeProviders {
     }
 
     public abstract Calendar nowAsCalendar();
-
   } // ~ end of AbstractTimeProvider
 
-  /**
-   * {@link TimeProvider} implementation based on the real system time
-   * and default timezone
-   */
+  /** {@link TimeProvider} implementation based on the real system time and default timezone */
   static class DefaultTimeProvider extends AbstractTimeProvider {
     @Override
     public Calendar nowAsCalendar() {
@@ -107,8 +101,8 @@ public class TimeProviders {
   } // ~ end of DefaultTimeProvider
 
   /**
-   * {@link TimeProvider} implementation set to fixed time in UTC timezone.
-   * Such a provider is useful for testing purposes.
+   * {@link TimeProvider} implementation set to fixed time in UTC timezone. Such a provider is
+   * useful for testing purposes.
    */
   public static class FixedTimeProvider extends AbstractTimeProvider {
     private volatile Date date;
@@ -133,10 +127,7 @@ public class TimeProviders {
     }
   } // ~ end of FixedTimeProvider
 
-  /**
-   * {@link TimeProvider} implementation based on the real system time
-   * and given timezone
-   */
+  /** {@link TimeProvider} implementation based on the real system time and given timezone */
   static class TimezoneTimeProvider extends AbstractTimeProvider {
     private final TimeZone timezone;
 

@@ -20,9 +20,8 @@ import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import java.util.Iterator;
 
 /**
- * An {@code ExternalIterable}, that is stored in memory.
- * Use this class with care, because it might cause OOME or other
- * performance issues.
+ * An {@code ExternalIterable}, that is stored in memory. Use this class with care, because it might
+ * cause OOME or other performance issues.
  */
 @Audience(Audience.Type.INTERNAL)
 public class InMemExternalIterable<T> implements ExternalIterable<T> {
@@ -42,5 +41,4 @@ public class InMemExternalIterable<T> implements ExternalIterable<T> {
   public void close() {
     // nop
   }
-
 }

@@ -17,6 +17,8 @@ package cz.seznam.euphoria.beam.io;
 
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
+import java.io.IOException;
+import java.util.Objects;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -24,23 +26,18 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-import java.io.IOException;
-import java.util.Objects;
-
-/**
- * Write to output sink using beam.
- */
+/** Write to output sink using beam. */
 @DoFn.BoundedPerElement
 public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
-
-  public static <T> BeamWriteSink<T> wrap(DataSink<T> sink) {
-    return new BeamWriteSink<>(sink);
-  }
 
   private final DataSink<T> sink;
 
   private BeamWriteSink(DataSink<T> sink) {
     this.sink = Objects.requireNonNull(sink);
+  }
+
+  public static <T> BeamWriteSink<T> wrap(DataSink<T> sink) {
+    return new BeamWriteSink<>(sink);
   }
 
   @Override
@@ -82,7 +79,5 @@ public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
       writer.commit();
       writer.close();
     }
-
   }
-
 }

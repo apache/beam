@@ -20,13 +20,10 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-
-import javax.annotation.Nullable;
 import java.util.Collection;
+import javax.annotation.Nullable;
 
-/**
- * {@code InputDataset} that is input of a {@code Flow}.
- */
+/** {@code InputDataset} that is input of a {@code Flow}. */
 @Audience(Audience.Type.EXECUTOR)
 class InputDataset<T> implements Dataset<T> {
 
@@ -54,8 +51,7 @@ class InputDataset<T> implements Dataset<T> {
 
   @Override
   public void persist(DataSink<T> sink) {
-    throw new UnsupportedOperationException(
-        "The input dataset is already stored.");
+    throw new UnsupportedOperationException("The input dataset is already stored.");
   }
 
   @Override
@@ -72,5 +68,4 @@ class InputDataset<T> implements Dataset<T> {
   public Collection<Operator<?, ?>> getConsumers() {
     return flow.getConsumersOf(this);
   }
-
 }

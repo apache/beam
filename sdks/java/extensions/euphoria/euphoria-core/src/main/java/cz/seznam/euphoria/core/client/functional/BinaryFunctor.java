@@ -19,13 +19,10 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 import java.io.Serializable;
 
-/**
- * Functor of two arguments.
- */
+/** Functor of two arguments. */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
 
   void apply(LEFT left, RIGHT right, Collector<OUT> context);
-
 }

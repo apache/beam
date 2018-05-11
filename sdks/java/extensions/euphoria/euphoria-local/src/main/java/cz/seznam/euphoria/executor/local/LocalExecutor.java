@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.executor.local;
 
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
@@ -46,10 +46,6 @@ import cz.seznam.euphoria.core.executor.VectorClock;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.Settings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -75,248 +71,101 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Local executor for testing and not fault tolerant local applications.
- */
+/** Local executor for testing and not fault tolerant local applications. */
 public class LocalExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
-
-  @FunctionalInterface
-  private interface Supplier {
-    Datum get() throws InterruptedException;
-  }
-
-  static final class UnboundedPartitionSupplierStream implements Supplier {
-
-    final UnboundedReader<?, Object> reader;
-    final UnboundedPartition<?, Object> partition;
-    @SuppressWarnings("unchecked")
-    UnboundedPartitionSupplierStream(UnboundedPartition<?, ?> partition) {
-      this.partition = (UnboundedPartition) partition;
-      try {
-        this.reader = this.partition.openReader();
-      } catch (IOException e) {
-        throw new RuntimeException(
-            "Failed to open reader for partition: " + partition, e);
-      }
-    }
-
-    @Override
-    public Datum get() {
-      if (!this.reader.hasNext()) {
-        try {
-          this.reader.close();
-        } catch (IOException e) {
-          throw new RuntimeException(
-              "Failed to close reader for partition: " + this.partition, e);
-        }
-        return Datum.endOfStream();
-      }
-      Object next = this.reader.next();
-      // we commit right away
-      this.reader.commitOffset(this.reader.getCurrentOffset());
-      // we assign it to global windowing
-      return Datum.of(
-          GlobalWindowing.Window.get(), next,
-          // ingestion time
-          System.currentTimeMillis());
-    }
-  }
-
-  static final class BoundedPartitionSupplierStream implements Supplier {
-
-    final BoundedReader<?> reader;
-    final BoundedDataSource<?> partition;
-    BoundedPartitionSupplierStream(BoundedDataSource<?> partition) {
-      this.partition = partition;
-      try {
-        this.reader = partition.openReader();
-      } catch (IOException e) {
-        throw new RuntimeException(
-            "Failed to open reader for partition: " + partition, e);
-      }
-    }
-
-    @Override
-    public Datum get() {
-      if (!this.reader.hasNext()) {
-        try {
-          this.reader.close();
-        } catch (IOException e) {
-          throw new RuntimeException(
-              "Failed to close reader for partition: " + this.partition, e);
-        }
-        return Datum.endOfStream();
-      }
-      Object next = this.reader.next();
-      // we assign it to batch
-      return Datum.of(
-          GlobalWindowing.Window.get(), next,
-          // ingestion time
-          System.currentTimeMillis());
-    }
-  }
-
-
-  /** Partitioned provider of input data for single operator. */
-  private static final class InputProvider implements Iterable<Supplier> {
-    final List<Supplier> suppliers;
-    InputProvider() {
-      this.suppliers = new ArrayList<>();
-    }
-
-    public int size() {
-      return suppliers.size();
-    }
-
-    public void add(Supplier s) {
-      suppliers.add(s);
-    }
-
-    public Supplier get(int i) {
-      return suppliers.get(i);
-    }
-
-    @Override
-    public Iterator<Supplier> iterator() {
-      return suppliers.iterator();
-    }
-
-    Stream<Supplier> stream() {
-      return suppliers.stream();
-    }
-  }
-
-  static class QueueCollector implements Collector<Datum> {
-    static QueueCollector wrap(BlockingQueue<Datum> queue) {
-      return new QueueCollector(queue);
-    }
-    private final BlockingQueue<Datum> queue;
-    QueueCollector(BlockingQueue<Datum> queue) {
-      this.queue = queue;
-    }
-    @Override
-    public void collect(Datum elem) {
-      try {
-        queue.put(elem);
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
-      }
-    }
-  }
-
-  private static final class QueueSupplier implements Supplier {
-
-    static QueueSupplier wrap(BlockingQueue<Datum> queue) {
-      return new QueueSupplier(queue);
-    }
-
-    private final BlockingQueue<Datum> queue;
-
-    QueueSupplier(BlockingQueue<Datum> queue) {
-      this.queue = queue;
-    }
-
-    @Override
-    public Datum get() throws InterruptedException {
-      return queue.take();
-    }
-  }
-
-  private static final class ExecutionContext {
-    private final Settings settings;
-
-    // map of operator inputs to suppliers
-    Map<Pair<Operator<?, ?>, Operator<?, ?>>, InputProvider> materializedOutputs;
-    // already running operators
-    Set<Operator<?, ?>> runningOperators;
-
-    public ExecutionContext(Settings settings) {
-      this.settings = settings;
-      this.materializedOutputs = Collections.synchronizedMap(new HashMap<>());
-      this.runningOperators = Collections.synchronizedSet(new HashSet<>());
-    }
-
-    private boolean containsKey(Pair<Operator<?, ?>, Operator<?, ?>> d) {
-      return materializedOutputs.containsKey(d);
-    }
-    void add(Operator<?, ?> source, Operator<?, ?> target,
-        InputProvider partitions) {
-      Pair<Operator<?, ?>, Operator<?, ?>> edge = Pair.of(source, target);
-      if (containsKey(edge)) {
-        throw new IllegalArgumentException("Dataset for edge "
-            + edge + " is already materialized!");
-      }
-      materializedOutputs.put(edge, partitions);
-    }
-    InputProvider get(Operator<?, ?> source, Operator<?, ?> target) {
-      Pair<Operator<?, ?>, Operator<?, ?>> edge = Pair.of(source, target);
-      InputProvider sup = materializedOutputs.get(edge);
-      if (sup == null) {
-        throw new IllegalArgumentException(String.format(
-            "Do not have suppliers for edge %s -> %s (original producer %s )",
-            source, target, source.output().getProducer()));
-      }
-      return sup;
-    }
-    void markRunning(Operator<?, ?> operator) {
-      if (!this.runningOperators.add(operator)) {
-        throw new IllegalStateException("Twice running the same operator?");
-      }
-    }
-    boolean isRunning(Operator<?, ?> operator) {
-      return runningOperators.contains(operator);
-    }
-
-    public Settings getSettings() {
-      return settings;
-    }
-  }
-
   private final BlockingQueue<Runnable> queue = new SynchronousQueue<>(false);
-  private final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-      0, Integer.MAX_VALUE,
-      60, TimeUnit.SECONDS,
-      queue,
-      new ThreadFactory() {
-        ThreadFactory factory = Executors.defaultThreadFactory();
-        @Override
-        public Thread newThread(Runnable r) {
-          Thread thread = factory.newThread(r);
-          thread.setDaemon(true);
-          thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> {
-            e.printStackTrace(System.err);
+  private final ThreadPoolExecutor executor =
+      new ThreadPoolExecutor(
+          0,
+          Integer.MAX_VALUE,
+          60,
+          TimeUnit.SECONDS,
+          queue,
+          new ThreadFactory() {
+            ThreadFactory factory = Executors.defaultThreadFactory();
+
+            @Override
+            public Thread newThread(Runnable r) {
+              Thread thread = factory.newThread(r);
+              thread.setDaemon(true);
+              thread.setUncaughtExceptionHandler(
+                  (Thread t, Throwable e) -> {
+                    e.printStackTrace(System.err);
+                  });
+              return thread;
+            }
           });
-          return thread;
-        }
-      });
-
-  private java.util.function.Supplier<WatermarkEmitStrategy> watermarkEmitStrategySupplier
-      = WatermarkEmitStrategy.Default::new;
-  private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier
-      = ProcessingTimeTriggerScheduler::new;
-
+  private java.util.function.Supplier<WatermarkEmitStrategy> watermarkEmitStrategySupplier =
+      WatermarkEmitStrategy.Default::new;
+  private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier =
+      ProcessingTimeTriggerScheduler::new;
   // default parallelism
   private int parallel = -1;
   private boolean allowWindowBasedShuffling = false;
   private boolean allowEarlyEmitting = false;
-
   private StateContext stateContext = new LocalStateContext();
+  private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
 
-  private AccumulatorProvider.Factory accumulatorFactory =
-          VoidAccumulatorProvider.getFactory();
+  // utility method used after extracting element from upstream
+  // queue, the element is passed to the downstream partitions
+  // if it is a metadata element
+  // @returns true if the element was handled
+  static boolean handleMetaData(
+      Datum item, List<BlockingQueue<Datum>> downstream, int readerId, List<VectorClock> clocks) {
+
+    // update vector clocks by the watermark
+    // if any update occurs, emit the updates time downstream
+    int i = 0;
+    long stamp = item.getTimestamp();
+    for (VectorClock clock : clocks) {
+      long current = clock.getCurrent();
+      clock.update(stamp, readerId);
+      long after = clock.getCurrent();
+      if (current != after) {
+        try {
+          // we have updated the stamp, emit the new watermark
+          downstream.get(i).put(Datum.watermark(after));
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      i++;
+    }
+
+    // watermark already handled
+    if (item.isWatermark()) return true;
+
+    // do not hadle elements
+    if (item.isElement()) return false;
+
+    // propagate window triggers to downstream consumers
+    if (item.isWindowTrigger()) {
+      try {
+        for (BlockingQueue<Datum> ch : downstream) {
+          ch.put(item);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    // was handled
+    return true;
+  }
 
   /**
-   * Specifies whether stateful operators are allowed to emit their results
-   * early.<p>
+   * Specifies whether stateful operators are allowed to emit their results early.
    *
-   * Defaults to {@code false}.
+   * <p>Defaults to {@code false}.
    *
-   * @param allowEarlyEmitting {@code true} to allow states to emit early
-   *                           results, {@code false} otherwise
-   *
+   * @param allowEarlyEmitting {@code true} to allow states to emit early results, {@code false}
+   *     otherwise
    * @return this instance (for method chaining purposes)
    */
   public LocalExecutor setAllowEarlyEmitting(boolean allowEarlyEmitting) {
@@ -325,13 +174,11 @@ public class LocalExecutor implements Executor {
   }
 
   /**
-   * Set supplier for watermark emit strategy used in state operations.
-   * Defaults to {@code WatermarkEmitStrategy.Default}.
+   * Set supplier for watermark emit strategy used in state operations. Defaults to {@code
+   * WatermarkEmitStrategy.Default}.
    *
    * @param supplier the watermark supplier
-   *
    * @return this instance (for method chaining purposes)
-   *
    * @throws NullPointerException if the given reference is {@code null}
    */
   public LocalExecutor setWatermarkEmitStrategySupplier(
@@ -341,13 +188,11 @@ public class LocalExecutor implements Executor {
   }
 
   /**
-   * Set supplier for {@code TriggerScheduler} to be used in state operations.
-   * Default is {@code ProcessingTimeTriggerScheduler}.
+   * Set supplier for {@code TriggerScheduler} to be used in state operations. Default is {@code
+   * ProcessingTimeTriggerScheduler}.
    *
    * @param supplier the scheduler supplier
-   *
    * @return this instance (for method chaining purposes)
-   *
    * @throws NullPointerException if the given reference is {@code null}
    */
   public LocalExecutor setTriggeringSchedulerSupplier(
@@ -370,9 +215,7 @@ public class LocalExecutor implements Executor {
    * Set context for state's creation. Defaults to {@code StateContext}.
    *
    * @param context the context to use for state creation
-   *
    * @return this instance (for method chaining purposes)
-   *
    * @throws NullPointerException if the given reference is {@code null}
    */
   public LocalExecutor setStateContext(StateContext context) {
@@ -418,7 +261,9 @@ public class LocalExecutor implements Executor {
     }
 
     // extract all processed sinks
-    List<DataSink<?>> sinks = leafs.stream()
+    List<DataSink<?>> sinks =
+        leafs
+            .stream()
             .map(n -> n.get().output().getOutputSink())
             .filter(s -> s != null)
             .collect(Collectors.toList());
@@ -457,8 +302,7 @@ public class LocalExecutor implements Executor {
   /** Read all outputs of given nodes and store them using their sinks. */
   @SuppressWarnings("unchecked")
   private List<Future<?>> consumeOutputs(
-      Collection<Node<Operator<?, ?>>> leafs,
-      ExecutionContext context) {
+      Collection<Node<Operator<?, ?>>> leafs, ExecutionContext context) {
 
     List<Future<?>> tasks = new ArrayList<>();
     // consume outputs
@@ -469,36 +313,38 @@ public class LocalExecutor implements Executor {
       int part = 0;
       for (Supplier s : provider) {
         final Writer writer = sink.openWriter(part++);
-        tasks.add(executor.submit(() -> {
-          try {
-            for (;;) {
-              Datum datum = s.get();
-              if (datum.isEndOfStream()) {
-                // end of the stream
-                writer.flush();
-                writer.commit();
-                // and terminate the thread
-                break;
-              } else if (datum.isElement()) {
-                // ~ unwrap the bare bone element
-                writer.write(datum.getElement());
-              }
-            }
-          } catch (IOException ex) {
-            rollbackWriterUnchecked(writer);
-            // propagate exception
-            throw new RuntimeException(ex);
-          } catch (InterruptedException ex) {
-            rollbackWriterUnchecked(writer);
-          } finally {
-            try {
-              writer.close();
-            } catch (IOException ioex) {
-              LOG.warn("Something went wrong", ioex);
-              // swallow exception
-            }
-          }
-        }));
+        tasks.add(
+            executor.submit(
+                () -> {
+                  try {
+                    for (; ; ) {
+                      Datum datum = s.get();
+                      if (datum.isEndOfStream()) {
+                        // end of the stream
+                        writer.flush();
+                        writer.commit();
+                        // and terminate the thread
+                        break;
+                      } else if (datum.isElement()) {
+                        // ~ unwrap the bare bone element
+                        writer.write(datum.getElement());
+                      }
+                    }
+                  } catch (IOException ex) {
+                    rollbackWriterUnchecked(writer);
+                    // propagate exception
+                    throw new RuntimeException(ex);
+                  } catch (InterruptedException ex) {
+                    rollbackWriterUnchecked(writer);
+                  } finally {
+                    try {
+                      writer.close();
+                    } catch (IOException ioex) {
+                      LOG.warn("Something went wrong", ioex);
+                      // swallow exception
+                    }
+                  }
+                }));
       }
     }
     return tasks;
@@ -518,12 +364,16 @@ public class LocalExecutor implements Executor {
 
     if (source.isBounded()) {
       BoundedDataSource<?> bounded = source.asBounded();
-      bounded.split(bounded.sizeEstimate() / defaultParallelism())
+      bounded
+          .split(bounded.sizeEstimate() / defaultParallelism())
           .stream()
           .map(BoundedPartitionSupplierStream::new)
           .forEach(ret::add);
     } else {
-      source.asUnbounded().getPartitions().stream()
+      source
+          .asUnbounded()
+          .getPartitions()
+          .stream()
           .map(UnboundedPartitionSupplierStream::new)
           .forEach(ret::add);
     }
@@ -535,13 +385,9 @@ public class LocalExecutor implements Executor {
     unit.getDAG().traverse().forEach(n -> execNode(n, context));
   }
 
-  /**
-   * Execute single operator and return the suppliers for partitions
-   * of output.
-   */
+  /** Execute single operator and return the suppliers for partitions of output. */
   @SuppressWarnings("unchecked")
-  private void execNode(
-      Node<Operator<?, ?>> node, ExecutionContext context) {
+  private void execNode(Node<Operator<?, ?>> node, ExecutionContext context) {
     Operator<?, ?> op = node.get();
     final InputProvider output;
     if (context.isRunning(op)) {
@@ -576,30 +422,30 @@ public class LocalExecutor implements Executor {
       for (int p = 0; p < output.size(); p++) {
         int partId = p;
         Supplier partSup = output.get(p);
-        List<BlockingQueue<?>> outputs = forkedProviders.stream()
-            .map(l -> l.get(partId)).collect(Collectors.toList());
-        executor.execute(() -> {
-          // copy the original data to all queues
-          for (;;) {
-            try {
-              Datum item = partSup.get();
-              for (BlockingQueue ch : outputs) {
+        List<BlockingQueue<?>> outputs =
+            forkedProviders.stream().map(l -> l.get(partId)).collect(Collectors.toList());
+        executor.execute(
+            () -> {
+              // copy the original data to all queues
+              for (; ; ) {
                 try {
-                  ch.put(item);
+                  Datum item = partSup.get();
+                  for (BlockingQueue ch : outputs) {
+                    try {
+                      ch.put(item);
+                    } catch (InterruptedException ex) {
+                      Thread.currentThread().interrupt();
+                    }
+                  }
+                  if (item.isEndOfStream()) {
+                    return;
+                  }
                 } catch (InterruptedException ex) {
                   Thread.currentThread().interrupt();
+                  break;
                 }
               }
-              if (item.isEndOfStream()) {
-                return;
-              }
-            } catch (InterruptedException ex) {
-              Thread.currentThread().interrupt();
-              break;
-            }
-          }
-        });
-
+            });
       }
 
     } else if (node.getChildren().size() == 1) {
@@ -610,71 +456,69 @@ public class LocalExecutor implements Executor {
   }
 
   @SuppressWarnings("unchecked")
-  private InputProvider execMap(Node<FlatMap> flatMap,
-      ExecutionContext context) {
-    InputProvider suppliers = context.get(
-        flatMap.getSingleParentOrNull().get(), flatMap.get());
+  private InputProvider execMap(Node<FlatMap> flatMap, ExecutionContext context) {
+    InputProvider suppliers = context.get(flatMap.getSingleParentOrNull().get(), flatMap.get());
     InputProvider ret = new InputProvider();
     final UnaryFunctor mapper = flatMap.get().getFunctor();
     final ExtractEventTime eventTimeFn = flatMap.get().getEventTimeExtractor();
     for (Supplier s : suppliers) {
       final BlockingQueue<Datum> out = new ArrayBlockingQueue(5000);
       ret.add(QueueSupplier.wrap(out));
-      executor.execute(() -> {
-        Collector collector = QueueCollector.wrap(out);
-        for (;;) {
-          try {
-            // read input
-            Datum item = s.get();
-            if (eventTimeFn != null && item.isElement()) {
-              item.setTimestamp(eventTimeFn.extractTimestamp(item.getElement()));
-            }
-            WindowedElementCollector outC = new WindowedElementCollector(
-                collector, item::getTimestamp, accumulatorFactory, context.getSettings());
-            if (item.isElement()) {
-              // transform
-              outC.setWindow(item.getWindow());
-              mapper.apply(item.getElement(), outC);
-            } else if (eventTimeFn != null && item.isWatermark()) {
-              // ~ do no forward old watermarks since we are redefining
-              // them as part of the time assignment function
-            } else {
-              out.put(item);
-              if (item.isEndOfStream()) {
+      executor.execute(
+          () -> {
+            Collector collector = QueueCollector.wrap(out);
+            for (; ; ) {
+              try {
+                // read input
+                Datum item = s.get();
+                if (eventTimeFn != null && item.isElement()) {
+                  item.setTimestamp(eventTimeFn.extractTimestamp(item.getElement()));
+                }
+                WindowedElementCollector outC =
+                    new WindowedElementCollector(
+                        collector, item::getTimestamp, accumulatorFactory, context.getSettings());
+                if (item.isElement()) {
+                  // transform
+                  outC.setWindow(item.getWindow());
+                  mapper.apply(item.getElement(), outC);
+                } else if (eventTimeFn != null && item.isWatermark()) {
+                  // ~ do no forward old watermarks since we are redefining
+                  // them as part of the time assignment function
+                } else {
+                  out.put(item);
+                  if (item.isEndOfStream()) {
+                    break;
+                  }
+                }
+              } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
                 break;
               }
             }
-          } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            break;
-          }
-        }
-      });
+          });
     }
     return ret;
   }
 
   private InputProvider execReduceStateByKey(
-      Node<ReduceStateByKey> reduceStateByKeyNode,
-      ExecutionContext context) {
+      Node<ReduceStateByKey> reduceStateByKeyNode, ExecutionContext context) {
 
     final ReduceStateByKey reduceStateByKey = reduceStateByKeyNode.get();
     final UnaryFunction keyExtractor = reduceStateByKey.getKeyExtractor();
     final UnaryFunction valueExtractor = reduceStateByKey.getValueExtractor();
 
-    InputProvider suppliers = context.get(
-        reduceStateByKeyNode.getSingleParentOrNull().get(),
-        reduceStateByKeyNode.get());
+    InputProvider suppliers =
+        context.get(reduceStateByKeyNode.getSingleParentOrNull().get(), reduceStateByKeyNode.get());
 
     final Windowing windowing = reduceStateByKey.getWindowing();
 
-    List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
-        suppliers, keyExtractor, windowing);
+    List<BlockingQueue<Datum>> repartitioned =
+        repartitionSuppliers(suppliers, keyExtractor, windowing);
 
     InputProvider outputSuppliers = new InputProvider();
     TriggerScheduler triggerScheduler = triggerSchedulerSupplier.get();
-    final long watermarkDuration
-        = triggerScheduler instanceof WatermarkTriggerScheduler
+    final long watermarkDuration =
+        triggerScheduler instanceof WatermarkTriggerScheduler
             ? ((WatermarkTriggerScheduler) triggerScheduler).getWatermarkDuration()
             : 0L;
     // consume repartitioned suppliers
@@ -682,22 +526,26 @@ public class LocalExecutor implements Executor {
     for (BlockingQueue<Datum> q : repartitioned) {
       final BlockingQueue<Datum> output = new ArrayBlockingQueue<>(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
-      executor.execute(new ReduceStateByKeyReducer(
-          reduceStateByKey,
-          reduceStateByKey.getName() + "#part-" + (i++),
-          q, output, keyExtractor, valueExtractor,
-          // ~ on batch input we use a noop trigger scheduler
-          // ~ if using attached windowing, we have to use watermark triggering
-          reduceStateByKey.input().isBounded()
-            ? new NoopTriggerScheduler()
-            : (windowing != null
-                  ? triggerSchedulerSupplier.get()
-                  : new WatermarkTriggerScheduler(watermarkDuration)),
-          watermarkEmitStrategySupplier.get(),
-          stateContext,
-          accumulatorFactory,
-          context.getSettings(),
-          allowEarlyEmitting));
+      executor.execute(
+          new ReduceStateByKeyReducer(
+              reduceStateByKey,
+              reduceStateByKey.getName() + "#part-" + (i++),
+              q,
+              output,
+              keyExtractor,
+              valueExtractor,
+              // ~ on batch input we use a noop trigger scheduler
+              // ~ if using attached windowing, we have to use watermark triggering
+              reduceStateByKey.input().isBounded()
+                  ? new NoopTriggerScheduler()
+                  : (windowing != null
+                      ? triggerSchedulerSupplier.get()
+                      : new WatermarkTriggerScheduler(watermarkDuration)),
+              watermarkEmitStrategySupplier.get(),
+              stateContext,
+              accumulatorFactory,
+              context.getSettings(),
+              allowEarlyEmitting));
     }
     return outputSuppliers;
   }
@@ -740,144 +588,95 @@ public class LocalExecutor implements Executor {
       // each input partition maintains maximum element's timestamp that
       // passed through it
       final AtomicLong maxElementTimestamp = new AtomicLong();
-      emitStrategies[readerId].schedule(() -> handleMetaData(
-          Datum.watermark(maxElementTimestamp.get()), ret, readerId, clocks));
-      executor.execute(() -> {
-        try {
-          for (;;) {
-            // read input
-            Datum datum = s.get();
+      emitStrategies[readerId].schedule(
+          () -> handleMetaData(Datum.watermark(maxElementTimestamp.get()), ret, readerId, clocks));
+      executor.execute(
+          () -> {
+            try {
+              for (; ; ) {
+                // read input
+                Datum datum = s.get();
 
-            if (datum.isEndOfStream()) {
-              break;
-            }
-
-            if (!handleMetaData(datum, ret, readerId, clocks)) {
-
-              // extract element's timestamp if available
-              long elementStamp = datum.getTimestamp();
-              maxElementTimestamp.accumulateAndGet(elementStamp,
-                  (oldVal, newVal) -> oldVal < newVal ? newVal : oldVal);
-              // determine partition
-              Object key = keyExtractor.apply(datum.getElement());
-              final Iterable<Window> targetWindows;
-              Object windowShift = null;
-              if (allowWindowBasedShuffling) {
-                if (windowing != null) {
-                  targetWindows = windowing.assignWindowsToElement(datum);
-                } else {
-                  targetWindows = Collections.singleton(datum.getWindow());
+                if (datum.isEndOfStream()) {
+                  break;
                 }
 
-                if (!isMergingWindowing && Iterables.size(targetWindows) == 1) {
-                  windowShift = Iterables.getOnlyElement(targetWindows);
+                if (!handleMetaData(datum, ret, readerId, clocks)) {
+
+                  // extract element's timestamp if available
+                  long elementStamp = datum.getTimestamp();
+                  maxElementTimestamp.accumulateAndGet(
+                      elementStamp, (oldVal, newVal) -> oldVal < newVal ? newVal : oldVal);
+                  // determine partition
+                  Object key = keyExtractor.apply(datum.getElement());
+                  final Iterable<Window> targetWindows;
+                  Object windowShift = null;
+                  if (allowWindowBasedShuffling) {
+                    if (windowing != null) {
+                      targetWindows = windowing.assignWindowsToElement(datum);
+                    } else {
+                      targetWindows = Collections.singleton(datum.getWindow());
+                    }
+
+                    if (!isMergingWindowing && Iterables.size(targetWindows) == 1) {
+                      windowShift = Iterables.getOnlyElement(targetWindows);
+                    }
+                  }
+                  int partition =
+                      ((windowShift == null ? key.hashCode() : Objects.hash(windowShift, key))
+                              & Integer.MAX_VALUE)
+                          % numPartitions;
+                  // write to the correct partition
+                  ret.get(partition).put(datum);
                 }
               }
-              int partition = ((windowShift == null
-                  ? key.hashCode()
-                  : Objects.hash(windowShift, key)) & Integer.MAX_VALUE) % numPartitions;
-              // write to the correct partition
-              ret.get(partition).put(datum);
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+            } finally {
+              workers.countDown();
             }
-          }
-        } catch (InterruptedException ex) {
-          Thread.currentThread().interrupt();
-        } finally {
-          workers.countDown();
-        }
-      });
+          });
     }
     waitForStreamEnds(workers, ret);
     return ret;
   }
 
   // wait until runningTasks is not zero and then send EOF to all output queues
-  private void waitForStreamEnds(
-      CountDownLatch fire, List<BlockingQueue<Datum>> outputQueues) {
+  private void waitForStreamEnds(CountDownLatch fire, List<BlockingQueue<Datum>> outputQueues) {
     // start a new task that will wait for all read partitions to end
-    executor.execute(() -> {
-      try {
-        fire.await();
-      } catch (InterruptedException ex) {
-        LOG.warn("waiting-for-stream-ends interrupted");
-        Thread.currentThread().interrupt();
-      }
-      // try sending eof to all outputs
-      for (BlockingQueue<Datum> queue : outputQueues) {
-        try {
-          queue.put(Datum.endOfStream());
-        } catch (InterruptedException ex) {
-          Thread.currentThread().interrupt();
-        }
-      }
-    });
+    executor.execute(
+        () -> {
+          try {
+            fire.await();
+          } catch (InterruptedException ex) {
+            LOG.warn("waiting-for-stream-ends interrupted");
+            Thread.currentThread().interrupt();
+          }
+          // try sending eof to all outputs
+          for (BlockingQueue<Datum> queue : outputQueues) {
+            try {
+              queue.put(Datum.endOfStream());
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        });
   }
 
   @SuppressWarnings("unchecked")
-  private InputProvider execUnion(
-      Node<Union> union, ExecutionContext context) {
+  private InputProvider execUnion(Node<Union> union, ExecutionContext context) {
     final InputProvider ret = new InputProvider();
-    union.getParents().stream()
+    union
+        .getParents()
+        .stream()
         .flatMap(p -> context.get(p.get(), union.get()).stream())
         .forEach(ret::add);
     return ret;
   }
 
-  /**
-   * Abort execution of all tasks.
-   */
+  /** Abort execution of all tasks. */
   public void abort() {
     executor.shutdownNow();
-  }
-
-  // utility method used after extracting element from upstream
-  // queue, the element is passed to the downstream partitions
-  // if it is a metadata element
-  // @returns true if the element was handled
-  static boolean handleMetaData(
-      Datum item,
-      List<BlockingQueue<Datum>> downstream,
-      int readerId,
-      List<VectorClock> clocks) {
-
-    // update vector clocks by the watermark
-    // if any update occurs, emit the updates time downstream
-    int i = 0;
-    long stamp = item.getTimestamp();
-    for (VectorClock clock : clocks) {
-      long current = clock.getCurrent();
-      clock.update(stamp, readerId);
-      long after = clock.getCurrent();
-      if (current != after) {
-        try {
-          // we have updated the stamp, emit the new watermark
-          downstream.get(i).put(Datum.watermark(after));
-        } catch (InterruptedException ex) {
-          Thread.currentThread().interrupt();
-        }
-      }
-      i++;
-    }
-
-    // watermark already handled
-    if (item.isWatermark()) return true;
-
-    // do not hadle elements
-    if (item.isElement()) return false;
-
-    // propagate window triggers to downstream consumers
-    if (item.isWindowTrigger()) {
-      try {
-        for (BlockingQueue<Datum> ch : downstream) {
-          ch.put(item);
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
-
-    // was handled
-    return true;
   }
 
   public LocalExecutor setDefaultParallelism(int parallel) {
@@ -886,9 +685,205 @@ public class LocalExecutor implements Executor {
   }
 
   private int defaultParallelism() {
-    return parallel == -1
-        ? Runtime.getRuntime().availableProcessors()
-        : parallel;
+    return parallel == -1 ? Runtime.getRuntime().availableProcessors() : parallel;
   }
 
+  @FunctionalInterface
+  private interface Supplier {
+    Datum get() throws InterruptedException;
+  }
+
+  static final class UnboundedPartitionSupplierStream implements Supplier {
+
+    final UnboundedReader<?, Object> reader;
+    final UnboundedPartition<?, Object> partition;
+
+    @SuppressWarnings("unchecked")
+    UnboundedPartitionSupplierStream(UnboundedPartition<?, ?> partition) {
+      this.partition = (UnboundedPartition) partition;
+      try {
+        this.reader = this.partition.openReader();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to open reader for partition: " + partition, e);
+      }
+    }
+
+    @Override
+    public Datum get() {
+      if (!this.reader.hasNext()) {
+        try {
+          this.reader.close();
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to close reader for partition: " + this.partition, e);
+        }
+        return Datum.endOfStream();
+      }
+      Object next = this.reader.next();
+      // we commit right away
+      this.reader.commitOffset(this.reader.getCurrentOffset());
+      // we assign it to global windowing
+      return Datum.of(
+          GlobalWindowing.Window.get(),
+          next,
+          // ingestion time
+          System.currentTimeMillis());
+    }
+  }
+
+  static final class BoundedPartitionSupplierStream implements Supplier {
+
+    final BoundedReader<?> reader;
+    final BoundedDataSource<?> partition;
+
+    BoundedPartitionSupplierStream(BoundedDataSource<?> partition) {
+      this.partition = partition;
+      try {
+        this.reader = partition.openReader();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to open reader for partition: " + partition, e);
+      }
+    }
+
+    @Override
+    public Datum get() {
+      if (!this.reader.hasNext()) {
+        try {
+          this.reader.close();
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to close reader for partition: " + this.partition, e);
+        }
+        return Datum.endOfStream();
+      }
+      Object next = this.reader.next();
+      // we assign it to batch
+      return Datum.of(
+          GlobalWindowing.Window.get(),
+          next,
+          // ingestion time
+          System.currentTimeMillis());
+    }
+  }
+
+  /** Partitioned provider of input data for single operator. */
+  private static final class InputProvider implements Iterable<Supplier> {
+    final List<Supplier> suppliers;
+
+    InputProvider() {
+      this.suppliers = new ArrayList<>();
+    }
+
+    public int size() {
+      return suppliers.size();
+    }
+
+    public void add(Supplier s) {
+      suppliers.add(s);
+    }
+
+    public Supplier get(int i) {
+      return suppliers.get(i);
+    }
+
+    @Override
+    public Iterator<Supplier> iterator() {
+      return suppliers.iterator();
+    }
+
+    Stream<Supplier> stream() {
+      return suppliers.stream();
+    }
+  }
+
+  static class QueueCollector implements Collector<Datum> {
+    private final BlockingQueue<Datum> queue;
+
+    QueueCollector(BlockingQueue<Datum> queue) {
+      this.queue = queue;
+    }
+
+    static QueueCollector wrap(BlockingQueue<Datum> queue) {
+      return new QueueCollector(queue);
+    }
+
+    @Override
+    public void collect(Datum elem) {
+      try {
+        queue.put(elem);
+      } catch (InterruptedException ex) {
+        throw new RuntimeException(ex);
+      }
+    }
+  }
+
+  private static final class QueueSupplier implements Supplier {
+
+    private final BlockingQueue<Datum> queue;
+
+    QueueSupplier(BlockingQueue<Datum> queue) {
+      this.queue = queue;
+    }
+
+    static QueueSupplier wrap(BlockingQueue<Datum> queue) {
+      return new QueueSupplier(queue);
+    }
+
+    @Override
+    public Datum get() throws InterruptedException {
+      return queue.take();
+    }
+  }
+
+  private static final class ExecutionContext {
+    private final Settings settings;
+
+    // map of operator inputs to suppliers
+    Map<Pair<Operator<?, ?>, Operator<?, ?>>, InputProvider> materializedOutputs;
+    // already running operators
+    Set<Operator<?, ?>> runningOperators;
+
+    public ExecutionContext(Settings settings) {
+      this.settings = settings;
+      this.materializedOutputs = Collections.synchronizedMap(new HashMap<>());
+      this.runningOperators = Collections.synchronizedSet(new HashSet<>());
+    }
+
+    private boolean containsKey(Pair<Operator<?, ?>, Operator<?, ?>> d) {
+      return materializedOutputs.containsKey(d);
+    }
+
+    void add(Operator<?, ?> source, Operator<?, ?> target, InputProvider partitions) {
+      Pair<Operator<?, ?>, Operator<?, ?>> edge = Pair.of(source, target);
+      if (containsKey(edge)) {
+        throw new IllegalArgumentException(
+            "Dataset for edge " + edge + " is already materialized!");
+      }
+      materializedOutputs.put(edge, partitions);
+    }
+
+    InputProvider get(Operator<?, ?> source, Operator<?, ?> target) {
+      Pair<Operator<?, ?>, Operator<?, ?>> edge = Pair.of(source, target);
+      InputProvider sup = materializedOutputs.get(edge);
+      if (sup == null) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Do not have suppliers for edge %s -> %s (original producer %s )",
+                source, target, source.output().getProducer()));
+      }
+      return sup;
+    }
+
+    void markRunning(Operator<?, ?> operator) {
+      if (!this.runningOperators.add(operator)) {
+        throw new IllegalStateException("Twice running the same operator?");
+      }
+    }
+
+    boolean isRunning(Operator<?, ?> operator) {
+      return runningOperators.contains(operator);
+    }
+
+    public Settings getSettings() {
+      return settings;
+    }
+  }
 }

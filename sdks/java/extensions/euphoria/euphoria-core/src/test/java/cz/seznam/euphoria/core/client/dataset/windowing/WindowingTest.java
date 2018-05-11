@@ -15,27 +15,25 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class WindowingTest {
 
   @Test
   public void testTimeBuilders() {
-    assertTimeWindowing(
-        Time.of(Duration.ofSeconds(100)),
-        100 * 1000,
-        null);
+    assertTimeWindowing(Time.of(Duration.ofSeconds(100)), 100 * 1000, null);
 
     assertTimeWindowing(
         Time.of(Duration.ofSeconds(20)).earlyTriggering(Duration.ofSeconds(10)),
@@ -43,37 +41,30 @@ public class WindowingTest {
         Duration.ofSeconds(10));
 
     assertTimeWindowing(
-        Time.of(Duration.ofSeconds(4))
-            .earlyTriggering(Duration.ofSeconds(10)),
+        Time.of(Duration.ofSeconds(4)).earlyTriggering(Duration.ofSeconds(10)),
         4 * 1000,
         Duration.ofSeconds(10));
 
     assertTimeWindowing(
-        Time.of(Duration.ofSeconds(3))
-            .earlyTriggering(Duration.ofHours(1)),
+        Time.of(Duration.ofSeconds(3)).earlyTriggering(Duration.ofHours(1)),
         3 * 1000,
         Duration.ofHours(1));
 
-    assertTimeWindowing(
-        Time.of(Duration.ofSeconds(8)),
-        8 * 1000,
-        null);
+    assertTimeWindowing(Time.of(Duration.ofSeconds(8)), 8 * 1000, null);
   }
 
-  private <T> void assertTimeWindowing(Time<T> w,
-                                       long expectDurationMillis,
-                                       Duration expectEarlyTriggeringPeriod) {
-    
+  private <T> void assertTimeWindowing(
+      Time<T> w, long expectDurationMillis, Duration expectEarlyTriggeringPeriod) {
+
     assertNotNull(w);
     assertEquals(expectEarlyTriggeringPeriod, w.getEarlyTriggeringPeriod());
     assertEquals(expectDurationMillis, w.getDuration());
   }
 
-  private <W extends Window<W>, T> Iterable<W> assignWindows(Windowing<T, W> windowing,
-                                                  T elem,
-                                                  UnaryFunction<T, Long> eventTimeAssigner) {
+  private <W extends Window<W>, T> Iterable<W> assignWindows(
+      Windowing<T, W> windowing, T elem, UnaryFunction<T, Long> eventTimeAssigner) {
     return windowing.assignWindowsToElement(
-            new Elem<W, T>(null, elem, eventTimeAssigner.apply(elem)));
+        new Elem<W, T>(null, elem, eventTimeAssigner.apply(elem)));
   }
 
   @Test
@@ -82,17 +73,18 @@ public class WindowingTest {
 
     UnaryFunction<Long, Long> eventTimeAssigner = e -> e;
 
-    TimeInterval w1 = assertSessionWindow(
-        assignWindows(windowing, 1_000L, eventTimeAssigner), 1_000L, 11_000L);
-    TimeInterval w2 = assertSessionWindow(
-        assignWindows(windowing, 10_000L, eventTimeAssigner), 10_000L, 20_000L);
-    TimeInterval w3 = assertSessionWindow(
-        assignWindows(windowing, 21_000L, eventTimeAssigner), 21_000L, 31_000L);
+    TimeInterval w1 =
+        assertSessionWindow(assignWindows(windowing, 1_000L, eventTimeAssigner), 1_000L, 11_000L);
+    TimeInterval w2 =
+        assertSessionWindow(assignWindows(windowing, 10_000L, eventTimeAssigner), 10_000L, 20_000L);
+    TimeInterval w3 =
+        assertSessionWindow(assignWindows(windowing, 21_000L, eventTimeAssigner), 21_000L, 31_000L);
     // ~ a small window which is fully contained in w1
     TimeInterval w4 = new TimeInterval(3_000L, 8_000L);
 
     Map<TimeInterval, TimeInterval> merges =
-        windowing.mergeWindows(Arrays.asList(w4, w3, w2, w1))
+        windowing
+            .mergeWindows(Arrays.asList(w4, w3, w2, w1))
             .stream()
             .flatMap(p -> p.getFirst().stream().map(w -> Pair.of(w, p.getSecond())))
             .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
@@ -116,8 +108,7 @@ public class WindowingTest {
   }
 
   private void assertSessionWindow(
-      TimeInterval window,
-      long expectedStartMillis, long expectedEndMillis) {
+      TimeInterval window, long expectedStartMillis, long expectedEndMillis) {
 
     assertNotNull(window);
     assertEquals(expectedStartMillis, window.getStartMillis());
@@ -127,25 +118,16 @@ public class WindowingTest {
   @Test
   public void testTimeSlidingLabelAssignment() {
 
-    TimeSliding<Long> windowing = TimeSliding
-        .of(Duration.ofHours(1), Duration.ofMinutes(20));
+    TimeSliding<Long> windowing = TimeSliding.of(Duration.ofHours(1), Duration.ofMinutes(20));
 
     UnaryFunction<Long, Long> eventTimeAssigner = e -> e * 1000L;
 
-    long[] data = {
-        3590,
-        3600,
-        3610,
-        3800,
-        7190,
-        7200,
-        7210
-    };
+    long[] data = {3590, 3600, 3610, 3800, 7190, 7200, 7210};
 
     for (long event : data) {
-      Iterable<TimeInterval> labels = windowing
-          .assignWindowsToElement(new Elem<>(
-              GlobalWindowing.Window.get(), event, eventTimeAssigner.apply(event)));
+      Iterable<TimeInterval> labels =
+          windowing.assignWindowsToElement(
+              new Elem<>(GlobalWindowing.Window.get(), event, eventTimeAssigner.apply(event)));
       // verify window count
       assertEquals(3, Iterables.size(labels));
       // verify that each window contains the original event

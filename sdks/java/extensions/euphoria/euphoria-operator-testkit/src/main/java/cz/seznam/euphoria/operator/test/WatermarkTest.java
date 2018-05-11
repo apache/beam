@@ -26,11 +26,10 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.Test;
 
 public class WatermarkTest extends AbstractOperatorTest {
 
@@ -38,49 +37,52 @@ public class WatermarkTest extends AbstractOperatorTest {
   @Processing(Processing.Type.UNBOUNDED)
   @Test
   public void JoinOnFastAndSlowInputs() {
-    execute(new JoinTest.JoinTestCase<
-        Pair<String, Long>,
-        Pair<String, Long>,
-        Triple<TimeInterval, String, String>>() {
+    execute(
+        new JoinTest.JoinTestCase<
+            Pair<String, Long>, Pair<String, Long>, Triple<TimeInterval, String, String>>() {
 
-      // ~ a very fast source
-      @Override
-      protected List<Pair<String, Long>> getLeftInput() {
-        return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 2L));
-      }
+          // ~ a very fast source
+          @Override
+          protected List<Pair<String, Long>> getLeftInput() {
+            return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 2L));
+          }
 
-      // ~ a very slow source
-      @Override
-      protected List<Pair<String, Long>> getRightInput() {
-        // FIXME: speed is undefined here!
-        return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
-      }
+          // ~ a very slow source
+          @Override
+          protected List<Pair<String, Long>> getRightInput() {
+            // FIXME: speed is undefined here!
+            return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
+          }
 
-      @Override
-      protected Dataset<Triple<TimeInterval, String, String>>
-      getOutput(Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
-        left = AssignEventTime.of(left).using(Pair::getSecond).output();
-        right = AssignEventTime.of(right).using(Pair::getSecond).output();
-        Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
-            Join.of(left, right)
-                .by(p -> "", p -> "")
-                .using((Pair<String, Long> l, Pair<String, Long> r,
-                        Collector<Triple<TimeInterval, String, String>> c) ->
-                    c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
-                .windowBy(Time.of(Duration.ofMillis(10)))
-                .output();
-        return MapElements.of(joined).using(Pair::getSecond).output();
-      }
+          @Override
+          protected Dataset<Triple<TimeInterval, String, String>> getOutput(
+              Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+            left = AssignEventTime.of(left).using(Pair::getSecond).output();
+            right = AssignEventTime.of(right).using(Pair::getSecond).output();
+            Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
+                Join.of(left, right)
+                    .by(p -> "", p -> "")
+                    .using(
+                        (Pair<String, Long> l,
+                            Pair<String, Long> r,
+                            Collector<Triple<TimeInterval, String, String>> c) ->
+                            c.collect(
+                                Triple.of(
+                                    (TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
+                    .windowBy(Time.of(Duration.ofMillis(10)))
+                    .output();
+            return MapElements.of(joined).using(Pair::getSecond).output();
+          }
 
-      @Override
-      public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
-        TimeInterval expectedWindow = new TimeInterval(0, 10);
-        return Arrays.asList(
-            Triple.of(expectedWindow, "fi", "ha"),
-            Triple.of(expectedWindow, "fi", "ho"),
-            Triple.of(expectedWindow, "fa", "ha"),
-            Triple.of(expectedWindow, "fa", "ho"));
-      }
-    });
+          @Override
+          public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
+            TimeInterval expectedWindow = new TimeInterval(0, 10);
+            return Arrays.asList(
+                Triple.of(expectedWindow, "fi", "ha"),
+                Triple.of(expectedWindow, "fi", "ho"),
+                Triple.of(expectedWindow, "fa", "ha"),
+                Triple.of(expectedWindow, "fa", "ho"));
+          }
+        });
   }
 }

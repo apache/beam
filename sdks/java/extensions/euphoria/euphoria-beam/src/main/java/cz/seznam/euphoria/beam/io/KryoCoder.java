@@ -19,9 +19,6 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import cz.seznam.euphoria.core.client.functional.VoidFunction;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.objenesis.strategy.StdInstantiatorStrategy;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -32,38 +29,36 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
-/**
- * Coder using Kryo as (de)serialization mechanism.
- * FIXME: we should entirely drop this class
- */
+/** Coder using Kryo as (de)serialization mechanism. FIXME: we should entirely drop this class */
 public class KryoCoder<T> extends CustomCoder<T> {
 
-  public static VoidFunction<Kryo> FACTORY = () -> {
-    final Kryo instance = new Kryo();
-    ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())
-        .setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-    return instance;
-  };
+  public static VoidFunction<Kryo> FACTORY =
+      () -> {
+        final Kryo instance = new Kryo();
+        ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())
+            .setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+        return instance;
+      };
+  private static AtomicBoolean reinitialize = new AtomicBoolean(true);
+  private static ThreadLocal<Kryo> kryo = ThreadLocal.withInitial(FACTORY::apply);
+  // factory that need to be serialized and deserialized
+  // use the current static factory, that has been set
+  private final VoidFunction<Kryo> factory = FACTORY;
 
   public static void withKryoFactory(VoidFunction<Kryo> factory) {
     FACTORY = factory;
     kryo = ThreadLocal.withInitial(FACTORY::apply);
   }
 
-  private static AtomicBoolean reinitialize = new AtomicBoolean(true);
-  private static ThreadLocal<Kryo> kryo = ThreadLocal.withInitial(FACTORY::apply);
-
-  // factory that need to be serialized and deserialized
-  // use the current static factory, that has been set
-  private final VoidFunction<Kryo> factory = FACTORY;
-
   @Override
   public void encode(T t, OutputStream out) throws IOException {
     final byte[] bytes;
 
     try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-         final Output output = new Output(baos)) {
+        final Output output = new Output(baos)) {
       kryo.get().writeClassAndObject(output, t);
       output.flush();
       bytes = baos.toByteArray();
@@ -84,7 +79,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
       throw new IllegalStateException("This should never happen.");
     }
     try (final InputStream in = new ByteArrayInputStream(buffer);
-         final Input input = new Input(in)) {
+        final Input input = new Input(in)) {
 
       return (T) kryo.get().readClassAndObject(input);
     }
@@ -109,5 +104,4 @@ public class KryoCoder<T> extends CustomCoder<T> {
   private void writeObject(ObjectOutputStream oos) throws IOException {
     oos.defaultWriteObject();
   }
-
 }

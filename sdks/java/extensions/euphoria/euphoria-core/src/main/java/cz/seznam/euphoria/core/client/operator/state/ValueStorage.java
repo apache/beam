@@ -34,5 +34,4 @@ public interface ValueStorage<T> extends Storage<T> {
 
   /** @return the currently stored value */
   T get();
-
 }

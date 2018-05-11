@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.examples;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSinks;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -22,14 +24,6 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.output.SequenceFileSink;
 import cz.seznam.euphoria.hbase.HBaseSource;
 import cz.seznam.euphoria.kafka.KafkaSink;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
-import cz.seznam.euphoria.shadow.com.google.common.base.Strings;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization.KeyValueDeserializer;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -43,13 +37,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization.KeyValueDeserializer;
 
-/**
- * Various utilities for examples.
- */
+/** Various utilities for examples. */
 class Utils {
 
   static AtomicReference<KeyValueDeserializer> cache = new AtomicReference<>();
+
+  private Utils() {}
 
   static String getPath(URI uri) {
     String path = uri.getPath();
@@ -63,8 +62,11 @@ class Utils {
     }
     return Arrays.stream(query.split("&"))
         .map(Utils::splitQueryParameter)
-        .collect(Collectors.groupingBy(Pair::getFirst, HashMap::new,
-            Collectors.mapping(Pair::getSecond, Collectors.toList())));
+        .collect(
+            Collectors.groupingBy(
+                Pair::getFirst,
+                HashMap::new,
+                Collectors.mapping(Pair::getSecond, Collectors.toList())));
   }
 
   static Pair<String, String> splitQueryParameter(String it) {
@@ -82,9 +84,7 @@ class Utils {
 
   static String getZnodeParent(URI uri) {
     Map<String, List<String>> query = splitQuery(uri.getQuery());
-    return Optional.ofNullable(query.get("znode"))
-        .map(l -> l.get(0))
-        .orElse(null);
+    return Optional.ofNullable(query.get("znode")).map(l -> l.get(0)).orElse(null);
   }
 
   static Cell toCell(byte[] input) {
@@ -101,16 +101,15 @@ class Utils {
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
-
   }
 
   static HBaseSource getHBaseSource(URI input, Configuration conf) {
 
-    HBaseSource.Builder builder = HBaseSource
-        .newBuilder()
-        .withConfiguration(conf)
-        .withZookeeperQuorum(input.getAuthority())
-        .withZnodeParent(getZnodeParent(input));
+    HBaseSource.Builder builder =
+        HBaseSource.newBuilder()
+            .withConfiguration(conf)
+            .withZookeeperQuorum(input.getAuthority())
+            .withZnodeParent(getZnodeParent(input));
 
     String path = getPath(input);
     if (!path.isEmpty()) {
@@ -132,8 +131,9 @@ class Utils {
       }
     }
 
-    throw new IllegalArgumentException("Invalid input URI, expected "
-        + "hbase://<zookeeper_quorum>/table/[<family>[:<qualifier>],]+");
+    throw new IllegalArgumentException(
+        "Invalid input URI, expected "
+            + "hbase://<zookeeper_quorum>/table/[<family>[:<qualifier>],]+");
   }
 
   static DataSink<byte[]> getSink(URI output, Configuration conf) {
@@ -141,8 +141,7 @@ class Utils {
       case "hdfs":
       case "file":
         return DataSinks.mapping(
-            SequenceFileSink
-                .of(ImmutableBytesWritable.class, ImmutableBytesWritable.class)
+            SequenceFileSink.of(ImmutableBytesWritable.class, ImmutableBytesWritable.class)
                 .outputPath(output.toString())
                 .withConfiguration(conf)
                 .build(),
@@ -162,6 +161,4 @@ class Utils {
     }
     return ret;
   }
-
-  private Utils() { }
 }

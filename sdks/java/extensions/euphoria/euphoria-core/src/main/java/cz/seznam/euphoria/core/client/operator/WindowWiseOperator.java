@@ -19,22 +19,16 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-
 import javax.annotation.Nullable;
 
-/**
- * Operator working on some context.
- */
+/** Operator working on some context. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class WindowWiseOperator<IN, WIN, OUT, W extends Window<W>>
     extends Operator<IN, OUT> implements WindowAware<WIN, W> {
 
-  @Nullable
-  protected Windowing<WIN, W> windowing;
+  @Nullable protected Windowing<WIN, W> windowing;
 
-  public WindowWiseOperator(String name,
-                            Flow flow,
-                            @Nullable Windowing<WIN, W> windowing) {
+  public WindowWiseOperator(String name, Flow flow, @Nullable Windowing<WIN, W> windowing) {
     super(name, flow);
     this.windowing = windowing;
   }

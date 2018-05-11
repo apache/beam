@@ -23,8 +23,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link Trigger} that is periodically fired based on given time interval.
- * Used to implement "early triggering" functionality.
+ * A {@link Trigger} that is periodically fired based on given time interval. Used to implement
+ * "early triggering" functionality.
  */
 @Audience(Audience.Type.CLIENT)
 public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
@@ -33,7 +33,7 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */
   private static final ValueStorageDescriptor<Long> FIRE_TIME_DESCR =
-          ValueStorageDescriptor.of("fire-time", Long.class, Long.MAX_VALUE, Math::min);
+      ValueStorageDescriptor.of("fire-time", Long.class, Long.MAX_VALUE, Math::min);
 
   private final long interval;
 
