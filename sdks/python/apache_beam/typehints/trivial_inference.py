@@ -28,11 +28,19 @@ import inspect
 import pprint
 import sys
 import types
+from builtins import object
+from builtins import zip
 from functools import reduce
 
 from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
-from six.moves import builtins
+
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:                  # Python 2
+  import __builtin__ as builtins
+except ImportError:   # Python 3
+  import builtins
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 class TypeInferenceError(ValueError):
@@ -114,6 +122,9 @@ class FrameState(object):
 
   def __eq__(self, other):
     return isinstance(other, FrameState) and self.__dict__ == other.__dict__
+
+  def __hash__(self):
+    return hash(tuple(sorted(self.__dict__.items())))
 
   def copy(self):
     return FrameState(self.f, self.vars, self.stack)

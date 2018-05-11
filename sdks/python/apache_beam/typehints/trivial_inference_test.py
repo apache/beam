@@ -16,7 +16,11 @@
 #
 
 """Tests for apache_beam.typehints.trivial_inference."""
+
+from __future__ import absolute_import
+
 import unittest
+from builtins import object
 
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
