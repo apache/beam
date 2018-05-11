@@ -24,11 +24,12 @@ import os
 
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
-from apache_beam.runners.portability.stager import FileHandler
+from apache_beam.runners.portability.stager import Stager
 
 
-class ArtifactStagingFileHandler(FileHandler):
-  """:class:`FileHandler` to push files to ArtifactStagingService.
+class PortableStager(Stager):
+  """An implementation of :class:`Stager` to stage files on
+  ArtifactStagingService.
 
   The class keeps track of pushed files and commit manifest once all files are
   uploaded.
@@ -38,49 +39,35 @@ class ArtifactStagingFileHandler(FileHandler):
   """
 
   def __init__(self, artifact_service_channel):
-    """Creates a new FileHandler to upload file to ArtifactStagingService.
+    """Creates a new Stager to stage file to ArtifactStagingService.
 
     Args:
       artifact_service_channel: Channel used to interact with
         ArtifactStagingService.User owns the channel and should close it when
         finished.
     """
-    super(ArtifactStagingFileHandler, self).__init__()
+    super(PortableStager, self).__init__()
     self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
         ArtifactStagingServiceStub(channel=artifact_service_channel)
     self._artifacts = []
-    self._closed = False
 
-  def __enter__(self):
-    return self
+  def stage_artifact(self, local_path_to_artifact, artifact_name):
+    """Stage a file to ArtifactStagingService.
 
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    if not exc_type:
-      self._check_closed()
-      self._closed = True
-      manifest = beam_artifact_api_pb2.Manifest(artifact=self._artifacts)
-      self._artifact_staging_stub.CommitManifest(
-          beam_artifact_api_pb2.CommitManifestRequest(manifest=manifest))
-
-  def file_copy(self, from_path, to_path):
-    """Uploads a file to ArtifactStagingService.
-
-    Note: Downloading/copying file from remote server is not supported.
     Args:
-      from_path: Path of file to be uploaded.
-      to_path: File name on the artifact server.
+      local_path_to_artifact: Path of file to be uploaded.
+      artifact_name: File name on the artifact server.
     """
-    self._check_closed()
-    if not os.path.isfile(from_path):
-      raise ValueError(
-          'Can only copy local file to artifact server. from_path: {0} '
-          'to_path: {1}'.format(from_path, to_path))
+    if not os.path.isfile(local_path_to_artifact):
+      raise ValueError('Can only stage file to artifact server. from_path: {0} '
+                       'to_path: {1}'.format(local_path_to_artifact,
+                                             artifact_name))
 
     def artifact_request_generator():
-      metadata = beam_artifact_api_pb2.ArtifactMetadata(name=to_path)
+      metadata = beam_artifact_api_pb2.ArtifactMetadata(name=artifact_name)
       request = beam_artifact_api_pb2.PutArtifactRequest(metadata=metadata)
       yield request
-      with open(from_path, 'rb') as f:
+      with open(local_path_to_artifact, 'rb') as f:
         while True:
           chunk = f.read(2 << 20)  # 2MB
           if not chunk:
@@ -92,11 +79,8 @@ class ArtifactStagingFileHandler(FileHandler):
 
     self._artifact_staging_stub.PutArtifact(artifact_request_generator())
 
-  def file_download(self, from_url, to_path):
-    self._check_closed()
-    return super(ArtifactStagingFileHandler, self).file_download(
-        from_url, to_path)
-
-  def _check_closed(self):
-    if self._closed:
-      raise ValueError('This file handler is commited and can not be used.')
+  def commit_manifest(self):
+    manifest = beam_artifact_api_pb2.Manifest(artifact=self._artifacts)
+    self._artifacts = []
+    self._artifact_staging_stub.CommitManifest(
+        beam_artifact_api_pb2.CommitManifestRequest(manifest=manifest))
