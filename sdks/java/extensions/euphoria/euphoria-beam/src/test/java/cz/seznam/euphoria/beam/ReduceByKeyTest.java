@@ -51,7 +51,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/** Simple test suite for RBK. */
+/**
+ * Simple test suite for RBK.
+ */
 public class ReduceByKeyTest {
 
   private BeamExecutor createExecutor() {
@@ -193,6 +195,7 @@ public class ReduceByKeyTest {
   }
 
   static class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
+
     @Override
     public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
       // ~ we expect the 'element time' to be the end of the window which produced the
@@ -234,6 +237,7 @@ public class ReduceByKeyTest {
   }
 
   static class SumState implements State<Integer, Integer> {
+
     private final ValueStorage<Integer> sum;
 
     SumState(StateContext context, Collector<Integer> collector) {

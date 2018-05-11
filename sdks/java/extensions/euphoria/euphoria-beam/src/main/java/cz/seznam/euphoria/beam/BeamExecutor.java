@@ -25,7 +25,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Duration;
 
-/** Executor implementation using Apache Beam as a runtime. */
+/**
+ * Executor implementation using Apache Beam as a runtime.
+ */
 public class BeamExecutor extends AbstractExecutor {
 
   private final PipelineOptions options;

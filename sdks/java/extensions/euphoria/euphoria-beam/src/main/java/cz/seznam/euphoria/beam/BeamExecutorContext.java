@@ -49,7 +49,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 
-/** Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}. */
+/**
+ * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
+ */
 class BeamExecutorContext {
 
   private final Map<Dataset<?>, PCollection<?>> datasetToPCollection = new HashMap<>();
@@ -185,15 +187,15 @@ class BeamExecutorContext {
       return PairCoder.of(keyCoder, reducerCoder);
     } else if (op instanceof ReduceStateByKey) {
       ReduceStateByKey rbsk = (ReduceStateByKey) op;
-      // FIXME
+      // TODO
       return new KryoCoder<>();
     } else if (op instanceof WrappedPCollectionOperator) {
       return ((WrappedPCollectionOperator) op).input.getCoder();
     } else if (op == null) {
-      // FIXME
+      // TODO
       return new KryoCoder<>();
     }
-    // FIXME
+    // TODO
     return new KryoCoder<>();
   }
 

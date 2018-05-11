@@ -37,12 +37,14 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-/** Translator for {@code ReduceByKey} operator. */
+/**
+ * Translator for {@code ReduceByKey} operator.
+ */
 class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @SuppressWarnings("unchecked")
-  private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>> doTranslate(
-      ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
+  private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>>
+  doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
 
     final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
     final UnaryFunction<InputT, V> valueExtractor = operator.getValueExtractor();
@@ -64,8 +66,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
               .apply(
                   operator.getName() + "::windowing",
                   org.apache.beam.sdk.transforms.windowing.Window.into(
-                          BeamWindowFn.wrap(operator.getWindowing()))
-                      // FIXME: trigger
+                      BeamWindowFn.wrap(operator.getWindowing()))
+                      // TODO: trigger
                       .triggering(AfterWatermark.pastEndOfWindow())
                       .discardingFiredPanes()
                       .withAllowedLateness(context.getAllowedLateness(operator)));

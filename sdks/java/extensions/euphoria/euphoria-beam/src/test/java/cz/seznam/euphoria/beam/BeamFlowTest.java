@@ -46,7 +46,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/** Test for {@link BeamFlow}. */
+/**
+ * Test for {@link BeamFlow}.
+ */
 public class BeamFlowTest implements Serializable {
 
   private PipelineOptions options() {
@@ -165,6 +167,7 @@ public class BeamFlowTest implements Serializable {
             Pair.of("bob", 2L));
     pipeline.run();
   }
+
   @Ignore
   public void testPipelineWithEventTime() {
     List<Pair<Integer, Long>> raw =
