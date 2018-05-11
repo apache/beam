@@ -21,13 +21,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 
-/** */
+/** TODO: complete javadoc. */
 @Audience(Audience.Type.EXECUTOR)
 public interface SerializerFactory extends Serializable {
 
   Serializer newSerializer();
 
-  /** */
+  /** TODO: complete javadoc. */
   interface Serializer {
 
     Output newOutput(OutputStream out);

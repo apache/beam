@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** TODO: complete javadoc. */
 public abstract class AbstractExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractExecutor.class);

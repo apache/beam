@@ -18,6 +18,7 @@ package cz.seznam.euphoria.core.client.io;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
+/** TODO: complete javadoc. */
 class EmptyReader<T> implements UnboundedReader<T, MockStreamDataSource.Offset> {
 
   @Override

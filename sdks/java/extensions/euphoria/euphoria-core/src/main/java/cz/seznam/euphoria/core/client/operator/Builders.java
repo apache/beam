@@ -83,7 +83,7 @@ public class Builders {
     <W extends Window<W>> Object windowBy(Windowing<InputT, W> windowing);
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public interface Output<T> {
 
     /**
@@ -95,7 +95,7 @@ public class Builders {
     Dataset<T> output(OutputHint... outputHints);
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public interface OutputValues<K, V> extends Output<Pair<K, V>> {
 
     /**

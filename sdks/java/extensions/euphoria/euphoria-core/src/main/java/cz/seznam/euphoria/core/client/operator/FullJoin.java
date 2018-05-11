@@ -53,10 +53,12 @@ public class FullJoin {
     return new OfBuilder("RightJoin").of(left, right);
   }
 
+  /** TODO: complete javadoc. */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
 
     private final String name;
@@ -73,6 +75,7 @@ public class FullJoin {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final String name;
@@ -91,6 +94,7 @@ public class FullJoin {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final String name;

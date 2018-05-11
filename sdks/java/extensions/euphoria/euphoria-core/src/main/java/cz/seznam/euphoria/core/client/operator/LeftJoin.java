@@ -48,15 +48,29 @@ import java.util.Optional;
 @Audience(Audience.Type.CLIENT)
 public class LeftJoin {
 
+  /**
+   *
+   * @param left dataset
+   * @param right dataset
+   * @param <LeftT> type of left dataset
+   * @param <RightT>
+   * @return
+   */
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {
     return new OfBuilder("LeftJoin").of(left, right);
   }
 
+  /**
+   * Optional setter to give operator name.
+   * @param name of the operator
+   * @return OfBuilder
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
 
     private final String name;
@@ -73,6 +87,7 @@ public class LeftJoin {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final String name;
@@ -91,6 +106,7 @@ public class LeftJoin {
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final String name;

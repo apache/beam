@@ -38,6 +38,7 @@ public class MockStreamDataSource<T>
     return partitions;
   }
 
+  /** Empty implementationn of Offset.   */
   public static final class Offset implements Serializable {
     public static Offset get() {
       return null;

@@ -165,7 +165,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     return new OfBuilder(name);
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   static <V> ReduceFunctor<V, V> toReduceFunctor(CombinableReduceFunction<V> reducer1) {
 
     return new ReduceFunctor<V, V>() {
@@ -222,6 +222,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     return DAG.of(reduceState);
   }
 
+  /** TODO: complete javadoc. */
   public interface ReduceBy<InputT, K, V> {
 
     /**
@@ -268,7 +269,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -283,7 +284,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final String name;
@@ -306,7 +307,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder2<InputT, K> implements ReduceBy<InputT, K, InputT> {
 
     private final String name;
@@ -318,6 +319,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
+
     /**
      * Specifies the function to derive a value from the {@link ReduceByKey} operator's input
      * elements to get reduced by a later supplied reduce function.
@@ -344,7 +346,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder3<InputT, K, V> implements ReduceBy<InputT, K, V> {
     private final String name;
     private final Dataset<InputT> input;
@@ -371,7 +373,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder4<InputT, K, V, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
@@ -421,7 +423,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class SortableDatasetBuilder4<InputT, K, V, OutputT>
       extends DatasetBuilder4<InputT, K, V, OutputT> {
 
@@ -450,7 +452,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class DatasetBuilder5<InputT, K, V, OutputT, W extends Window<W>>
       extends DatasetBuilder4<InputT, K, V, OutputT> implements Builders.OutputValues<K, OutputT> {
 
@@ -488,7 +490,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   static class CombiningReduceState<V1>
       implements State<V1, V1>, StateSupport.MergeFrom<CombiningReduceState<V1>> {
 
@@ -534,21 +536,21 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends Window<W>>
       this.add(other.storage.get());
     }
 
-    static final class Factory<E> implements StateFactory<E, E, State<E, E>> {
-      private final ReduceFunctor<E, E> r;
+    static final class Factory<T> implements StateFactory<T, T, State<T, T>> {
+      private final ReduceFunctor<T, T> r;
 
-      Factory(ReduceFunctor<E, E> r) {
+      Factory(ReduceFunctor<T, T> r) {
         this.r = Objects.requireNonNull(r);
       }
 
       @Override
-      public State<E, E> createState(StateContext context, Collector<E> collector) {
+      public State<T, T> createState(StateContext context, Collector<T> collector) {
         return new CombiningReduceState<>(context.getStorageProvider(), r);
       }
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   private static class NonCombiningReduceState<InputT, OutputT>
       implements State<InputT, OutputT>,
           StateSupport.MergeFrom<NonCombiningReduceState<InputT, OutputT>> {

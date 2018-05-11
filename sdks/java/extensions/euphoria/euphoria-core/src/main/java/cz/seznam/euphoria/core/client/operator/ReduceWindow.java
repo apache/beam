@@ -163,6 +163,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     return dag;
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
 
     final String name;
@@ -177,6 +178,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ValueBuilder<T> {
     final String name;
     final Dataset<T> input;
@@ -214,6 +216,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ReduceBuilder<T, V> {
     final String name;
     final Dataset<T> input;
@@ -246,6 +249,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<T, V, OutputT>
       implements Builders.WindowBy<T, OutputBuilder<T, V, OutputT>> {
 
@@ -307,6 +311,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class SortableOutputBuilder<T, V, OutputT> extends OutputBuilder<T, V, OutputT> {
 
     public SortableOutputBuilder(

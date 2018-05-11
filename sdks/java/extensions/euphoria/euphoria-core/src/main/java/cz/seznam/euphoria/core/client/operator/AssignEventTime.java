@@ -95,7 +95,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     return eventTimeFn;
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class OfBuilder implements Builders.Of {
     private final String name;
 
@@ -109,7 +109,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<InputT> {
     private final String name;
     private final Dataset<InputT> input;
@@ -129,7 +129,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     }
   }
 
-  /** */
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
     private final String name;
     private final Dataset<InputT> input;

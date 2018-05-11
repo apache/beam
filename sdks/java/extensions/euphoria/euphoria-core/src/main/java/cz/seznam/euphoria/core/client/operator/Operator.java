@@ -15,7 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Datasets;
@@ -72,7 +73,7 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
    */
   final Dataset<OutputT> createOutput(final Dataset<InputT> input, Set<OutputHint> outputHints) {
     this.hints = outputHints;
-    Preconditions.checkArgument(
+    checkArgument(
         input.getFlow() == getFlow(),
         "Please don't mix operators and datasets from various flows.");
     return Datasets.createOutputFor(input.isBounded(), this);

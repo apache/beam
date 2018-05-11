@@ -131,6 +131,11 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     return new OfBuilder("Join").of(left, right);
   }
 
+  /**
+   * Name of join operator.
+   * @param name of operator
+   * @return OfBuilder
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
@@ -202,6 +207,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     return dag;
   }
 
+  /**
+   * Type of join.
+   */
   public enum Type {
     INNER,
     LEFT,
@@ -209,6 +217,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     FULL
   }
 
+  /** TODO: complete javadoc. */
   public static class OfBuilder {
 
     private final String name;
@@ -225,6 +234,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class ByBuilder<LeftT, RightT> {
 
     private final String name;
@@ -243,6 +253,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class UsingBuilder<LeftT, RightT, K> {
 
     private final String name;
@@ -271,6 +282,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class WindowingBuilder<LeftT, RightT, K, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
           Builders.OutputValues<K, OutputT>,
@@ -314,6 +326,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   public static class OutputBuilder<LeftT, RightT, K, OutputT, W extends Window<W>>
       implements Builders.OutputValues<K, OutputT>, Builders.Output<Pair<K, OutputT>> {
 
@@ -366,6 +379,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
     }
   }
 
+  /** TODO: complete javadoc. */
   private abstract class AbstractJoinState implements State<Either<LeftT, RightT>, OutputT> {
 
     final ListStorage<LeftT> leftElements;
@@ -383,7 +397,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends Window<W>>
       rightElements.clear();
     }
 
-    /** This method can be triggered by all joins except INNER */
+    /** This method can be triggered by all joins except INNER. */
     void flushUnjoinedElems(
         Collector<OutputT> context, Iterable<LeftT> lefts, Iterable<RightT> rights) {
       boolean leftEmpty = !lefts.iterator().hasNext();

@@ -17,7 +17,7 @@ package cz.seznam.euphoria.core.time;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-/** */
+/** TODO: complete javadoc. */
 @Audience(Audience.Type.INTERNAL)
 public interface TimeProviderAware {
 

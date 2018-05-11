@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 /** TODO: complete javadoc. */
-package cz.seznam.euphoria.core.client.lib;
+package cz.seznam.euphoria.core.executor.graph;

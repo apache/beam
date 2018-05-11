@@ -31,7 +31,7 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PeriodicTimeTrigger.class);
 
-  /** Next fire stamp (when merging the lowest timestamp is taken) */
+  /** Next fire stamp (when merging the lowest timestamp is taken). */
   private static final ValueStorageDescriptor<Long> FIRE_TIME_DESCR =
       ValueStorageDescriptor.of("fire-time", Long.class, Long.MAX_VALUE, Math::min);
 

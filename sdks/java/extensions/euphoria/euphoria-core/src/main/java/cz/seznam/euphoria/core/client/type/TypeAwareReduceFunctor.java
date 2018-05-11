@@ -19,8 +19,9 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import java.util.stream.Stream;
 
-public class TypeAwareReduceFunctor<InT, OutT> extends AbstractTypeAware<ReduceFunctor<InT, OutT>, OutT>
-    implements ReduceFunctor<InT, OutT> {
+/** TODO: complete javadoc. */
+public class TypeAwareReduceFunctor<InT, OutT>
+    extends AbstractTypeAware<ReduceFunctor<InT, OutT>, OutT> implements ReduceFunctor<InT, OutT> {
 
   private TypeAwareReduceFunctor(ReduceFunctor<InT, OutT> functor, TypeHint<OutT> resultType) {
     super(functor, resultType);

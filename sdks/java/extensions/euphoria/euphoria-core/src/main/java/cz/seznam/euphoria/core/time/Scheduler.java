@@ -18,7 +18,7 @@ package cz.seznam.euphoria.core.time;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.time.Duration;
 
-/** */
+/** TODO: complete javadoc. */
 @Audience(Audience.Type.EXECUTOR)
 public interface Scheduler {
 
@@ -30,6 +30,6 @@ public interface Scheduler {
    */
   void schedulePeriodically(Duration period, Runnable r);
 
-  /** Cancel all scheduled tasks */
+  /** Cancel all scheduled tasks. */
   void shutdown();
 }

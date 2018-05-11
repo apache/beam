@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.stream.StreamSupport;
 import org.junit.Test;
 
+/** Test operator ReduceByKey.  */
 public class ReduceByKeyTest {
   @Test
   public void testBuild() {

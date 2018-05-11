@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+/** TODO: complete javadoc. */
 class TimestampedElement<W extends Window, T> implements WindowedElement<W, T> {
 
   private final long timestamp;

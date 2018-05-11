@@ -31,7 +31,7 @@ import java.util.List;
 public interface UnboundedDataSource<T, OffsetT extends Serializable> extends DataSource<T> {
 
   /**
-   * Error should be reported via throwing RuntimeException (Do not return empty list on error)
+   * Error should be reported via throwing RuntimeException (Do not return empty list on error).
    *
    * @return a list of all partitions of this source
    */

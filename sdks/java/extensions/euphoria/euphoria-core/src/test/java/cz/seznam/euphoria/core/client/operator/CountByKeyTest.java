@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.time.Duration;
 import org.junit.Test;
 
+/** Test operator CountByKey. */
 public class CountByKeyTest {
 
   @Test

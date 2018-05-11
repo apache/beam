@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.Optional;
 import org.junit.Test;
 
+/** Test operator Join.  */
 public class JoinTest {
 
   @Test

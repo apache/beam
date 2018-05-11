@@ -17,7 +17,6 @@ package cz.seznam.euphoria.core.executor.greduce;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
@@ -246,7 +245,7 @@ public class GroupReducer<WidT extends Window, K, InT> {
     }
   }
 
-  // ~ a thin facade around an executor dependent implementation
+  /** A thin facade around an executor dependent implementation. */
   @FunctionalInterface
   public interface Collector<T> {
     void collect(T elem);

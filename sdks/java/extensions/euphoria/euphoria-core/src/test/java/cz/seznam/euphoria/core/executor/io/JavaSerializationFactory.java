@@ -20,6 +20,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.NoSuchElementException;
 
+/** TODO: complete javadoc. */
 public class JavaSerializationFactory implements SerializerFactory {
 
   @Override

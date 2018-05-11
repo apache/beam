@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 import org.junit.Test;
 
+/** Test behavior of IOUtils.  */
 public class IOUtilsTest {
 
   @Test(expected = IOException.class)
