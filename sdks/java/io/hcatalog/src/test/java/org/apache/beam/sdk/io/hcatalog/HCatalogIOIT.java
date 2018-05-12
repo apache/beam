@@ -102,7 +102,7 @@ public class HCatalogIOIT {
     void setHCatalogHivePassword(String password);
   }
 
-  private static final Map<Integer, String> EXPECTED_HASHES =
+  private static final ImmutableMap<Integer, String> EXPECTED_HASHES =
       ImmutableMap.of(
           100, "34c19971bd34cc1ed6218b84d0db3018",
           1000, "2db7f961724848ffcea299075c166ae8",

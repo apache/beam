@@ -85,6 +85,7 @@ public class HCatalogIOTest implements Serializable {
   @Rule
   public final transient TestRule testDataSetupRule =
       new TestWatcher() {
+        @Override
         public Statement apply(final Statement base, final Description description) {
           return new Statement() {
             @Override
