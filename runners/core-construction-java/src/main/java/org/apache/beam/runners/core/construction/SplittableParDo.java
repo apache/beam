@@ -19,14 +19,27 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
+import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
+import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -81,9 +94,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   public static final String SPLITTABLE_PROCESS_URN =
       "urn:beam:runners_core:transforms:splittable_process:v1";
-
-  public static final String SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN =
-      "urn:beam:runners_core:transforms:splittable_process_keyed_elements:v1";
 
   public static final String SPLITTABLE_GBKIKWI_URN =
       "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
@@ -188,7 +198,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
   public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
-      extends RawPTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
@@ -290,16 +300,93 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
     }
+  }
 
+  /** Registers {@link UnboundedReadPayloadTranslator} and {@link BoundedReadPayloadTranslator}. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
-    public String getUrn() {
-      return SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN;
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+    getTransformPayloadTranslators() {
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(ProcessKeyedElements.class, new ProcessKeyedElementsTranslator())
+          .build();
     }
 
-    @Nullable
     @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      return null;
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
+    }
+  }
+
+  /** A translator for {@link ProcessKeyedElements}. */
+  public static class ProcessKeyedElementsTranslator extends
+      PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
+          ProcessKeyedElements<?, ?, ?>> {
+
+    public static TransformPayloadTranslator create() {
+      return new ProcessKeyedElementsTranslator();
+    }
+
+    private ProcessKeyedElementsTranslator() {
+    }
+
+    @Override
+    public String getUrn(ProcessKeyedElements<?, ?, ?> transform) {
+      return PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?>> transform,
+        SdkComponents components) throws IOException {
+      ProcessKeyedElements<?, ?, ?> pke = transform.getTransform();
+      final DoFn<?, ?> fn = pke.getFn();
+      final DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+      final String restrictionCoderId = components.registerCoder(pke.getRestrictionCoder());
+
+      ParDoPayload payload = ParDoTranslation.payloadForParDoLike(new ParDoLike() {
+        @Override
+        public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+          return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+        }
+
+        @Override
+        public List<Parameter> translateParameters() {
+          return ParDoTranslation.translateParameters(signature.processElement().extraParameters());
+        }
+
+        @Override
+        public Map<String, SideInput> translateSideInputs(SdkComponents components) {
+          return ParDoTranslation.translateSideInputs(pke.getSideInputs(), components);
+        }
+
+        @Override
+        public Map<String, StateSpec> translateStateSpecs(SdkComponents components) {
+          // SDFs don't have state.
+          return ImmutableMap.of();
+        }
+
+        @Override
+        public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+          // SDFs don't have timers.
+          return ImmutableMap.of();
+        }
+
+        @Override
+        public boolean isSplittable() {
+          return true;
+        }
+
+        @Override
+        public String translateRestrictionCoderId(SdkComponents newComponents) {
+          return restrictionCoderId;
+        }
+      }, components);
+      return RunnerApi.FunctionSpec.newBuilder()
+          .setUrn(getUrn(pke))
+          .setPayload(payload.toByteString())
+          .build();
     }
   }
 

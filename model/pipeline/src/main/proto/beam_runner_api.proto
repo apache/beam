@@ -240,15 +240,18 @@ message StandardPTransforms {
     // Less well-known. Payload: WriteFilesPayload.
     WRITE_FILES = 4 [(beam_urn) = "beam:transform:write_files:v1"];
   }
+  // Payload for all of these: CombinePayload
   enum CombineComponents {
     COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
     COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
     COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
   }
-
-  // This field is needed only as a work-around for a proto compiler bug.
-  // See https://github.com/google/protobuf/issues/4514
-  int32 ignored = 1;
+  // Payload for all of these: ParDoPayload containing the user's SDF
+  enum SplittableParDoComponents {
+    PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
+    SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
+    PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
+  }
 }
 
 message StandardSideInputTypes {
@@ -350,6 +353,9 @@ message ParDoPayload {
 
   // Whether the DoFn is splittable
   bool splittable = 6;
+
+  // (Required if splittable == true) Id of the restriction coder.
+  string restriction_coder_id = 7;
 }
 
 // Parameters that a UDF might require.
