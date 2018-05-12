@@ -167,7 +167,7 @@ public class HBaseIOTest {
 
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
-  public void testReadingFailsTableDoesNotExist() throws Exception {
+  public void testReadingFailsTableDoesNotExist() {
     final String table = tmpTable.getName();
     // Exception will be thrown by read.expand() when read is applied.
     thrown.expect(IllegalArgumentException.class);
@@ -255,9 +255,7 @@ public class HBaseIOTest {
   public void testReadingKeyRangePrefix() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 1001;
-    final byte[] startRow = "2".getBytes();
-    final byte[] stopRow = "9".getBytes();
-    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    final ByteKey startKey = ByteKey.copyFrom("2".getBytes(StandardCharsets.UTF_8));
 
     createTable(table);
     writeData(table, numRows);
@@ -276,9 +274,7 @@ public class HBaseIOTest {
   public void testReadingKeyRangeSuffix() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 1001;
-    final byte[] startRow = "2".getBytes();
-    final byte[] stopRow = "9".getBytes();
-    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    final ByteKey startKey = ByteKey.copyFrom("2".getBytes(StandardCharsets.UTF_8));
 
     createTable(table);
     writeData(table, numRows);
@@ -297,9 +293,8 @@ public class HBaseIOTest {
   public void testReadingKeyRangeMiddle() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 1001;
-    final byte[] startRow = "2".getBytes();
-    final byte[] stopRow = "9".getBytes();
-    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    final byte[] startRow = "2".getBytes(StandardCharsets.UTF_8);
+    final byte[] stopRow = "9".getBytes(StandardCharsets.UTF_8);
 
     createTable(table);
     writeData(table, numRows);
@@ -388,7 +383,7 @@ public class HBaseIOTest {
 
   /** Tests that when writing to a non-existent table, the write fails. */
   @Test
-  public void testWritingFailsTableDoesNotExist() throws Exception {
+  public void testWritingFailsTableDoesNotExist() {
     final String table = tmpTable.getName();
 
     // Exception will be thrown by write.expand() when writeToDynamic is applied.
@@ -424,7 +419,11 @@ public class HBaseIOTest {
 
   // HBase helper methods
   private static void createTable(String tableId) throws Exception {
-    byte[][] splitKeys = {"4".getBytes(), "8".getBytes(), "C".getBytes()};
+    byte[][] splitKeys = {
+      "4".getBytes(StandardCharsets.UTF_8),
+      "8".getBytes(StandardCharsets.UTF_8),
+      "C".getBytes(StandardCharsets.UTF_8)
+    };
     createTable(tableId, COLUMN_FAMILY, splitKeys);
   }
 
@@ -497,7 +496,7 @@ public class HBaseIOTest {
   }
 
   private static Mutation makeBadMutation(String key) {
-    return new Put(key.getBytes());
+    return new Put(key.getBytes(StandardCharsets.UTF_8));
   }
 
   private void runReadTest(HBaseIO.Read read, List<Result> expected) {
@@ -515,15 +514,15 @@ public class HBaseIOTest {
     p.run().waitUntilFinish();
   }
 
-  private class TemporaryHBaseTable extends ExternalResource {
-
+  private static class TemporaryHBaseTable extends ExternalResource {
     private String name;
 
-    @Override protected void before() {
+    @Override
+    protected void before() {
       name = "table_" + UUID.randomUUID();
     }
 
-    public String getName() {
+    String getName() {
       return name;
     }
   }
