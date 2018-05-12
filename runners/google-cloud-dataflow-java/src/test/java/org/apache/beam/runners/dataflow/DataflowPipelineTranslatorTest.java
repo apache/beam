@@ -45,6 +45,7 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,17 +53,23 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
-import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -137,9 +144,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultPipelineOptions(options);
-
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
         .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
@@ -183,6 +187,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setFilesToStage(new LinkedList<>());
     options.setDataflowClient(buildMockDataflow(new IsValidCreateRequest()));
     options.setGcsUtil(mockGcsUtil);
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultPipelineOptions(options);
+
     return options;
   }
 
@@ -409,47 +417,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
     assertEquals(diskSizeGb,
         job.getEnvironment().getWorkerPools().get(0).getDiskSizeGb());
-  }
-
-  /**
-   * Construct a OutputReference for the output of the step.
-   */
-  private static OutputReference getOutputPortReference(Step step) throws Exception {
-    // TODO: This should be done via a Structs accessor.
-    @SuppressWarnings("unchecked")
-    List<Map<String, Object>> output =
-        (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
-    String outputTagId = getString(Iterables.getOnlyElement(output), PropertyNames.OUTPUT_NAME);
-    return new OutputReference(step.getName(), outputTagId);
-  }
-
-  /**
-   * Returns a Step for a {@link DoFn} by creating and translating a pipeline.
-   */
-  private static Step createPredefinedStep() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-    Pipeline pipeline = Pipeline.create(options);
-    String stepName = "DoFn1";
-    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
-        .apply(stepName, ParDo.of(new NoOpFn()))
-        .apply("WriteMyFile", TextIO.write().to("gs://bucket/out"));
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
-
-    assertEquals(8, job.getSteps().size());
-    Step step = job.getSteps().get(1);
-    assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
-    assertAllStepOutputsHaveUniqueIds(job);
-    return step;
-  }
-
-  private static class NoOpFn extends DoFn<String, String> {
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      c.output(c.element());
-    }
   }
 
   /**
@@ -799,12 +766,79 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertThat(
         fnInfo.getWindowingStrategy().getWindowFn(),
         Matchers.<WindowFn>equalTo(FixedWindows.of(Duration.standardMinutes(1))));
+    assertThat(fnInfo.getInputCoder(), instanceOf(StringUtf8Coder.class));
     Coder<?> restrictionCoder =
         CloudObjects.coderFromCloudObject(
             (CloudObject)
                 Structs.getObject(
                     processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
 
+    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+  }
+
+  /**
+   * Smoke test to fail fast if translation of a splittable ParDo
+   * in streaming breaks.
+   */
+  @Test
+  public void testStreamingSplittableParDoTranslationFnApi() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(true);
+    options.setExperiments(Arrays.asList("beam_fn_api"));
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<String> windowedInput =
+        pipeline
+            .apply(Create.of("a"))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+    windowedInput.apply(ParDo.of(new TestSplittableFn()));
+
+    runner.replaceTransforms(pipeline);
+
+    JobSpecification result = translator.translate(pipeline, runner, Collections.emptyList());
+
+    Job job = result.getJob();
+
+    // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
+    // "SplittableProcessKeyed".
+
+    List<Step> steps = job.getSteps();
+    Step processKeyedStep = null;
+    for (Step step : steps) {
+      if ("SplittableProcessKeyed".equals(step.getKind())) {
+        assertNull(processKeyedStep);
+        processKeyedStep = step;
+      }
+    }
+    assertNotNull(processKeyedStep);
+
+    String fn = Structs.getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN);
+
+    Components componentsProto = result.getPipelineProto().getComponents();
+    RehydratedComponents components = RehydratedComponents
+        .forComponents(componentsProto);
+    RunnerApi.PTransform spkTransform = componentsProto
+        .getTransformsOrThrow(fn);
+    assertEquals(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
+        spkTransform.getSpec().getUrn());
+    ParDoPayload payload = ParDoPayload.parseFrom(spkTransform.getSpec().getPayload());
+    assertThat(
+        ParDoTranslation.doFnAndMainOutputTagFromProto(payload.getDoFn()).getDoFn(),
+        instanceOf(TestSplittableFn.class));
+    assertThat(
+        components.getCoder(payload.getRestrictionCoderId()), instanceOf(SerializableCoder.class));
+
+    // In the Fn API case, we still translate the restriction coder into the RESTRICTION_CODER
+    // property as a CloudObject, and it gets passed through the Dataflow backend, but in the end
+    // the Dataflow worker will end up fetching it from the SPK transform payload instead.
+    Coder<?> restrictionCoder =
+        CloudObjects.coderFromCloudObject(
+            (CloudObject)
+                Structs.getObject(
+                    processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
     assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
   }
 

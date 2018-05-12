@@ -97,7 +97,7 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.<Integer>getBundle(any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -126,7 +126,7 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.<Integer>getBundle(any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -155,26 +155,20 @@ public class FlinkExecutableStageFunctionTest {
             "three", 3);
 
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
-    StageBundleFactory stageBundleFactory =
-        new StageBundleFactory() {
+    StageBundleFactory<Void> stageBundleFactory =
+        new StageBundleFactory<Void>() {
           @Override
-          public <InputT> RemoteBundle<InputT> getBundle(
-              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler)
-              throws Exception {
-            return new RemoteBundle<InputT>() {
+          public RemoteBundle<Void> getBundle(
+              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler) {
+            return new RemoteBundle<Void>() {
               @Override
               public String getId() {
                 return "bundle-id";
               }
 
               @Override
-              public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
-                return new FnDataReceiver<WindowedValue<InputT>>() {
-                  @Override
-                  public void accept(WindowedValue<InputT> input) throws Exception {
-                    // Ignore input
-                  }
-                };
+              public FnDataReceiver<WindowedValue<Void>> getInputReceiver() {
+                return input -> {/* Ignore input*/};
               }
 
               @Override
