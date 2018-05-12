@@ -50,6 +50,7 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,6 +63,7 @@ public class GrpcDataServiceTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4281")
   @Test
   public void testMessageReceivedBySingleClientWhenThereAreMultipleClients()
       throws Exception {
