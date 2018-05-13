@@ -64,7 +64,7 @@ RUN \
     pip install "google-cloud-pubsub == 0.26.0" && \
     pip install "google-cloud-bigquery == 0.25.0" && \
     # Optional packages
-    pip install "cython == 0.27.2" && \
+    pip install "cython == 0.28.1" && \
     pip install "guppy == 0.1.10" && \
     pip install "python-snappy == 0.5.1" && \
     # These are additional packages likely to be used by customers.
