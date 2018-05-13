@@ -17,15 +17,20 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -36,8 +41,11 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
@@ -67,6 +75,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 /**
  * Translate an unbounded portable pipeline representation into a Flink pipeline representation.
@@ -423,8 +432,133 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
           String id,
           RunnerApi.Pipeline pipeline,
           StreamingTranslationContext context) {
+    // TODO: Fail on stateful DoFns for now.
+    // TODO: Support stateful DoFns by inserting group-by-keys where necessary.
+    // TODO: Fail on splittable DoFns.
+    // TODO: Special-case single outputs to avoid multiplexing PCollections.
+    RunnerApi.Components components = pipeline.getComponents();
+    RunnerApi.PTransform transform = components.getTransformsOrThrow(id);
+    Map<String, String> outputs = transform.getOutputsMap();
+    RehydratedComponents rehydratedComponents =
+            RehydratedComponents.forComponents(components);
 
-    throw new RuntimeException("executable stage translation not implemented");
+    BiMap<String, Integer> outputMap =
+            FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
+    Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
+    for (String localOutputName : new TreeMap<>(outputMap.inverse()).values()) {
+      String collectionId = outputs.get(localOutputName);
+      Coder<WindowedValue<?>> windowCoder = (Coder) instantiateCoder(collectionId, components);
+      outputCoders.put(localOutputName, windowCoder);
+    }
+
+    final RunnerApi.ExecutableStagePayload stagePayload;
+    try {
+      stagePayload = RunnerApi.ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    String inputPCollectionId =
+            Iterables.getOnlyElement(transform.getInputsMap().values());
+
+    // TODO: is this still relevant?
+    // we assume that the transformation does not change the windowing strategy.
+    RunnerApi.WindowingStrategy windowingStrategyProto =
+            pipeline.getComponents().getWindowingStrategiesOrThrow(
+                    pipeline.getComponents().getPcollectionsOrThrow(
+                            inputPCollectionId).getWindowingStrategyId());
+    final WindowingStrategy<?, ?> windowingStrategy;
+    try {
+      windowingStrategy = WindowingStrategyTranslation.fromProto(
+              windowingStrategyProto,
+              rehydratedComponents);
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException(
+              String.format("Unable to hydrate ExecutableStage windowing strategy %s.",
+                      windowingStrategyProto),
+              e);
+    }
+
+    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newHashMap();
+    Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newHashMap();
+    // TODO: does it matter which output we designate as "main"
+    final TupleTag<OutputT> mainOutputTag;
+    if (!outputs.isEmpty()) {
+      mainOutputTag = new TupleTag(outputs.keySet().iterator().next());
+    } else {
+      mainOutputTag = null;
+    }
+
+    // We associate output tags with ids, the Integer is easier to serialize than TupleTag.
+    // The return map of AppliedPTransform.getOutputs() is an ImmutableMap, its implementation is
+    // RegularImmutableMap, its entrySet order is the same with the order of insertion.
+    // So we can use the original AppliedPTransform.getOutputs() to produce deterministic ids.
+    Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
+    int idCount = 0;
+    for (Map.Entry<String, String> entry : outputs.entrySet()) {
+      TupleTag<?> tupleTag = new TupleTag<>(entry.getKey());
+      CoderTypeInformation<WindowedValue<?>> typeInformation =
+              new CoderTypeInformation(
+                      outputCoders.get(entry.getKey()));
+      tagsToOutputTags.put(
+              tupleTag,
+              new OutputTag<>(entry.getKey(), typeInformation)
+      );
+      tagsToCoders.put(tupleTag, outputCoders.get(entry.getKey()));
+      tagsToIds.put(tupleTag, idCount++);
+    }
+
+    SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
+
+    DataStream<WindowedValue<InputT>> inputDataStream = context.getDataStreamOrThrow(
+            inputPCollectionId);
+
+    // TODO: coder for side input push back
+    final Coder<WindowedValue<InputT>> inputCoder = null;
+    Coder keyCoder = null;
+    CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation = (!outputs.isEmpty())
+            ? new CoderTypeInformation(outputCoders.get(mainOutputTag.getId())) : null;
+
+    ArrayList<TupleTag<?>> additionalOutputTags = Lists.newArrayList();
+    for (TupleTag<?> tupleTag : tagsToCoders.keySet()) {
+      if (!mainOutputTag.getId().equals(tupleTag.getId())) {
+        additionalOutputTags.add(tupleTag);
+      }
+    }
+
+    DoFnOperator.MultiOutputOutputManagerFactory<OutputT> outputManagerFactory =
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                    mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds);
+
+    // TODO: side inputs
+    DoFnOperator<InputT, OutputT> doFnOperator =
+            new ExecutableStageDoFnOperator<InputT, OutputT>(
+                    transform.getUniqueName(),
+                    inputCoder,
+                    mainOutputTag,
+                    additionalOutputTags,
+                    outputManagerFactory,
+                    windowingStrategy,
+                    Collections.emptyMap() /* sideInputTagMapping */,
+                    Collections.emptyList() /* sideInputs */,
+                    context.getPipelineOptions(),
+                    keyCoder,
+                    stagePayload,
+                    context.getJobInfo(),
+                    FlinkExecutableStageContext.batchFactory()
+            );
+
+    outputStream = inputDataStream
+            .transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);
+
+    if (mainOutputTag != null) {
+      context.addDataStream(outputs.get(mainOutputTag.getId()), outputStream);
+    }
+
+    for (TupleTag<?> tupleTag : additionalOutputTags) {
+      context.addDataStream(outputs.get(tupleTag.getId()),
+              outputStream.getSideOutput(tagsToOutputTags.get(tupleTag)));
+    }
 
   }
 
