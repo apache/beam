@@ -51,7 +51,7 @@ public class AwsModuleTest {
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new AwsModule());
 
   @Test
-  public void testObjectMapperIsAbleToFindModule() throws Exception {
+  public void testObjectMapperIsAbleToFindModule() {
     List<Module> modules = ObjectMapper.findModules(ReflectHelpers.findClassLoader());
     assertThat(modules, hasItem(Matchers.instanceOf(AwsModule.class)));
   }

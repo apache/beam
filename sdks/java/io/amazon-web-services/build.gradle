@@ -22,7 +22,7 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
-def aws_java_sdk_version = "1.11.255"
+def aws_java_sdk_version = "1.11.319"
 
 dependencies {
   compile library.java.guava
@@ -34,7 +34,9 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
+  runtime 'commons-codec:commons-codec:1.9'
   runtime "org.apache.httpcomponents:httpclient:4.5.2"
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core
