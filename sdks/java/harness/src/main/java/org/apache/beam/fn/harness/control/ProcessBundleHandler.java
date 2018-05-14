@@ -19,10 +19,13 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
 import com.google.protobuf.TextFormat;
@@ -43,6 +46,7 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
@@ -51,6 +55,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
@@ -132,13 +138,14 @@ public class ProcessBundleHandler {
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
       String pTransformId,
-      RunnerApi.PTransform pTransform,
+      PTransform pTransform,
       Supplier<String> processBundleInstructionId,
-      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
-      Multimap<String, String> pCollectionIdsToConsumingPTransforms,
-      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+      ProcessBundleDescriptor processBundleDescriptor,
+      SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
+      ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
-      Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+      Consumer<ThrowingRunnable> addFinishFunction)
+      throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
     // Since we are creating the consumers first, we know that the we are building the DAG
@@ -202,10 +209,9 @@ public class ProcessBundleHandler {
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
-    Multimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    Multimap<String,
-        FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
-        HashMultimap.create();
+    SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
+        ArrayListMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
@@ -339,11 +345,11 @@ public class ProcessBundleHandler {
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
-        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+        Map<String, WindowingStrategy> windowingStrategies,
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) {
