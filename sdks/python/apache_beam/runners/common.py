@@ -119,16 +119,6 @@ class DataflowNameContext(NameContext):
     return self.user_name
 
 
-class LoggingContext(object):
-  """For internal use only; no backwards-compatibility guarantees."""
-
-  def enter(self):
-    pass
-
-  def exit(self):
-    pass
-
-
 class Receiver(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -551,20 +541,15 @@ class DoFnRunner(Receiver):
       windowing: windowing properties of the output PCollection(s)
       tagged_receivers: a dict of tag name to Receiver objects
       step_name: the name of this step
-      logging_context: a LoggingContext object
+      logging_context: DEPRECATED [BEAM-4728]
       state: handle for accessing DoFn state
-      scoped_metrics_container: Context switcher for metrics container
+      scoped_metrics_container: DEPRECATED
       operation_name: The system name assigned by the runner for this operation.
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
 
-    from apache_beam.metrics.execution import ScopedMetricsContainer
-
-    self.scoped_metrics_container = (
-        scoped_metrics_container or ScopedMetricsContainer())
     self.step_name = step_name
-    self.logging_context = logging_context or LoggingContext()
     self.context = DoFnContext(step_name, state=state)
 
     do_fn_signature = DoFnSignature(fn)
@@ -595,26 +580,16 @@ class DoFnRunner(Receiver):
 
   def process(self, windowed_value):
     try:
-      self.logging_context.enter()
-      self.scoped_metrics_container.enter()
       self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
-    finally:
-      self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def _invoke_bundle_method(self, bundle_method):
     try:
-      self.logging_context.enter()
-      self.scoped_metrics_container.enter()
       self.context.set_element(None)
       bundle_method()
     except BaseException as exn:
       self._reraise_augmented(exn)
-    finally:
-      self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def start(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)

@@ -81,9 +81,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
 
 cdef class DoFnRunner(Receiver):
   cdef DoFnContext context
-  cdef LoggingContext logging_context
   cdef object step_name
-  cdef ScopedMetricsContainer scoped_metrics_container
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
 
@@ -110,16 +108,6 @@ cdef class DoFnContext(object):
   cdef object state
   cdef WindowedValue windowed_value
   cpdef set_element(self, WindowedValue windowed_value)
-
-
-cdef class LoggingContext(object):
-  # TODO(robertwb): Optimize "with [cdef class]"
-  cpdef enter(self)
-  cpdef exit(self)
-
-
-cdef class _LoggingContextAdapter(LoggingContext):
-  cdef object underlying
 
 
 cdef class _ReceiverAdapter(Receiver):
