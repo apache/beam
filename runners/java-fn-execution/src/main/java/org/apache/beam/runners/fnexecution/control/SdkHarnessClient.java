@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
@@ -35,6 +34,8 @@ import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -52,24 +53,6 @@ import org.slf4j.LoggerFactory;
  */
 public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
-
-  /**
-   * A supply of unique identifiers, used internally. These must be unique across all Fn API
-   * clients.
-   */
-  public interface IdGenerator {
-    String getId();
-  }
-
-  /** A supply of unique identifiers that are simply incrementing longs. */
-  private static class CountingIdGenerator implements IdGenerator {
-    private final AtomicLong nextId = new AtomicLong(0L);
-
-    @Override
-    public String getId() {
-      return String.valueOf(nextId.incrementAndGet());
-    }
-  }
 
   /**
    * A processor capable of creating bundles for some registered {@link ProcessBundleDescriptor}.
@@ -207,17 +190,17 @@ public class SdkHarnessClient implements AutoCloseable {
       this.stateRegistration = stateRegistration;
     }
 
-    /**
-     * Returns an id used to represent this bundle.
-     */
+    /** Returns an id used to represent this bundle. */
+    @Override
     public String getId() {
       return bundleId;
     }
 
     /**
-     * Returns a {@link FnDataReceiver receiver} which consumes input elements forwarding them
-     * to the SDK.
+     * Returns a {@link FnDataReceiver receiver} which consumes input elements forwarding them to
+     * the SDK.
      */
+    @Override
     public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
       return inputReceiver;
     }
@@ -317,7 +300,8 @@ public class SdkHarnessClient implements AutoCloseable {
    */
   public static SdkHarnessClient usingFnApiClient(
       InstructionRequestHandler fnApiControlClient, FnDataService fnApiDataService) {
-    return new SdkHarnessClient(fnApiControlClient, fnApiDataService, new CountingIdGenerator());
+    return new SdkHarnessClient(
+        fnApiControlClient, fnApiDataService, IdGenerators.incrementingLongs());
   }
 
   public SdkHarnessClient withIdGenerator(IdGenerator idGenerator) {
