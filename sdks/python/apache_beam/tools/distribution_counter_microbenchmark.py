@@ -32,8 +32,6 @@ import sys
 import time
 from builtins import range
 
-from past.utils import old_div
-
 from apache_beam.tools import utils
 
 
@@ -62,8 +60,8 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
     counter.add_inputs_for_test(inputs)
     time_cost = time.time() - start
     print("Run %d: Total time cost %g sec" % (i+1, time_cost))
-    total_time += old_div(time_cost, num_input)
-  print("Per element update time cost:", old_div(total_time, num_runs))
+    total_time += time_cost // num_input
+  print("Per element update time cost:", total_time // num_runs)
 
 
 if __name__ == '__main__':

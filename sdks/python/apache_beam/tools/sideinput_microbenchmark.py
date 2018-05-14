@@ -29,8 +29,6 @@ from __future__ import print_function
 import time
 from builtins import range
 
-from past.utils import old_div
-
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import sideinputs
 from apache_beam.runners.worker import statesampler
@@ -69,10 +67,10 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
 
   print("Runtimes:", times)
 
-  avg_runtime = old_div(sum(times), len(times))
+  avg_runtime = sum(times) // len(times)
   print("Average runtime:", avg_runtime)
-  print("Time per element:", old_div(avg_runtime, (input_per_source *
-                                                   num_sources)))
+  print("Time per element:", avg_runtime // (input_per_source *
+                                             num_sources))
 
 
 if __name__ == '__main__':
