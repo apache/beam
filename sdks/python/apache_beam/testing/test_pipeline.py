@@ -17,6 +17,8 @@
 
 """Test Pipeline, a wrapper of Pipeline for test purpose"""
 
+from __future__ import absolute_import
+
 import argparse
 import shlex
 

@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import collections
 import glob
 import tempfile
+from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -68,6 +69,9 @@ def contains_in_any_order(iterable):
 
     def __eq__(self, other):
       return self._counter == collections.Counter(other)
+
+    def __hash__(self):
+      return hash(self._counter)
 
     def __repr__(self):
       return "InAnyOrder(%s)" % self._counter
