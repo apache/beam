@@ -17,6 +17,8 @@
  */
 
 /**
- * Transforms for reading and writing from Apache Cassandra database.
+ * Transforms for reading and writing from/to Apache Cassandra.
+ *
+ * @see org.apache.beam.sdk.io.cassandra.CassandraIO
  */
 package org.apache.beam.sdk.io.cassandra;

@@ -19,6 +19,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.Test;
 
 /** Tests on {@link SplitGenerator}. */
@@ -27,15 +28,14 @@ public final class SplitGeneratorTest {
   @Test
   public void testGenerateSegments() {
     List<BigInteger> tokens =
-        Arrays.asList(
+        Stream.of(
                 "0",
                 "1",
                 "56713727820156410577229101238628035242",
                 "56713727820156410577229101238628035243",
                 "113427455640312821154458202477256070484",
                 "113427455640312821154458202477256070485")
-            .stream()
-            .map(s -> new BigInteger(s))
+            .map(BigInteger::new)
             .collect(Collectors.toList());
 
     SplitGenerator generator = new SplitGenerator("foo.bar.RandomPartitioner");
@@ -51,15 +51,14 @@ public final class SplitGeneratorTest {
         segments.get(5).toString());
 
     tokens =
-        Arrays.asList(
+        Stream.of(
                 "5",
                 "6",
                 "56713727820156410577229101238628035242",
                 "56713727820156410577229101238628035243",
                 "113427455640312821154458202477256070484",
                 "113427455640312821154458202477256070485")
-            .stream()
-            .map(s -> new BigInteger(s))
+            .map(BigInteger::new)
             .collect(Collectors.toList());
 
     segments = generator.generateSplits(10, tokens);
@@ -86,7 +85,7 @@ public final class SplitGeneratorTest {
             "113427455640312821154458202477256070485");
 
     List<BigInteger> tokens =
-        tokenStrings.stream().map(s -> new BigInteger(s)).collect(Collectors.toList());
+        tokenStrings.stream().map(BigInteger::new).collect(Collectors.toList());
 
     SplitGenerator generator = new SplitGenerator("foo.bar.RandomPartitioner");
     generator.generateSplits(10, tokens);
@@ -104,7 +103,7 @@ public final class SplitGeneratorTest {
             "56713727820156410577229101238628035242");
 
     List<BigInteger> tokens =
-        tokenStrings.stream().map(s -> new BigInteger(s)).collect(Collectors.toList());
+        tokenStrings.stream().map(BigInteger::new).collect(Collectors.toList());
 
     SplitGenerator generator = new SplitGenerator("foo.bar.RandomPartitioner");
     List<List<RingRange>> segments = generator.generateSplits(5, tokens);
@@ -132,7 +131,7 @@ public final class SplitGeneratorTest {
             "113427455640312821154458202477256070484");
 
     List<BigInteger> tokens =
-        tokenStrings.stream().map(s -> new BigInteger(s)).collect(Collectors.toList());
+        tokenStrings.stream().map(BigInteger::new).collect(Collectors.toList());
 
     SplitGenerator generator = new SplitGenerator("foo.bar.RandomPartitioner");
     generator.generateSplits(10, tokens);
