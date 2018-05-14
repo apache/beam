@@ -90,7 +90,7 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 
   @Override
   public int hashCode() {
-    return 1; // all GlobalWindow instances have the same hash code.
+    return GlobalWindows.class.hashCode(); // all GlobalWindow instances have the same hash code.
   }
 
   @Override
