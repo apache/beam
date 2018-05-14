@@ -38,7 +38,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
@@ -127,10 +126,6 @@ class Operation(object):
     else:
       self.name_context = common.NameContext(name_context)
 
-    # TODO(BEAM-4028): Remove following two lines. Rely on name context.
-    self.operation_name = self.name_context.step_name
-    self.step_name = self.name_context.logging_name()
-
     self.spec = spec
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
@@ -143,14 +138,11 @@ class Operation(object):
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start',
-        metrics_container=self.metrics_container)
+        self.name_context, 'start', metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process',
-        metrics_container=self.metrics_container)
+        self.name_context, 'process', metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish',
-        metrics_container=self.metrics_container)
+        self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
@@ -390,11 +382,9 @@ class DoOperation(Operation):
           fn, args, kwargs, self.side_input_maps, window_fn,
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
-          logging_context=logger.PerThreadLoggingContext(
-              step_name=self.name_context.logging_name()),
           state=state,
-          scoped_metrics_container=None,
           operation_name=self.name_context.metrics_name())
+
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
