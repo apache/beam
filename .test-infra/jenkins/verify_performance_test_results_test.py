@@ -26,11 +26,14 @@ from verify_performance_test_results import create_report
 class VerifyAnalysisScript(unittest.TestCase):
     """Tests for `verify_performance_test_results.py`."""
 
+    def setUp(self):
+        print "Test name:", self._testMethodName
+
     @patch('verify_performance_test_results.count_queries', return_value=0)
     def test_create_daily_report_when_no_data_was_uploaded(self, *args):
         """Testing creating report when no data was uploaded. Expected: Error message"""
         output_message = create_report(["test_bq_table"], "test", False)
-        assert "no tests results uploaded in recent 24h." in output_message
+        assert "no test results uploaded in recent 24h." in output_message
 
     @patch('verify_performance_test_results.count_queries', return_value=1)
     @patch('verify_performance_test_results.get_average_from', return_value=10)
@@ -51,10 +54,34 @@ class VerifyAnalysisScript(unittest.TestCase):
     @patch('verify_performance_test_results.count_queries', side_effect=[5, 5])
     @patch('verify_performance_test_results.get_average_from', side_effect=[200, 100])
     @patch('verify_performance_test_results.get_stddev_from', return_value=10)
-    def test_create_daily_report_when_average_time_increases(self, *args):
+    def test_create_daily_report_when_average_time_increases_twice(self, *args):
         """Testing output when average time increases twice. Expected: 100% increase"""
         output_message = create_report(["test_bq_table"], "test", False)
         assert ", change +100.000%" in output_message
+
+    @patch('verify_performance_test_results.count_queries', side_effect=[5, 5])
+    @patch('verify_performance_test_results.get_average_from', side_effect=[200, 100])
+    @patch('verify_performance_test_results.get_stddev_from', return_value=10)
+    def test_create_daily_report_when_average_time_increases(self, *args):
+        """Testing output when average time increases. Expected: positive change"""
+        output_message = create_report(["test_bq_table"], "test", False)
+        assert ", change +" in output_message
+
+    @patch('verify_performance_test_results.count_queries', side_effect=[5, 5])
+    @patch('verify_performance_test_results.get_average_from', side_effect=[100, 200])
+    @patch('verify_performance_test_results.get_stddev_from', return_value=10)
+    def test_create_daily_report_when_average_time_decreases(self, *args):
+        """Testing output when average time increases. Expected: negative change"""
+        output_message = create_report(["test_bq_table"], "test", False)
+        assert ", change -" in output_message
+
+    @patch('verify_performance_test_results.count_queries', side_effect=[5, 5])
+    @patch('verify_performance_test_results.get_average_from', side_effect=[100, 100])
+    @patch('verify_performance_test_results.get_stddev_from', return_value=10)
+    def test_create_daily_report_when_average_time_does_not_change(self, *args):
+        """Testing output when average time increases. Expected: zero change"""
+        output_message = create_report(["test_bq_table"], "test", False)
+        assert ", change +0.000%" in output_message
 
     #TODO: Add more testing scenarios, when single performance tests will be finished.
 
