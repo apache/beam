@@ -17,8 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.Monitor;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.util.Map;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
@@ -39,23 +44,134 @@ import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 @ThreadSafe
 public class ArtifactSourcePool implements ArtifactSource {
 
+  public static ArtifactSourcePool create() {
+    return new ArtifactSourcePool();
+  }
+
+  private final Object lock = new Object();
+  private final Map<ArtifactSource, ArtifactSourceLock> artifactSources = Maps.newLinkedHashMap();
+
   private ArtifactSourcePool() {}
 
   /**
    * Adds a new cache to the pool. When the returned {@link AutoCloseable} is closed, the given
-   * cache will be removed from the pool.
+   * cache will be removed from the pool. The call to {@link AutoCloseable#close()} will block until
+   * the artifact source is no longer being used.
    */
   public AutoCloseable addToPool(ArtifactSource artifactSource) {
-    throw new UnsupportedOperationException();
+    synchronized (lock) {
+      checkState(!artifactSources.containsKey(artifactSource));
+      artifactSources.put(artifactSource, new ArtifactSourceLock());
+      return () -> {
+        synchronized (lock) {
+          ArtifactSourceLock innerLock = artifactSources.remove(artifactSource);
+          checkState(innerLock != null);
+          innerLock.close();
+        }
+      };
+    }
   }
 
   @Override
   public Manifest getManifest() throws IOException {
-    throw new UnsupportedOperationException();
+    ArtifactSource source;
+    SourceHandle sourceHandle;
+    synchronized (lock) {
+      checkState(!artifactSources.isEmpty());
+      Map.Entry<ArtifactSource, ArtifactSourceLock> entry =
+          artifactSources.entrySet().iterator().next();
+      source = entry.getKey();
+      sourceHandle = entry.getValue().open();
+    }
+    try {
+      return source.getManifest();
+    } finally {
+      sourceHandle.close();
+    }
   }
 
   @Override
   public void getArtifact(String name, StreamObserver<ArtifactChunk> responseObserver) {
-    throw new UnsupportedOperationException();
+    ArtifactSource source;
+    SourceHandle sourceHandle;
+    synchronized (lock) {
+      checkState(!artifactSources.isEmpty());
+      Map.Entry<ArtifactSource, ArtifactSourceLock> entry =
+          artifactSources.entrySet().iterator().next();
+      source = entry.getKey();
+      sourceHandle = entry.getValue().open();
+    }
+    try {
+      source.getArtifact(name, responseObserver);
+    } finally {
+      sourceHandle.close();
+    }
+  }
+
+  /** Manages the state of a composed artifact source. */
+  private static class ArtifactSourceLock {
+    private final Monitor monitor = new Monitor();
+    private final Monitor.Guard isClosed =
+        new Monitor.Guard(monitor) {
+          @Override
+          public boolean isSatisfied() {
+            return closeRequested && refCount == 0;
+          }
+        };
+
+    private boolean closeRequested = false;
+    private int refCount = 0;
+
+    ArtifactSourceLock() {}
+
+    SourceHandle open() {
+      monitor.enter();
+      try {
+        checkState(!closeRequested);
+        refCount++;
+      } finally {
+        monitor.leave();
+      }
+
+      return new SourceHandle() {
+        boolean closed = false;
+
+        @Override
+        public void close() {
+          monitor.enter();
+          try {
+            if (!closed) {
+              checkState(refCount > 0);
+              closed = true;
+              refCount--;
+            }
+          } finally {
+            monitor.leave();
+          }
+        }
+      };
+    }
+
+    /** Marks the current source as closed and waits for all consumers to finish. */
+    void close() {
+      monitor.enter();
+      try {
+        closeRequested = true;
+      } finally {
+        monitor.leave();
+      }
+
+      try {
+        monitor.enterWhen(isClosed);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+      monitor.leave();
+    }
+  }
+
+  private interface SourceHandle {
+    void close();
   }
 }
