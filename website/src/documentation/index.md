@@ -32,6 +32,7 @@ Find status and reference information on all of the available Beam SDKs.
 
 * [Java SDK]({{ site.baseurl }}/documentation/sdks/java/)
 * [Python SDK]({{ site.baseurl }}/documentation/sdks/python/)
+* [Go SDK]({{ site.baseurl }}/documentation/sdks/go/)
 
 ## Runners
 
@@ -50,4 +51,4 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 
 Beam is designed to enable pipelines to be portable across different runners. However, given every runner has different capabilities, they also have different abilities to implement the core concepts in the Beam model. The [Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) provides a detailed comparison of runner functionality.
 
-Once you have chosen which runner to use, see that runner's page for more information about any initial runner-specific setup as well as any required or optional `PipelineOptions` for configuring it's execution. You may also want to refer back to the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py) for instructions on executing the sample WordCount pipeline.
+Once you have chosen which runner to use, see that runner's page for more information about any initial runner-specific setup as well as any required or optional `PipelineOptions` for configuring it's execution. You may also want to refer back to the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java), [Python]({{ site.baseurl }}/get-started/quickstart-py) or [Go]({{ site.baseurl }}/get-started/quickstart-go) for instructions on executing the sample WordCount pipeline.
