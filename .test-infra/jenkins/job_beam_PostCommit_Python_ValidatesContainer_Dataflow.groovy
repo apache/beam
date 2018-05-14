@@ -20,7 +20,7 @@ import common_job_properties
 
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
-job('beam_PostCommit_Python_ValidatesContainer_Dataflow') {
+job('beam_PostCommit_Py_ValCont') {
   description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 
   // Set common parameters.
