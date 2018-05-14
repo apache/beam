@@ -43,7 +43,8 @@ cdef class StateSampler(object):
 
   cdef int32_t current_state_index
 
-  cpdef _scoped_state(self, counter_name, output_counter, metrics_container)
+  cpdef _scoped_state(
+      self, counter_name, name_context, output_counter, metrics_container)
 
 cdef class ScopedState(object):
   """Context manager class managing transitions for a given sampler state."""
@@ -52,6 +53,7 @@ cdef class ScopedState(object):
   cdef readonly int32_t state_index
   cdef readonly object counter
   cdef readonly object name
+  cdef readonly object name_context
   cdef readonly int64_t _nsecs
   cdef int32_t old_state_index
   cdef readonly MetricsContainer _metrics_container
