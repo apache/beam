@@ -32,10 +32,9 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import org.apache.beam.sdk.io.aws.options.S3Options;
 
-/**
- * A readable S3 object, as a {@link SeekableByteChannel}.
- */
+/** A readable S3 object, as a {@link SeekableByteChannel}. */
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
   private final AmazonS3 amazonS3;
@@ -44,11 +43,14 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
   private long position = 0;
   private boolean open = true;
   private S3Object s3Object;
+  private final S3Options options;
   private ReadableByteChannel s3ObjectContentChannel;
 
-  S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3ResourceId path) throws IOException {
+  S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3ResourceId path, S3Options options)
+      throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     checkNotNull(path, "path");
+    this.options = checkNotNull(options, "options");
 
     if (path.getSize().isPresent()) {
       contentLength = path.getSize().get();
@@ -79,6 +81,7 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
     if (s3Object == null) {
       GetObjectRequest request = new GetObjectRequest(path.getBucket(), path.getKey());
+      request.setSSECustomerKey(options.getSSECustomerKey());
       if (position > 0) {
         request.setRange(position, contentLength);
       }
@@ -87,8 +90,8 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
       } catch (AmazonClientException e) {
         throw new IOException(e);
       }
-      s3ObjectContentChannel = Channels.newChannel(
-          new BufferedInputStream(s3Object.getObjectContent(), 1024 * 1024));
+      s3ObjectContentChannel =
+          Channels.newChannel(new BufferedInputStream(s3Object.getObjectContent(), 1024 * 1024));
     }
 
     int totalBytesRead = 0;
