@@ -161,6 +161,6 @@ their respective components.
 
 ### Status
 
-MVP in progress. No SDK or runner supports the full portability API
-yet, but once that happens a more detailed progress table will be
-added here.
+MVP in progress. See the
+[Portability support table](https://docs.google.com/spreadsheets/d/1KDa_FGn1ShjomGd-UUDOhuh2q73de2tPz6BqHpzqvNI/edit?usp=sharing)
+for details.
