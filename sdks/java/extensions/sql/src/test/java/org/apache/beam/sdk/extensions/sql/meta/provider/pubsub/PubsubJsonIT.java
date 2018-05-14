@@ -73,7 +73,7 @@ public class PubsubJsonIT implements Serializable {
         + "           > \n"
         + ") \n"
         + "TYPE 'pubsub' \n"
-        + "LOCATION '" + pubsub.evevntsTopicPath() + "' \n"
+        + "LOCATION '" + pubsub.eventsTopicPath() + "' \n"
         + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";

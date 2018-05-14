@@ -40,6 +40,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -50,7 +52,10 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Test rule which observes elements and checks whether they match the success creteria.
+ * Test rule which observes elements of the {@link PCollection} and checks whether they
+ * match the success criteria.
+ *
+ * <p>Uses a random temporary Pubsub topic for synchronization.
  */
 public class TestPubsubSignal implements TestRule {
   private static final String TOPIC_FORMAT = "projects/%s/topics/%s-result1";
@@ -230,7 +235,9 @@ public class TestPubsubSignal implements TestRule {
     public POutput expand(PCollection<? extends T> input) {
       return
           input
-              // assign a dummy key, need this to keep all events in the same state cell
+              // assign a dummy key and global window,
+              // this is needed to accumulate all observed events in the same state cell
+              .apply(Window.into(new GlobalWindows()))
               .apply(WithKeys.of("dummyKey"))
               .apply(
                   "checkAllEventsForSuccess",

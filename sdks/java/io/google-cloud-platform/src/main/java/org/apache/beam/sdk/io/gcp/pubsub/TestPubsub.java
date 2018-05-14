@@ -34,7 +34,7 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Test rule which creates a new topic with randomized name and exposed a method to publishto it.
+ * Test rule which creates a new topic with randomized name and exposes the APIs to work with it.
  *
  * <p>Deletes topic on shutdown.
  */
@@ -145,12 +145,12 @@ public class TestPubsub implements TestRule {
   /**
    * Topic path where events will be published to.
    */
-  public String evevntsTopicPath() {
+  public String eventsTopicPath() {
     return eventsTopicPath;
   }
 
   /**
-   * Publish messages to {@link #evevntsTopicPath()}.
+   * Publish messages to {@link #eventsTopicPath()}.
    */
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
