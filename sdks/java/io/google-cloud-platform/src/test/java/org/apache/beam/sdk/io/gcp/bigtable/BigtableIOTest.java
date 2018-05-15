@@ -59,6 +59,7 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -433,8 +434,8 @@ public class BigtableIOTest {
     final String table = "TEST-KEY-RANGE-TABLE";
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
-    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes());
-    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes());
+    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes(StandardCharsets.UTF_8));
 
     service.setupSampleRowKeys(table, numRows / 10, "key000000100".length());
     // Test prefix: [beginning, startKey).
@@ -476,12 +477,12 @@ public class BigtableIOTest {
     final String table = "TEST-KEY-RANGE-TABLE";
     final int numRows = 11;
     List<Row> testRows = makeTableData(table, numRows);
-    ByteKey startKey1 = ByteKey.copyFrom("key000000001".getBytes());
-    ByteKey endKey1 = ByteKey.copyFrom("key000000003".getBytes());
-    ByteKey startKey2 = ByteKey.copyFrom("key000000004".getBytes());
-    ByteKey endKey2 = ByteKey.copyFrom("key000000007".getBytes());
-    ByteKey startKey3 = ByteKey.copyFrom("key000000008".getBytes());
-    ByteKey endKey3 = ByteKey.copyFrom("key000000009".getBytes());
+    ByteKey startKey1 = ByteKey.copyFrom("key000000001".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey1 = ByteKey.copyFrom("key000000003".getBytes(StandardCharsets.UTF_8));
+    ByteKey startKey2 = ByteKey.copyFrom("key000000004".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey2 = ByteKey.copyFrom("key000000007".getBytes(StandardCharsets.UTF_8));
+    ByteKey startKey3 = ByteKey.copyFrom("key000000008".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey3 = ByteKey.copyFrom("key000000009".getBytes(StandardCharsets.UTF_8));
 
     service.setupSampleRowKeys(table, numRows / 10, "key000000001".length());
 
@@ -615,7 +616,7 @@ public class BigtableIOTest {
   }
 
   private ByteKey createByteKey(int key) {
-    return ByteKey.copyFrom(String.format("key%09d", key).getBytes());
+    return ByteKey.copyFrom(String.format("key%09d", key).getBytes(StandardCharsets.UTF_8));
   }
 
   /** Tests reduce splits with few non adjacent ranges. */
@@ -785,8 +786,8 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    ByteKey splitKey1 = ByteKey.copyFrom("key000000500".getBytes());
-    ByteKey splitKey2 = ByteKey.copyFrom("key000001000".getBytes());
+    ByteKey splitKey1 = ByteKey.copyFrom("key000000500".getBytes(StandardCharsets.UTF_8));
+    ByteKey splitKey2 = ByteKey.copyFrom("key000001000".getBytes(StandardCharsets.UTF_8));
 
     ByteKeyRange tableRange = service.getTableRange(table);
     List<ByteKeyRange> keyRanges = Arrays.asList(
@@ -858,8 +859,8 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    ByteKey splitKey1 = ByteKey.copyFrom("key000000330".getBytes());
-    ByteKey splitKey2 = ByteKey.copyFrom("key000000730".getBytes());
+    ByteKey splitKey1 = ByteKey.copyFrom("key000000330".getBytes(StandardCharsets.UTF_8));
+    ByteKey splitKey2 = ByteKey.copyFrom("key000000730".getBytes(StandardCharsets.UTF_8));
 
     ByteKeyRange tableRange = service.getTableRange(table);
     List<ByteKeyRange> keyRanges = Arrays.asList(
