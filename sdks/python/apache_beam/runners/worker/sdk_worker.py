@@ -23,20 +23,26 @@ from __future__ import print_function
 import abc
 import contextlib
 import logging
-import Queue as queue
+import queue
 import sys
 import threading
 import traceback
+from builtins import object
+from builtins import range
 from concurrent import futures
 
 import grpc
 import six
+from future import standard_library
+from future.utils import with_metaclass
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+
+standard_library.install_aliases()
 
 
 class SdkHarness(object):
@@ -176,7 +182,7 @@ class SdkHarness(object):
     def task():
       instruction_reference = getattr(
           request, request.WhichOneof('request')).instruction_reference
-      if self._instruction_id_vs_worker.has_key(instruction_reference):
+      if instruction_reference in self._instruction_id_vs_worker:
         self._execute(
             lambda: self._instruction_id_vs_worker[
                 instruction_reference
@@ -245,10 +251,8 @@ class SdkWorker(object):
             metrics=processor.metrics() if processor else None))
 
 
-class StateHandlerFactory(object):
+class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):

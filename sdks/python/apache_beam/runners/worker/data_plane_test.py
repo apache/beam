@@ -29,10 +29,13 @@ from concurrent import futures
 
 import grpc
 import six
+from future import standard_library
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
+
+standard_library.install_aliases()
 
 
 def timeout(timeout_secs):

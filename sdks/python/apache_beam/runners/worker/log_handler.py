@@ -16,16 +16,22 @@
 #
 """Beam fn API log handler."""
 
+from __future__ import absolute_import
+
 import logging
 import math
-import Queue as queue
+import queue
 import threading
+from builtins import range
 
 import grpc
+from future import standard_library
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+
+standard_library.install_aliases()
 
 # This module is experimental. No backwards-compatibility guarantees.
 
