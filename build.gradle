@@ -145,6 +145,7 @@ task javaPreCommit() {
 task javaPostCommit() {
   dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-extensions-sql:postCommit"
 }
 
 task goPreCommit() {
