@@ -19,9 +19,13 @@
 
 """Worker operations executor."""
 
+from __future__ import absolute_import
+
 import collections
-import itertools
 import logging
+from builtins import filter
+from builtins import object
+from builtins import zip
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -318,7 +322,7 @@ class DoOperation(Operation):
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      for si in itertools.ifilter(
+      for si in filter(
           lambda o: o.tag == side_tag, self.spec.side_inputs):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
@@ -542,7 +546,7 @@ class PGBKCVOperation(Operation):
           target = self.key_count * 9 // 10
           old_wkeys = []
           # TODO(robertwb): Use an LRU cache?
-          for old_wkey, old_wvalue in self.table.iteritems():
+          for old_wkey, old_wvalue in self.table.items():
             old_wkeys.append(old_wkey)  # Can't mutate while iterating.
             self.output_key(old_wkey, old_wvalue[0])
             self.key_count -= 1
@@ -557,7 +561,7 @@ class PGBKCVOperation(Operation):
       entry[0] = self.combine_fn_add_input(entry[0], value)
 
   def finish(self):
-    for wkey, value in self.table.iteritems():
+    for wkey, value in self.table.items():
       self.output_key(wkey, value[0])
     self.table = {}
     self.key_count = 0

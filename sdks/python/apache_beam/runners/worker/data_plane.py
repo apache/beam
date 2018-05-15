@@ -24,17 +24,23 @@ from __future__ import print_function
 import abc
 import collections
 import logging
-import Queue as queue
+import queue
 import sys
 import threading
+from builtins import object
+from builtins import range
 
 import grpc
 import six
+from future import standard_library
+from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+
+standard_library.install_aliases()
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -51,7 +57,7 @@ class ClosableOutputStream(type(coder_impl.create_OutputStream())):
       self._close_callback(self.get())
 
 
-class DataChannel(object):
+class DataChannel(with_metaclass(abc.ABCMeta, object)):
   """Represents a channel for reading and writing data over the data plane.
 
   Read from this channel with the input_elements method::
@@ -69,8 +75,6 @@ class DataChannel(object):
 
     data_channel.close()
   """
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def input_elements(self, instruction_id, expected_targets):
@@ -273,10 +277,8 @@ class GrpcServerDataChannel(
       yield elements
 
 
-class DataChannelFactory(object):
+class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):

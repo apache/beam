@@ -16,7 +16,9 @@
 #
 """SDK Fn Harness entry point."""
 
-import BaseHTTPServer
+from __future__ import absolute_import
+
+import http.server
 import json
 import logging
 import os
@@ -24,7 +26,9 @@ import re
 import sys
 import threading
 import traceback
+from builtins import object
 
+from future import standard_library
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
@@ -32,6 +36,8 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
+
+standard_library.install_aliases()
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -57,7 +63,7 @@ class StatusServer(object):
         Default is 0 which means any free unsecured port
     """
 
-    class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    class StatusHttpHandler(http.server.BaseHTTPRequestHandler):
       """HTTP handler for serving stacktraces of all threads."""
 
       def do_GET(self):  # pylint: disable=invalid-name
@@ -73,7 +79,7 @@ class StatusServer(object):
         """Do not log any messages."""
         pass
 
-    self.httpd = httpd = BaseHTTPServer.HTTPServer(
+    self.httpd = httpd = http.server.HTTPServer(
         ('localhost', status_http_port), StatusHttpHandler)
     logging.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)
@@ -157,10 +163,10 @@ def _get_worker_count(pipeline_options):
     an int containing the worker_threads to use. Default is 1
   """
   pipeline_options = pipeline_options.get(
-      'options') if pipeline_options.has_key('options') else {}
+      'options') if 'options' in pipeline_options else {}
   experiments = pipeline_options.get(
       'experiments'
-  ) if pipeline_options and pipeline_options.has_key('experiments') else []
+  ) if pipeline_options and 'experiments' in pipeline_options else []
 
   experiments = experiments if experiments else []
 

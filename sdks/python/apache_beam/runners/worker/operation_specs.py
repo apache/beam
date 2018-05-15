@@ -21,6 +21,8 @@ Each MapTask represents a sequence of ParallelInstruction(s): read from a
 source, write to a sink, parallel do, etc.
 """
 
+from __future__ import absolute_import
+
 import collections
 
 from apache_beam import coders

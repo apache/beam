@@ -22,8 +22,13 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import sys
 import traceback
+from builtins import next
+from builtins import object
+from builtins import zip
 
 import six
 
