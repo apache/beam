@@ -42,7 +42,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -78,7 +77,7 @@ public class ImmutableListBundleFactoryTest {
     UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-    assertThat(bundle.getKey(), Matchers.equalTo(skey));
+    assertThat(bundle.getKey(), equalTo(skey));
   }
 
   @Test
@@ -114,7 +113,7 @@ public class ImmutableListBundleFactoryTest {
       }
     }
     Matcher<Iterable<? extends WindowedValue<T>>> containsMatcher =
-        Matchers.containsInAnyOrder(expectations);
+        containsInAnyOrder(expectations);
     Instant commitTime = Instant.now();
     CommittedBundle<T> committed = bundle.commit(commitTime);
     assertThat(committed.getElements(), containsMatcher);
@@ -186,7 +185,7 @@ public class ImmutableListBundleFactoryTest {
 
     assertThat(withed.getElements(), containsInAnyOrder(firstReplacement, secondReplacement));
     assertThat(committed.getElements(), containsInAnyOrder(firstValue, secondValue));
-    assertThat(withed.getKey(), Matchers.equalTo(committed.getKey()));
+    assertThat(withed.getKey(), equalTo(committed.getKey()));
     assertThat(withed.getPCollection(), equalTo(committed.getPCollection()));
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
@@ -226,6 +225,6 @@ public class ImmutableListBundleFactoryTest {
     CommittedBundle<KV<String, Integer>> keyedBundle = bundleFactory.createKeyedBundle(
         StructuralKey.of("foo", StringUtf8Coder.of()),
         downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey().getKey(), Matchers.equalTo("foo"));
+    assertThat(keyedBundle.getKey().getKey(), equalTo("foo"));
   }
 }

@@ -532,7 +532,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     private void checkRecord(TypeDescriptor<?> type, Schema schema) {
       // For a record, we want to make sure that all the fields are deterministic.
       Class<?> clazz = type.getRawType();
-      for (org.apache.avro.Schema.Field fieldSchema : schema.getFields()) {
+      for (Schema.Field fieldSchema : schema.getFields()) {
         Field field = getField(clazz, fieldSchema.name());
         String fieldContext = field.getDeclaringClass().getName() + "#" + field.getName();
 
@@ -584,7 +584,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
               + " so it is non-deterministic");
           break;
         case RECORD:
-          for (org.apache.avro.Schema.Field field : schema.getFields()) {
+          for (Schema.Field field : schema.getFields()) {
             checkIndexedRecord(
                 schema.getName() + "." + field.name(),
                 field.schema(),
@@ -612,7 +612,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
           }
           break;
         case UNION:
-          for (org.apache.avro.Schema subschema : schema.getTypes()) {
+          for (Schema subschema : schema.getTypes()) {
             checkIndexedRecord(subschema.getName(), subschema, null);
           }
           break;

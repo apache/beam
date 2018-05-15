@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -113,7 +112,7 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
-        Matchers.equalTo(windowingStrategy.fixDefaults()));
+        equalTo(windowingStrategy.fixDefaults()));
 
     protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));

@@ -73,8 +73,7 @@ public class SourceRDD {
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
-        scala.collection.JavaConversions
-          .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Bounded(
         SparkContext sc,
@@ -298,8 +297,7 @@ public class SourceRDD {
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
-        scala.collection.JavaConversions
-            .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(SparkContext sc,
         SerializablePipelineOptions options,
@@ -343,7 +341,7 @@ public class SourceRDD {
           (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
       scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
           new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
-      return scala.collection.JavaConversions.asScalaIterator(
+      return JavaConversions.asScalaIterator(
           Collections.singleton(tuple2).iterator());
     }
   }

@@ -90,49 +90,49 @@ public class S3ResourceIdTest {
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
         S3ResourceId.fromUri("s3://bucket/tmp/")
-            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
+            .resolve("aa", RESOLVE_FILE));
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa/bb/cc/"),
         S3ResourceId.fromUri("s3://bucket/tmp/")
-            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
-            .resolve("bb", StandardResolveOptions.RESOLVE_DIRECTORY)
-            .resolve("cc", StandardResolveOptions.RESOLVE_DIRECTORY));
+            .resolve("aa", RESOLVE_DIRECTORY)
+            .resolve("bb", RESOLVE_DIRECTORY)
+            .resolve("cc", RESOLVE_DIRECTORY));
 
     // Tests absolute path.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
         S3ResourceId.fromUri("s3://bucket/tmp/bb/")
-            .resolve("s3://bucket/tmp/aa", StandardResolveOptions.RESOLVE_FILE));
+            .resolve("s3://bucket/tmp/aa", RESOLVE_FILE));
 
     // Tests bucket with no ending '/'.
     assertEquals(
         S3ResourceId.fromUri("s3://my-bucket/tmp"),
         S3ResourceId.fromUri("s3://my-bucket")
-            .resolve("tmp", StandardResolveOptions.RESOLVE_FILE));
+            .resolve("tmp", RESOLVE_FILE));
 
     // Tests path with unicode
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/输出 目录/输出 文件01.txt"),
         S3ResourceId.fromUri("s3://bucket/输出 目录/")
-            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
+            .resolve("输出 文件01.txt", RESOLVE_FILE));
   }
 
   @Test
   public void testResolveInvalidInputs() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Cannot resolve a file with a directory path: [tmp/]");
-    S3ResourceId.fromUri("s3://my_bucket/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
+    S3ResourceId.fromUri("s3://my_bucket/").resolve("tmp/", RESOLVE_FILE);
   }
 
   @Test
   public void testResolveInvalidNotDirectory() {
     ResourceId tmpDir = S3ResourceId.fromUri("s3://my_bucket/")
-        .resolve("tmp dir", StandardResolveOptions.RESOLVE_FILE);
+        .resolve("tmp dir", RESOLVE_FILE);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "Expected this resource to be a directory, but was [s3://my_bucket/tmp dir]");
-    tmpDir.resolve("aa", StandardResolveOptions.RESOLVE_FILE);
+    tmpDir.resolve("aa", RESOLVE_FILE);
   }
 
   @Test

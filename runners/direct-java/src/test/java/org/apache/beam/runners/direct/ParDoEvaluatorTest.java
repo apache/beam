@@ -126,7 +126,7 @@ public class ParDoEvaluatorTest {
     assertThat(fn.processed, containsInAnyOrder(1, 3));
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()).commit(Instant.now()).getElements(),
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             first.withValue(8),
             WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
