@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.direct.portable;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -29,13 +29,9 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
-import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,46 +41,57 @@ import org.junit.runners.JUnit4;
 public class FlattenEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
-
-  @Ignore("TODO: BEAM-4240 Enable when the Flatten Evaluator Factory is fully migrated")
   @Test
   public void testFlattenInMemoryEvaluator() throws Exception {
     PCollectionNode left =
         PipelineNode.pCollection("left", PCollection.newBuilder().setUniqueName("left").build());
     PCollectionNode right =
         PipelineNode.pCollection("right", PCollection.newBuilder().setUniqueName("right").build());
+    // Include a root node for a sane-looking graph
+    PTransformNode source =
+        PipelineNode.pTransform(
+            "source",
+            PTransform.newBuilder()
+                .putOutputs("left", left.getId())
+                .putOutputs("right", right.getId())
+                .build());
 
+    PCollectionNode flattened =
+        PipelineNode.pCollection("flat", PCollection.newBuilder().setUniqueName("flat").build());
     PTransformNode flatten =
         PipelineNode.pTransform(
             "flatten",
             PTransform.newBuilder()
                 .setUniqueName("flatten")
+                .putInputs("left", left.getId())
+                .putInputs("right", right.getId())
+                .putOutputs("out", flattened.getId())
                 .setSpec(
                     FunctionSpec.newBuilder().setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN))
                 .build());
 
-    PCollectionNode flattened =
-        PipelineNode.pCollection("flat", PCollection.newBuilder().setUniqueName("flat").build());
+    PortableGraph graph =
+        PortableGraph.forPipeline(
+            RunnerApi.Pipeline.newBuilder()
+                .addRootTransformIds(source.getId())
+                .addRootTransformIds(flatten.getId())
+                .setComponents(
+                    RunnerApi.Components.newBuilder()
+                        .putTransforms(source.getId(), source.getTransform())
+                        .putPcollections(left.getId(), left.getPCollection())
+                        .putPcollections(right.getId(), right.getPCollection())
+                        .putTransforms(flatten.getId(), flatten.getTransform())
+                        .putPcollections(flattened.getId(), flattened.getPCollection()))
+                .build());
 
     CommittedBundle<Integer> leftBundle =
         bundleFactory.<Integer>createBundle(left).commit(Instant.now());
     CommittedBundle<Integer> rightBundle =
         bundleFactory.<Integer>createBundle(right).commit(Instant.now());
 
-    EvaluationContext context = mock(EvaluationContext.class);
-
-    UncommittedBundle<Integer> flattenedLeftBundle = bundleFactory.createBundle(flattened);
-    UncommittedBundle<Integer> flattenedRightBundle = bundleFactory.createBundle(flattened);
-
-    when(context.<Integer>createBundle(flattened))
-        .thenReturn(flattenedLeftBundle, flattenedRightBundle);
-
-    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(context);
-    TransformEvaluator<Integer> leftSideEvaluator =
-        factory.forApplication(flatten, leftBundle);
-    TransformEvaluator<Integer> rightSideEvaluator =
-        factory.forApplication(flatten, rightBundle);
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(bundleFactory, graph);
+    TransformEvaluator<Integer> leftSideEvaluator = factory.forApplication(flatten, leftBundle);
+    TransformEvaluator<Integer> rightSideEvaluator = factory.forApplication(flatten, rightBundle);
 
     leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(1));
     rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
@@ -99,19 +106,14 @@ public class FlattenEvaluatorFactoryTest {
     TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
     TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
 
-    assertThat(rightSideResult.getOutputBundles(), Matchers.contains(flattenedRightBundle));
-    assertThat(rightSideResult.getTransform(), Matchers.equalTo(flatten));
-    assertThat(leftSideResult.getOutputBundles(), Matchers.contains(flattenedLeftBundle));
-    assertThat(leftSideResult.getTransform(), Matchers.equalTo(flatten));
-
     assertThat(
-        flattenedLeftBundle.commit(Instant.now()).getElements(),
+        getOnlyElement(leftSideResult.getOutputBundles()).commit(Instant.now()),
         containsInAnyOrder(
             WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1024)),
             WindowedValue.valueInGlobalWindow(4, PaneInfo.NO_FIRING),
             WindowedValue.valueInGlobalWindow(1)));
     assertThat(
-        flattenedRightBundle.commit(Instant.now()).getElements(),
+        getOnlyElement(rightSideResult.getOutputBundles()).commit(Instant.now()),
         containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
             WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)),
