@@ -291,6 +291,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     thrown.expectMessage("Error writing to Solr");
 
     // entry state of the release tracker to ensure we only unregister newly created objects
+    @SuppressWarnings("unchecked")
     Set<Object> entryState = ImmutableSet.copyOf(ObjectReleaseTracker.OBJECTS.keySet());
 
     SolrIO.Write write =
