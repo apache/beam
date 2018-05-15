@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 
 /**
  * TODO: this description is WRONG! An {@code ExecUnit} is a series of transformation with no

@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
+import java.io.IOException;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
-
-import java.io.IOException;
 
 /** Various {@link DataSink} related utilities. */
 public class DataSinks {

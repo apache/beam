@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -31,6 +27,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
 
 /**
  * A list storage implementation keeping a given maximum number of received elements, eventually

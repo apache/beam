@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
@@ -24,9 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
 
 /** Test for operator {@code Union}. */
 @Processing(Processing.Type.ALL)

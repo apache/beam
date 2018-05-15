@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
-
-import java.util.Objects;
 
 /**
  * A {@code WindowedElement} created from Beam's element.

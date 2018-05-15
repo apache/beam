@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.BeamWriteSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
@@ -35,9 +37,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
-
-import java.util.IdentityHashMap;
-import java.util.Map;
 
 /**
  * This class converts Euphoria's {@code Flow} into Beam's Pipeline.

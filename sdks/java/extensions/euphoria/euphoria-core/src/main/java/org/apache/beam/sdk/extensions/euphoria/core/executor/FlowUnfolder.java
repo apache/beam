@@ -18,15 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
 import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +28,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 
 /** Unfold {@code Flow} to contain only selected operators. */
 @Audience(Audience.Type.EXECUTOR)

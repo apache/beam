@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.time;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A scheduler implementation with an underlying timer periodically executing the specified

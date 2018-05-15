@@ -17,19 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumulator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-
 import java.io.ObjectStreamException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumulator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
+import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 
 /**
  * An accumulator provider gathering accumulators in-memory.

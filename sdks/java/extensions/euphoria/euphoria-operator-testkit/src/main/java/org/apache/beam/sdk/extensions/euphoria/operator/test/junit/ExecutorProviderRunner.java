@@ -17,6 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test.junit;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing.Type;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -32,17 +42,6 @@ import org.junit.runners.model.Statement;
 import org.junit.runners.model.TestClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * TODO: add javadoc.

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.accumulators;
 
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Placeholder implementation of {@link AccumulatorProvider} that may be used in executors as a

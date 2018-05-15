@@ -18,13 +18,12 @@
 
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * {@link Operator} that serves as a wrapper between a {@link PCollection} and {@link Dataset}.

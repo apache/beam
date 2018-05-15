@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Closeable;
 import java.util.Iterator;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** {@link Iterator} that is {@link Closeable}. */
 @Audience(Audience.Type.EXECUTOR)

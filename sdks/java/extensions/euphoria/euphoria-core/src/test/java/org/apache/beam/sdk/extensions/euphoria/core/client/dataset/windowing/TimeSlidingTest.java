@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import org.junit.Test;
-
 import java.time.Duration;
-
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /** TODO: complete javadoc. */
 public class TimeSlidingTest {

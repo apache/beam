@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.testing;
 
-import org.junit.Assert;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.Assert;
 
 /** This is duplicated from {@code euphoria-testing} due to maven lifecycle cyclic dependency. */
 public class DatasetAssert {

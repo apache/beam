@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-
-import java.util.stream.Stream;
 
 /** TODO: complete javadoc. */
 public class TypeAwareReduceFunctor<InT, OutT>
