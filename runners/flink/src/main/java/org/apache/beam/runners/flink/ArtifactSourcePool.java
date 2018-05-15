@@ -24,6 +24,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Phaser;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
@@ -49,6 +50,8 @@ public class ArtifactSourcePool implements ArtifactSource {
   }
 
   private final Object lock = new Object();
+
+  @GuardedBy("lock")
   private final Map<ArtifactSource, Phaser> artifactSources = Maps.newLinkedHashMap();
 
   private ArtifactSourcePool() {}
@@ -76,11 +79,14 @@ public class ArtifactSourcePool implements ArtifactSource {
             }
           });
       return () -> {
-        // TODO: Make idempotent?
         Phaser phaser;
         synchronized (lock) {
           phaser = artifactSources.remove(artifactSource);
-          checkState(phaser != null);
+          if (phaser == null) {
+            // We've already removed the phaser from the map and attempted to close it.
+            return;
+          }
+          // This indicates we have not yet terminated the phaser. Ensure this is the case.
           checkState(!phaser.isTerminated());
         }
         phaser.arriveAndAwaitAdvance();
