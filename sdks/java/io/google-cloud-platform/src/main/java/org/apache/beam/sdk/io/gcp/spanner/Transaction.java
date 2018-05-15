@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 public abstract class Transaction implements Serializable {
 
   @Nullable
-  abstract BatchTransactionId transactionId();
+  public abstract BatchTransactionId transactionId();
 
   public static Transaction create(BatchTransactionId txId) {
     return new AutoValue_Transaction(txId);
