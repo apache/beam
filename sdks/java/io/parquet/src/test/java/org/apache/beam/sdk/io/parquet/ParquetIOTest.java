@@ -79,24 +79,25 @@ public class ParquetIOTest implements Serializable {
     mainPipeline
       .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
       .apply(
-        ParquetIO.write()
-          .to(temporaryFolder.getRoot().getAbsolutePath())
-          .withSchema(SCHEMA));
+        FileIO.<GenericRecord>write()
+          .via(ParquetIO.sink(SCHEMA))
+          .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
     PCollection<GenericRecord> readBack =
       readPipeline.apply(
         ParquetIO.read()
-          .from(new File(temporaryFolder.getRoot().getAbsolutePath()).getAbsolutePath() + "*")
-          .withSchema(SCHEMA));
+          .from(new File(temporaryFolder.getRoot().getAbsolutePath()).getAbsolutePath() + "/*"))
+        .setCoder(AvroCoder.of(SCHEMA));
 
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
 
   @Test
-  public void testWriteViaSinkThenReadFiles() {
+  public void testWriteAndReadFiles() {
     List<GenericRecord> records = generateGenericRecords(1000);
+
     PCollection<GenericRecord> writeThenRead = mainPipeline
       .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
       .apply(FileIO.<GenericRecord>
@@ -107,12 +108,11 @@ public class ParquetIOTest implements Serializable {
       .apply(Values.create())
       .apply(FileIO.matchAll())
       .apply(FileIO.readMatches())
-      .apply(ParquetIO
-        .readFiles()
-        .withSchema(SCHEMA)
-      );
+      .apply(ParquetIO.readFiles())
+      .setCoder(AvroCoder.of(SCHEMA));
 
     PAssert.that(writeThenRead).containsInAnyOrder(records);
+
     mainPipeline.run().waitUntilFinish();
   }
 
@@ -135,15 +135,5 @@ public class ParquetIOTest implements Serializable {
           .from("foo.parquet"));
 
     Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
-  }
-
-  @Test
-  public void testWriteDisplayData() {
-    DisplayData displayData =
-      DisplayData.from(
-        ParquetIO.write()
-          .to("foo"));
-
-    Assert.assertThat(displayData, hasDisplayItem("filenamePrefix", "foo"));
   }
 }
