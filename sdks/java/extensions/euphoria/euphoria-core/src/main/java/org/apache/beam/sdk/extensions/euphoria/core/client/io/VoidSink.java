@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.IOException;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** TODO: complete javadoc. */
 @Audience(Audience.Type.CLIENT)

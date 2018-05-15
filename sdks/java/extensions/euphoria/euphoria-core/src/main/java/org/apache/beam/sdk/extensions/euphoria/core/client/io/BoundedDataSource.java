@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** A {@code DataSource} with bounded data. */
 @Audience(Audience.Type.EXECUTOR)

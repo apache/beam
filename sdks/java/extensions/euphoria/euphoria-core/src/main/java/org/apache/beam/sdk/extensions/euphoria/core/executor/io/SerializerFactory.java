@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Closeable;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** TODO: complete javadoc. */
 @Audience(Audience.Type.EXECUTOR)

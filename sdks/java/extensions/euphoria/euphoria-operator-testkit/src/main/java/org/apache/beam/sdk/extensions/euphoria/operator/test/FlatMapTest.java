@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
@@ -25,12 +30,6 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators.Snapsh
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
 
 /** Test operator {@code FlatMap}. */
 @Processing(Processing.Type.ALL)

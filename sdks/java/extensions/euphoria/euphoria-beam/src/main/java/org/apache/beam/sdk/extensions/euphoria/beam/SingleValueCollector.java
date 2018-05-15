@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
-
-import java.io.Serializable;
 
 /**
  * {@code Collector} for combinable functors.

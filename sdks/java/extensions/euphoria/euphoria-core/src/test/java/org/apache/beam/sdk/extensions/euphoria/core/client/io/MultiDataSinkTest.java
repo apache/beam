@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.junit.Test;
-import org.mockito.Mockito;
-
-import java.io.IOException;
-
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
+import java.io.IOException;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 /** Tests behavior of {@link MultiDataSink}. */
 public class MultiDataSinkTest {

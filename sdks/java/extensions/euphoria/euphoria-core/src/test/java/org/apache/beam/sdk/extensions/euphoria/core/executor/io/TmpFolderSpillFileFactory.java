@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
-import org.junit.rules.TemporaryFolder;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.rules.TemporaryFolder;
 
 /** TODO: complete javadoc. */
 class TmpFolderSpillFileFactory implements SpillFileFactory {

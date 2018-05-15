@@ -25,9 +25,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
- * This is a copy of {@link org.apache.beam.sdk.extensions.euphoria.operator.test.AllOperatorsSuite} to allow us track
- * progress on incrementally implementing operator and their tests. TODO: When done, this class
- * should go away and original should be used instead
+ * This is a copy of
+ * {@link org.apache.beam.sdk.extensions.euphoria.operator.test.AllOperatorsSuite} to allow us track
+ * progress on incrementally implementing operator and their tests.
+ * TODO: When done, this class should go away and original should be used instead
  */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({

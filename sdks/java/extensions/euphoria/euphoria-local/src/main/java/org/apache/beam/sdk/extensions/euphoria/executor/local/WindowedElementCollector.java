@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
+import java.util.Objects;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
@@ -25,9 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-
-import java.util.Objects;
-import java.util.function.Supplier;
 
 class WindowedElementCollector<T> implements Context, Collector<T> {
   private final org.apache.beam.sdk.extensions.euphoria.executor.local.Collector<Datum> wrap;

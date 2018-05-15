@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.util;
 
+import java.util.ArrayList;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
@@ -24,8 +25,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
-
-import java.util.ArrayList;
 
 /** Util class when specific executors use the same methods for operator translation. */
 @Audience(Audience.Type.EXECUTOR)

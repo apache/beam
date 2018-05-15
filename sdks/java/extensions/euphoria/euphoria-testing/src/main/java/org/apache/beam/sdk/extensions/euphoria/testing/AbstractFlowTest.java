@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.testing;
 
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
-
-import java.util.List;
 
 /**
  * Abstract test class for user's {@link Flow} testing.

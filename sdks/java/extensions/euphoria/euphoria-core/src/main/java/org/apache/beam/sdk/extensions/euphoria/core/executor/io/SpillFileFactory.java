@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.File;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** Factory for creating files for spilling. */
 @Audience(Audience.Type.EXECUTOR)

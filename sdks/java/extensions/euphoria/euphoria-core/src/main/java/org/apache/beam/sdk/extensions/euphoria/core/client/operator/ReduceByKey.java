@@ -18,6 +18,12 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import com.google.common.collect.Sets;
+import java.util.Comparator;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -48,13 +54,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
-
-import javax.annotation.Nullable;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * Operator performing state-less aggregation by given reduce function. The reduction is performed

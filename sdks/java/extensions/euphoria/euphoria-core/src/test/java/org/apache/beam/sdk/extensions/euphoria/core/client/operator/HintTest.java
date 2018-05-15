@@ -17,7 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.Sets;
+import java.time.Duration;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -31,12 +36,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Set;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /** Test usage of hints in different operators.  */
 public class HintTest {

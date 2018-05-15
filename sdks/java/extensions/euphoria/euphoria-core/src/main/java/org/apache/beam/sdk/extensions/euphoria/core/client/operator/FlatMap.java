@@ -18,6 +18,10 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -27,11 +31,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEve
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-
-import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
 
 /**
  * A transformation of a dataset from one type into another allowing user code to generate zero,

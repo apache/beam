@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.accumulators;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-
-import java.io.Serializable;
 
 /**
  * Provides access to an accumulator backend service. It is intended to be implemented by third

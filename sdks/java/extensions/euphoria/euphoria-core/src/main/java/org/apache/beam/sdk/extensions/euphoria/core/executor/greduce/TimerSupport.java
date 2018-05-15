@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.greduce;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-
-import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.PriorityQueue;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 
 /**
  * Keeps track of the current watermark within a reduce operation and provides services around

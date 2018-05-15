@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.graph;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** A single Node in DAG. */
 @Audience(Audience.Type.EXECUTOR)

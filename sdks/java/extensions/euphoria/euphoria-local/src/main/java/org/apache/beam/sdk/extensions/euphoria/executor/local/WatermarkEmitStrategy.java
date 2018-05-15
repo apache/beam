@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;

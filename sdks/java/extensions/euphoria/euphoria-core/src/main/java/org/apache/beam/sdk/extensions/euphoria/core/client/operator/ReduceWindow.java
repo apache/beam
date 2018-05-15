@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import java.util.Collections;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -32,10 +35,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-
-import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.stream.Stream;
 
 /**
  * Reduces all elements in a window. The operator corresponds to {@link ReduceByKey} with the same

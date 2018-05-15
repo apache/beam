@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** Triple of any types. */
 @Audience(Audience.Type.CLIENT)

@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import java.io.ObjectStreamException;
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.NoopTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import java.io.ObjectStreamException;
-import java.util.Collections;
 
 /** Windowing with single window across the whole dataset. Suitable for batch processing. */
 @Audience(Audience.Type.CLIENT)
@@ -63,8 +62,9 @@ public final class GlobalWindowing<T> implements Windowing<T, GlobalWindowing.Wi
   }
 
   /** Singleton window. */
-  public static final class Window
-      extends org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window<GlobalWindowing.Window> {
+  public static final class Window extends
+      org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window<
+          GlobalWindowing.Window> {
 
     static final Window INSTANCE = new Window();
 

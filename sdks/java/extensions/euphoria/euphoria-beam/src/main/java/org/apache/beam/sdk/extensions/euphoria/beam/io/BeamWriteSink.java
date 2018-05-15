@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.io;
 
+import java.io.IOException;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Writer;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -25,9 +27,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-
-import java.io.IOException;
-import java.util.Objects;
 
 /**
  * Write to output sink using beam.

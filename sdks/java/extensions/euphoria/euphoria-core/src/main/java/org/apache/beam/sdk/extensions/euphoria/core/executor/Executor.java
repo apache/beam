@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
 import com.google.common.collect.Sets;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.VoidAccumulatorProvider;
@@ -26,9 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
-
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 /** The client side, public, technology independent interface to an executor. */
 @Audience(Audience.Type.CLIENT)

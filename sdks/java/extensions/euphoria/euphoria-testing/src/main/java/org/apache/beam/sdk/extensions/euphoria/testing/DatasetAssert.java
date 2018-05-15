@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.testing;
 
-import org.junit.Assert;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.Assert;
 
 /**
  * Test wide utility methods for dataset assertion.

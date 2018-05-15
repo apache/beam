@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
+import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
@@ -27,11 +31,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-
-import java.util.Collection;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * A {@code WindowFn} wrapper of {@code Windowing}.

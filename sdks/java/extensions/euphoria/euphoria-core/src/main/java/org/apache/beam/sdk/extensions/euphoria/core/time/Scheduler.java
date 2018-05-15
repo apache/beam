@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.time;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.time.Duration;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** TODO: complete javadoc. */
 @Audience(Audience.Type.EXECUTOR)

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Closeable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** An {@code Iterable} that is externalized to external storage (i.e. spilled to disk). */
 @Audience(Audience.Type.EXECUTOR)

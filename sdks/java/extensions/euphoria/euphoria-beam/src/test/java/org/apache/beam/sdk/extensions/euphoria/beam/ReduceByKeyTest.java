@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import static org.junit.Assert.assertTrue;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -47,12 +52,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.junit.Assert.assertTrue;
 
 /**
  * Simple test suite for RBK.

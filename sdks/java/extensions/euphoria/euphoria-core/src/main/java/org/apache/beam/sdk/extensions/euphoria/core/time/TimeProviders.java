@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.time;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.time.Duration;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
 import java.util.TimeZone;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * A set of pre-defined time provider implementations all based on utilities provided by the

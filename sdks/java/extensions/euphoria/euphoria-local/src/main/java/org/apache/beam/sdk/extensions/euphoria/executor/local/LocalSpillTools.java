@@ -18,16 +18,15 @@
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
 import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.util.InMemExternalIterable;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.util.InMemExternalIterable;
 
 /** {@code SpillTools} that actually don't spill and use memory instead. */
 class LocalSpillTools implements SpillTools {

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
 
 /** Test behavior of operator {@code Union}. */
 public class UnionTest {

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import static java.util.Collections.singleton;
+
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.CountTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import static java.util.Collections.singleton;
 
 /** Count tumbling windowing. */
 @Audience(Audience.Type.CLIENT)

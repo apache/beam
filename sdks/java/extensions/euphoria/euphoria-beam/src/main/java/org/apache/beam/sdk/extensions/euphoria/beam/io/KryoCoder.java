@@ -20,10 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.beam.io;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFunction;
-import org.objenesis.strategy.StdInstantiatorStrategy;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -34,6 +30,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFunction;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
  * Coder using Kryo as (de)serialization mechanism. TODO: we should drop this class entirely

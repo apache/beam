@@ -19,14 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closeables;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.util.IOUtils;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.util.IOUtils;
 
 /** Tools that can be used to externalize a dataset to local storage. */
 @Audience(Audience.Type.CLIENT)

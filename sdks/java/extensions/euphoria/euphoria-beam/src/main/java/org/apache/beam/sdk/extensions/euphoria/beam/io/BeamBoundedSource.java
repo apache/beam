@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.io;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedDataSource;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedDataSource;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * A {@link BoundedSource} created from {@link BoundedDataSource}.
@@ -60,7 +59,8 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   @Override
   public BoundedReader<T> createReader(PipelineOptions po) throws IOException {
-    final org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedReader<T> reader = wrap.openReader();
+    final org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedReader<T> reader =
+        wrap.openReader();
     return new BoundedReader<T>() {
 
       private T current = null;

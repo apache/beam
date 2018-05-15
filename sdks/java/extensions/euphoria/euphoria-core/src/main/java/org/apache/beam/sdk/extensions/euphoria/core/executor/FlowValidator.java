@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
@@ -28,13 +34,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowingReq
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static com.google.common.base.Preconditions.checkState;
 
 /** Validate invariants. Throw exceptions if any invariant is violated. */
 class FlowValidator {

@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.time;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Date;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * A provider of the "current" timestamp aiming to decouple the "current" time consumers and their

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-
 import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 
 /**
  * TODO: add javadoc.

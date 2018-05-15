@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
+import java.io.Serializable;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
-
-import java.io.Serializable;
-import java.util.stream.Stream;
 
 /** Apply a folding function. */
 public class Fold implements Serializable {

@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
+import static java.util.Arrays.asList;
+
+import java.time.Duration;
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
@@ -35,11 +39,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.List;
-
-import static java.util.Arrays.asList;
 
 /**
  * Test of Join operator.
