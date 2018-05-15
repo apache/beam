@@ -20,13 +20,19 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import threading
 import time
 import traceback
-import urllib
+from builtins import hex
 from collections import defaultdict
+
+from future import standard_library
+from future.moves.urllib.parse import quote
+from future.moves.urllib.parse import unquote
 
 import apache_beam as beam
 from apache_beam import coders
@@ -51,6 +57,8 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils.plugin import BeamPlugin
+
+standard_library.install_aliases()
 
 __all__ = ['DataflowRunner']
 
@@ -125,7 +133,7 @@ class DataflowRunner(PipelineRunner):
 
     if duration:
       start_secs = time.time()
-      duration_secs = duration / 1000
+      duration_secs = duration // 1000
 
     job_id = result.job_id()
     while True:
@@ -965,12 +973,12 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
-    return urllib.quote(raw_bytes)
+    return quote(raw_bytes)
 
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return urllib.unquote(encoded_string)
+    return unquote(encoded_string)
 
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):

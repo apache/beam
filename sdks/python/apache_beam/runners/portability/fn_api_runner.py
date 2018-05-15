@@ -17,16 +17,20 @@
 
 """A PipelineRunner using the SDK harness.
 """
+from __future__ import absolute_import
+
 import collections
 import contextlib
 import copy
 import logging
-import Queue as queue
+import queue
 import threading
 import time
+from builtins import object
 from concurrent import futures
 
 import grpc
+from future import standard_library
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
@@ -52,6 +56,7 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 
+standard_library.install_aliases()
 # This module is experimental. No backwards-compatibility guarantees.
 
 
@@ -297,7 +302,7 @@ class FnApiRunner(runner.PipelineRunner):
         new_transforms = []
         for transform in self.transforms:
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-            pcoll = only_element(transform.outputs.items())[1]
+            pcoll = only_element(list(transform.outputs.items()))[1]
             if pcoll in seen_pcolls:
               continue
             seen_pcolls.add(pcoll)
@@ -408,9 +413,9 @@ class FnApiRunner(runner.PipelineRunner):
               transform.spec.payload, beam_runner_api_pb2.CombinePayload)
 
           input_pcoll = pipeline_components.pcollections[only_element(
-              transform.inputs.values())]
+              list(transform.inputs.values()))]
           output_pcoll = pipeline_components.pcollections[only_element(
-              transform.outputs.values())]
+              list(transform.outputs.values()))]
 
           windowed_input_coder = pipeline_components.coders[
               input_pcoll.coder_id]
@@ -579,7 +584,7 @@ class FnApiRunner(runner.PipelineRunner):
         if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
           # This is used later to correlate the read and writes.
           param = str("materialize:%s" % transform.unique_name)
-          output_pcoll_id, = transform.outputs.values()
+          output_pcoll_id, = list(transform.outputs.values())
           output_coder_id = pcollections[output_pcoll_id].coder_id
           flatten_writes = []
           for local_in, pcoll_in in transform.inputs.items():
@@ -766,7 +771,7 @@ class FnApiRunner(runner.PipelineRunner):
       # Everything that was originally a stage or a replacement, but wasn't
       # replaced, should be in the final graph.
       final_stages = frozenset(stages).union(replacements.values()).difference(
-          replacements.keys())
+          list(replacements.keys()))
 
       for stage in final_stages:
         # Update all references to their final values before throwing
@@ -948,8 +953,8 @@ class FnApiRunner(runner.PipelineRunner):
           original_gbk_transform = pcoll_id.split(':', 1)[1]
           transform_proto = pipeline_components.transforms[
               original_gbk_transform]
-          input_pcoll = only_element(transform_proto.inputs.values())
-          output_pcoll = only_element(transform_proto.outputs.values())
+          input_pcoll = only_element(list(transform_proto.inputs.values()))
+          output_pcoll = only_element(list(transform_proto.outputs.values()))
           pre_gbk_coder = context.coders[safe_coders[
               pipeline_components.pcollections[input_pcoll].coder_id]]
           post_gbk_coder = context.coders[safe_coders[
