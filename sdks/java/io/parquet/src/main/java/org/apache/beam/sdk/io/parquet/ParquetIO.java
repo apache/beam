@@ -323,6 +323,27 @@ public class ParquetIO {
         position++;
         outputStream.write(b);
       }
+
+      @Override
+      public void write(byte[] b) throws IOException {
+        write(b, 0, b.length);
+      }
+
+      @Override
+      public void write(byte[] b, int off, int len) throws IOException {
+        outputStream.write(b, off, len);
+        position += len;
+      }
+
+      @Override
+      public void flush() throws IOException {
+        outputStream.flush();
+      }
+
+      @Override
+      public void close() throws IOException {
+        outputStream.close();
+      }
     }
   }
 
