@@ -23,10 +23,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
@@ -37,13 +37,11 @@ import org.joda.time.Instant;
 @AutoValue
 abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
-  public static <InputT> Builder<InputT> withHold(
-      AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
+  public static <InputT> Builder<InputT> withHold(PTransformNode transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
 
-  public static <InputT> Builder<InputT> withoutHold(
-      AppliedPTransform<?, ?, ?> transform) {
+  public static <InputT> Builder<InputT> withoutHold(PTransformNode transform) {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
@@ -64,7 +62,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
    * A builder for creating instances of {@link StepTransformResult}.
    */
   public static class Builder<InputT> {
-    private final AppliedPTransform<?, ?, ?> transform;
+    private final PTransformNode transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
     private MetricUpdates metricUpdates;
@@ -73,7 +71,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
-    private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
+    private Builder(PTransformNode transform, Instant watermarkHold) {
       this.transform = transform;
       this.watermarkHold = watermarkHold;
       this.bundlesBuilder = ImmutableList.builder();

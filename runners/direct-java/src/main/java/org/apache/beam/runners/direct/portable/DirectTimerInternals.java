@@ -20,9 +20,10 @@ package org.apache.beam.runners.direct.portable;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import org.apache.beam.runners.direct.portable.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.Clock;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Instant;
 

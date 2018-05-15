@@ -273,6 +273,12 @@ public class PTransformTranslation {
     return urn;
   }
 
+  /** Returns the URN for the transform if it is known, otherwise {@code null}. */
+  @Nullable
+  public static String urnForTransformOrNull(RunnerApi.PTransform transform) {
+    return transform.getSpec() == null ? null : transform.getSpec().getUrn();
+  }
+
   /**
    * A bi-directional translator between a Java-based {@link PTransform} and a protobuf payload for
    * that transform.

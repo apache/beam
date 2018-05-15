@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import org.apache.beam.runners.direct.portable.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,13 +38,12 @@ interface BundleFactory {
    * Create an {@link UncommittedBundle} from the specified input. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  <T> UncommittedBundle<T> createBundle(PCollection<T> output);
+  <T> UncommittedBundle<T> createBundle(PCollectionNode output);
 
   /**
    * Create an {@link UncommittedBundle} with the specified keys at the specified step. For use by
-   * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}. Elements added to the bundle
+   * {@code DirectGroupByKeyOnly} {@link PTransform PTransforms}. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  <K, T> UncommittedBundle<T> createKeyedBundle(
-      StructuralKey<K> key, PCollection<T> output);
+  <K, T> UncommittedBundle<T> createKeyedBundle(StructuralKey<K> key, PCollectionNode output);
 }

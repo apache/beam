@@ -34,16 +34,15 @@ import java.util.EnumSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.direct.DirectGraphs;
-import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -59,10 +58,18 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class DirectTransformExecutorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private PCollection<String> created;
+  private final PCollectionNode created =
+      PipelineNode.pCollection(
+          "created", PCollection.newBuilder().setUniqueName("created").build());
 
-  private AppliedPTransform<?, ?, ?> createdProducer;
-  private AppliedPTransform<?, ?, ?> downstreamProducer;
+  private final PTransformNode createdProducer =
+      PipelineNode.pTransform(
+          "create",
+          PTransform.newBuilder().putOutputs("created", "created").setUniqueName("create").build());
+  private final PTransformNode downstreamProducer =
+      PipelineNode.pTransform(
+          "downstream",
+          PTransform.newBuilder().putInputs("input", "created").setUniqueName("create").build());
 
   private CountDownLatch evaluatorCompleted;
 
@@ -87,14 +94,8 @@ public class DirectTransformExecutorTest {
     evaluatorCompleted = new CountDownLatch(1);
     completionCallback = new RegisteringCompletionCallback(evaluatorCompleted);
 
-    created = p.apply(Create.of("foo", "spam", "third"));
-    PCollection<KV<Integer, String>> downstream = created.apply(WithKeys.of(3));
-
-    DirectGraphs.performDirectOverrides(p);
-    ExecutableGraph<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> graph =
-        DirectGraphs.getGraph(p);
-    createdProducer = graph.getProducer(created);
-    downstreamProducer = graph.getProducer(downstream);
+    PipelineNode.pCollection(
+        "created", RunnerApi.PCollection.newBuilder().setUniqueName("created").build());
 
     when(evaluationContext.getMetrics()).thenReturn(metrics);
   }
@@ -175,7 +176,12 @@ public class DirectTransformExecutorTest {
     WindowedValue<String> spam = WindowedValue.valueInGlobalWindow("spam");
     WindowedValue<String> third = WindowedValue.valueInGlobalWindow("third");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
+        bundleFactory
+            .<String>createBundle(created)
+            .add(foo)
+            .add(spam)
+            .add(third)
+            .commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
     DirectTransformExecutor<String> executor =
@@ -216,7 +222,7 @@ public class DirectTransformExecutorTest {
 
     WindowedValue<String> foo = WindowedValue.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(foo).commit(Instant.now());
+        bundleFactory.<String>createBundle(created).add(foo).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
     DirectTransformExecutor<String> executor =
@@ -249,7 +255,8 @@ public class DirectTransformExecutorTest {
           }
         };
 
-    CommittedBundle<String> inputBundle = bundleFactory.createBundle(created).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.<String>createBundle(created).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
     DirectTransformExecutor<String> executor =
@@ -300,7 +307,7 @@ public class DirectTransformExecutorTest {
     }
 
     @Override
-    public void handleEmpty(AppliedPTransform<?, ?, ?> transform) {
+    public void handleEmpty(PTransformNode transform) {
       handledEmpty = true;
       onMethod.countDown();
     }
