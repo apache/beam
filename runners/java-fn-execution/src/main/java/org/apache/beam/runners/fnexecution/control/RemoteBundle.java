@@ -22,17 +22,15 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * A bundle capable of handling input data elements for a
- * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor bundle descriptor}
- * by forwarding them to a remote environment for processing.
+ * A bundle capable of handling input data elements for a {@link
+ * org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor bundle descriptor} by
+ * forwarding them to a remote environment for processing.
  *
  * <p>When a RemoteBundle is closed, it will block until bundle processing is finished on remote
  * resources, and throw an exception if bundle processing has failed.
  */
 public interface RemoteBundle<InputT> extends AutoCloseable {
-  /**
-   * Get an id used to represent this bundle.
-   */
+  /** Get an id used to represent this bundle. */
   String getId();
 
   /**
@@ -40,4 +38,15 @@ public interface RemoteBundle<InputT> extends AutoCloseable {
    * remote environment.
    */
   FnDataReceiver<WindowedValue<InputT>> getInputReceiver();
+
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls
+   * to that {@link FnDataReceiver} will throw an exception), and causes the {@link RemoteBundle} to
+   * produce any buffered outputs. The call to {@link #close()} will block until all of the outputs
+   * produced by this bundle have been received.
+   */
+  @Override
+  void close() throws Exception;
 }
