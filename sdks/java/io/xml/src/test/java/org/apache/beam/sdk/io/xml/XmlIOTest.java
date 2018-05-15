@@ -22,7 +22,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.Lists;
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -74,22 +73,22 @@ public class XmlIOTest {
   }
 
   @Test
-  public void testXmlWriteThenReadViaSinkAndReadFilesUTF8() throws Exception {
+  public void testXmlWriteThenReadViaSinkAndReadFilesUTF8() {
     testWriteThenRead(Method.SINK_AND_READ_FILES, BIRDS, StandardCharsets.UTF_8);
   }
 
   @Test
-  public void testXmlWriteThenReadViaSinkAndReadFilesISO8859() throws Exception {
+  public void testXmlWriteThenReadViaSinkAndReadFilesISO8859() {
     testWriteThenRead(Method.SINK_AND_READ_FILES, BIRDS, StandardCharsets.ISO_8859_1);
   }
 
   @Test
-  public void testXmlWriteThenReadViaWriteAndReadUTF8() throws Exception {
+  public void testXmlWriteThenReadViaWriteAndReadUTF8() {
     testWriteThenRead(Method.WRITE_AND_READ, BIRDS, StandardCharsets.UTF_8);
   }
 
   @Test
-  public void testXmlWriteThenReadViaWriteAndReadISO8859() throws Exception {
+  public void testXmlWriteThenReadViaWriteAndReadISO8859() {
     testWriteThenRead(Method.WRITE_AND_READ, BIRDS, StandardCharsets.ISO_8859_1);
   }
 
@@ -150,7 +149,7 @@ public class XmlIOTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWriteThenReadLarger() throws IOException {
+  public void testWriteThenReadLarger() {
     List<Bird> birds = Lists.newArrayList();
     for (int i = 0; i < 100; ++i) {
       birds.add(new Bird("Testing", "Bird number " + i));
