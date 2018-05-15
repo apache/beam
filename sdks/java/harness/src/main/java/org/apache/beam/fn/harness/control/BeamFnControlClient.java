@@ -192,11 +192,11 @@ public class BeamFnControlClient {
   }
 
   private void sendErrorResponse(Error e) {
+    onFinish.completeExceptionally(e);
     outboundObserver.onError(
         Status.INTERNAL
             .withDescription(String.format("%s: %s", e.getClass().getName(), e.getMessage()))
             .asException());
-    onFinish.completeExceptionally(e);
     // TODO: Should this clear out the instruction request queue?
   }
 
