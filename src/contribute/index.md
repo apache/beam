@@ -174,6 +174,16 @@ across Java, Python, and Go, and every Beam runner.
  - JIRA: [sdk-go](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) / [BEAM-2083](https://issues.apache.org/jira/browse/BEAM-2083) |
  - Contact: [Henning Rohde](mailto:herohde@google.com)
 
+### Python 3 Support
+
+Work is in progress to add Python 3 support to Beam.  Current goal is to make Beam codebase compatible both with Python 2.7 and Python 3.4.
+
+ - [Proposal](https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE)
+ - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)
+
+Contributions are welcome! If you are interested to help, you can select a subpackage to port and assign yourself the corresponding issue. Comment on the issue if you cannot assign it yourself.
+When submitting a new PR, please tag @RobbeSneyders, @aaltay, and @tvalentyn.
+
 ## Stale pull requests
 
 The community will close stale pull requests in order to keep the project
