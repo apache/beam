@@ -68,6 +68,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
@@ -778,8 +779,11 @@ public class BigQueryIO {
                           public void processElement(ProcessContext c) throws Exception {
                             String jobUuid = c.element();
                             BigQuerySourceBase<T> source = createSource(jobUuid, coder);
-                            BigQuerySourceBase.ExtractResult res =
-                                source.extractFiles(c.getPipelineOptions());
+                            BigQueryOptions options =
+                                c.getPipelineOptions().as(BigQueryOptions.class);
+                            ExtractResult res = source.extractFiles(options);
+                            LOG.info("Extract job produced {} files", res.extractedFiles.size());
+                            source.cleanupTempResource(options);
                             for (ResourceId file : res.extractedFiles) {
                               c.output(file.toString());
                             }
