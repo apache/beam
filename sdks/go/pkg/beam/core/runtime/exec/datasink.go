@@ -83,7 +83,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 }
 
 func (n *DataSink) FinishBundle(ctx context.Context) error {
-	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
+	log.Infof(ctx, "DataSink: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
 	return n.w.Close()
 }
 
