@@ -56,6 +56,7 @@ dependencies {
   compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   compile project(path: ":beam-runners-core-java", configuration: "shadow")
   compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
+  compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
