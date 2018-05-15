@@ -31,27 +31,21 @@ from the commandline by building a sample package:
 ./gradlew :beam-examples-java:build
 ```
 
-If you receive any errors, first verify your environment setup based on the
-[Contribution guide]({{ site.baseurl }}/contribute/contribution-guide#one-time-setup).
+If you receive any errors, first verify your environment setup:
 
 1. If running on Mac or Linux, launch Eclipse from a terminal. This is necessary
    to ensure that Eclipse has proper environment setup from user profile
    scripts, i.e. .bashrc.
-
-1. Install [Buildship Gradle
+2. Install [Buildship Gradle
    Integration](https://marketplace.eclipse.org/content/buildship-gradle-integration).
    This will allow importing and interacting with the Gradle build.
-
-1. Open the project import wizard in Eclipse via "File" > "Import".
-
-1. From the "Import" screen, select "Gradle" > "Existing Gradle Project", and click
+3. Open the project import wizard in Eclipse via "File" > "Import".
+4. From the "Import" screen, select "Gradle" > "Existing Gradle Project", and click
    Next.
-
-1. From the "Import Gradle Project" screen, fill in the Project root directory
+5. From the "Import Gradle Project" screen, fill in the Project root directory
    with your local git path, and click Finish.
 
-Eclipse will scan the project tree and import each as a separate
-Package.
+Eclipse will scan the project tree and import each as a separate Package.
 
 Verify that your workspace is correctly configured by invoking
 'beam-runners-direct-java:build' from the "Gradle Tasks" pane. The build should
