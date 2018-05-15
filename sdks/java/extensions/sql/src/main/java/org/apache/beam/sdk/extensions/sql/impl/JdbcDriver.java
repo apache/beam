@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.calcite.avatica.ConnectionProperty;
 import org.apache.calcite.config.CalciteConnectionProperty;
 import org.apache.calcite.config.Lex;
@@ -35,6 +36,7 @@ import org.apache.calcite.schema.SchemaPlus;
 public class JdbcDriver extends Driver {
   public static final JdbcDriver INSTANCE = new JdbcDriver();
   public static final String CONNECT_STRING_PREFIX = "jdbc:beam:";
+  private static final String BEAM_CALCITE_SCHEMA = "beamCalciteSchema";
 
   static {
     INSTANCE.register();
@@ -45,6 +47,8 @@ public class JdbcDriver extends Driver {
   }
 
   @Override public Connection connect(String url, Properties info) throws SQLException {
+    final BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) info.get(BEAM_CALCITE_SCHEMA);
+
     Properties info2 = new Properties(info);
     setDefault(info2, CalciteConnectionProperty.LEX, Lex.JAVA.name());
     setDefault(info2, CalciteConnectionProperty.PARSER_FACTORY,
@@ -56,8 +60,14 @@ public class JdbcDriver extends Driver {
         BeamCalciteSchemaFactory.class.getName());
 
     CalciteConnection connection = (CalciteConnection) super.connect(url, info2);
-    final SchemaPlus defaultSchema = connection.getRootSchema()
-        .getSubSchema(connection.getSchema());
+    final SchemaPlus defaultSchema;
+    if (beamCalciteSchema != null) {
+      defaultSchema = connection.getRootSchema()
+          .add(connection.config().schema(), beamCalciteSchema);
+      connection.setSchema(defaultSchema.getName());
+    } else {
+      defaultSchema = getDefaultSchema(connection);
+    }
 
     // Beam schema may change without notifying Calcite
     defaultSchema.setCacheEnabled(false);
@@ -68,6 +78,25 @@ public class JdbcDriver extends Driver {
     // A null value indicates the default. We want to override defaults only.
     if (info.getProperty(key.camelName()) == null) {
       info.setProperty(key.camelName(), value);
+    }
+  }
+
+  static CalciteConnection connect(TableProvider tableProvider) {
+    try {
+      Properties info = new Properties();
+      info.put(BEAM_CALCITE_SCHEMA, new BeamCalciteSchema(tableProvider));
+      return (CalciteConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, info);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static SchemaPlus getDefaultSchema(CalciteConnection connection) {
+    try {
+      String defaultSchemaName = connection.getSchema();
+      return connection.getRootSchema().getSubSchema(defaultSchemaName);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
     }
   }
 }

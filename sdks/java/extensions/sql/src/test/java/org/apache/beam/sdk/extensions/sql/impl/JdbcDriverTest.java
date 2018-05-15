@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
@@ -85,6 +86,24 @@ public class JdbcDriverTest {
 
     // Ensure no tables
     resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
+    assertFalse(resultSet.next());
+  }
+
+  @Test
+  public void testInternalConnect_boundedTable() throws Exception {
+    BeamSqlTableProvider tableProvider = new BeamSqlTableProvider("test", ImmutableMap.of(
+        "test",
+        MockedBoundedTable
+          .of(TypeName.INT32, "id",
+              TypeName.STRING, "name")
+          .addRows(
+              1, "first")));
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    Statement statement = connection.createStatement();
+    ResultSet resultSet = statement.executeQuery("SELECT * FROM test");
+    assertTrue(resultSet.next());
+    assertEquals(1, resultSet.getInt("id"));
+    assertEquals("first", resultSet.getString("name"));
     assertFalse(resultSet.next());
   }
 }

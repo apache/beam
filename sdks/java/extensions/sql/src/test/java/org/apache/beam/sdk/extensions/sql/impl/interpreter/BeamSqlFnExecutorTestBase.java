@@ -20,8 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.Row;
@@ -48,7 +46,7 @@ import org.junit.BeforeClass;
 /** base class to test {@link BeamSqlFnExecutor} and subclasses of {@link BeamSqlExpression}. */
 public class BeamSqlFnExecutorTestBase {
   static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
-  static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
+  static RexBuilder rexBuilder = new RexBuilder(TYPE_FACTORY);
   static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
   static RelDataType relDataType;
   static RelBuilder relBuilder;
@@ -83,7 +81,7 @@ public class BeamSqlFnExecutorTestBase {
             .context(Contexts.EMPTY_CONTEXT)
             .ruleSets(BeamRuleSets.getRuleSets())
             .costFactory(null)
-            .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
+            .typeSystem(TYPE_FACTORY.getTypeSystem())
             .build();
 
     relBuilder = RelBuilder.create(config);
