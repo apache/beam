@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import cz.seznam.euphoria.beam.JoinTranslator;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
@@ -54,7 +56,7 @@ class FlowTranslator {
     // extended operators
     translators.put(ReduceByKey.class, new ReduceByKeyTranslator());
     translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
-    translators.put(JoinTranslator.class, new JoinTranslator());
+    translators.put(Join.class, new JoinTranslator());
   }
 
   static Pipeline toPipeline(

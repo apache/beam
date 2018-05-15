@@ -3,9 +3,13 @@ package cz.seznam.euphoria.beam.window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.operator.WindowWiseOperator;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
+/**
+ * Collection of method helpful when dealing with windowing translations.
+ */
 public class WindowingUtils {
 
   public static <InputT, OutputT, W extends Window<W>>
@@ -30,9 +34,9 @@ public class WindowingUtils {
 
     @SuppressWarnings("unchecked")
     org.apache.beam.sdk.transforms.windowing.Window<InputT> beamWindow =
-        (org.apache.beam.sdk.transforms.windowing.Window<InputT>)
-            org.apache.beam.sdk.transforms.windowing.Window.into(beamWindowing.getWindowFn())
-                .triggering(beamWindowing.getBeamTrigger());
+        org.apache.beam.sdk.transforms.windowing.Window
+            .into((WindowFn<InputT, ?>) beamWindowing.getWindowFn())
+            .triggering(beamWindowing.getBeamTrigger());
 
     switch (beamWindowing.getAccumulationMode()) {
       case DISCARDING_FIRED_PANES:
