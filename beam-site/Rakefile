@@ -12,7 +12,11 @@ task :test do
     :allow_hash_href => true,
     :check_html => true,
     :file_ignore => [/javadoc/, /v2/, /pydoc/],
-    :url_ignore => [/jstorm.io/, /datatorrent.com/],
+    :url_ignore => [
+        /jstorm.io/,
+        /datatorrent.com/,
+        /ai.google/ # https://issues.apache.org/jira/browse/INFRA-16527
+    ],
     :parallel => { :in_processes => Etc.nprocessors },
     }).run
 end
