@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.io.Serializable;
+import java.util.Objects;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
@@ -27,10 +30,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.transforms.DoFn;
-
-import javax.annotation.concurrent.NotThreadSafe;
-import java.io.Serializable;
-import java.util.Objects;
 
 /**
  * Collector that outputs elements to {@link BeamCollector}.

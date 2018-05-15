@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
 
+import static java.util.Objects.requireNonNull;
+
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
@@ -26,8 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
-
-import static java.util.Objects.requireNonNull;
 
 /** TODO: complete javadoc. */
 public class Dataset<T> {
@@ -43,7 +43,9 @@ public class Dataset<T> {
   }
 
   public <OutputT> Dataset<OutputT> apply(
-      UnaryFunction<org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T>, Output<OutputT>> output) {
+      UnaryFunction<
+          org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T>,
+          Output<OutputT>> output) {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
   }
 

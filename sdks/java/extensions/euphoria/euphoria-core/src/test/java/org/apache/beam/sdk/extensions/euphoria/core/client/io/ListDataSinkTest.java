@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.extensions.euphoria.core.testing.DatasetAssert;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
 
 /** TODO: complete javadoc. */
 public class ListDataSinkTest {

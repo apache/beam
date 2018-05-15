@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
 
+import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.beam.BeamExecutor;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorEnvironment;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-
-import java.time.Duration;
 
 /**
  * Local {@link ExecutorProvider}.

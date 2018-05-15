@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.triggers;
 
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-
-import java.util.List;
 
 /**
  * Composite {@link Trigger} that fires once after at least one of sub-triggers have fired. In other

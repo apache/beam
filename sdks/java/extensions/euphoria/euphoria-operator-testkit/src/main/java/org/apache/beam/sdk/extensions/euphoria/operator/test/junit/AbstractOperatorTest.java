@@ -17,6 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test.junit;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.junit.Assert.assertEquals;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
@@ -28,16 +37,6 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators
     .SingleJvmAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing.Type;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
 
 /**
  * Base class for test description of a test case.

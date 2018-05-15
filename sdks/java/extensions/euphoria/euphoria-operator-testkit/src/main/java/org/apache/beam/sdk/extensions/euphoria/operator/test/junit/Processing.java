@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.operator.test.junit;
 
 import com.google.common.collect.Lists;
-
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

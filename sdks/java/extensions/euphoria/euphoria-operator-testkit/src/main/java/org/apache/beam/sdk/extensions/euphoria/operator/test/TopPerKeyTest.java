@@ -17,18 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import static java.util.Arrays.asList;
+
+import java.io.Serializable;
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.io.Serializable;
-import java.util.List;
-import java.util.Objects;
-
-import static java.util.Arrays.asList;
 
 /**
  * TODO: add javadoc.

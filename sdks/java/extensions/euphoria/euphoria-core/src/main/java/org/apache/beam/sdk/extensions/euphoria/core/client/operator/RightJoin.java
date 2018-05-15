@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
@@ -24,9 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
-
-import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Right outer join of two input datasets producing single new dataset.

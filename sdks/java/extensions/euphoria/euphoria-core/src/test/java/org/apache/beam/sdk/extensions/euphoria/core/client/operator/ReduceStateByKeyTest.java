@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
+import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -27,10 +33,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.junit.Test;
-
-import java.time.Duration;
-
-import static org.junit.Assert.*;
 
 /** Test operator ReduceStateByKey.  */
 public class ReduceStateByKeyTest {

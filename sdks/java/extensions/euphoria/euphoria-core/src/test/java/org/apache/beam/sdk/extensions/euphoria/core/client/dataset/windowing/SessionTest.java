@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
-import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Iterables;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.junit.Test;
 
 /** TODO: complete javadoc. */
 public class SessionTest {

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** TODO: complete javadoc. */
 public abstract class AbstractExecutor implements Executor {

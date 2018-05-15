@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 
 class Util {
 

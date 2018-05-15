@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
-
-import java.util.stream.Collectors;
 
 /** Provides commonly used function objects around computing sums. */
 @Audience(Audience.Type.CLIENT)
