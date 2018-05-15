@@ -252,7 +252,7 @@ public class XmlIO {
       /** @see Compression#DEFLATE */
       DEFLATE(Compression.DEFLATE);
 
-      private Compression canonical;
+      private final Compression canonical;
 
       CompressionType(Compression canonical) {
         this.canonical = canonical;

@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
@@ -45,6 +46,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
 
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TFRecordIO}.
@@ -132,14 +134,14 @@ public class TFRecordIOIT {
   static class StringToByteArray extends SimpleFunction<String, byte[]> {
     @Override
     public byte[] apply(String input) {
-      return input.getBytes();
+      return input.getBytes(StandardCharsets.UTF_8);
     }
   }
 
   static class ByteArrayToString extends SimpleFunction<byte[], String> {
     @Override
     public String apply(byte[] input) {
-      return new String(input);
+      return new String(input, StandardCharsets.UTF_8);
     }
   }
 }
