@@ -28,7 +28,6 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -71,19 +70,19 @@ public class XmlSourceTest {
   @Rule
   public ExpectedException exception = ExpectedException.none();
 
-  String tinyXML =
+  private String tinyXML =
       "<trains><train><name>Thomas</name></train><train><name>Henry</name></train>"
       + "<train><name>James</name></train></trains>";
 
-  String xmlWithMultiByteElementName =
+  private String xmlWithMultiByteElementName =
       "<දුම්රියන්><දුම්රිය><name>Thomas</name></දුම්රිය><දුම්රිය><name>Henry</name></දුම්රිය>"
       + "<දුම්රිය><name>James</name></දුම්රිය></දුම්රියන්>";
 
-  String xmlWithMultiByteChars =
+  private String xmlWithMultiByteChars =
       "<trains><train><name>Thomas¥</name></train><train><name>Hen¶ry</name></train>"
       + "<train><name>Jamßes</name></train></trains>";
 
-  String trainXML =
+  private String trainXML =
       "<trains>"
       + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
       + "<train><name>Henry</name><number>3</number><color>green</color></train>"
@@ -93,7 +92,7 @@ public class XmlSourceTest {
       + "<train><name>Percy</name><number>6</number><color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithEmptyTags =
+  private String trainXMLWithEmptyTags =
       "<trains>"
       + "<train/>"
       + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
@@ -105,7 +104,7 @@ public class XmlSourceTest {
       + "<train><name>Percy</name><number>6</number><color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithAttributes =
+  private String trainXMLWithAttributes =
       "<trains>"
       + "<train size=\"small\"><name>Thomas</name><number>1</number><color>blue</color></train>"
       + "<train size=\"big\"><name>Henry</name><number>3</number><color>green</color></train>"
@@ -115,7 +114,7 @@ public class XmlSourceTest {
       + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithSpaces =
+  private String trainXMLWithSpaces =
       "<trains>"
       + "<train><name>Thomas   </name>   <number>1</number><color>blue</color></train>"
       + "<train><name>Henry</name><number>3</number><color>green</color></train>\n"
@@ -125,7 +124,7 @@ public class XmlSourceTest {
       + "<train>\n<name>Percy</name>   <number>6  </number>   <color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithAllFeaturesMultiByte =
+  private String trainXMLWithAllFeaturesMultiByte =
       "<දුම්රියන්>"
       + "<දුම්රිය/>"
       + "<දුම්රිය size=\"small\"><name> Thomas¥</name><number>1</number><color>blue</color>"
@@ -140,7 +139,7 @@ public class XmlSourceTest {
       + "</දුම්රිය>"
       + "</දුම්රියන්>";
 
-  String trainXMLWithAllFeaturesSingleByte =
+  private String trainXMLWithAllFeaturesSingleByte =
       "<trains>"
       + "<train/>"
       + "<train size=\"small\"><name> Thomas</name><number>1</number><color>blue</color>"
@@ -155,14 +154,14 @@ public class XmlSourceTest {
       + "</train>"
       + "</trains>";
 
-  String trainXMLWithISO88591 =
+  private String trainXMLWithISO88591 =
       "<trains>"
       + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
       + "</trains>";
 
   @XmlRootElement
   static class TinyTrain {
-    public TinyTrain(String name) {
+    TinyTrain(String name) {
       this.name = name;
     }
 
@@ -283,7 +282,7 @@ public class XmlSourceTest {
 
   private File createRandomTrainXML(String fileName, List<Train> trains) throws IOException {
     File file = tempFolder.newFile(fileName);
-    try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+    try (BufferedWriter writer = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
       writer.write("<trains>");
       writer.newLine();
       for (Train train : trains) {

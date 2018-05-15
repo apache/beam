@@ -88,13 +88,13 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
   @Override
   public void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     if (context.isWholeStream) {
       try {
         jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
@@ -114,12 +114,12 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream) throws CoderException, IOException {
+  public T decode(InputStream inStream) throws IOException {
     return decode(inStream, Context.NESTED);
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
+  public T decode(InputStream inStream, Context context) throws IOException {
     try {
       if (!context.isWholeStream) {
         long limit = VarInt.decodeLong(inStream);
@@ -168,7 +168,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private static class CloseIgnoringInputStream extends FilterInputStream {
 
-    protected CloseIgnoringInputStream(InputStream in) {
+    CloseIgnoringInputStream(InputStream in) {
       super(in);
     }
 
@@ -180,12 +180,12 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private static class CloseIgnoringOutputStream extends FilterOutputStream {
 
-    protected CloseIgnoringOutputStream(OutputStream out) {
+    CloseIgnoringOutputStream(OutputStream out) {
       super(out);
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
       // JAXB closes the underlying stream so we must filter out those calls.
     }
   }
