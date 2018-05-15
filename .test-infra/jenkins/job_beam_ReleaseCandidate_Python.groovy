@@ -35,8 +35,6 @@ job('beam_PostRelease_Python_Candidate') {
 
     // Execute shell command to test Python SDK.
     steps {
-        shell('cd ' + common_job_properties.checkoutDir +
-                ' && bash release/src/main/groovy/run_release_candidate_python_quickstart.sh' +
-                ' && bash release/src/main/groovy/run_release_candidate_python_mobile_gaming.sh')
+        shell('ls -al /root/ && pip install --upgrade pip')
     }
 }
