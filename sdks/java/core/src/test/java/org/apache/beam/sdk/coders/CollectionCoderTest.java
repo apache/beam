@@ -65,12 +65,12 @@ public class CollectionCoderTest {
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAAA",
-      "AAAAAQ0",
-      "AAAABAECAwQ",
-      "AAAAAwcGBQ",
-      "AAAAA_v___8PH1M");
+    "AAAAAA",
+    "AAAAAA",
+    "AAAAAQ0",
+    "AAAABAECAwQ",
+    "AAAAAwcGBQ",
+    "AAAAA_v___8PH1M");
 
   @Test
   public void testWireFormat() throws Exception {

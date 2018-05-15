@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -107,14 +108,15 @@ class DirectGroupByKey<K, V>
 
     private KeyedWorkItemCoder<K, V> getKeyedWorkItemCoder(Coder<KeyedWorkItem<K, V>> inputCoder) {
       // Coder<KV<...>> --> KvCoder<...>
+      final Coder<KeyedWorkItem<K, V>> coder = CoderUtils.unwrap(inputCoder);
       checkArgument(
-          inputCoder instanceof KeyedWorkItemCoder,
+          coder instanceof KeyedWorkItemCoder,
           "%s requires a %s<...> but got %s",
           getClass().getSimpleName(),
           KvCoder.class.getSimpleName(),
-          inputCoder);
+              coder);
       @SuppressWarnings("unchecked")
-      KeyedWorkItemCoder<K, V> kvCoder = (KeyedWorkItemCoder<K, V>) inputCoder;
+      KeyedWorkItemCoder<K, V> kvCoder = (KeyedWorkItemCoder<K, V>) coder;
       return kvCoder;
     }
 

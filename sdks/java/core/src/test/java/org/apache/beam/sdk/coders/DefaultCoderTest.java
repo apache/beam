@@ -136,7 +136,8 @@ public class DefaultCoderTest {
     Coder<List<AvroRecord>> avroRecordCoder =
         registry.getCoder(new TypeDescriptor<List<AvroRecord>>(){});
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
-    assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
+    assertThat(((ListCoder) avroRecordCoder).getElemCoder(),
+        instanceOf(AvroCoder.class));
     assertThat(
         registry.getCoder(new TypeDescriptor<List<SerializableRecord>>() {}),
         Matchers.equalTo(ListCoder.of(SerializableCoder.of(SerializableRecord.class))));

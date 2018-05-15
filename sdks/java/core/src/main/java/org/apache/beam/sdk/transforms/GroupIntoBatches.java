@@ -33,6 +33,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -85,7 +86,7 @@ public class GroupIntoBatches<K, InputT>
     Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
 
     checkArgument(
-        input.getCoder() instanceof KvCoder,
+        CoderUtils.unwrap(input.getCoder()) instanceof KvCoder,
         "coder specified in the input PCollection is not a KvCoder");
     KvCoder inputCoder = (KvCoder) input.getCoder();
     Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);

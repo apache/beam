@@ -44,6 +44,20 @@ public final class CoderUtils {
       ThreadLocal.withInitial(() -> false);
 
   /**
+   * Unwrap a coder instance.
+   * @param instance the root coder instance.
+   * @param <T> the type supported by the coder.
+   * @return the most nested coder accessible from the root instance.
+   */
+  public static <T> Coder<T> unwrap(final Coder<T> instance) {
+    Coder<T> current = instance;
+    while (Delegating.class.isInstance(current)) {
+      current = ((Delegating<Coder<T>>) current).getDelegate();
+    }
+    return current;
+  }
+
+  /**
    * Encodes the given value using the specified Coder, and returns
    * the encoded bytes.
    *

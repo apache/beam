@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -169,14 +170,15 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
     private KvCoder<K, Iterable<WindowedValue<V>>> getKvCoder(
         Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder) {
       // Coder<KV<...>> --> KvCoder<...>
-      checkArgument(inputCoder instanceof KvCoder,
+      final Coder<KV<K, Iterable<WindowedValue<V>>>> coder = CoderUtils.unwrap(inputCoder);
+      checkArgument(coder instanceof KvCoder,
           "%s requires a %s<...> but got %s",
           getClass().getSimpleName(),
           KvCoder.class.getSimpleName(),
-          inputCoder);
+              coder);
       @SuppressWarnings("unchecked")
       KvCoder<K, Iterable<WindowedValue<V>>> kvCoder =
-          (KvCoder<K, Iterable<WindowedValue<V>>>) inputCoder;
+          (KvCoder<K, Iterable<WindowedValue<V>>>) coder;
       return kvCoder;
     }
 

@@ -91,12 +91,14 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
   private static <PrimaryKeyT, SecondaryKeyT, ValueT>
       KvCoder<SecondaryKeyT, ValueT> getSecondaryKeyValueCoder(
           Coder<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> inputCoder) {
-    if (!(inputCoder instanceof KvCoder)) {
+    final Coder<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> coder =
+      CoderUtils.unwrap(inputCoder);
+    if (!(coder instanceof KvCoder)) {
       throw new IllegalStateException("SortValues requires its input to use KvCoder");
     }
     @SuppressWarnings("unchecked")
     KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>> kvCoder =
-        (KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>) (inputCoder);
+        (KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>) coder;
 
     if (!(kvCoder.getValueCoder() instanceof IterableCoder)) {
       throw new IllegalStateException(

@@ -34,7 +34,7 @@ import org.apache.beam.sdk.util.CoderUtils;
  * {@code
  *   mvn test-compile exec:java \
  *       -Dexec.classpathScope=test \
- *       -Dexec.mainClass=org.apache.beam.sdk.coders.PrintBase64Encodings
+ *       -Dexec.mainClass=org.apache.beam.sdk.coders.PrintBase64Encodings \
  *       -Dexec.args='org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_CODER \
  *           org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_VALUES'
  * }
