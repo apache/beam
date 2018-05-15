@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
 
-import cz.seznam.euphoria.beam.window.BeamWindowing;
+import cz.seznam.euphoria.beam.window.WindowingUtils;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -58,8 +58,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     final Coder<K> keyCoder = context.getCoder(keyExtractor);
     final Coder<V> valueCoder = context.getCoder(valueExtractor);
 
-    final PCollection<InputT> input = applyWindowingIfSpecified(operator,
-        context.getInput(operator), context);
+    final PCollection<InputT> input = WindowingUtils.applyWindowingIfSpecified(operator,
+        context.getInput(operator), context.getAllowedLateness(operator));
 
     // ~ create key & value extractor
     final MapElements<InputT, KV<K, V>> extractor =
@@ -103,48 +103,6 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
       return grouped.apply(
           operator.getName() + "::reduce", ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
     }
-  }
-
-  private static <InputT, K, V, OutputT, W extends Window<W>>
-  PCollection<InputT> applyWindowingIfSpecified(
-      ReduceByKey<InputT, K, V, OutputT, W> operator, PCollection<InputT> input,
-      BeamExecutorContext context) {
-
-    Windowing<InputT, W> userSpecifiedWindowing = operator.getWindowing();
-
-    if (userSpecifiedWindowing == null) {
-      return input;
-    }
-
-    if (!(userSpecifiedWindowing instanceof BeamWindowing)) {
-      throw new IllegalStateException(String.format(
-          "%s class only is supported to specify windowing.", BeamWindowing.class.getSimpleName()));
-    }
-
-    @SuppressWarnings("unchecked")
-    BeamWindowing<InputT, ?> beamWindowing = (BeamWindowing) userSpecifiedWindowing;
-
-    @SuppressWarnings("unchecked")
-    org.apache.beam.sdk.transforms.windowing.Window<InputT> beamWindow =
-        (org.apache.beam.sdk.transforms.windowing.Window<InputT>)
-            org.apache.beam.sdk.transforms.windowing.Window.into(beamWindowing.getWindowFn())
-                .triggering(beamWindowing.getBeamTrigger());
-
-    switch (beamWindowing.getAccumulationMode()) {
-      case DISCARDING_FIRED_PANES:
-        beamWindow = beamWindow.discardingFiredPanes();
-        break;
-      case ACCUMULATING_FIRED_PANES:
-        beamWindow = beamWindow.accumulatingFiredPanes();
-        break;
-      default:
-        throw new IllegalStateException(
-            "Unsupported accumulation mode '" + beamWindowing.getAccumulationMode() + "'");
-    }
-
-    beamWindow = beamWindow.withAllowedLateness(context.getAllowedLateness(operator));
-
-    return input.apply(operator.getName() + "::windowing", beamWindow);
   }
 
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
