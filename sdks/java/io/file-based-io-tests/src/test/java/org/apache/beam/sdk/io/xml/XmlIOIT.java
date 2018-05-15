@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.util.Map;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
@@ -70,7 +69,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class XmlIOIT {
 
-  private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
+  private static final ImmutableMap<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
     1000, "7f51adaf701441ee83459a3f705c1b86",
     100_000, "af7775de90d0b0c8bbc36273fbca26fe",
     100_000_000, "bfee52b33aa1552b9c1bfa8bcc41ae80"
