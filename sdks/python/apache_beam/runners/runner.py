@@ -277,21 +277,13 @@ class PValueCache(object):
     else:
       tag = tag_or_value
     self._cache[
-        self.to_cache_key(transform, tag)] = [value, transform.refcounts[tag]]
+        self.to_cache_key(transform, tag)] = value
 
-  def get_pvalue(self, pvalue, decref=True):
+  def get_pvalue(self, pvalue):
     """Gets the value associated with a PValue from the cache."""
     self._ensure_pvalue_has_real_producer(pvalue)
     try:
-      value_with_refcount = self._cache[self.key(pvalue)]
-      if decref:
-        value_with_refcount[1] -= 1
-        logging.debug('PValue computed by %s (tag %s): refcount: %d => %d',
-                      pvalue.real_producer.full_label, self.key(pvalue)[1],
-                      value_with_refcount[1] + 1, value_with_refcount[1])
-        if value_with_refcount[1] <= 0:
-          self.clear_pvalue(pvalue)
-      return value_with_refcount[0]
+      return self._cache[self.key(pvalue)]
     except KeyError:
       if (pvalue.tag is not None
           and self.to_cache_key(pvalue.real_producer, None) in self._cache):
@@ -301,8 +293,8 @@ class PValueCache(object):
       else:
         raise
 
-  def get_unwindowed_pvalue(self, pvalue, decref=True):
-    return [v.value for v in self.get_pvalue(pvalue, decref)]
+  def get_unwindowed_pvalue(self, pvalue):
+    return [v.value for v in self.get_pvalue(pvalue)]
 
   def clear_pvalue(self, pvalue):
     """Removes a PValue from the cache."""
