@@ -89,24 +89,7 @@
         <nav>
           <ul class="section-nav-list" data-section-nav>
             <li><span class="section-nav-list-main-title">Contribute</span></li>
-<li><a href="/contribute">Get started contributing</a></li>
-<li>
-  <span class="section-nav-list-title">How to contribute</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/contribute/contribution-guide/">Contribution guide</a></li>
-    <li><a href="/contribute/website-contributions/">Website contributions</a></li>
-    <li><a href="/contribute/feature-branches/">Feature branches</a></li>
-  </ul>
-</li>
-<li>
-  <span class="section-nav-list-title">Committers</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/contribute/become-a-committer/">Become a committer</a></li>
-    <li><a href="/contribute/committer-guide/">Committer guide</a></li>
-  </ul>
-</li>
+<li><a href="/contribute/">Get started contributing</a></li>
 <li>
   <span class="section-nav-list-title">IDE tips</span>
 
@@ -116,24 +99,23 @@
   </ul>
 </li>
 <li>
-  <span class="section-nav-list-title">Other Guides</span>
+  <span class="section-nav-list-title">Technical Docs</span>
 
   <ul class="section-nav-list">
     <li><a href="/contribute/testing/">Testing guide</a></li>
-    <li><a href="/contribute/release-guide/">Release guide</a></li>
     <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
     <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
+    <li><a href="/contribute/portability/">Portability Framework</a></li>
+    <li><a href="/contribute/docker-images/">Docker images</a></li>
   </ul>
 </li>
 <li>
-  <span class="section-nav-list-title">Technical References</span>
+  <span class="section-nav-list-title">Committers</span>
 
   <ul class="section-nav-list">
-    <li><a href="/contribute/design-principles/">Design principles</a></li>
-    <li><a href="/contribute/portability/">Portability Framework</a></li>
-    <li><a href="/contribute/work-in-progress/">Ongoing projects</a></li>
-    <li><a href="/contribute/source-repository/">Source repository</a></li>
-    <li><a href="/contribute/docker-images/">Docker images</a></li>
+    <li><a href="/contribute/become-a-committer/">Become a committer</a></li>
+    <li><a href="/contribute/committer-guide/">Committer guide</a></li>
+    <li><a href="/contribute/release-guide/">Release guide</a></li>
   </ul>
 </li>
 
@@ -186,35 +168,23 @@ from the commandline by building a sample package:</p>
 </code></pre>
 </div>
 
-<p>If you receive any errors, first verify your environment setup based on the
-<a href="/contribute/contribution-guide#one-time-setup">Contribution guide</a>.</p>
+<p>If you receive any errors, first verify your environment setup:</p>
 
 <ol>
-  <li>
-    <p>If running on Mac or Linux, launch Eclipse from a terminal. This is necessary
+  <li>If running on Mac or Linux, launch Eclipse from a terminal. This is necessary
 to ensure that Eclipse has proper environment setup from user profile
-scripts, i.e. .bashrc.</p>
-  </li>
-  <li>
-    <p>Install <a href="https://marketplace.eclipse.org/content/buildship-gradle-integration">Buildship Gradle
+scripts, i.e. .bashrc.</li>
+  <li>Install <a href="https://marketplace.eclipse.org/content/buildship-gradle-integration">Buildship Gradle
 Integration</a>.
-This will allow importing and interacting with the Gradle build.</p>
-  </li>
-  <li>
-    <p>Open the project import wizard in Eclipse via “File” &gt; “Import”.</p>
-  </li>
-  <li>
-    <p>From the “Import” screen, select “Gradle” &gt; “Existing Gradle Project”, and click
-Next.</p>
-  </li>
-  <li>
-    <p>From the “Import Gradle Project” screen, fill in the Project root directory
-with your local git path, and click Finish.</p>
-  </li>
+This will allow importing and interacting with the Gradle build.</li>
+  <li>Open the project import wizard in Eclipse via “File” &gt; “Import”.</li>
+  <li>From the “Import” screen, select “Gradle” &gt; “Existing Gradle Project”, and click
+Next.</li>
+  <li>From the “Import Gradle Project” screen, fill in the Project root directory
+with your local git path, and click Finish.</li>
 </ol>
 
-<p>Eclipse will scan the project tree and import each as a separate
-Package.</p>
+<p>Eclipse will scan the project tree and import each as a separate Package.</p>
 
 <p>Verify that your workspace is correctly configured by invoking
 ‘beam-runners-direct-java:build’ from the “Gradle Tasks” pane. The build should
