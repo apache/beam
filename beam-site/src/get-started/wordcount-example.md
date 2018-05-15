@@ -445,7 +445,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --worker_harness_container_image=herohde-docker-apache.bintray.io/beam/go:20180514
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 To view the full code in Go, see
@@ -756,7 +756,7 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --runner dataflow \
                       --project your-gcp-project \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
-                      --worker_harness_container_image=herohde-docker-apache.bintray.io/beam/go:20180514
+                      --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 To view the full code in Go, see
@@ -1065,7 +1065,7 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --worker_harness_container_image=herohde-docker-apache.bintray.io/beam/go:20180514
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 To view the full code in Go, see
