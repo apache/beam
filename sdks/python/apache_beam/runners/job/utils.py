@@ -18,6 +18,8 @@
 """Utility functions for efficiently processing with the job API
 """
 
+from __future__ import absolute_import
+
 import json
 
 from google.protobuf import json_format

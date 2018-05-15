@@ -19,6 +19,9 @@
 
 Dataflow client utility functions."""
 
+from __future__ import absolute_import
+
+from builtins import object
 import codecs
 import getpass
 import json
@@ -28,12 +31,14 @@ import re
 import tempfile
 import time
 from datetime import datetime
-from StringIO import StringIO
+from io import BytesIO
 
 import pkg_resources
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
 import six
+
+from future import standard_library
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
@@ -52,6 +57,8 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
+
+standard_library.install_aliases()
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
@@ -262,7 +269,7 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue())
 
       options_dict = {k: v
-                      for k, v in sdk_pipeline_options.iteritems()
+                      for k, v in sdk_pipeline_options.items()
                       if v is not None}
       options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
@@ -493,7 +500,7 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
+      self.stage_file(gcs_or_local_path, file_name, BytesIO(job.json()))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -508,7 +515,7 @@ class DataflowApplicationClient(object):
     # Stage the pipeline for the runner harness
     self.stage_file(job.google_cloud_options.staging_location,
                     names.STAGED_PIPELINE_FILENAME,
-                    StringIO(job.proto_pipeline.SerializeToString()))
+                    BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
     resources = self._stage_resources(job.options)
