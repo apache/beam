@@ -33,6 +33,7 @@ import static org.junit.Assert.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -64,10 +65,10 @@ class ElasticsearchIOTestCommon implements Serializable {
   private static final long BATCH_SIZE = 200L;
   private static final long BATCH_SIZE_BYTES = 2048L;
 
-  private long numDocs;
-  private ConnectionConfiguration connectionConfiguration;
-  private RestClient restClient;
-  private boolean useAsITests;
+  private final long numDocs;
+  private final ConnectionConfiguration connectionConfiguration;
+  private final RestClient restClient;
+  private final boolean useAsITests;
 
   private TestPipeline pipeline;
   private ExpectedException expectedException;
@@ -261,7 +262,7 @@ class ElasticsearchIOTestCommon implements Serializable {
       for (String document : input) {
         fnTester.processElement(document);
         numDocsProcessed++;
-        sizeProcessed += document.getBytes().length;
+        sizeProcessed += document.getBytes(StandardCharsets.UTF_8).length;
         // test every 40 docs to avoid overloading ES
         if ((numDocsProcessed % 40) == 0) {
           // force the index to upgrade after inserting for the inserted docs
