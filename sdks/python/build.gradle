@@ -31,10 +31,26 @@ def tox_opts = "-c tox.ini --recreate"
 task setupVirtualenv {
   doLast {
     exec {
+      commandLine 'sh'
+      args '-c', 'echo $PATH'
+    }
+    exec {
+      commandLine 'sh'
+      args '-c', 'set'
+    }
+    exec {
+      commandLine 'sh'
+      args '-c', 'env'
+    }
+    exec {
       commandLine 'virtualenv', "${envdir}"
     }
     exec {
-      executable 'sh'
+      executable 'bash'
+      args '-c', ". ${envdir}/bin/activate && pip -V"
+    }
+    exec {
+      executable 'bash'
       args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
     }
   }
