@@ -20,10 +20,10 @@ package org.apache.beam.runners.flink;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.Monitor;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Phaser;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
@@ -49,7 +49,7 @@ public class ArtifactSourcePool implements ArtifactSource {
   }
 
   private final Object lock = new Object();
-  private final Map<ArtifactSource, ArtifactSourceLock> artifactSources = Maps.newLinkedHashMap();
+  private final Map<ArtifactSource, Phaser> artifactSources = Maps.newLinkedHashMap();
 
   private ArtifactSourcePool() {}
 
@@ -61,117 +61,84 @@ public class ArtifactSourcePool implements ArtifactSource {
   public AutoCloseable addToPool(ArtifactSource artifactSource) {
     synchronized (lock) {
       checkState(!artifactSources.containsKey(artifactSource));
-      artifactSources.put(artifactSource, new ArtifactSourceLock());
+      // For this new artifact source, insert a new Phaser with 1 registrant. This party will only
+      // be deregistered when the corresponding artifact source is marked as closed. Doing so marks
+      // the end of the phase and terminates the phaser.
+      artifactSources.put(
+          artifactSource,
+          new Phaser(1) {
+            @Override
+            protected boolean onAdvance(int phase, int registeredParties) {
+              // There should only ever be a single phase. Terminate once all registered parties
+              // have
+              // arrived.
+              return true;
+            }
+          });
       return () -> {
+        // TODO: Make idempotent?
+        Phaser phaser;
         synchronized (lock) {
-          ArtifactSourceLock innerLock = artifactSources.remove(artifactSource);
-          checkState(innerLock != null);
-          innerLock.close();
+          phaser = artifactSources.remove(artifactSource);
+          checkState(phaser != null);
+          checkState(!phaser.isTerminated());
         }
+        phaser.arriveAndAwaitAdvance();
+        phaser.arriveAndDeregister();
       };
     }
   }
 
   @Override
   public Manifest getManifest() throws IOException {
-    ArtifactSource source;
-    SourceHandle sourceHandle;
-    synchronized (lock) {
-      checkState(!artifactSources.isEmpty());
-      Map.Entry<ArtifactSource, ArtifactSourceLock> entry =
-          artifactSources.entrySet().iterator().next();
-      source = entry.getKey();
-      sourceHandle = entry.getValue().open();
-    }
+    SourceHandle handle = getAny();
     try {
-      return source.getManifest();
+      return handle.getSource().getManifest();
     } finally {
-      sourceHandle.close();
+      handle.close();
     }
   }
 
   @Override
   public void getArtifact(String name, StreamObserver<ArtifactChunk> responseObserver) {
-    ArtifactSource source;
-    SourceHandle sourceHandle;
+    SourceHandle handle = getAny();
+    try {
+      handle.getSource().getArtifact(name, responseObserver);
+    } finally {
+      handle.close();
+    }
+  }
+
+  private SourceHandle getAny() {
     synchronized (lock) {
       checkState(!artifactSources.isEmpty());
-      Map.Entry<ArtifactSource, ArtifactSourceLock> entry =
-          artifactSources.entrySet().iterator().next();
-      source = entry.getKey();
-      sourceHandle = entry.getValue().open();
-    }
-    try {
-      source.getArtifact(name, responseObserver);
-    } finally {
-      sourceHandle.close();
+      Map.Entry<ArtifactSource, Phaser> entry = artifactSources.entrySet().iterator().next();
+      return new SourceHandle(entry.getKey(), entry.getValue());
     }
   }
 
-  /** Manages the state of a composed artifact source. */
-  private static class ArtifactSourceLock {
-    private final Monitor monitor = new Monitor();
-    private final Monitor.Guard isClosed =
-        new Monitor.Guard(monitor) {
-          @Override
-          public boolean isSatisfied() {
-            return closeRequested && refCount == 0;
-          }
-        };
+  private static class SourceHandle {
+    private final ArtifactSource artifactSource;
+    private final Phaser phaser;
 
-    private boolean closeRequested = false;
-    private int refCount = 0;
+    private boolean isClosed = false;
 
-    ArtifactSourceLock() {}
-
-    SourceHandle open() {
-      monitor.enter();
-      try {
-        checkState(!closeRequested);
-        refCount++;
-      } finally {
-        monitor.leave();
-      }
-
-      return new SourceHandle() {
-        boolean closed = false;
-
-        @Override
-        public void close() {
-          monitor.enter();
-          try {
-            if (!closed) {
-              checkState(refCount > 0);
-              closed = true;
-              refCount--;
-            }
-          } finally {
-            monitor.leave();
-          }
-        }
-      };
+    SourceHandle(ArtifactSource artifactSource, Phaser phaser) {
+      this.artifactSource = artifactSource;
+      this.phaser = phaser;
+      int registeredPhase = this.phaser.register();
+      checkState(registeredPhase >= 0, "Artifact source already closed");
     }
 
-    /** Marks the current source as closed and waits for all consumers to finish. */
+    ArtifactSource getSource() {
+      checkState(!phaser.isTerminated());
+      return artifactSource;
+    }
+
     void close() {
-      monitor.enter();
-      try {
-        closeRequested = true;
-      } finally {
-        monitor.leave();
+      if (!isClosed) {
+        phaser.arriveAndDeregister();
       }
-
-      try {
-        monitor.enterWhen(isClosed);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
-      }
-      monitor.leave();
     }
-  }
-
-  private interface SourceHandle {
-    void close();
   }
 }
