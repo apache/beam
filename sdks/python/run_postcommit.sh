@@ -19,7 +19,6 @@
 # This script will be run by Jenkins as a post commit test. In order to run
 # locally make the following changes:
 #
-# LOCAL_PATH   -> Path of tox and virtualenv if you have them already installed.
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for service jobs.
 #
@@ -40,11 +39,15 @@ python setup.py sdist
 
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
+# Install test dependencies for ValidatesRunner tests.
+echo "pyhamcrest" > postcommit_requirements.txt
+echo "mock" >> postcommit_requirements.txt
+
 # Run integration tests on the Google Cloud Dataflow service
 # and validate that jobs finish successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
-  --attr IT \
+  --attr $1 \
   --nocapture \
   --processes=4 \
   --process-timeout=1800 \

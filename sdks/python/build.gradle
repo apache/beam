@@ -187,11 +187,20 @@ task localWordCount(dependsOn: 'installGcpTest') {
   }
 }
 
+task postCommitVRTests(dependsOn: 'installGcpTest') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh IT"
+    }
+  }
+}
+
 task validatesRunnerTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh"
+      args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh ValidatesRunner"
     }
   }
 }
@@ -209,5 +218,5 @@ task postCommit() {
   dependsOn "preCommit"
   dependsOn "localWordCount"
   dependsOn "hdfsIntegrationTest"
-  dependsOn "validatesRunnerTests"
+  dependsOn "postCommitVRTests"
 }

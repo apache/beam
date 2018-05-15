@@ -35,8 +35,12 @@ job('beam_PostCommit_Python_ValidatesRunner_Dataflow') {
       'Google Cloud Dataflow Runner Python ValidatesRunner Tests',
       'Run Python Dataflow ValidatesRunner')
 
-  // Execute shell command to test Python SDK.
+  // Execute gradle task to test Python SDK.
   steps {
-    shell('cd ' + common_job_properties.checkoutDir + ' && bash sdks/python/run_validatesrunner.sh')
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':beam-sdks-python:validatesRunnerTests')
+      common_job_properties.setGradleSwitches(delegate)
+    }
   }
 }
