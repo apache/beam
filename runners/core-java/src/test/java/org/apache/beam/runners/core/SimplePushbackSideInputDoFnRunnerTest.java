@@ -43,7 +43,6 @@ import org.apache.beam.sdk.util.IdentitySideInputWindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -113,7 +112,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> oneWindowPushback =
         runner.processElementInReadyWindows(oneWindow);
     assertThat(oneWindowPushback, containsInAnyOrder(oneWindow));
-    assertThat(underlying.inputElems, Matchers.emptyIterable());
+    assertThat(underlying.inputElems, emptyIterable());
   }
 
   @Test
@@ -136,7 +135,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, equalTo(multiWindow.explodeWindows()));
-    assertThat(underlying.inputElems, Matchers.emptyIterable());
+    assertThat(underlying.inputElems, emptyIterable());
   }
 
   @Test

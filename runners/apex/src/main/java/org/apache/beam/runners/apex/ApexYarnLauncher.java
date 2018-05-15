@@ -254,7 +254,7 @@ public class ApexYarnLauncher {
         }
       }
 
-      final java.nio.file.Path root = dir.toPath();
+      final Path root = dir.toPath();
       Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<Path>() {
         String relativePath;
 
