@@ -11,7 +11,10 @@ Have you ever wondered why Beam has PTransforms for everything instead of having
 
 <!--more-->
 
-Though Beam is relatively new, its design draws heavily on many years of experience with real-world pipelines. One of the primary inspirations is [FlumeJava](http://research.google.com/pubs/pub35650.html), which is Google's internal successor to MapReduce first introduced in 2009.
+Though Beam is relatively new, its design draws heavily on many years of
+experience with real-world pipelines. One of the primary inspirations is
+[FlumeJava](https://ai.google/research/pubs/pub35650), which is Google's
+internal successor to MapReduce first introduced in 2009.
 
 The original FlumeJava API has methods like `count` and `parallelDo` on the PCollections. Though slightly more succinct, this approach has many disadvantages to extensibility. Every new user to FlumeJava wanted to add transforms, and adding them as methods to PCollection simply doesn't scale well. In contrast, a PCollection in Beam has a single `apply` method which takes any PTransform as an argument.
 
