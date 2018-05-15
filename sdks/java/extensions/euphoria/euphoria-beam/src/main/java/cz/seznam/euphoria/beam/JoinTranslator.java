@@ -1,8 +1,8 @@
 package cz.seznam.euphoria.beam;
 
+import cz.seznam.euphoria.beam.common.InputToKvDoFn;
 import cz.seznam.euphoria.beam.io.KryoCoder;
 import cz.seznam.euphoria.beam.join.InnerJoinFn;
-import cz.seznam.euphoria.beam.common.InputToKvDoFn;
 import cz.seznam.euphoria.beam.join.JoinFn;
 import cz.seznam.euphoria.beam.window.WindowingUtils;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -20,6 +20,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
+
+/**
+ * {@link OperatorTranslator Translator } for Euphoria {@link Join} operator.
+ */
 public class JoinTranslator implements OperatorTranslator<Join> {
 
   @Override
@@ -80,11 +84,11 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     return leftKvInput;
   }
 
-  private <K, LeftT, RightT, OutputT, W extends Window<W>> JoinFn<LeftT, RightT, K, OutputT> chooseJoinFn(
-
+  private <K, LeftT, RightT, OutputT, W extends Window<W>> JoinFn<LeftT, RightT, K, OutputT>
+  chooseJoinFn(
       Join<LeftT, RightT, K, OutputT, W> operator, TupleTag<LeftT> leftTag,
       TupleTag<RightT> rightTag) {
-    // choose right ParDo to do LEFT, RIGHT, INNER or OUTER join
+
     JoinFn<LeftT, RightT, K, OutputT> joinFn;
     switch (operator.getType()) {
       case INNER:
