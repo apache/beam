@@ -53,7 +53,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --worker_harness_container_image=herohde-docker-apache.bintray.io/beam/go:20180514
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 ## Next Steps
@@ -62,6 +62,6 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
   and look through the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 * Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
-* Join the Beam [users@]({{ site.baseurl }}/get-started/support#mailing-lists) mailing list.
+* Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
-Please don't hesitate to [reach out]({{ site.baseurl }}/get-started/support) if you encounter any issues!
+Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
