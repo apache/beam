@@ -25,7 +25,10 @@ import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
  *
  */
 public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
-  public static final RelDataTypeSystem BEAM_REL_DATATYPE_SYSTEM = new BeamRelDataTypeSystem();
+  public static final RelDataTypeSystem INSTANCE = new BeamRelDataTypeSystem();
+
+  private BeamRelDataTypeSystem() {
+  }
 
   @Override
   public int getMaxNumericScale() {

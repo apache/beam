@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -30,6 +29,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
@@ -84,8 +86,9 @@ public class BeamKafkaCSVTableTest {
   }
 
   private static Schema genRowType() {
+    JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
     return CalciteUtils.toBeamSchema(
-        BeamQueryPlanner.TYPE_FACTORY.builder()
+        typeFactory.builder()
             .add("order_id", SqlTypeName.BIGINT)
             .add("site_id", SqlTypeName.INTEGER)
             .add("price", SqlTypeName.DOUBLE)

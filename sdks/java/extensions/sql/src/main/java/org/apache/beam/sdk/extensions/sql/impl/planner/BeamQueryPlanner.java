@@ -17,20 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.config.Lex;
+import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptUtil;
@@ -39,13 +36,13 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
@@ -65,33 +62,47 @@ public class BeamQueryPlanner {
 
   private final FrameworkConfig config;
 
-  public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
-      RelDataTypeSystem.DEFAULT);
+  public BeamQueryPlanner(CalciteConnection connection) {
+    final CalciteConnectionConfig config = connection.config();
+    final SqlParser.ConfigBuilder parserConfig = SqlParser.configBuilder()
+        .setQuotedCasing(config.quotedCasing())
+        .setUnquotedCasing(config.unquotedCasing())
+        .setQuoting(config.quoting())
+        .setConformance(config.conformance())
+        .setCaseSensitive(config.caseSensitive());
+    final SqlParserImplFactory parserFactory =
+        config.parserFactory(SqlParserImplFactory.class, null);
+    if (parserFactory != null) {
+      parserConfig.setParserFactory(parserFactory);
+    }
 
-  public BeamQueryPlanner(SchemaPlus schema) {
-    final List<RelTraitDef> traitDefs = new ArrayList<>();
-    traitDefs.add(ConventionTraitDef.INSTANCE);
-    traitDefs.add(RelCollationTraitDef.INSTANCE);
+    final SchemaPlus schema = connection.getRootSchema();
+    final SchemaPlus defaultSchema = JdbcDriver.getDefaultSchema(connection);
 
-    List<SqlOperatorTable> sqlOperatorTables = new ArrayList<>();
-    sqlOperatorTables.add(SqlStdOperatorTable.instance());
-    sqlOperatorTables.add(
+    final ImmutableList<RelTraitDef> traitDefs = ImmutableList.of(
+      ConventionTraitDef.INSTANCE,
+      RelCollationTraitDef.INSTANCE);
+
+    final CalciteCatalogReader catalogReader =
         new CalciteCatalogReader(
-            CalciteSchema.from(schema).root(), Collections.emptyList(), TYPE_FACTORY, null));
+            CalciteSchema.from(schema),
+            ImmutableList.of(defaultSchema.getName()),
+            connection.getTypeFactory(),
+            connection.config());
+    final SqlOperatorTable opTab0 =
+        connection.config().fun(SqlOperatorTable.class,
+            SqlStdOperatorTable.instance());
 
-    config =
+    this.config =
         Frameworks.newConfigBuilder()
-            .parserConfig(SqlParser.configBuilder()
-                .setLex(Lex.JAVA)
-                .setParserFactory(BeamSqlParserImpl.FACTORY)
-                .build())
-            .defaultSchema(schema)
+            .parserConfig(parserConfig.build())
+            .defaultSchema(defaultSchema)
             .traitDefs(traitDefs)
-            .context(Contexts.EMPTY_CONTEXT)
+            .context(Contexts.of(connection.config()))
             .ruleSets(BeamRuleSets.getRuleSets())
             .costFactory(null)
-            .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
-            .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
+            .typeSystem(connection.getTypeFactory().getTypeSystem())
+            .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
             .build();
   }
 

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
@@ -26,14 +25,10 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
-import org.apache.calcite.tools.RelRunner;
 
 /**
  * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
@@ -42,21 +37,21 @@ import org.apache.calcite.tools.RelRunner;
  * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
 public class BeamSqlEnv {
-  final CalciteSchema schema;
-  final CalciteSchema defaultSchema;
+  final CalciteConnection connection;
+  final SchemaPlus defaultSchema;
   final BeamQueryPlanner planner;
 
   public BeamSqlEnv(TableProvider tableProvider) {
-    schema = CalciteSchema.createRootSchema(true, false);
-    defaultSchema = schema.add("beam", new BeamCalciteSchema(tableProvider));
-    planner = new BeamQueryPlanner(defaultSchema.plus());
+    connection = JdbcDriver.connect(tableProvider);
+    defaultSchema = JdbcDriver.getDefaultSchema(connection);
+    planner = new BeamQueryPlanner(connection);
   }
 
   /**
    * Register a UDF function which can be used in SQL expression.
    */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    schema.plus().add(functionName, ScalarFunctionImpl.create(clazz, method));
+    defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
   }
 
   /**
@@ -79,7 +74,7 @@ public class BeamSqlEnv {
    * See {@link org.apache.beam.sdk.transforms.Combine.CombineFn} on how to implement a UDAF.
    */
   public void registerUdaf(String functionName, Combine.CombineFn combineFn) {
-    schema.plus().add(functionName, new UdafImpl(combineFn));
+    defaultSchema.add(functionName, new UdafImpl(combineFn));
   }
 
   public BeamQueryPlanner getPlanner() {
@@ -87,53 +82,6 @@ public class BeamSqlEnv {
   }
 
   public CalcitePrepare.Context getContext() {
-    return new ContextImpl();
-  }
-
-  private class ContextImpl implements CalcitePrepare.Context {
-    @Override
-    public JavaTypeFactory getTypeFactory() {
-      return planner.TYPE_FACTORY;
-    }
-
-    @Override
-    public CalciteSchema getRootSchema() {
-      return schema;
-    }
-
-    @Override
-    public CalciteSchema getMutableRootSchema() {
-      return getRootSchema();
-    }
-
-    @Override
-    public List<String> getDefaultSchemaPath() {
-      return defaultSchema.path(null);
-    }
-
-    @Override
-    public List<String> getObjectPath() {
-      return null;
-    }
-
-    @Override
-    public CalciteConnectionConfig config() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public DataContext getDataContext() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public RelRunner getRelRunner() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public CalcitePrepare.SparkHandler spark() {
-      throw new UnsupportedOperationException();
-    }
+    return connection.createPrepareContext();
   }
 }

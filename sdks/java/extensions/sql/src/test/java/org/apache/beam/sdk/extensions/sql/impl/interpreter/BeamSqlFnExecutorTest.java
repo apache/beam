@@ -56,7 +56,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamS
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlSubstringExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlTrimExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlUpperExpression;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -237,7 +236,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
         Arrays.asList(
             rexBuilder.makeLiteral("hello"),
             rexBuilder.makeLiteral("worldhello"),
-            rexBuilder.makeCast(BeamQueryPlanner.TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER),
+            rexBuilder.makeCast(TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER),
                 rexBuilder.makeBigintLiteral(BigDecimal.ONE))
         )
     );
