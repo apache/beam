@@ -73,7 +73,7 @@ public class ElasticsearchIOITCommon {
 
   static ConnectionConfiguration getConnectionConfiguration(IOTestPipelineOptions options,
       ReadOrWrite rOw) {
-    ConnectionConfiguration connectionConfiguration = ConnectionConfiguration.create(
+    return ConnectionConfiguration.create(
             new String[] {
               "http://"
                   + options.getElasticsearchServer()
@@ -82,7 +82,6 @@ public class ElasticsearchIOITCommon {
             },
             (rOw == ReadOrWrite.READ) ? ES_INDEX : writeIndex,
             ES_TYPE);
-    return connectionConfiguration;
   }
 
   /** Enum that tells whether we use the index for reading or for writing. */

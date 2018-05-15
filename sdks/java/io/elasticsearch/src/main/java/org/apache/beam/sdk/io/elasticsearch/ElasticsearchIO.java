@@ -423,7 +423,7 @@ public class ElasticsearchIO {
     public Read withBatchSize(long batchSize) {
       checkArgument(
           batchSize > 0 && batchSize <= MAX_BATCH_SIZE,
-          "batchSize must be > 0 and <= %d, but was: %d",
+          "batchSize must be > 0 and <= %s, but was: %s",
           MAX_BATCH_SIZE,
           batchSize);
       return builder().setBatchSize(batchSize).build();
@@ -567,7 +567,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public BoundedReader<String> createReader(PipelineOptions options) throws IOException {
+    public BoundedReader<String> createReader(PipelineOptions options) {
       return new BoundedElasticsearchReader(this);
     }
 
@@ -787,7 +787,7 @@ public class ElasticsearchIO {
      * @return the {@link Write} with connection batch size set
      */
     public Write withMaxBatchSize(long batchSize) {
-      checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
+      checkArgument(batchSize > 0, "batchSize must be > 0, but was %s", batchSize);
       return builder().setMaxBatchSize(batchSize).build();
     }
 
@@ -803,7 +803,7 @@ public class ElasticsearchIO {
      * @return the {@link Write} with connection batch size in bytes set
      */
     public Write withMaxBatchSizeBytes(long batchSizeBytes) {
-      checkArgument(batchSizeBytes > 0, "batchSizeBytes must be > 0, but was %d", batchSizeBytes);
+      checkArgument(batchSizeBytes > 0, "batchSizeBytes must be > 0, but was %s", batchSizeBytes);
       return builder().setMaxBatchSizeBytes(batchSizeBytes).build();
     }
 
@@ -875,13 +875,13 @@ public class ElasticsearchIO {
       @JsonInclude(JsonInclude.Include.NON_NULL)
       private static class DocumentAddress implements Serializable {
         @JsonProperty("_index")
-        String index;
+        final String index;
 
         @JsonProperty("_type")
-        String type;
+        final String type;
 
         @JsonProperty("_id")
-        String id;
+        final String id;
 
         DocumentAddress(String index, String type, String id) {
           this.index = index;
@@ -903,7 +903,7 @@ public class ElasticsearchIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext context) throws Exception {
+      public void startBundle(StartBundleContext context) {
         batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
       }
