@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
@@ -93,7 +95,6 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
    * Streaming translation context. Stores metadata about known PCollections/DataStreams and holds
    * the Flink {@link StreamExecutionEnvironment} that the execution plan will be applied to.
    */
-
   public static class StreamingTranslationContext
           implements FlinkPortablePipelineTranslator.TranslationContext {
 
@@ -146,21 +147,24 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
   }
 
   private final Map<String, PTransformTranslator<StreamingTranslationContext>>
-          urnToTransformTranslator = new HashMap<>();
+          urnToTransformTranslator;
 
   FlinkStreamingPortablePipelineTranslator() {
-    urnToTransformTranslator.put(PTransformTranslation.FLATTEN_TRANSFORM_URN,
+    ImmutableMap.Builder<String, PTransformTranslator<StreamingTranslationContext>> translatorMap =
+            ImmutableMap.builder();
+    translatorMap.put(PTransformTranslation.FLATTEN_TRANSFORM_URN,
             this::translateFlatten);
-    urnToTransformTranslator.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
+    translatorMap.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
             this::translateGroupByKey);
-    urnToTransformTranslator.put(PTransformTranslation.IMPULSE_TRANSFORM_URN,
+    translatorMap.put(PTransformTranslation.IMPULSE_TRANSFORM_URN,
             this::translateImpulse);
-    urnToTransformTranslator.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
+    translatorMap.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
             this::translateAssignWindows);
-    urnToTransformTranslator.put(ExecutableStage.URN,
+    translatorMap.put(ExecutableStage.URN,
         this::translateExecutableStage);
-    urnToTransformTranslator.put(PTransformTranslation.RESHUFFLE_URN,
+    translatorMap.put(PTransformTranslation.RESHUFFLE_URN,
         this::translateReshuffle);
+    this.urnToTransformTranslator = translatorMap.build();
   }
 
 
@@ -190,11 +194,11 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
       RunnerApi.Pipeline pipeline,
       StreamingTranslationContext context) {
     RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
-    DataStream<WindowedValue<KV<K, V>>> inputDataSet =
+    DataStream<WindowedValue<KV<K, V>>> inputDataStream =
         context.getDataStreamOrThrow(
             Iterables.getOnlyElement(transform.getInputsMap().values()));
     context.addDataStream(Iterables.getOnlyElement(transform.getOutputsMap().values()),
-        inputDataSet.rebalance());
+        inputDataStream.rebalance());
   }
 
   private <T>  void translateFlatten(
@@ -231,25 +235,21 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
       // Determine DataStreams that we use as input several times. For those, we need to uniquify
       // input streams because Flink seems to swallow watermarks when we have a union of one and
       // the same stream.
-      Map<DataStream<T>, Integer> duplicates = new HashMap<>();
+      HashMultiset<DataStream<T>> inputCounts = HashMultiset.create();
       for (String input : allInputs.values()) {
         DataStream<T> current = context.getDataStreamOrThrow(input);
-        Integer oldValue = duplicates.put(current, 1);
-        if (oldValue != null) {
-          duplicates.put(current, oldValue + 1);
-        }
+        inputCounts.add(current, 1);
       }
 
       for (String input : allInputs.values()) {
         DataStream<T> current = context.getDataStreamOrThrow(input);
-
-        final Integer timesRequired = duplicates.get(current);
+        final int timesRequired = inputCounts.count(current);
         if (timesRequired > 1) {
           current = current.flatMap(new FlatMapFunction<T, T>() {
             private static final long serialVersionUID = 1L;
 
             @Override
-            public void flatMap(T t, Collector<T> collector) throws Exception {
+            public void flatMap(T t, Collector<T> collector) {
               collector.collect(t);
             }
           });
@@ -271,8 +271,6 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
             pipeline.getComponents().getTransformsOrThrow(id);
     String inputPCollectionId =
             Iterables.getOnlyElement(pTransform.getInputsMap().values());
-    String outputPCollectionId =
-            Iterables.getOnlyElement(pTransform.getOutputsMap().values());
 
     RunnerApi.WindowingStrategy windowingStrategyProto =
             pipeline.getComponents().getWindowingStrategiesOrThrow(
@@ -363,7 +361,6 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
     context.addDataStream(
             Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
             outputDataStream);
-
   }
 
   private void translateImpulse(
@@ -396,6 +393,9 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(e);
     }
+    //TODO: https://issues.apache.org/jira/browse/BEAM-4296
+    // This only works for well known window fns, we should defer this execution to the SDK
+    // if the WindowFn can't be parsed or just defer it all the time.
     WindowFn<T, ? extends BoundedWindow> windowFn = (WindowFn<T, ? extends BoundedWindow>)
             WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
 
