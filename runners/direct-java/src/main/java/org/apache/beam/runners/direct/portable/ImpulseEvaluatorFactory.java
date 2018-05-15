@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.direct.portable;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,17 +33,22 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /** The evaluator for the {@link Impulse} transform. Produces only empty byte arrays. */
 class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
-  private final EvaluationContext ctxt;
+  private final BundleFactory bundleFactory;
+  private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
 
-  ImpulseEvaluatorFactory(EvaluationContext ctxt) {
-    this.ctxt = ctxt;
+  ImpulseEvaluatorFactory(
+      BundleFactory bundleFactory, ExecutableGraph<PTransformNode, PCollectionNode> graph) {
+    this.bundleFactory = bundleFactory;
+    this.graph = graph;
   }
 
   @Nullable
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       PTransformNode application, CommittedBundle<?> inputBundle) {
-    return (TransformEvaluator<InputT>) new ImpulseEvaluator(ctxt,  application);
+    return (TransformEvaluator<InputT>)
+        new ImpulseEvaluator(
+            bundleFactory, application, getOnlyElement(graph.getProduced(application)));
   }
 
   @Override
@@ -49,22 +57,24 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private static class ImpulseEvaluator implements TransformEvaluator<ImpulseShard> {
-    private final EvaluationContext ctxt;
-    private final PTransformNode transform;
     private final StepTransformResult.Builder<ImpulseShard> result;
 
-    private ImpulseEvaluator(EvaluationContext ctxt, PTransformNode transform) {
-      this.ctxt = ctxt;
-      this.transform = transform;
-      this.result = StepTransformResult.withoutHold(transform);
+    private final BundleFactory factory;
+    private final PCollectionNode outputPCollection;
+
+    private ImpulseEvaluator(
+        BundleFactory factory, PTransformNode application, PCollectionNode outputPCollection) {
+      this.factory = factory;
+      result = StepTransformResult.withoutHold(application);
+      this.outputPCollection = outputPCollection;
     }
 
     @Override
     public void processElement(WindowedValue<ImpulseShard> element) throws Exception {
-      PCollectionNode outputPCollection = null;
       result.addOutput(
-          ctxt.createBundle(outputPCollection).add(WindowedValue.valueInGlobalWindow(new byte[0])));
-      throw new UnsupportedOperationException("Not yet migrated");
+          factory
+              .createBundle(outputPCollection)
+              .add(WindowedValue.valueInGlobalWindow(new byte[0])));
     }
 
     @Override
@@ -78,17 +88,17 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
    * {@link ImpulseShard}.
    */
   static class ImpulseRootProvider implements RootInputProvider<ImpulseShard> {
-    private final EvaluationContext ctxt;
+    private final BundleFactory bundleFactory;
 
-    ImpulseRootProvider(EvaluationContext ctxt) {
-      this.ctxt = ctxt;
+    ImpulseRootProvider(BundleFactory bundleFactory) {
+      this.bundleFactory = bundleFactory;
     }
 
     @Override
     public Collection<CommittedBundle<ImpulseShard>> getInitialInputs(
         PTransformNode transform, int targetParallelism) {
       return Collections.singleton(
-          ctxt.<ImpulseShard>createRootBundle()
+          bundleFactory.<ImpulseShard>createRootBundle()
               .add(WindowedValue.valueInGlobalWindow(new ImpulseShard()))
               .commit(BoundedWindow.TIMESTAMP_MIN_VALUE));
     }
