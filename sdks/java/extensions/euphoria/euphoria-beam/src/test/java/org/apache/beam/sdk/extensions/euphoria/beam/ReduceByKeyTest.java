@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import static org.junit.Assert.assertTrue;
 
+import cz.seznam.euphoria.beam.TestUtils;
 import cz.seznam.euphoria.beam.window.BeamWindowing;
 import java.time.Duration;
 import java.util.Arrays;
@@ -61,12 +62,6 @@ import org.junit.Test;
  */
 public class ReduceByKeyTest {
 
-  private BeamExecutor createExecutor() {
-    String[] args = {"--runner=DirectRunner"};
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    return new BeamExecutor(options).withAllowedLateness(Duration.ofHours(1));
-  }
-
   @Test
   public void testSimpleRBK() {
     final Flow flow = Flow.create();
@@ -86,7 +81,7 @@ public class ReduceByKeyTest {
         .output()
         .persist(output);
 
-    BeamExecutor executor = createExecutor();
+    BeamExecutor executor = TestUtils.createExecutor();
     executor.execute(flow);
 
     DatasetAssert.unorderedEquals(output.getOutputs(), Pair.of(0, 8), Pair.of(1, 7));
@@ -136,7 +131,7 @@ public class ReduceByKeyTest {
         .output()
         .persist(sink);
 
-    BeamExecutor executor = createExecutor();
+    BeamExecutor executor = TestUtils.createExecutor();
     executor.execute(flow);
 
     DatasetAssert.unorderedEquals(
@@ -205,7 +200,7 @@ public class ReduceByKeyTest {
         .output()
         .persist(sink);
 
-    createExecutor().execute(flow);
+    TestUtils.createExecutor().execute(flow);
     DatasetAssert.unorderedEquals(sink.getOutputs(), 4, 6);
   }
 

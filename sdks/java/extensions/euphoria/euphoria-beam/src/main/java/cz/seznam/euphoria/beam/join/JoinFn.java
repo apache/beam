@@ -7,7 +7,16 @@ import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
-public abstract class JoinFn<LeftT, RightT, K, OutputT> extends DoFn<KV<K, CoGbkResult>, Pair<K, OutputT>> {
+/**
+ * Abstract base for joint implementations.
+ *
+ * @param <LeftT> type of left-side elements
+ * @param <RightT> type of right-side elements
+ * @param <K> key type
+ * @param <OutputT> type of output elements
+ */
+public abstract class JoinFn<LeftT, RightT, K, OutputT> extends
+    DoFn<KV<K, CoGbkResult>, Pair<K, OutputT>> {
 
   protected final BinaryFunctor<LeftT, RightT, OutputT> joiner;
   protected final TupleTag<LeftT> leftTag;
@@ -24,5 +33,5 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT> extends DoFn<KV<K, CoGbk
   @ProcessElement
   public abstract void processElement(ProcessContext c);
 
-  public  abstract String getFnName();
+  public abstract String getFnName();
 }

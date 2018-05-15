@@ -7,6 +7,9 @@ import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
+/**
+ * Inner join implementation of {@link JoinFn}.
+ */
 public class InnerJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
 
   public InnerJoinFn(

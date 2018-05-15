@@ -30,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
  */
 public interface BeamExecutorProvider extends ExecutorProvider {
 
+  @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     final String[] args = {"--runner=DirectRunner"};
     final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);

@@ -1,12 +1,15 @@
 package cz.seznam.euphoria.beam.join;
-
+/*
 import cz.seznam.euphoria.beam.SingleValueCollector;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+*/
 
-//TODO implement
+/**
+ * Left Join implementation of {@link JoinFn}.
+ */
 public class LeftJoinFn<LeftT, RightT, K, OutputT> /*extends JoinFn<LeftT, RightT, K, OutputT> */{
 /*
   protected LeftJoinFn(
