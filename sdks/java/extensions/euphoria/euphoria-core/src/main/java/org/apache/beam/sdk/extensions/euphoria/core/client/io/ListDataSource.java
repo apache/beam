@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
 import com.google.common.collect.Lists;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -32,6 +30,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * A {@code DataSource} that is backed up by simple list.

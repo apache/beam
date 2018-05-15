@@ -17,18 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.flow;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -42,6 +30,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A dependency graph of operators. */
 @Audience(Audience.Type.CLIENT)

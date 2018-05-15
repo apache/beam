@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.greduce;
 
+import java.util.HashMap;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorageDescriptor;
@@ -25,9 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.Storag
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-
-import java.util.HashMap;
-import java.util.Objects;
 
 /**
  * Maintains triggers storages in memory for referencing through value descriptors in the scope of a

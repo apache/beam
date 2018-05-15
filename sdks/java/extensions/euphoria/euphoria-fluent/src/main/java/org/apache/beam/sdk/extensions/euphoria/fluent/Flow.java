@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
 
+import static java.util.Objects.requireNonNull;
+
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-
-import static java.util.Objects.requireNonNull;
 
 /** TODO: complete javadoc. */
 public class Flow {
@@ -35,7 +35,8 @@ public class Flow {
   }
 
   public static Flow create(String name, Settings settings) {
-    return new Flow(org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow.create(name, settings));
+    return new Flow(
+        org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow.create(name, settings));
   }
 
   public <T> Dataset<T> read(DataSource<T> src) {

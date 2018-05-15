@@ -18,14 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.Constants;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,6 +26,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
+import org.apache.beam.sdk.extensions.euphoria.core.executor.Constants;
+import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** An implementation of {@code SpillTools} to be used by executors. */
 @Audience(Audience.Type.EXECUTOR)

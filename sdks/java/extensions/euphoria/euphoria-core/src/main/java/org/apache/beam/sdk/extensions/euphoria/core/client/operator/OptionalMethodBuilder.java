@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-
-import java.util.Objects;
 
 /**
  * Class to be extended by operator builders that want to make use of `applyIf` call.

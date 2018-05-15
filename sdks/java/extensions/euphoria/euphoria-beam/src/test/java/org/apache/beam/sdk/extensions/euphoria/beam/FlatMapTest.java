@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
@@ -25,9 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Test {@code FlatMap} operator's integration with beam.

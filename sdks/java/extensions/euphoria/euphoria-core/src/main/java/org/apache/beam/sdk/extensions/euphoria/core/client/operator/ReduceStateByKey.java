@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import com.google.common.collect.Sets;
+import java.util.Objects;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -33,10 +37,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateM
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
-import javax.annotation.Nullable;
-import java.util.Objects;
-import java.util.Set;
 
 /**
  * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api, but very powerful
@@ -297,8 +297,8 @@ public class ReduceStateByKey<
     }
 
     /**
-     * Specifies the merging function to be utilized when states get merged as part of {@link
-     * org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing window merging}.
+     * Specifies the merging function to be utilized when states get merged as part of
+     * {@link MergingWindowing window merging}.
      *
      * @param stateMerger a user defined function to merge mutilple states into a specified target
      *     state

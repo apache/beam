@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import java.io.Serializable;
 
 /** A windowing policy of a dataset. All implementations must implement equals/hashCode. */
 @Audience(Audience.Type.CLIENT)

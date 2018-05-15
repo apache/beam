@@ -19,10 +19,9 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
 import java.io.Serializable;
 import java.lang.reflect.Type;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 
 /** TODO: complete javadoc. */
 public abstract class TypeHint<T> implements Serializable {

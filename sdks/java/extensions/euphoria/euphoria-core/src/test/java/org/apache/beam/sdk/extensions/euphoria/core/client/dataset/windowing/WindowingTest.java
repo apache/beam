@@ -17,18 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
-import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Iterables;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.junit.Test;
 
 /** TODO: complete javadoc. */
 public class WindowingTest {

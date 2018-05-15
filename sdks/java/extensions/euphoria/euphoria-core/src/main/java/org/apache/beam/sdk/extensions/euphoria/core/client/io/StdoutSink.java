@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.IOException;
 import java.io.PrintStream;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * A sink to write to a specified print stream (typically {@link java.lang.System#out}) using the

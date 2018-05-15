@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Closeable;
 import java.io.IOException;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * Writer for data to a particular partition.

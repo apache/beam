@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.NoopTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import java.util.Collections;
 
 class AttachedWindowing<T, W extends Window<W>> implements Windowing<T, W> {
 

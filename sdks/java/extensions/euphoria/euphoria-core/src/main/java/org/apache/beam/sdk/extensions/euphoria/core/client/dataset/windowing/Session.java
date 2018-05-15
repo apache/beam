@@ -17,15 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.PeriodicTimeTrigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TimeTrigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import static com.google.common.base.Preconditions.checkArgument;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,8 +27,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-
-import static com.google.common.base.Preconditions.checkArgument;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
+import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
+import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.PeriodicTimeTrigger;
+import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TimeTrigger;
+import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 
 /** Session windowing. */
 @Audience(Audience.Type.CLIENT)

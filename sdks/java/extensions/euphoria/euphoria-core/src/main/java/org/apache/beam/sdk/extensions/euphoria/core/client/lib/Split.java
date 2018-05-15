@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.lib;
 
+import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
-
-import java.io.Serializable;
-import java.util.Objects;
 
 /**
  * Composite operator using two {@link Filter} operators to split a {@link Dataset} into two subsets

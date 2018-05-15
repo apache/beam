@@ -17,17 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.AbstractIterator;
+import java.time.Duration;
+import java.util.Iterator;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TimeTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import java.time.Duration;
-import java.util.Iterator;
-import java.util.Objects;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /** Time sliding windowing. */
 @Audience(Audience.Type.CLIENT)

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /** Provider of state storage for local executor. */
 public class LocalStorageProvider implements StorageProvider {

@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
-
-import static java.util.Objects.requireNonNull;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** Either LeftT or RightT element. */
 @Audience(Audience.Type.INTERNAL)

@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-
-import java.io.Serializable;
 
 /** Functor of two arguments. */
 @Audience(Audience.Type.CLIENT)

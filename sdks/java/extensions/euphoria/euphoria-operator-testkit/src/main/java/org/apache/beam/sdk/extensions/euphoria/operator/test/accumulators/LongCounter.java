@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
-
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 
 final class LongCounter
     implements Counter, Snapshotable<Long> {

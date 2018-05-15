@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -29,10 +32,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * TODO: add javadoc.

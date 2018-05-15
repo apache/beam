@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.util;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
@@ -24,11 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
-
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /** TODO: complete javadoc. */
 @Audience(Audience.Type.EXECUTOR)

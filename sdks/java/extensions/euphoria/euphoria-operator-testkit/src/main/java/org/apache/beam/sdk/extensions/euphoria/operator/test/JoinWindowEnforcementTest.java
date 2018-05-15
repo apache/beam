@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Count;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
@@ -32,12 +37,6 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runners.Parameterized;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * A collection of test methods.

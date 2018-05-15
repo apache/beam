@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.util;
 
+import java.util.Iterator;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
-
-import java.util.Iterator;
 
 /**
  * An {@code ExternalIterable}, that is stored in memory. Use this class with care, because it might

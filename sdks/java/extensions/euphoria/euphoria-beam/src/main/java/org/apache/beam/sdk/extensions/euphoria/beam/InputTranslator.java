@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.BeamBoundedSource;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.BeamUnboundedSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.util.Objects;
 
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
 

@@ -17,7 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.Sets;
+import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
@@ -39,19 +51,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.assertTrue;
 
 /** Test basic operator functionality and ability to compile. */
 public class BasicOperatorTest {

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.triggers;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-
-import java.io.Serializable;
 
 /**
  * Trigger determines when a window result should be flushed.

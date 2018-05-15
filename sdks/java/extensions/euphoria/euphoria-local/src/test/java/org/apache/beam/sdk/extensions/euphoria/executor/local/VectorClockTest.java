@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
+import static org.junit.Assert.assertEquals;
+
 import org.apache.beam.sdk.extensions.euphoria.core.executor.VectorClock;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
 
 /** Test vector clocks. */
 public class VectorClockTest {

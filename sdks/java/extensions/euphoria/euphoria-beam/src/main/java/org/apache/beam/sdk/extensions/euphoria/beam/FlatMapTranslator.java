@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
@@ -25,8 +26,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
-
-import javax.annotation.Nullable;
 
 class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 

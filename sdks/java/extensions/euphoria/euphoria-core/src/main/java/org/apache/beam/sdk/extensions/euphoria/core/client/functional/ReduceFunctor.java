@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * Reduce function reducing iterable of elements into multiple elements (of possibly different

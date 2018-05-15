@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.state;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
-
-import java.io.Serializable;
 
 /** A context that is passed to stateful operators when creating {@code State}. */
 @Audience(Audience.Type.CLIENT)

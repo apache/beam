@@ -17,6 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.time.Duration;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -24,11 +31,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Optional;
-
-import static org.junit.Assert.*;
 
 /** Test operator Join.  */
 public class JoinTest {

@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators;
 
 import com.google.common.collect.Maps;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 
 final class NanosecondTimer
     implements Timer,

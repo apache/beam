@@ -18,9 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
 import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,6 +27,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 
 /** Trigger scheduler based on watermarks. Uses event-time instead of real wall-clock time. */
 public class WatermarkTriggerScheduler<W extends Window, K> implements TriggerScheduler<W, K> {

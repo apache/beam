@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
+import java.util.Comparator;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-
-import java.util.Comparator;
 
 /** Calculate maximum. */
 @Audience(Audience.Type.CLIENT)

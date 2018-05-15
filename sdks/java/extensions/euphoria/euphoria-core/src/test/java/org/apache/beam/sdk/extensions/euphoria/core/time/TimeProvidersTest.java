@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.time;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 /** TODO: complete javadoc. */
 public class TimeProvidersTest {

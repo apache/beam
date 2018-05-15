@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-
-import java.io.Serializable;
-import java.util.Objects;
 
 /**
  * Instantiate accumulator provider on the first usage.

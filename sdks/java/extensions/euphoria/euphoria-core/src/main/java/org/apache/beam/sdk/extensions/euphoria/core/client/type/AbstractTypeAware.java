@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.TypeHintAware;
-
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.TypeHintAware;
 
 abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeHintAware<T> {
 

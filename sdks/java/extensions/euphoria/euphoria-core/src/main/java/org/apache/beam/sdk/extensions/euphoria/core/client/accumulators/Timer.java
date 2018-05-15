@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.accumulators;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * Timer provides convenience API very similar to {@link Histogram} but extended by time unit

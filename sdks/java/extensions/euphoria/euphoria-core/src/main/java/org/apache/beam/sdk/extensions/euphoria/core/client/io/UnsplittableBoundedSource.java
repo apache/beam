@@ -23,10 +23,9 @@
 
 package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** A {@code BoundedPartition} that cannot be split into smaller pieces. */
 @Audience(Audience.Type.EXECUTOR)

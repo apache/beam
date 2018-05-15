@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /** Specify hints about runtime data characteristics. */
 @Audience(Audience.Type.INTERNAL)

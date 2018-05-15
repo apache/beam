@@ -30,7 +30,8 @@ public class Fluent {
     return Flow.create(name, settings);
   }
 
-  public static <T> Dataset<T> lift(org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T> xs) {
+  public static <T> Dataset<T> lift(
+      org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T> xs) {
     return new Dataset<>(xs);
   }
 }

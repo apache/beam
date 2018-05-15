@@ -17,8 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
@@ -41,17 +53,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
 
 /** {@code FlowUnfolder} test suite. */
 public class FlowUnfolderTest {

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
  * A {@link Windowing} strategy associates each input element with a window thereby grouping input

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
 
 /** Test operator {@code Filter}. */
 @Processing(Processing.Type.ALL)

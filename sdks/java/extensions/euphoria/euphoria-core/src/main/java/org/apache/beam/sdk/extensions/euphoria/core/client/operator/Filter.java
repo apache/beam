@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import com.google.common.collect.Sets;
+import java.util.Objects;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -26,9 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-
-import java.util.Objects;
-import java.util.Set;
 
 /**
  * Operator performing a filter operation.

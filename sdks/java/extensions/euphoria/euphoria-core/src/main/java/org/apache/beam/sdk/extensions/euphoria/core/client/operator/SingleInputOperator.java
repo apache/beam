@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /** Operator with single input. */
 @Audience(Audience.Type.INTERNAL)

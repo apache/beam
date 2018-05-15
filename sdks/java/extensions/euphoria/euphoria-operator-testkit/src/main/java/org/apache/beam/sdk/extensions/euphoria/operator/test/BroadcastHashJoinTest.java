@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
@@ -27,10 +30,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Collection of broadcast hash join tests.

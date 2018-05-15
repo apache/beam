@@ -17,12 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.io;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.UnboundedDataSource;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,6 +24,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.UnboundedDataSource;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Instant;
 
 /**
  * A {@link UnboundedSource} created from {@link UnboundedDataSource}.

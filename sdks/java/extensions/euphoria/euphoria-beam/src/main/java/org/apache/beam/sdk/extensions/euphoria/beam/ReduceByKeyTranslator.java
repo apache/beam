@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -37,8 +38,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.util.stream.StreamSupport;
 
 /**
  * Translator for {@code ReduceByKey} operator.

@@ -17,16 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.Iterables;
+import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.junit.Test;
-
-import java.time.Duration;
-
-import static org.junit.Assert.*;
 
 /** Test behavior of operator {@code TopPerKey}. */
 public class TopPerKeyTest {

@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.state;
 
+import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-
-import javax.annotation.Nullable;
-import java.io.Serializable;
 
 /** Factory for states. */
 @Audience(Audience.Type.CLIENT)

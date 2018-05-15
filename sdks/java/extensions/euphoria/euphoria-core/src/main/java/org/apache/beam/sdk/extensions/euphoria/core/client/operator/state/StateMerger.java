@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.state;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
 
 /**
  * A function to merge specific types of states into a given target state. The need for merging
- * states into one arise typically from the utilization of {@link
- * org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing}, e.g. session windows, where
- * individual session windows need occasionally be merged and, thus, their states.
+ * states into one arise typically from the utilization of {@link MergingWindowing}, e.g. session
+ * windows, where individual session windows need occasionally be merged and, thus, their states.
  *
  * @param <InputT> the type of input elements for the states
  * @param <OutputT> the type of output elements of the states
