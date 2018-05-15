@@ -41,6 +41,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileBasedSource;
+import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -129,7 +130,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
     // Byte offset of the current record in the XML file provided when creating the source.
     private long currentByteOffset = 0;
 
-    public XMLReader(XmlSource<T> source) {
+    XMLReader(XmlSource<T> source) {
       super(source);
 
       // Set up a JAXB Unmarshaller that can be used to unmarshall record objects.

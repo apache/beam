@@ -252,7 +252,7 @@ public class XmlIO {
       /** @see Compression#DEFLATE */
       DEFLATE(Compression.DEFLATE);
 
-      private Compression canonical;
+      private final Compression canonical;
 
       CompressionType(Compression canonical) {
         this.canonical = canonical;
@@ -420,7 +420,7 @@ public class XmlIO {
   private static class CreateSourceFn<T> implements SerializableFunction<String, XmlSource<T>> {
     private final MappingConfiguration<T> configuration;
 
-    public CreateSourceFn(MappingConfiguration<T> configuration) {
+    CreateSourceFn(MappingConfiguration<T> configuration) {
       this.configuration = configuration;
     }
 
