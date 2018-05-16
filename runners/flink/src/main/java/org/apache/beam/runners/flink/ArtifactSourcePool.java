@@ -17,8 +17,14 @@
  */
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.Maps;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.Phaser;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
@@ -39,23 +45,106 @@ import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 @ThreadSafe
 public class ArtifactSourcePool implements ArtifactSource {
 
+  public static ArtifactSourcePool create() {
+    return new ArtifactSourcePool();
+  }
+
+  private final Object lock = new Object();
+
+  @GuardedBy("lock")
+  private final Map<ArtifactSource, Phaser> artifactSources = Maps.newLinkedHashMap();
+
   private ArtifactSourcePool() {}
 
   /**
    * Adds a new cache to the pool. When the returned {@link AutoCloseable} is closed, the given
-   * cache will be removed from the pool.
+   * cache will be removed from the pool. The call to {@link AutoCloseable#close()} will block until
+   * the artifact source is no longer being used.
    */
   public AutoCloseable addToPool(ArtifactSource artifactSource) {
-    throw new UnsupportedOperationException();
+    synchronized (lock) {
+      checkState(!artifactSources.containsKey(artifactSource));
+      // For this new artifact source, insert a new Phaser with 1 registrant. This party will only
+      // be deregistered when the corresponding artifact source is marked as closed. Doing so marks
+      // the end of the phase and terminates the phaser.
+      artifactSources.put(
+          artifactSource,
+          new Phaser(1) {
+            @Override
+            protected boolean onAdvance(int phase, int registeredParties) {
+              // There should only ever be a single phase. Terminate once all registered parties
+              // have
+              // arrived.
+              return true;
+            }
+          });
+      return () -> {
+        Phaser phaser;
+        synchronized (lock) {
+          phaser = artifactSources.remove(artifactSource);
+          if (phaser == null) {
+            // We've already removed the phaser from the map and attempted to close it.
+            return;
+          }
+          // This indicates we have not yet terminated the phaser. Ensure this is the case.
+          checkState(!phaser.isTerminated());
+        }
+        phaser.arriveAndAwaitAdvance();
+        phaser.arriveAndDeregister();
+      };
+    }
   }
 
   @Override
   public Manifest getManifest() throws IOException {
-    throw new UnsupportedOperationException();
+    SourceHandle handle = getAny();
+    try {
+      return handle.getSource().getManifest();
+    } finally {
+      handle.close();
+    }
   }
 
   @Override
   public void getArtifact(String name, StreamObserver<ArtifactChunk> responseObserver) {
-    throw new UnsupportedOperationException();
+    SourceHandle handle = getAny();
+    try {
+      handle.getSource().getArtifact(name, responseObserver);
+    } finally {
+      handle.close();
+    }
+  }
+
+  private SourceHandle getAny() {
+    synchronized (lock) {
+      checkState(!artifactSources.isEmpty());
+      Map.Entry<ArtifactSource, Phaser> entry = artifactSources.entrySet().iterator().next();
+      return new SourceHandle(entry.getKey(), entry.getValue());
+    }
+  }
+
+  private static class SourceHandle {
+    private final ArtifactSource artifactSource;
+    private final Phaser phaser;
+
+    private boolean isClosed = false;
+
+    SourceHandle(ArtifactSource artifactSource, Phaser phaser) {
+      this.artifactSource = artifactSource;
+      this.phaser = phaser;
+      int registeredPhase = this.phaser.register();
+      checkState(registeredPhase >= 0, "Artifact source already closed");
+    }
+
+    ArtifactSource getSource() {
+      checkState(!phaser.isTerminated());
+      return artifactSource;
+    }
+
+    void close() {
+      if (!isClosed) {
+        phaser.arriveAndDeregister();
+      }
+    }
   }
 }
