@@ -190,7 +190,7 @@ public class ProcessBundleDescriptors {
      * Get the {@link RemoteInputDestination} that input data are sent to the {@link
      * ProcessBundleDescriptor} over.
      */
-    public abstract RemoteInputDestination<? super WindowedValue<?>> getRemoteInputDestination();
+    public abstract RemoteInputDestination<WindowedValue<?>> getRemoteInputDestination();
 
     /**
      * Get all of the targets materialized by this {@link ExecutableProcessBundleDescriptor} and the
