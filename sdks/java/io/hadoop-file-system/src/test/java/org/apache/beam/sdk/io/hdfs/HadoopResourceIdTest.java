@@ -58,13 +58,13 @@ public class HadoopResourceIdTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     hdfsCluster.shutdown();
   }
 
   @Test
   @Ignore("https://issues.apache.org/jira/browse/BEAM-4142")
-  public void testResourceIdTester() throws Exception {
+  public void testResourceIdTester() {
     ResourceId baseDirectory =
         FileSystems.matchNewResource(
             "hdfs://" + hdfsClusterBaseUri.getPath(), true /* isDirectory */);

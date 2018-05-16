@@ -57,6 +57,7 @@ class HadoopResourceId implements ResourceId {
     return new HadoopResourceId(uri.getPath().endsWith("/") ? uri : uri.resolve("."));
   }
 
+  @Override
   public boolean isDirectory() {
     return uri.getPath().endsWith("/");
   }
