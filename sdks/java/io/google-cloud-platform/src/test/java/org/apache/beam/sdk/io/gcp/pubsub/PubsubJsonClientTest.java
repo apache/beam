@@ -30,6 +30,7 @@ import com.google.api.services.pubsub.model.ReceivedMessage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +67,7 @@ public class PubsubJsonClientTest {
   private static final String ACK_ID = "testAckId";
 
   @Before
-  public void setup() throws IOException {
+  public void setup() {
     mockPubsub = Mockito.mock(Pubsub.class, Mockito.RETURNS_DEEP_STUBS);
     client = new PubsubJsonClient(TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, mockPubsub);
   }
@@ -85,7 +86,7 @@ public class PubsubJsonClientTest {
         new PullRequest().setReturnImmediately(true).setMaxMessages(10);
     PubsubMessage expectedPubsubMessage = new PubsubMessage()
         .setMessageId(MESSAGE_ID)
-        .encodeData(DATA.getBytes())
+        .encodeData(DATA.getBytes(StandardCharsets.UTF_8))
         .setPublishTime(String.valueOf(PUB_TIME))
         .setAttributes(
             ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
@@ -104,7 +105,7 @@ public class PubsubJsonClientTest {
     assertEquals(1, acutalMessages.size());
     IncomingMessage actualMessage = acutalMessages.get(0);
     assertEquals(ACK_ID, actualMessage.ackId);
-    assertEquals(DATA, new String(actualMessage.elementBytes));
+    assertEquals(DATA, new String(actualMessage.elementBytes, StandardCharsets.UTF_8));
     assertEquals(RECORD_ID, actualMessage.recordId);
     assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
     assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
@@ -114,7 +115,7 @@ public class PubsubJsonClientTest {
   public void publishOneMessage() throws IOException {
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage = new PubsubMessage()
-        .encodeData(DATA.getBytes())
+        .encodeData(DATA.getBytes(StandardCharsets.UTF_8))
         .setAttributes(
             ImmutableMap.<String, String> builder()
                     .put(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME))
@@ -132,7 +133,7 @@ public class PubsubJsonClientTest {
     Map<String, String> attrs = new HashMap<>();
     attrs.put("k", "v");
     OutgoingMessage actualMessage = new OutgoingMessage(
-            DATA.getBytes(), attrs, MESSAGE_TIME, RECORD_ID);
+            DATA.getBytes(StandardCharsets.UTF_8), attrs, MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -141,7 +142,7 @@ public class PubsubJsonClientTest {
   public void publishOneMessageWithOnlyTimestampAndIdAttributes() throws IOException {
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage = new PubsubMessage()
-        .encodeData(DATA.getBytes())
+        .encodeData(DATA.getBytes(StandardCharsets.UTF_8))
         .setAttributes(
             ImmutableMap.<String, String> builder()
                     .put(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME))
@@ -156,7 +157,8 @@ public class PubsubJsonClientTest {
                                 .execute()))
            .thenReturn(expectedResponse);
     OutgoingMessage actualMessage =
-        new OutgoingMessage(DATA.getBytes(), ImmutableMap.of(), MESSAGE_TIME, RECORD_ID);
+        new OutgoingMessage(
+            DATA.getBytes(StandardCharsets.UTF_8), ImmutableMap.of(), MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -169,7 +171,7 @@ public class PubsubJsonClientTest {
 
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage = new PubsubMessage()
-        .encodeData(DATA.getBytes())
+        .encodeData(DATA.getBytes(StandardCharsets.UTF_8))
         .setAttributes(
             ImmutableMap.<String, String> builder()
                     .put("k", "v").build());
@@ -185,7 +187,7 @@ public class PubsubJsonClientTest {
     Map<String, String> attrs = new HashMap<>();
     attrs.put("k", "v");
     OutgoingMessage actualMessage = new OutgoingMessage(
-            DATA.getBytes(), attrs, MESSAGE_TIME, RECORD_ID);
+            DATA.getBytes(StandardCharsets.UTF_8), attrs, MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

@@ -41,7 +41,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -166,7 +165,7 @@ public class BigQueryUtilTest {
   }
 
   private TableRow rawRow(Object...args) {
-    List<TableCell> cells = new LinkedList<>();
+    List<TableCell> cells = new ArrayList<>();
     for (Object a : args) {
       cells.add(new TableCell().setV(a));
     }
@@ -190,7 +189,7 @@ public class BigQueryUtilTest {
   }
 
   @Test
-  public void testInsertAll() throws Exception, IOException {
+  public void testInsertAll() throws Exception {
     // Build up a list of indices to fail on each invocation. This should result in
     // 5 calls to insertAll.
     List<List<Long>> errorsIndices = new ArrayList<>();
@@ -209,7 +208,7 @@ public class BigQueryUtilTest {
     for (int i = 0; i < 25; ++i) {
       rows.add(ValueInSingleWindow.of(rawRow("foo", 1234), GlobalWindow.TIMESTAMP_MAX_VALUE,
           GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
-      ids.add(new String());
+      ids.add("");
     }
 
     long totalBytes = 0;
