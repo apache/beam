@@ -1122,7 +1122,7 @@ public class BigQueryIO {
 
     abstract Method getMethod();
 
-    @Nullable abstract String getLoadJobProjectId();
+    @Nullable abstract ValueProvider<String> getLoadJobProjectId();
 
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
@@ -1153,7 +1153,7 @@ public class BigQueryIO {
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder<T> setMethod(Method method);
-      abstract Builder<T> setLoadJobProjectId(String loadJobProjectId);
+      abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
@@ -1400,6 +1400,10 @@ public class BigQueryIO {
      * destination table is used.
      */
     public Write<T> withLoadJobProjectId(String loadJobProjectId) {
+      return withLoadJobProjectId(StaticValueProvider.of(loadJobProjectId));
+    }
+
+    public Write<T> withLoadJobProjectId(ValueProvider<String> loadJobProjectId) {
       checkArgument(loadJobProjectId != null, "loadJobProjectId can not be null");
       return toBuilder().setLoadJobProjectId(loadJobProjectId).build();
     }

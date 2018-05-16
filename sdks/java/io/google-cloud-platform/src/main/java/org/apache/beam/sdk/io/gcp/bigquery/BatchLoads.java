@@ -129,14 +129,14 @@ class BatchLoads<DestinationT>
   private int numFileShards;
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
-  private final String loadJobProjectId;
+  private ValueProvider<String> loadJobProjectId;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations,
              Coder<DestinationT> destinationCoder,
              ValueProvider<String> customGcsTempLocation,
-             @Nullable String loadJobProjectId) {
+             @Nullable ValueProvider<String> loadJobProjectId) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;

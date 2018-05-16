@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -90,7 +91,7 @@ class WriteTables<DestinationT>
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
-  private final String loadJobProjectId;
+  private final ValueProvider<String> loadJobProjectId;
 
 
   private class WriteTablesDoFn
@@ -189,7 +190,7 @@ class WriteTables<DestinationT>
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
-      @Nullable String loadJobProjectId) {
+      @Nullable ValueProvider<String> loadJobProjectId) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -254,7 +255,7 @@ class WriteTables<DestinationT>
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
-    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId;
+    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
     Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
