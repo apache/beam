@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package local contains a local file implementation of the Beam file system.
 package local
 
 import (
