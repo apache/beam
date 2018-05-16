@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -94,7 +93,7 @@ public class HIFIOWithElasticTest implements Serializable {
 
   @BeforeClass
   public static void startServer()
-      throws NodeValidationException, InterruptedException, IOException {
+      throws NodeValidationException, IOException {
     ServerSocket serverSocket = new ServerSocket(0);
     int port = serverSocket.getLocalPort();
     serverSocket.close();
@@ -125,7 +124,7 @@ public class HIFIOWithElasticTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  MapElements<LinkedMapWritable, String> transformFunc =
+  private final MapElements<LinkedMapWritable, String> transformFunc =
       MapElements.via(
           new SimpleFunction<LinkedMapWritable, String>() {
             @Override
@@ -176,7 +175,7 @@ public class HIFIOWithElasticTest implements Serializable {
    * <a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
-  public Configuration getConfiguration() {
+  private Configuration getConfiguration() {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
     conf.set(ConfigurationOptions.ES_PORT, String.format("%s", elasticInMemPort));
@@ -210,8 +209,8 @@ public class HIFIOWithElasticTest implements Serializable {
     private static final long serialVersionUID = 1L;
     private static Node node;
 
-    public static void startElasticEmbeddedServer()
-        throws NodeValidationException, InterruptedException {
+    static void startElasticEmbeddedServer()
+        throws NodeValidationException {
       Settings settings = Settings.builder()
           .put("node.data", TRUE)
           .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
@@ -232,7 +231,7 @@ public class HIFIOWithElasticTest implements Serializable {
     /**
      * Prepares Elastic index, by adding rows.
      */
-    private static void prepareElasticIndex() throws InterruptedException {
+    private static void prepareElasticIndex() {
       CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().create(indexRequest).actionGet();
       for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
@@ -246,7 +245,7 @@ public class HIFIOWithElasticTest implements Serializable {
      * Shutdown the embedded instance.
      * @throws IOException
      */
-    public static void shutdown() throws IOException {
+    static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();
       LOG.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
@@ -270,14 +269,11 @@ public class HIFIOWithElasticTest implements Serializable {
   static class PluginNode extends Node implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    static Collection<Class<? extends Plugin>> list = new ArrayList<>();
+    private static final ImmutableList<Class<? extends Plugin>> PLUGINS =
+        ImmutableList.of(Netty4Plugin.class);
 
-    static {
-      list.add(Netty4Plugin.class);
-    }
-
-    public PluginNode(final Settings settings) {
-      super(InternalSettingsPreparer.prepareEnvironment(settings, null), list);
+    PluginNode(final Settings settings) {
+      super(InternalSettingsPreparer.prepareEnvironment(settings, null), PLUGINS);
     }
   }
 }

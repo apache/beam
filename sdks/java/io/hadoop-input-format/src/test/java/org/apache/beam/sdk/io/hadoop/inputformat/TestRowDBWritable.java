@@ -35,15 +35,17 @@ import org.apache.hadoop.mapreduce.lib.db.DBWritable;
  * {@link org.apache.hadoop.mapreduce.lib.db.DBInputFormat}.
  */
 @DefaultCoder(AvroCoder.class)
-public class TestRowDBWritable extends TestRow implements DBWritable, Writable {
+class TestRowDBWritable extends TestRow implements DBWritable, Writable {
 
   private Integer id;
   private String name;
 
-  @Override public Integer id() {
+  @Override
+  public Integer id() {
     return id;
   }
 
+  @Override
   public String name() {
     return name;
   }

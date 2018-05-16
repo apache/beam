@@ -63,9 +63,9 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 public class HadoopInputFormatIOTest {
-  static SerializableConfiguration serConf;
-  static SimpleFunction<Text, String> myKeyTranslate;
-  static SimpleFunction<Employee, String> myValueTranslate;
+  private static SerializableConfiguration serConf;
+  private static SimpleFunction<Text, String> myKeyTranslate;
+  private static SimpleFunction<Employee, String> myValueTranslate;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -73,7 +73,7 @@ public class HadoopInputFormatIOTest {
   private PBegin input = PBegin.in(p);
 
   @BeforeClass
-  public static void setUp() throws IOException, InterruptedException {
+  public static void setUp() {
     serConf = loadTestConfiguration(
                   EmployeeInputFormat.class,
                   Text.class,
@@ -135,8 +135,7 @@ public class HadoopInputFormatIOTest {
    * @throws IOException
    */
   @Test
-  public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime()
-      throws IOException, InterruptedException {
+  public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime() {
     SerializableConfiguration diffConf =
         loadTestConfiguration(
             EmployeeInputFormat.class,
@@ -386,7 +385,7 @@ public class HadoopInputFormatIOTest {
   }
 
   @Test
-  public void testReadingData() throws Exception {
+  public void testReadingData() {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(serConf.get());
     List<KV<Text, Employee>> expected = TestEmployeeDataSet.getEmployeeData();
