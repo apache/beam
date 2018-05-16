@@ -17,6 +17,8 @@
 
 """Unit tests for the PValue and PCollection classes."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.pvalue import AsSingleton
