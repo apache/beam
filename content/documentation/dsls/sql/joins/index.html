@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Beam Python Streaming Pipelines</title>
+  <title>Beam SQL: Joins</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -15,7 +15,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/python-streaming/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/joins/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -166,197 +166,79 @@
         
 
 <ul class="nav">
-  <li><a href="#why-use-streaming-execution">Why use streaming execution?</a></li>
-  <li><a href="#modifying-a-pipeline-to-use-stream-processing">Modifying a pipeline to use stream processing</a></li>
-  <li><a href="#running-a-streaming-pipeline">Running a streaming pipeline</a></li>
-  <li><a href="#unsupported-features">Unsupported features</a>
-    <ul>
-      <li><a href="#general-beam-features">General Beam features</a></li>
-      <li><a href="#dataflowrunner-specific-features">DataflowRunner specific features</a></li>
-    </ul>
-  </li>
+  <li><a href="#join-bounded-bounded">Bounded JOIN Bounded</a></li>
+  <li><a href="#join-unbounded-unbounded">Unbounded JOIN Unbounded</a></li>
+  <li><a href="#join-unbounded-bounded">Unbounded JOIN Bounded</a></li>
 </ul>
 
 
       </nav>
 
       <div class="body__contained body__section-nav">
-        <h1 id="python-streaming-pipelines">Python Streaming Pipelines</h1>
+        <h1 id="beam-sql-joins">Beam SQL: Joins</h1>
 
-<p>Python streaming pipeline execution is experimentally available (with some
-<a href="#unsupported-features">limitations</a>) starting with Beam SDK version 2.5.0.</p>
-
-<h2 id="why-use-streaming-execution">Why use streaming execution?</h2>
-
-<p>Beam creates an unbounded PCollection if your pipeline reads from a streaming or
-continously-updating data source (such as Cloud Pub/Sub). A runner must
-process an unbounded PCollection using a streaming job that runs continuously,
-as the entire collection is never available for processing at any one time.
-<a href="/documentation/programming-guide/#size-and-boundedness">Size and boundedness</a>
-has more information about bounded and unbounded collections.</p>
-
-<h2 id="modifying-a-pipeline-to-use-stream-processing">Modifying a pipeline to use stream processing</h2>
-
-<p>To modify a batch pipeline to support streaming, you must make the following
-code changes:</p>
-
+<p>Supported <code class="highlighter-rouge">JOIN</code> types in Beam SQL:</p>
 <ul>
-  <li>Use an I/O connector that supports reading from an unbounded source.</li>
-  <li>Use an I/O connector that supports writing to an unbounded source.</li>
-  <li>Choose a <a href="/documentation/programming-guide/index.html#windowing">windowing strategy</a>.</li>
+  <li><code class="highlighter-rouge">INNER</code>, <code class="highlighter-rouge">LEFT OUTER</code>, <code class="highlighter-rouge">RIGHT OUTER</code></li>
+  <li>Only equijoins (where join condition is an equality check) are supported</li>
 </ul>
 
-<p>The Beam SDK for Python includes two I/O connectors that support unbounded
-PCollections: Google Cloud Pub/Sub (reading and writing) and Google BigQuery
-(writing).</p>
-
-<p>The following snippets show the necessary code changes to modify the batch
-WordCount example to support streaming:</p>
-
-<p>These batch WordCount snippets are from
-<a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py">wordcount.py</a>.
-This code uses the TextIO I/O connector to read from and write to a bounded
-collection.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>  lines = p | 'read' &gt;&gt; ReadFromText(known_args.input)
-  ...
-
-  counts = (lines
-            | 'split' &gt;&gt; (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
-            | 'pair_with_one' &gt;&gt; beam.Map(lambda x: (x, 1))
-            | 'group' &gt;&gt; beam.GroupByKey()
-            | 'count' &gt;&gt; beam.Map(count_ones))
-  ...
-
-  output = counts | 'format' &gt;&gt; beam.Map(format_result)
-
-  # Write the output using a "Write" transform that has side effects.
-  output | 'write' &gt;&gt; WriteToText(known_args.output)
-</code></pre>
-</div>
-
-<p>These streaming WordCount snippets are from
-<a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py">streaming_wordcount.py</a>.
-This code uses an I/O connector that reads from and writes to an unbounded
-source (Cloud Pub/Sub) and specifies a fixed windowing strategy.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>  lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
-  ...
-
-  counts = (lines
-            | 'split' &gt;&gt; (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
-            | 'pair_with_one' &gt;&gt; beam.Map(lambda x: (x, 1))
-            | beam.WindowInto(window.FixedWindows(15, 0))
-            | 'group' &gt;&gt; beam.GroupByKey()
-            | 'count' &gt;&gt; beam.Map(count_ones))
-
-  ...
-
-  output = counts | 'format' &gt;&gt; beam.Map(format_result)
-
-  # Write to Pub/Sub
-  output | beam.io.WriteStringsToPubSub(known_args.output_topic)
-</code></pre>
-</div>
-
-<h2 id="running-a-streaming-pipeline">Running a streaming pipeline</h2>
-
-<p>To run the example streaming WordCount pipeline, you must have a Cloud Pub/Sub
-input topic and output topic. To create, subscribe to, and pull from a topic for
-testing purposes, you can use the commands in the <a href="https://cloud.google.com/pubsub/docs/quickstart-cli">Cloud Pub/Sub quickstart</a>.</p>
-
-<p>The following simple bash script feeds lines of an input text file to your input
-topic:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cat &lt;YOUR_LOCAL_TEXT_FILE&gt; | while read line; do gcloud pubsub topics publish &lt;YOUR_INPUT_TOPIC_NAME&gt; “ $line”; done
-</code></pre>
-</div>
-
-<p>Alternately, you can read from a publicly available Cloud Pub/Sub stream, such
-as <code class="highlighter-rouge">projects/pubsub-public-data/topics/taxirides-realtime</code>. However, you must
-create your own output topic to test writes.</p>
-
-<p>The following commands run the
-<a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py">streaming_wordcount.py</a>
-example streaming pipeline. Specify your Cloud Pub/Sub project and input topic
-(<code class="highlighter-rouge">--input_topic</code>), output Cloud Pub/Sub project and topic (<code class="highlighter-rouge">--output_topic</code>).</p>
-
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code># DirectRunner requires the --streaming option
-python -m apache_beam.examples.streaming_wordcount \
-  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
-  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
-  --streaming
-</code></pre>
-</div>
-
-<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
-</code></pre>
-</div>
-
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
-</code></pre>
-</div>
-
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
-</code></pre>
-</div>
-
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
-</code></pre>
-</div>
-
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
-pip install apache-beam[gcp]
-
-# DataflowRunner requires the --streaming option
-python -m apache_beam.examples.streaming_wordcount \
-  --runner DataflowRunner \
-  --project YOUR_GCP_PROJECT \
-  --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
-  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
-  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
-  --streaming
-</code></pre>
-</div>
-
-<p>Check your runner’s documentation for any additional runner-specific information
-about executing streaming pipelines:</p>
-
+<p>Unsupported <code class="highlighter-rouge">JOIN</code> types in Beam SQL:</p>
 <ul>
-  <li><a href="/documentation/runners/direct/#streaming-execution">DirectRunner streaming execution</a></li>
-  <li><a href="/documentation/runners/dataflow/#streaming-execution">DataflowRunner streaming execution</a></li>
+  <li><code class="highlighter-rouge">CROSS JOIN</code> is not supported (full cartesian product with no <code class="highlighter-rouge">ON</code> clause)</li>
+  <li><code class="highlighter-rouge">FULL OUTER JOIN</code> is not supported (combination of <code class="highlighter-rouge">LEFT OUTER</code> and <code class="highlighter-rouge">RIGHT OUTER</code> joins)</li>
 </ul>
 
-<h2 id="unsupported-features">Unsupported features</h2>
+<p>The scenarios of join can be categorized into 3 cases:</p>
 
-<p>Python streaming execution does not currently support the following features.</p>
+<ol>
+  <li>Bounded input <code class="highlighter-rouge">JOIN</code> bounded input</li>
+  <li>Unbounded input <code class="highlighter-rouge">JOIN</code> unbounded input</li>
+  <li>Unbounded input <code class="highlighter-rouge">JOIN</code> bounded input</li>
+</ol>
 
-<h3 id="general-beam-features">General Beam features</h3>
+<h2 id="join-bounded-bounded">Bounded JOIN Bounded</h2>
 
-<p>These unsupported Beam features apply to all runners.</p>
+<p>Standard join implementation is used. All elements from one input are matched
+with all elements from another input. Due to the fact that both inputs are
+bounded, no windowing or triggering is involved.</p>
+
+<h2 id="join-unbounded-unbounded">Unbounded JOIN Unbounded</h2>
+
+<p>Standard join implementation is used. All elements from one input are matched
+with all elements from another input.</p>
+
+<p><strong>Windowing and Triggering</strong></p>
+
+<p>The following properties must be satisfied when joining unbounded inputs:</p>
 
 <ul>
-  <li><code class="highlighter-rouge">State</code> and <code class="highlighter-rouge">Timers</code> APIs</li>
-  <li>Custom source API</li>
-  <li>Splittable <code class="highlighter-rouge">DoFn</code> API</li>
-  <li>Handling of late data</li>
-  <li>User-defined custom <code class="highlighter-rouge">WindowFn</code></li>
+  <li>Inputs must have compatible windows, otherwise <code class="highlighter-rouge">IllegalArgumentException</code>
+will be thrown.</li>
+  <li>Triggers on each input should only fire once per window. Currently this
+means that the only supported trigger in this case is <code class="highlighter-rouge">DefaultTrigger</code> with
+zero allowed lateness. Using any other trigger will result in
+<code class="highlighter-rouge">UnsupportedOperationException</code> thrown.</li>
 </ul>
 
-<h3 id="dataflowrunner-specific-features">DataflowRunner specific features</h3>
+<p>This means that inputs are joined per-window. That is, when the trigger fires
+(only once), then join is performed on all elements in the current window in
+both inputs. This allows to reason about what kind of output is going to be
+produced.</p>
 
-<p>Additionally, <code class="highlighter-rouge">DataflowRunner</code> does not currently support the following Cloud
-Dataflow specific features with Python streaming execution.</p>
+<p><strong>Note:</strong> similarly to <code class="highlighter-rouge">GroupByKeys</code> <code class="highlighter-rouge">JOIN</code> will update triggers using
+<code class="highlighter-rouge">Trigger.continuationTrigger()</code>. Other aspects of the inputs’ windowing
+strategies remain unchanged.</p>
+
+<h2 id="join-unbounded-bounded">Unbounded JOIN Bounded</h2>
+
+<p>For this type of <code class="highlighter-rouge">JOIN</code> bounded input is treated as a side-input by the
+implementation.</p>
+
+<p>This means that</p>
 
 <ul>
-  <li>Streaming autoscaling</li>
-  <li>Updating existing pipelines</li>
-  <li>Cloud Dataflow Templates</li>
-  <li>Some monitoring features, such as msec counters, display data, metrics, and
-element counts for transforms. However, logging, watermarks, and element
-counts for sources are supported.</li>
+  <li>window/trigger is inherented from upstreams, which should be consistent</li>
 </ul>
 
 
