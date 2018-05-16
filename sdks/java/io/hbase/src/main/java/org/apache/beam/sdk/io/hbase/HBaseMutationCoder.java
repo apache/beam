@@ -97,7 +97,9 @@ class HBaseMutationCoder extends AtomicCoder<Mutation> implements Serializable {
       }
 
       try {
-        return (Coder<T>) HBaseMutationCoder.of();
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = (Coder<T>) HBaseMutationCoder.of();
+        return coder;
       } catch (IllegalArgumentException e) {
         throw new CannotProvideCoderException(e);
       }
