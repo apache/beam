@@ -121,28 +121,6 @@ class TestStreamTest(unittest.TestCase):
         ('late', timestamp.Timestamp(12)),
         ('last', timestamp.Timestamp(310)),]))
 
-    # assert per window
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 15): [
-            ('a', Timestamp(10)),
-            ('b', Timestamp(10)),
-            ('c', Timestamp(10)),
-            ('late', Timestamp(12))
-        ],
-        window.IntervalWindow(15, 30): [
-            ('d', Timestamp(20)),
-            ('e', Timestamp(20))
-        ],
-        window.IntervalWindow(300, 315): [
-            ('last', Timestamp(310)),
-        ],
-    }
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(15),
-        label='assert per window')
-
     p.run()
 
   def test_gbk_execution_no_triggers(self):
@@ -169,19 +147,14 @@ class TestStreamTest(unittest.TestCase):
     # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
-    assert_that(records, equal_to([
-        ('k', ['a', 'b', 'c']),
-        ('k', ['d', 'e']),
-        ('k', ['late']),
-        ('k', ['last'])]))
 
     # assert per window
     expected_window_to_elements = {
-        window.IntervalWindow(15, 30): [
+        window.IntervalWindow(0, 15): [
             ('k', ['a', 'b', 'c']),
             ('k', ['late']),
         ],
-        window.IntervalWindow(30, 45): [
+        window.IntervalWindow(15, 30): [
             ('k', ['d', 'e']),
         ],
         window.IntervalWindow(300, 315): [
@@ -191,7 +164,7 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(15),
+        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -228,7 +201,7 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(15),
+        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -261,17 +234,13 @@ class TestStreamTest(unittest.TestCase):
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
 
-    assert_that(records, equal_to([
-        ('k', ['a'])]))
-
-    # assert per window
     expected_window_to_elements = {
-        window.IntervalWindow(15, 30): [('k', ['a'])],
+        window.IntervalWindow(0, 15): [('k', ['a'])],
     }
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(15),
+        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -299,19 +268,8 @@ class TestStreamTest(unittest.TestCase):
     records = (main_stream     # pylint: disable=unused-variable
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
 
-    # assert per window
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 15): [
-            ('e', Timestamp(10), [2, 1, 4]),
-        ],
-    }
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(15),
-        label='assert per window')
-
     assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 4])]))
+
     p.run()
 
   def test_basic_execution_sideinputs(self):
@@ -341,19 +299,8 @@ class TestStreamTest(unittest.TestCase):
     records = (main_stream        # pylint: disable=unused-variable
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
 
-    # assert per window
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 15): [
-            ('e', Timestamp(10), [2, 1, 7, 4]),
-        ],
-    }
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(15),
-        label='assert per window')
-
     assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 7, 4])]))
+
     p.run()
 
   def test_basic_execution_batch_sideinputs_fixed_windows(self):
@@ -391,7 +338,7 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(1),
+        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -445,7 +392,7 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        custom_windowing=window.FixedWindows(1),
+        use_global_window=False,
         label='assert per window')
 
     p.run()
