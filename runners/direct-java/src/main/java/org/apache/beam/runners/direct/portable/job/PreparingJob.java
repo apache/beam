@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.reference.job;
+package org.apache.beam.runners.direct.portable.job;
 
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.Struct;
 import java.nio.file.Path;
-import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 
 /** A Job with a {@code prepare} call but no corresponding {@code run} call. */
@@ -33,8 +33,11 @@ abstract class PreparingJob implements AutoCloseable {
   }
 
   abstract Pipeline getPipeline();
+
   abstract Struct getOptions();
+
   abstract Path getStagingLocation();
+
   abstract GrpcFnServer<LocalFileSystemArtifactStagerService> getArtifactStagingServer();
 
   @Override
