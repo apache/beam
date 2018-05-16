@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package textio contains transforms for reading and writing text files.
 package textio
 
 import (

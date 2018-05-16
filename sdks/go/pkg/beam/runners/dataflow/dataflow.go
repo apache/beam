@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package dataflow contains the Dataflow runner for submitting pipelines
+// to Google Cloud Dataflow.
 package dataflow
 
 import (

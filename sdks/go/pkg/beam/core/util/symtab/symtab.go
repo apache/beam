@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package symtab allows reading low-level symbol information from the symbol table.
 package symtab
 
 import (
