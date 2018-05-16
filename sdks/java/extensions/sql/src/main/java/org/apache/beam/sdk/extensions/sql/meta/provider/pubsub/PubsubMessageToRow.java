@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auto.value.AutoValue;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -31,10 +32,11 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.JsonToRowUtils;
 import org.apache.beam.sdk.util.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
@@ -42,13 +44,15 @@ import org.joda.time.Instant;
  */
 @Internal
 @Experimental
-public class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
+@AutoValue
+public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
   static final String TIMESTAMP_FIELD = "event_timestamp";
   static final String ATTRIBUTES_FIELD = "attributes";
   static final String PAYLOAD_FIELD = "payload";
+  static final TupleTag<PubsubMessage> DLQ_TAG = new TupleTag<PubsubMessage>() {};
+  static final TupleTag<Row> MAIN_TAG = new TupleTag<Row>() {};
 
   private transient volatile @Nullable ObjectMapper objectMapper;
-  private Schema messageSchema;
 
   /**
    * Schema of the Pubsub message.
@@ -62,34 +66,47 @@ public class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
    *
    * <p>Only UTF-8 JSON objects are supported.
    */
-  public Schema getMessageSchema() {
-    return messageSchema;
+  public abstract Schema messageSchema();
+
+  public abstract boolean useDlq();
+
+  private Schema payloadSchema() {
+    return messageSchema().getField(PAYLOAD_FIELD).getType().getRowSchema();
   }
 
-  public static ParDo.SingleOutput<PubsubMessage, Row> forSchema(Schema messageSchema) {
-    return ParDo.of(new PubsubMessageToRow(messageSchema));
-  }
-
-  private PubsubMessageToRow(Schema messageSchema) {
-    this.messageSchema = messageSchema;
+  public static Builder builder() {
+    return new AutoValue_PubsubMessageToRow.Builder();
   }
 
   @DoFn.ProcessElement
   public void processElement(ProcessContext context) {
-    // get values for fields
-    // in the same order they're specified in schema
-    List<Object> values = getMessageSchema()
-        .getFields()
-        .stream()
-        .map(field ->
-                 getValueForField(
-                     field,
-                     context.timestamp(),
-                     context.element()))
-        .collect(toList());
+    try {
+      List<Object> values = getFieldValues(context);
+      context.output(Row.withSchema(messageSchema()).addValues(values).build());
+    } catch (UnsupportedRowJsonException jsonException) {
+      if (useDlq()) {
+        context.output(DLQ_TAG, context.element());
+      } else {
+        throw new RuntimeException("Error parsing message", jsonException);
+      }
+    }
+  }
 
-    context.output(
-        Row.withSchema(getMessageSchema()).addValues(values).build());
+  /**
+   * Get values for fields in the same order they're specified in schema, including
+   * timestamp, payload, and attributes.
+   */
+  private List<Object> getFieldValues(ProcessContext context) {
+    return
+        messageSchema()
+            .getFields()
+            .stream()
+            .map(field ->
+                     getValueForField(
+                         field,
+                         context.timestamp(),
+                         context.element()))
+            .collect(toList());
   }
 
   private Object getValueForField(
@@ -117,13 +134,17 @@ public class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
 
     if (objectMapper == null) {
       objectMapper =
-          newObjectMapperWith(RowJsonDeserializer.forSchema(getPayloadSchema()));
+          newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema()));
     }
 
     return JsonToRowUtils.jsonToRow(objectMapper, payloadJson);
   }
 
-  private Schema getPayloadSchema() {
-    return getMessageSchema().getField(PAYLOAD_FIELD).getType().getRowSchema();
+  @AutoValue.Builder
+  abstract static class Builder {
+    public abstract Builder messageSchema(Schema messageSchema);
+    public abstract Builder useDlq(boolean useDlq);
+
+    public abstract PubsubMessageToRow build();
   }
 }
