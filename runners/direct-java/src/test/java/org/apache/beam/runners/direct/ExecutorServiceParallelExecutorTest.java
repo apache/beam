@@ -59,24 +59,39 @@ public class ExecutorServiceParallelExecutorTest {
   @Test
   @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
   public void ensureMetricsThreadDoesntLeak() {
-    final DirectGraph graph = DirectGraph
-        .create(emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap());
-    final InstrumentedThreadPoolExecutor metricsExecutorService = new InstrumentedThreadPoolExecutor(
-        1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue(),
-        new ThreadFactoryBuilder().setDaemon(false)
-            .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
-            .build());
+    final DirectGraph graph =
+        DirectGraph.create(
+            emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap());
+    final InstrumentedThreadPoolExecutor metricsExecutorService =
+        new InstrumentedThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue(),
+            new ThreadFactoryBuilder()
+                .setDaemon(false)
+                .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
+                .build());
 
     // fake a metrics usage
-    metricsExecutorService.submit(() -> {
-    });
+    metricsExecutorService.submit(() -> {});
 
-    final EvaluationContext context = EvaluationContext
-        .create(MockClock.fromInstant(Instant.now()), CloningBundleFactory.create(), graph,
-            emptySet(), metricsExecutorService);
-    ExecutorServiceParallelExecutor.create(2, TransformEvaluatorRegistry
-            .javaSdkNativeRegistry(context, PipelineOptionsFactory.create().as(DirectOptions.class)),
-        emptyMap(), context, metricsExecutorService).stop();
+    final EvaluationContext context =
+        EvaluationContext.create(
+            MockClock.fromInstant(Instant.now()),
+            CloningBundleFactory.create(),
+            graph,
+            emptySet(),
+            metricsExecutorService);
+    ExecutorServiceParallelExecutor.create(
+            2,
+            TransformEvaluatorRegistry.javaSdkNativeRegistry(
+                context, PipelineOptionsFactory.create().as(DirectOptions.class)),
+            emptyMap(),
+            context,
+            metricsExecutorService)
+        .stop();
     try {
       metricsExecutorService.awaitTermination(10L, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
@@ -85,12 +100,14 @@ public class ExecutorServiceParallelExecutorTest {
     }
     if (!metricsExecutorService.isTerminated()) {
       if (metricsExecutorService.isTerminating()) {
-        throw new RuntimeException(String.format(
-            "metricsExecutorService is terminating but still has %s threads. History is: %s",
-            metricsExecutorService.getPoolSize(), metricsExecutorService.showMessages()));
+        throw new RuntimeException(
+            String.format(
+                "metricsExecutorService is terminating but still has %s threads. History is: %s",
+                metricsExecutorService.getPoolSize(), metricsExecutorService.showMessages()));
       } else {
-        throw new RuntimeException(String
-            .format("metricsExecutorService should be terminating. History is: %s",
+        throw new RuntimeException(
+            String.format(
+                "metricsExecutorService should be terminating. History is: %s",
                 metricsExecutorService.showMessages()));
       }
     }
@@ -107,23 +124,30 @@ public class ExecutorServiceParallelExecutorTest {
 
     private List<String> messages = new ArrayList<>();
 
-    private InstrumentedThreadPoolExecutor(int corePoolSize, int maximumPoolSize,
-        long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue,
+    private InstrumentedThreadPoolExecutor(
+        int corePoolSize,
+        int maximumPoolSize,
+        long keepAliveTime,
+        TimeUnit unit,
+        BlockingQueue<Runnable> workQueue,
         ThreadFactory threadFactory) {
       super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
     }
 
-    @Override public void shutdown() {
+    @Override
+    public void shutdown() {
       messages.add(String.format("shutdown %s " + Instant.now()));
       super.shutdown();
     }
 
-    @Override public void execute(Runnable command) {
+    @Override
+    public void execute(Runnable command) {
       super.execute(command);
       messages.add(String.format("after execute %s " + Instant.now()));
     }
 
-    @Override protected void terminated() {
+    @Override
+    protected void terminated() {
       messages.add(String.format("terminated %s " + Instant.now()));
       super.terminated();
     }
@@ -137,7 +161,8 @@ public class ExecutorServiceParallelExecutorTest {
 
     private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
 
-    @ProcessElement public void processElement(ProcessContext context) {
+    @ProcessElement
+    public void processElement(ProcessContext context) {
       try {
         counter.inc();
         context.output(context.element());
@@ -147,4 +172,3 @@ public class ExecutorServiceParallelExecutorTest {
     }
   }
 }
-
