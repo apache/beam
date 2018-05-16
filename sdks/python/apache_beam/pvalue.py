@@ -307,8 +307,7 @@ class AsSideInput(object):
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        lambda iterable: from_runtime_iterable(iterable, view_options),
-        self._input_element_coder())
+        lambda iterable: from_runtime_iterable(iterable, view_options))
 
   def _input_element_coder(self):
     return coders.WindowedValueCoder(
@@ -346,11 +345,10 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
-  def __init__(self, access_pattern, window_mapping_fn, view_fn, coder):
+  def __init__(self, access_pattern, window_mapping_fn, view_fn):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn
-    self.coder = coder
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.SideInput(
@@ -360,7 +358,7 @@ class SideInputData(object):
             environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_VIEWFN,
-                payload=pickler.dumps((self.view_fn, self.coder)))),
+                payload=pickler.dumps(self.view_fn))),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
             environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
@@ -375,7 +373,7 @@ class SideInputData(object):
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.spec.payload),
-        *pickler.loads(proto.view_fn.spec.payload))
+        pickler.loads(proto.view_fn.spec.payload))
 
 
 class AsSingleton(AsSideInput):
@@ -451,8 +449,7 @@ class AsIter(AsSideInput):
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        lambda iterable: iterable,
-        self._input_element_coder())
+        lambda iterable: iterable)
 
   @property
   def element_type(self):
@@ -482,8 +479,7 @@ class AsList(AsSideInput):
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        list,
-        self._input_element_coder())
+        list)
 
 
 class AsDict(AsSideInput):
@@ -510,8 +506,7 @@ class AsDict(AsSideInput):
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        dict,
-        self._input_element_coder())
+        dict)
 
 
 class AsMultiMap(AsSideInput):
@@ -537,8 +532,7 @@ class AsMultiMap(AsSideInput):
     return SideInputData(
         common_urns.side_inputs.MULTIMAP.urn,
         self._window_mapping_fn,
-        lambda x: x,
-        self._input_element_coder())
+        lambda x: x)
 
 
 class EmptySideInput(object):
