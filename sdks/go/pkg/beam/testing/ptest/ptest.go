@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ptest contains utilities for pipeline unit testing.
 package ptest
 
 import (

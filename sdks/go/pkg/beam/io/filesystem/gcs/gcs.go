@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package gcs contains a Google Cloud Storage (GCS) implementation of the
+// Beam file system.
 package gcs
 
 import (

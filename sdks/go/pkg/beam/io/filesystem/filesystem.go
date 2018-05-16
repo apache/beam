@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package filesystem contains an extensible file system abstraction. It allows
+// various kinds of storage systems to be used uniformly, notably through textio.
 package filesystem
 
 import (
