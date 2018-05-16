@@ -44,7 +44,6 @@ one-time manual trimming is desirable.
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
-import functools
 import glob
 import logging
 import os
@@ -75,42 +74,189 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 
 
 class Stager(object):
-  """Stager identifies and copies the appropriate artifacts to the staging
-  location."""
+  """Abstract Stager identifies and copies the appropriate artifacts to the
+  staging location.
+  Implementation of this stager has to implement :func:`stage_artifact` and
+  :func:`commit_manifest`.
+  """
 
-  def _copy_file(self, from_path, to_path):
-    """Copies a local file to a GCS file or vice versa."""
-    logging.info('file copy from %s to %s.', from_path, to_path)
-    if from_path.startswith('gs://') or to_path.startswith('gs://'):
-      from apache_beam.io.gcp import gcsio
-      if from_path.startswith('gs://') and to_path.startswith('gs://'):
-        # Both files are GCS files so copy.
-        gcsio.GcsIO().copy(from_path, to_path)
-      elif to_path.startswith('gs://'):
-        # Only target is a GCS file, read local file and upload.
-        with open(from_path, 'rb') as f:
-          with gcsio.GcsIO().open(to_path, mode='wb') as g:
-            pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
-            for chunk in iter(pfun, ''):
-              g.write(chunk)
+  def stage_artifact(self, local_path_to_artifact, artifact_name):
+    """ Stages the artifact to Stager._staging_location and adds artifact_name
+        to the manifest of artifacts that have been staged."""
+    raise NotImplementedError
+
+  def commit_manifest(self):
+    """Commits manifest."""
+    raise NotImplementedError
+
+  @staticmethod
+  def get_sdk_package_name():
+    """For internal use only; no backwards-compatibility guarantees.
+        Returns the PyPI package name to be staged."""
+    return BEAM_PACKAGE_NAME
+
+  def stage_job_resources(self,
+                          options,
+                          build_setup_args=None,
+                          temp_dir=None,
+                          populate_requirements_cache=None,
+                          staging_location=None):
+    """For internal use only; no backwards-compatibility guarantees.
+
+        Creates (if needed) and stages job resources to staging_location.
+
+        Args:
+          options: Command line options. More specifically the function will
+            expect requirements_file, setup_file, and save_main_session options
+            to be present.
+          build_setup_args: A list of command line arguments used to build a
+            setup package. Used only if options.setup_file is not None. Used
+            only for testing.
+          temp_dir: Temporary folder where the resource building can happen. If
+            None then a unique temp directory will be created. Used only for
+            testing.
+          populate_requirements_cache: Callable for populating the requirements
+            cache. Used only for testing.
+          staging_location: Location to stage the file.
+
+        Returns:
+          A list of file names (no paths) for the resources staged. All the
+          files
+          are assumed to be staged at staging_location.
+
+        Raises:
+          RuntimeError: If files specified are not found or error encountered
+          while trying to create the resources (e.g., build a setup package).
+        """
+    temp_dir = temp_dir or tempfile.mkdtemp()
+    resources = []
+
+    setup_options = options.view_as(SetupOptions)
+    # Make sure that all required options are specified.
+    if staging_location is None:
+      raise RuntimeError('The staging_location must be specified.')
+
+    # Stage a requirements file if present.
+    if setup_options.requirements_file is not None:
+      if not os.path.isfile(setup_options.requirements_file):
+        raise RuntimeError(
+            'The file %s cannot be found. It was specified in the '
+            '--requirements_file command line option.' %
+            setup_options.requirements_file)
+      staged_path = FileSystems.join(staging_location, REQUIREMENTS_FILE)
+      self.stage_artifact(setup_options.requirements_file, staged_path)
+      resources.append(REQUIREMENTS_FILE)
+      requirements_cache_path = (
+          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
+          if setup_options.requirements_cache is None else
+          setup_options.requirements_cache)
+      # Populate cache with packages from requirements and stage the files
+      # in the cache.
+      if not os.path.exists(requirements_cache_path):
+        os.makedirs(requirements_cache_path)
+      (populate_requirements_cache if populate_requirements_cache else
+       Stager._populate_requirements_cache)(setup_options.requirements_file,
+                                            requirements_cache_path)
+      for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
+        self.stage_artifact(
+            pkg, FileSystems.join(staging_location, os.path.basename(pkg)))
+        resources.append(os.path.basename(pkg))
+
+    # Handle a setup file if present.
+    # We will build the setup package locally and then copy it to the staging
+    # location because the staging location is a remote path and the file cannot
+    # be created directly there.
+    if setup_options.setup_file is not None:
+      if not os.path.isfile(setup_options.setup_file):
+        raise RuntimeError(
+            'The file %s cannot be found. It was specified in the '
+            '--setup_file command line option.' % setup_options.setup_file)
+      if os.path.basename(setup_options.setup_file) != 'setup.py':
+        raise RuntimeError(
+            'The --setup_file option expects the full path to a file named '
+            'setup.py instead of %s' % setup_options.setup_file)
+      tarball_file = Stager._build_setup_package(setup_options.setup_file,
+                                                 temp_dir, build_setup_args)
+      staged_path = FileSystems.join(staging_location, WORKFLOW_TARBALL_FILE)
+      self.stage_artifact(tarball_file, staged_path)
+      resources.append(WORKFLOW_TARBALL_FILE)
+
+    # Handle extra local packages that should be staged.
+    if setup_options.extra_packages is not None:
+      resources.extend(
+          self._stage_extra_packages(
+              setup_options.extra_packages, staging_location,
+              temp_dir=temp_dir))
+
+    # Pickle the main session if requested.
+    # We will create the pickled main session locally and then copy it to the
+    # staging location because the staging location is a remote path and the
+    # file cannot be created directly there.
+    if setup_options.save_main_session:
+      pickled_session_file = os.path.join(temp_dir,
+                                          names.PICKLED_MAIN_SESSION_FILE)
+      pickler.dump_session(pickled_session_file)
+      staged_path = FileSystems.join(staging_location,
+                                     names.PICKLED_MAIN_SESSION_FILE)
+      self.stage_artifact(pickled_session_file, staged_path)
+      resources.append(names.PICKLED_MAIN_SESSION_FILE)
+
+    if hasattr(setup_options, 'sdk_location'):
+
+      if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
+          setup_options.sdk_location):
+        # If --sdk_location is not specified then the appropriate package
+        # will be obtained from PyPI (https://pypi.python.org) based on the
+        # version of the currently running SDK. If the option is
+        # present then no version matching is made and the exact URL or path
+        # is expected.
+        #
+        # Unit tests running in the 'python setup.py test' context will
+        # not have the sdk_location attribute present and therefore we
+        # will not stage SDK.
+        sdk_remote_location = 'pypi' if (setup_options.sdk_location == 'default'
+                                        ) else setup_options.sdk_location
+        resources.extend(
+            self._stage_beam_sdk(sdk_remote_location, staging_location,
+                                 temp_dir))
       else:
-        # Source is a GCS file but target is local file.
-        with gcsio.GcsIO().open(from_path, mode='rb') as g:
-          with open(to_path, 'wb') as f:
-            pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
-            for chunk in iter(pfun, ''):
-              f.write(chunk)
-    else:
-      # Branch used only for unit tests and integration tests.
-      # In such environments GCS support is not available.
-      if not os.path.isdir(os.path.dirname(to_path)):
-        logging.info(
-            'Created folder (since we have not done yet, and any errors '
-            'will follow): %s ', os.path.dirname(to_path))
-        os.mkdir(os.path.dirname(to_path))
-      shutil.copyfile(from_path, to_path)
+        # This branch is also used by internal tests running with the SDK built
+        # at head.
+        if os.path.isdir(setup_options.sdk_location):
+          # TODO(angoenka): remove reference to Dataflow
+          sdk_path = os.path.join(setup_options.sdk_location,
+                                  names.DATAFLOW_SDK_TARBALL_FILE)
+        else:
+          sdk_path = setup_options.sdk_location
 
-  def _download_file(self, from_url, to_path):
+        if os.path.isfile(sdk_path):
+          logging.info('Copying Beam SDK "%s" to staging location.', sdk_path)
+          staged_path = FileSystems.join(
+              staging_location,
+              Stager._desired_sdk_filename_in_staging_location(
+                  setup_options.sdk_location))
+          self.stage_artifact(sdk_path, staged_path)
+          _, sdk_staged_filename = FileSystems.split(staged_path)
+          resources.append(sdk_staged_filename)
+        else:
+          if setup_options.sdk_location == 'default':
+            raise RuntimeError('Cannot find default Beam SDK tar file "%s"',
+                               sdk_path)
+          elif not setup_options.sdk_location:
+            logging.info('Beam SDK will not be staged since --sdk_location '
+                         'is empty.')
+          else:
+            raise RuntimeError(
+                'The file "%s" cannot be found. Its location was specified by '
+                'the --sdk_location command-line option.' % sdk_path)
+
+    # Delete all temp files created while staging job resources.
+    shutil.rmtree(temp_dir)
+    self.commit_manifest()
+    return resources
+
+  @staticmethod
+  def _download_file(from_url, to_path):
     """Downloads a file over http/https from a url or copy it from a remote
         path to local path."""
     if from_url.startswith('http://') or from_url.startswith('https://'):
@@ -131,10 +277,15 @@ class Stager(object):
         logging.info('Failed to download Artifact from %s', from_url)
         raise
     else:
-      # Copy the file from the remote file system to loca files system.
-      self._copy_file(from_url, to_path)
+      if not os.path.isdir(os.path.dirname(to_path)):
+        logging.info(
+            'Created folder (since we have not done yet, and any errors '
+            'will follow): %s ', os.path.dirname(to_path))
+        os.mkdir(os.path.dirname(to_path))
+      shutil.copyfile(from_url, to_path)
 
-  def _is_remote_path(self, path):
+  @staticmethod
+  def _is_remote_path(path):
     return path.find('://') != -1
 
   def _stage_extra_packages(self, extra_packages, staging_location, temp_dir):
@@ -142,7 +293,7 @@ class Stager(object):
 
       Args:
         extra_packages: Ordered list of local paths to extra packages to be
-          staged.
+          staged. Only packages on localfile system and GCS are supported.
         staging_location: Staging location for the packages.
         temp_dir: Temporary folder where the resource building can happen.
           Caller is responsible for cleaning up this folder after this function
@@ -176,13 +327,13 @@ class Stager(object):
             'running on an x64 Linux host).')
 
       if not os.path.isfile(package):
-        if self._is_remote_path(package):
+        if Stager._is_remote_path(package):
           # Download remote package.
           logging.info('Downloading extra package: %s locally before staging',
                        package)
           _, last_component = FileSystems.split(package)
           local_file_path = FileSystems.join(staging_temp_dir, last_component)
-          self._download_file(package, local_file_path)
+          Stager._download_file(package, local_file_path)
         else:
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
@@ -219,7 +370,8 @@ class Stager(object):
 
     return resources
 
-  def _get_python_executable(self):
+  @staticmethod
+  def _get_python_executable():
     # Allow overriding the python executable to use for downloading and
     # installing dependencies, otherwise use the python executable for
     # the current process.
@@ -228,13 +380,14 @@ class Stager(object):
       raise ValueError('Could not find Python executable.')
     return python_bin
 
-  def _populate_requirements_cache(self, requirements_file, cache_dir):
+  @staticmethod
+  def _populate_requirements_cache(requirements_file, cache_dir):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in
     # the requirements file and will not download package dependencies.
     cmd_args = [
-        self._get_python_executable(),
+        Stager._get_python_executable(),
         '-m',
         'pip',
         'download',
@@ -242,6 +395,8 @@ class Stager(object):
         cache_dir,
         '-r',
         requirements_file,
+        '--exists-action',
+        'i',
         # Download from PyPI source distributions.
         '--no-binary',
         ':all:'
@@ -249,13 +404,14 @@ class Stager(object):
     logging.info('Executing command: %s', cmd_args)
     processes.check_call(cmd_args)
 
-  def _build_setup_package(self, setup_file, temp_dir, build_setup_args=None):
+  @staticmethod
+  def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     saved_current_directory = os.getcwd()
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
         build_setup_args = [
-            self._get_python_executable(),
+            Stager._get_python_executable(),
             os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
         ]
       logging.info('Executing command: %s', build_setup_args)
@@ -268,7 +424,8 @@ class Stager(object):
     finally:
       os.chdir(saved_current_directory)
 
-  def _desired_sdk_filename_in_staging_location(self, sdk_location):
+  @staticmethod
+  def _desired_sdk_filename_in_staging_location(sdk_location):
     """Returns the name that SDK file should have in the staging location.
       Args:
         sdk_location: Full path to SDK file.
@@ -300,19 +457,19 @@ class Stager(object):
         RuntimeError: if staging was not successful.
       """
     if sdk_remote_location == 'pypi':
-      sdk_local_file = self._download_pypi_sdk_package(temp_dir)
-      sdk_sources_staged_name = self._desired_sdk_filename_in_staging_location(
-          sdk_local_file)
+      sdk_local_file = Stager._download_pypi_sdk_package(temp_dir)
+      sdk_sources_staged_name = Stager.\
+          _desired_sdk_filename_in_staging_location(sdk_local_file)
       staged_path = FileSystems.join(staging_location, sdk_sources_staged_name)
       logging.info('Staging SDK sources from PyPI to %s', staged_path)
       self.stage_artifact(sdk_local_file, staged_path)
       staged_sdk_files = [sdk_sources_staged_name]
       try:
         # Stage binary distribution of the SDK, for now on a best-effort basis.
-        sdk_local_file = self._download_pypi_sdk_package(
+        sdk_local_file = Stager._download_pypi_sdk_package(
             temp_dir, fetch_binary=True)
-        sdk_binary_staged_name = self._desired_sdk_filename_in_staging_location(
-            sdk_local_file)
+        sdk_binary_staged_name = Stager.\
+            _desired_sdk_filename_in_staging_location(sdk_local_file)
         staged_path = FileSystems.join(staging_location, sdk_binary_staged_name)
         logging.info('Staging binary distribution of the SDK from PyPI to %s',
                      staged_path)
@@ -324,10 +481,10 @@ class Stager(object):
             'of the SDK: %s', repr(e))
 
       return staged_sdk_files
-    elif self._is_remote_path(sdk_remote_location):
+    elif Stager._is_remote_path(sdk_remote_location):
       local_download_file = os.path.join(temp_dir, 'beam-sdk.tar.gz')
-      self._download_file(sdk_remote_location, local_download_file)
-      staged_name = self._desired_sdk_filename_in_staging_location(
+      Stager._download_file(sdk_remote_location, local_download_file)
+      staged_name = Stager._desired_sdk_filename_in_staging_location(
           sdk_remote_location)
       staged_path = FileSystems.join(staging_location, staged_name)
       logging.info('Staging Beam SDK from %s to %s', sdk_remote_location,
@@ -339,15 +496,15 @@ class Stager(object):
           'The --sdk_location option was used with an unsupported '
           'type of location: %s' % sdk_remote_location)
 
-  def _download_pypi_sdk_package(self,
-                                 temp_dir,
+  @staticmethod
+  def _download_pypi_sdk_package(temp_dir,
                                  fetch_binary=False,
                                  language_version_tag='27',
                                  language_implementation_tag='cp',
                                  abi_tag='cp27mu',
                                  platform_tag='manylinux1_x86_64'):
     """Downloads SDK package from PyPI and returns path to local path."""
-    package_name = self.get_sdk_package_name()
+    package_name = Stager.get_sdk_package_name()
     try:
       version = pkg_resources.get_distribution(package_name).version
     except pkg_resources.DistributionNotFound:
@@ -355,7 +512,7 @@ class Stager(object):
                          'or install a valid {} distribution.'
                          .format(package_name))
     cmd_args = [
-        self._get_python_executable(), '-m', 'pip', 'download', '--dest',
+        Stager._get_python_executable(), '-m', 'pip', 'download', '--dest',
         temp_dir,
         '%s==%s' % (package_name, version), '--no-deps'
     ]
@@ -398,176 +555,3 @@ class Stager(object):
         'Failed to download a distribution for the running SDK. '
         'Expected either one of %s to be found in the download folder.' %
         (expected_files))
-
-  def stage_job_resources(self,
-                          options,
-                          build_setup_args=None,
-                          temp_dir=None,
-                          populate_requirements_cache=None,
-                          staging_location=None):
-    """For internal use only; no backwards-compatibility guarantees.
-
-      Creates (if needed) and stages job resources to staging_location.
-
-      Args:
-        options: Command line options. More specifically the function will
-          expect requirements_file, setup_file, and save_main_session options
-          to be present.
-        build_setup_args: A list of command line arguments used to build a setup
-          package. Used only if options.setup_file is not None. Used only for
-          testing.
-        temp_dir: Temporary folder where the resource building can happen. If
-          None then a unique temp directory will be created. Used only for
-          testing.
-        populate_requirements_cache: Callable for populating the requirements
-          cache. Used only for testing.
-        staging_location: Location to stage the file.
-
-      Returns:
-        A list of file names (no paths) for the resources staged. All the files
-        are assumed to be staged at staging_location.
-
-      Raises:
-        RuntimeError: If files specified are not found or error encountered
-        while trying to create the resources (e.g., build a setup package).
-      """
-    temp_dir = temp_dir or tempfile.mkdtemp()
-    resources = []
-
-    setup_options = options.view_as(SetupOptions)
-    # Make sure that all required options are specified.
-    if staging_location is None:
-      raise RuntimeError('The staging_location must be specified.')
-
-    # Stage a requirements file if present.
-    if setup_options.requirements_file is not None:
-      if not os.path.isfile(setup_options.requirements_file):
-        raise RuntimeError(
-            'The file %s cannot be found. It was specified in the '
-            '--requirements_file command line option.' %
-            setup_options.requirements_file)
-      staged_path = FileSystems.join(staging_location, REQUIREMENTS_FILE)
-      self.stage_artifact(setup_options.requirements_file, staged_path)
-      resources.append(REQUIREMENTS_FILE)
-      requirements_cache_path = (
-          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
-          if setup_options.requirements_cache is None else
-          setup_options.requirements_cache)
-      # Populate cache with packages from requirements and stage the files
-      # in the cache.
-      if not os.path.exists(requirements_cache_path):
-        os.makedirs(requirements_cache_path)
-      (populate_requirements_cache if populate_requirements_cache else
-       self._populate_requirements_cache)(setup_options.requirements_file,
-                                          requirements_cache_path)
-      for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-        self.stage_artifact(
-            pkg, FileSystems.join(staging_location, os.path.basename(pkg)))
-        resources.append(os.path.basename(pkg))
-
-    # Handle a setup file if present.
-    # We will build the setup package locally and then copy it to the staging
-    # location because the staging location is a remote path and the file cannot
-    # be created directly there.
-    if setup_options.setup_file is not None:
-      if not os.path.isfile(setup_options.setup_file):
-        raise RuntimeError(
-            'The file %s cannot be found. It was specified in the '
-            '--setup_file command line option.' % setup_options.setup_file)
-      if os.path.basename(setup_options.setup_file) != 'setup.py':
-        raise RuntimeError(
-            'The --setup_file option expects the full path to a file named '
-            'setup.py instead of %s' % setup_options.setup_file)
-      tarball_file = self._build_setup_package(setup_options.setup_file,
-                                               temp_dir, build_setup_args)
-      staged_path = FileSystems.join(staging_location, WORKFLOW_TARBALL_FILE)
-      self.stage_artifact(tarball_file, staged_path)
-      resources.append(WORKFLOW_TARBALL_FILE)
-
-    # Handle extra local packages that should be staged.
-    if setup_options.extra_packages is not None:
-      resources.extend(
-          self._stage_extra_packages(
-              setup_options.extra_packages, staging_location,
-              temp_dir=temp_dir))
-
-    # Pickle the main session if requested.
-    # We will create the pickled main session locally and then copy it to the
-    # staging location because the staging location is a remote path and the
-    # file cannot be created directly there.
-    if setup_options.save_main_session:
-      pickled_session_file = os.path.join(temp_dir,
-                                          names.PICKLED_MAIN_SESSION_FILE)
-      pickler.dump_session(pickled_session_file)
-      staged_path = FileSystems.join(staging_location,
-                                     names.PICKLED_MAIN_SESSION_FILE)
-      self.stage_artifact(pickled_session_file, staged_path)
-      resources.append(names.PICKLED_MAIN_SESSION_FILE)
-
-    if hasattr(setup_options, 'sdk_location'):
-
-      if (setup_options.sdk_location == 'default') or self._is_remote_path(
-          setup_options.sdk_location):
-        # If --sdk_location is not specified then the appropriate package
-        # will be obtained from PyPI (https://pypi.python.org) based on the
-        # version of the currently running SDK. If the option is
-        # present then no version matching is made and the exact URL or path
-        # is expected.
-        #
-        # Unit tests running in the 'python setup.py test' context will
-        # not have the sdk_location attribute present and therefore we
-        # will not stage SDK.
-        sdk_remote_location = 'pypi' if (setup_options.sdk_location == 'default'
-                                        ) else setup_options.sdk_location
-        resources.extend(
-            self._stage_beam_sdk(sdk_remote_location, staging_location,
-                                 temp_dir))
-      else:
-        # This branch is also used by internal tests running with the SDK built
-        # at head.
-        if os.path.isdir(setup_options.sdk_location):
-          # TODO(angoenka): remove reference to Dataflow
-          sdk_path = os.path.join(setup_options.sdk_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
-        else:
-          sdk_path = setup_options.sdk_location
-
-        if os.path.isfile(sdk_path):
-          logging.info('Copying Beam SDK "%s" to staging location.', sdk_path)
-          staged_path = FileSystems.join(
-              staging_location,
-              self._desired_sdk_filename_in_staging_location(
-                  setup_options.sdk_location))
-          self.stage_artifact(sdk_path, staged_path)
-          _, sdk_staged_filename = FileSystems.split(staged_path)
-          resources.append(sdk_staged_filename)
-        else:
-          if setup_options.sdk_location == 'default':
-            raise RuntimeError('Cannot find default Beam SDK tar file "%s"',
-                               sdk_path)
-          elif not setup_options.sdk_location:
-            logging.info('Beam SDK will not be staged since --sdk_location '
-                         'is empty.')
-          else:
-            raise RuntimeError(
-                'The file "%s" cannot be found. Its location was specified by '
-                'the --sdk_location command-line option.' % sdk_path)
-
-    # Delete all temp files created while staging job resources.
-    shutil.rmtree(temp_dir)
-    self.commit_manifest()
-    return resources
-
-  def stage_artifact(self, local_path_to_artifact, artifact_name):
-    """ Stages the artifact to self._staging_location and adds artifact_name
-      to the manifest of artifacts that have been staged."""
-    raise NotImplementedError
-
-  def commit_manifest(self):
-    """Commits manifest through Artifact API."""
-    raise NotImplementedError
-
-  def get_sdk_package_name(self):
-    """For internal use only; no backwards-compatibility guarantees.
-      Returns the PyPI package name to be staged."""
-    return BEAM_PACKAGE_NAME

@@ -17,6 +17,9 @@
 
 """Various names for properties, transforms, etc."""
 
+# All constants are for internal use only; no backwards-compatibility
+# guarantees.
+
 # TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
@@ -28,6 +31,27 @@ STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 SOURCE_FORMAT = 'custom_source'
 SOURCE_TYPE = 'CustomSourcesType'
 SERIALIZED_SOURCE_KEY = 'serialized_source'
+
+# In a released SDK, container tags are selected based on the SDK version.
+# Unreleased versions use container versions based on values of
+# BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION (see below).
+
+# Update this version to the next version whenever there is a change that will
+# require changes to legacy Dataflow worker execution environment.
+BEAM_CONTAINER_VERSION = 'beam-master-20180413'
+# Update this version to the next version whenever there is a change that
+# requires changes to SDK harness container or SDK harness launcher.
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180413'
+
+# Package names for different distributions
+GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
+BEAM_PACKAGE_NAME = 'apache-beam'
+
+# SDK identifiers for different distributions
+GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
+BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
 
 
 class TransformNames(object):

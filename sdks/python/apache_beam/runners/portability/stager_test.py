@@ -308,7 +308,7 @@ class StagerTest(unittest.TestCase):
       staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
-      self.assertTrue(len(staged_resources), 2)
+      self.assertEqual(len(staged_resources), 2)
       self.assertEqual(staged_resources[0], names.DATAFLOW_SDK_TARBALL_FILE)
       # Exact name depends on the version of the SDK.
       self.assertTrue(staged_resources[1].endswith('whl'))
@@ -384,7 +384,12 @@ class StagerTest(unittest.TestCase):
         'location was specified by the --sdk_location command-line option.' %
         sdk_location, cm.exception.args[0])
 
-  def test_sdk_location_remote_source_file(self):
+  @mock.patch(
+      'apache_beam.runners.portability.stager_test.TestStager.stage_artifact')
+  @mock.patch(
+      'apache_beam.runners.portability.stager_test.stager.Stager._download_file'
+  )
+  def test_sdk_location_remote_source_file(self, *unused_mocks):
     staging_dir = self.make_temp_dir()
     sdk_location = 'gs://my-gcs-bucket/tarball.tar.gz'
 
@@ -392,18 +397,16 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    with mock.patch('.'.join([
-        self.__module__, TestStager.__name__, TestStager.stage_artifact.__name__
-    ])):
-      with mock.patch('.'.join([
-          self.__module__, TestStager.__name__,
-          TestStager._download_file.__name__
-      ])):
-        self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
-                         self.stager.stage_job_resources(
-                             options, staging_location=staging_dir))
+    self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
+                     self.stager.stage_job_resources(
+                         options, staging_location=staging_dir))
 
-  def test_sdk_location_remote_wheel_file(self):
+  @mock.patch(
+      'apache_beam.runners.portability.stager_test.TestStager.stage_artifact')
+  @mock.patch(
+      'apache_beam.runners.portability.stager_test.stager.Stager._download_file'
+  )
+  def test_sdk_location_remote_wheel_file(self, *unused_mocks):
     staging_dir = self.make_temp_dir()
     sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
     sdk_location = '/tmp/remote/my-bucket/' + sdk_filename
@@ -414,24 +417,15 @@ class StagerTest(unittest.TestCase):
 
     # We can not rely on actual remote file systems paths hence making
     # '/tmp/remote/' a new remote path.
-    def is_remote_path(dummy_self, path):
+    def is_remote_path(path):
       return path.startswith('/tmp/remote/')
 
-    with mock.patch('.'.join([
-        self.__module__, TestStager.__name__, TestStager.stage_artifact.__name__
-    ])):
-      with mock.patch('.'.join([
-          self.__module__, TestStager.__name__,
-          TestStager._download_file.__name__
-      ])):
-        with mock.patch(
-            '.'.join([
-                self.__module__, TestStager.__name__,
-                TestStager._is_remote_path.__name__
-            ]), is_remote_path):
-          self.assertEqual([sdk_filename],
-                           self.stager.stage_job_resources(
-                               options, staging_location=staging_dir))
+    with mock.patch(
+        'apache_beam.runners.portability.stager_test.stager.Stager._is_remote_path',
+        staticmethod(is_remote_path)):
+      self.assertEqual([sdk_filename],
+                       self.stager.stage_job_resources(
+                           options, staging_location=staging_dir))
 
   def test_sdk_location_http(self):
     staging_dir = self.make_temp_dir()
@@ -441,16 +435,14 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    def file_download(dummy_self, _, to_path):
+    def file_download(_, to_path):
       with open(to_path, 'w') as f:
         f.write('Package content.')
       return to_path
 
     with mock.patch(
-        '.'.join([
-            self.__module__, TestStager.__name__,
-            TestStager._download_file.__name__
-        ]), file_download):
+        'apache_beam.runners.portability.stager_test'
+        '.stager.Stager._download_file', staticmethod(file_download)):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
                        self.stager.stage_job_resources(
                            options, staging_location=staging_dir))
@@ -482,44 +474,33 @@ class StagerTest(unittest.TestCase):
 
     # We can not rely on actual remote file systems paths hence making
     # '/tmp/remote/' a new remote path.
-    def is_remote_path(dummy_self, path):
+    def is_remote_path(path):
       return path.startswith('/tmp/remote/')
 
-    def file_copy(dummy_self, from_path, to_path):
-      if is_remote_path(dummy_self, from_path):
+    def file_copy(from_path, to_path):
+      if is_remote_path(from_path):
         remote_copied_files.append(from_path)
         _, from_name = os.path.split(from_path)
         if os.path.isdir(to_path):
           to_path = os.path.join(to_path, from_name)
         self.create_temp_file(to_path, 'nothing')
         logging.info('Fake copied remote file: %s to %s', from_path, to_path)
-      elif is_remote_path(dummy_self, to_path):
+      elif is_remote_path(to_path):
         logging.info('Faking upload_file(%s, %s)', from_path, to_path)
       else:
         shutil.copyfile(from_path, to_path)
 
     with mock.patch(
-        '.'.join([
-            self.__module__, TestStager.__name__,
-            TestStager.stage_artifact.__name__
-        ]), file_copy):
-
+        'apache_beam.runners.portability.stager_test'
+        '.stager.Stager._download_file', staticmethod(file_copy)):
       with mock.patch(
-          '.'.join([
-              self.__module__, TestStager.__name__,
-              TestStager._download_file.__name__
-          ]), file_copy):
-        with mock.patch(
-            '.'.join([
-                self.__module__, TestStager.__name__,
-                TestStager._is_remote_path.__name__
-            ]), is_remote_path):
-          self.assertEqual([
-              'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',
-              'remote_file.tar.gz', stager.EXTRA_PACKAGES_FILE
-          ],
-                           self.stager.stage_job_resources(
-                               options, staging_location=staging_dir))
+          'apache_beam.runners.portability.stager_test'
+          '.stager.Stager._is_remote_path', staticmethod(is_remote_path)):
+        self.assertEqual([
+            'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',
+            'remote_file.tar.gz', stager.EXTRA_PACKAGES_FILE
+        ], self.stager.stage_job_resources(
+            options, staging_location=staging_dir))
     with open(os.path.join(staging_dir, stager.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual([
           'abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n', 'whl.whl\n',
@@ -561,15 +542,10 @@ class StagerTest(unittest.TestCase):
 
 class TestStager(stager.Stager):
 
-  def _copy_file(self, from_path, to_path):
-    logging.info('File copy from %s to %s.', from_path, to_path)
-    shutil.copyfile(from_path, to_path)
-
-  def _download_file(self, from_url, to_path):
-    self._copy_file(from_url, to_path)
-
   def stage_artifact(self, local_path_to_artifact, artifact_name):
-    self._copy_file(local_path_to_artifact, artifact_name)
+    logging.info('File copy from %s to %s.', local_path_to_artifact,
+                 artifact_name)
+    shutil.copyfile(local_path_to_artifact, artifact_name)
 
   def commit_manifest(self):
     pass
