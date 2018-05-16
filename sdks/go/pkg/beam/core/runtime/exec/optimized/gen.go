@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package optimized contains type-specialized shims for faster execution.
 package optimized
 
 // NOTE(herohde) 1/18/2018: omit []byte for encodes to avoid re-registration due to symmetry.

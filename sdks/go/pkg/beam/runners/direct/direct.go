@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package direct contains the direct runner for running single-bundle
+// pipelines in the current process. Useful for testing.
 package direct
 
 import (

@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package model contains the portable Beam model contracts.
 package model
 
 // TODO(herohde) 9/1/2017: for now, install protoc as described on grpc.io before running go generate.
