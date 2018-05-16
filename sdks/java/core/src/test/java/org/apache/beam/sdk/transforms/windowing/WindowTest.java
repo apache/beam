@@ -235,6 +235,7 @@ public class WindowTest implements Serializable {
     final AtomicBoolean foundAssign = new AtomicBoolean(false);
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
+          @Override
           public void visitPrimitiveTransform(TransformHierarchy.Node node) {
             if (node.getTransform() instanceof Window.Assign) {
               foundAssign.set(true);
@@ -259,6 +260,7 @@ public class WindowTest implements Serializable {
 
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
+          @Override
           public void visitPrimitiveTransform(TransformHierarchy.Node node) {
             assertThat(node.getTransform(), not(instanceOf(Window.Assign.class)));
           }

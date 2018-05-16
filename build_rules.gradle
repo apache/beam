@@ -211,7 +211,7 @@ ext.library = [
     bigdataoss_util: "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
     bigtable_client_core: "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
     bigtable_protos: "com.google.cloud.bigtable:bigtable-protos:$bigtable_proto_version",
-    byte_buddy: "net.bytebuddy:byte-buddy:1.7.10",
+    byte_buddy: "net.bytebuddy:byte-buddy:1.8.11",
     commons_compress: "org.apache.commons:commons-compress:1.16.1",
     commons_csv: "org.apache.commons:commons-csv:1.4",
     commons_io_1x: "commons-io:commons-io:1.3.2",
@@ -220,7 +220,7 @@ ext.library = [
     datastore_v1_proto_client: "com.google.cloud.datastore:datastore-v1-proto-client:1.4.0",
     datastore_v1_protos: "com.google.cloud.datastore:datastore-v1-protos:1.3.0",
     error_prone_annotations: "com.google.errorprone:error_prone_annotations:2.0.15",
-    findbugs_annotations: "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1",
+    findbugs_annotations: "com.google.code.findbugs:findbugs-annotations:3.0.1",
     findbugs_jsr305: "com.google.code.findbugs:jsr305:3.0.1",
     gax_grpc: "com.google.api:gax-grpc:0.20.0",
     google_api_client: "com.google.api-client:google-api-client:$google_clients_version",
@@ -338,6 +338,7 @@ class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
   boolean enableErrorProne = true // Controls whether the errorprone plugin is enabled and configured
+  boolean failOnWarning = false // Controls whether compiler warnings are treated as errors
 
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
@@ -412,6 +413,16 @@ ext.applyJavaNature = {
   tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
     options.compilerArgs += ["-Xlint:all","-Xlint:-options","-Xlint:-cast","-Xlint:-deprecation","-Xlint:-processing","-Xlint:-rawtypes","-Xlint:-serial","-Xlint:-try","-Xlint:-unchecked","-Xlint:-varargs","-parameters"]
+    if (configuration.enableErrorProne) {
+      options.compilerArgs += [
+        "-XepDisableWarningsInGeneratedCode",
+        "-XepExcludedPaths:.*/build/generated.*avro-java/.*",
+        "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
+      ]
+    }
+    if (configuration.failOnWarning) {
+      options.compilerArgs += "-Werror"
+    }
   }
 
   // Configure the default test tasks set of tests executed
@@ -506,6 +517,9 @@ ext.applyJavaNature = {
   // Enable errorprone, not by default right now
   if (configuration.enableErrorProne) {
     apply plugin: 'net.ltgt.errorprone'
+    tasks.withType(JavaCompile) {
+      options.compilerArgs += "-XepDisableWarningsInGeneratedCode"
+    }
   }
 
   // Enables a plugin which can perform shading of classes. See the general comments

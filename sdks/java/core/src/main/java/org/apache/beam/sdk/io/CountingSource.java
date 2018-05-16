@@ -366,6 +366,7 @@ public class CountingSource {
       return VarLongCoder.of();
     }
 
+    @Override
     public boolean equals(Object other) {
       if (!(other instanceof UnboundedCountingSource)) {
         return false;
@@ -378,6 +379,7 @@ public class CountingSource {
           && Objects.equals(this.timestampFn, that.timestampFn);
     }
 
+    @Override
     public int hashCode() {
       return Objects.hash(start, stride, elementsPerPeriod, period, timestampFn);
     }

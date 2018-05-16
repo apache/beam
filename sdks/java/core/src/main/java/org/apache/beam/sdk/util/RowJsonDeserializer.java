@@ -44,7 +44,6 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -73,7 +72,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
 
   private static final boolean SEQUENTIAL = false;
 
-  private static final Map<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
+  private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
       ImmutableMap.<TypeName, ValueExtractor<?>>builder()
           .put(BYTE, byteValueExtractor())
           .put(INT16, shortValueExtractor())

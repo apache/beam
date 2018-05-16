@@ -140,7 +140,7 @@ public class ExpectedLogsTest {
 
     // Wait for all the threads to complete.
     for (int i = 0; i < 100; i++) {
-      completionService.take();
+      completionService.take().get();
     }
 
     for (String expected : expectedStrings) {

@@ -260,7 +260,7 @@ public class ApiSurface {
         final boolean noAbandoned =
             verifyNoAbandoned(apiSurface, classMatchers, mismatchDescription);
 
-        return noDisallowed & noAbandoned;
+        return noDisallowed && noAbandoned;
       }
 
       @Override

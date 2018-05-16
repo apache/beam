@@ -68,6 +68,7 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);
 
   /**
@@ -83,6 +84,7 @@ public interface DoFnInvoker<InputT, OutputT> {
       DoFn.OutputReceiver<RestrictionT> restrictionReceiver);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
@@ -282,6 +284,7 @@ public interface DoFnInvoker<InputT, OutputT> {
               FakeArgumentProvider.class.getSimpleName()));
     }
 
+    @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           String.format(

@@ -21,13 +21,16 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.commons.compress.utils.CharsetNames.UTF_8;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -1154,7 +1157,7 @@ public class TextIO {
     /** @see Compression#ZIP */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -1204,7 +1207,8 @@ public class TextIO {
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
-      writer = new PrintWriter(Channels.newOutputStream(channel));
+      writer = new PrintWriter(new BufferedWriter(
+          new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
       if (getHeader() != null) {
         writer.println(getHeader());
       }

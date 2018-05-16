@@ -48,7 +48,7 @@ public class LengthPrefixCoderTest {
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = ImmutableList.of(
+  private static final ImmutableList<String> TEST_ENCODINGS = ImmutableList.of(
       "AwoLDA",
       "Ag0D",
       "Ag0O",

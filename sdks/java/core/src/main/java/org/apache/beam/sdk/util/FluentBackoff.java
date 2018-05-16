@@ -148,6 +148,7 @@ public final class FluentBackoff {
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
   }
 
+  @Override
   public String toString() {
     return MoreObjects.toStringHelper(FluentBackoff.class)
         .add("exponent", exponent)
@@ -207,6 +208,7 @@ public final class FluentBackoff {
       this.reset();
     }
 
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(BackoffImpl.class)
           .add("backoffConfig", backoffConfig)

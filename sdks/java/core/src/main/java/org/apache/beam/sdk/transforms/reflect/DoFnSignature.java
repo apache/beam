@@ -590,6 +590,7 @@ public abstract class DoFnSignature {
 
     /** The window type used by this method, if any. */
     @Nullable
+    @Override
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
@@ -659,6 +660,7 @@ public abstract class DoFnSignature {
 
     /** The window type used by this method, if any. */
     @Nullable
+    @Override
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */

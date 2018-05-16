@@ -252,13 +252,10 @@ public class LocalResourceIdTest {
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("/").getFilename(), null);
-    assertEquals(toResourceIdentifier("/root/tmp").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
-        "xyz.txt");
+    assertEquals(null, toResourceIdentifier("/").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("/root/tmp/xyz.txt").getFilename());
   }
 
   @Test

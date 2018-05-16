@@ -46,6 +46,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
+import com.google.common.base.Charsets;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -1495,7 +1496,7 @@ public class PipelineOptionsFactoryTest {
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     assertFalse(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertEquals("", output);
   }
 
@@ -1506,7 +1507,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "true");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("The set of registered options are:"));
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("Use --help=<OptionsName> for detailed help."));
@@ -1519,7 +1520,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "org.apache.beam.sdk.options.PipelineOptions");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
@@ -1534,7 +1535,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "PipelineOptions");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
@@ -1549,7 +1550,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "options.PipelineOptions");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
@@ -1580,7 +1581,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "NameConflict");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("Multiple matches found for NameConflict"));
     assertThat(output, containsString("org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$NameConflictClassA$NameConflict"));
@@ -1597,7 +1598,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", Objects.class.getName());
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("<Value | Value2>"));
   }
 
@@ -1608,7 +1609,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "org.apache.beam.sdk.Pipeline");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output,
         containsString("Unable to find option org.apache.beam.sdk.Pipeline"));
     assertThat(output, containsString("The set of registered options are:"));
@@ -1622,7 +1623,7 @@ public class PipelineOptionsFactoryTest {
     arguments.put("help", "org.apache.beam.sdk.option.DataflowPipelineOptions");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     // A hidden interface.
     assertThat(output, not(
         containsString("org.apache.beam.sdk.options.DataflowPipelineDebugOptions")));
@@ -1634,7 +1635,7 @@ public class PipelineOptionsFactoryTest {
   public void testProgrammaticPrintHelp() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PipelineOptionsFactory.printHelp(new PrintStream(baos));
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("The set of registered options are:"));
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
   }
@@ -1643,7 +1644,7 @@ public class PipelineOptionsFactoryTest {
   public void testProgrammaticPrintHelpForSpecificType() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PipelineOptionsFactory.printHelp(new PrintStream(baos), PipelineOptions.class);
-    String output = new String(baos.toByteArray());
+    String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
@@ -1663,7 +1664,9 @@ public class PipelineOptionsFactoryTest {
   }
 
   interface Invalid1 extends InvalidPipelineOptions1 {
+    @Override
     String getBar();
+    @Override
     void setBar(String value);
   }
 

@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
-import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -60,7 +59,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReshuffleTest implements Serializable {
 
-  private static final List<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
+  private static final ImmutableList<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
         KV.of("k1", 3),
         KV.of("k5", Integer.MAX_VALUE),
         KV.of("k5", Integer.MIN_VALUE),
@@ -70,7 +69,7 @@ public class ReshuffleTest implements Serializable {
         KV.of("k3", 0));
 
   // TODO: test with more than one value per key
-  private static final List<KV<String, Integer>> GBK_TESTABLE_KVS = ImmutableList.of(
+  private static final ImmutableList<KV<String, Integer>> GBK_TESTABLE_KVS = ImmutableList.of(
         KV.of("k1", 3),
         KV.of("k2", 4));
 
