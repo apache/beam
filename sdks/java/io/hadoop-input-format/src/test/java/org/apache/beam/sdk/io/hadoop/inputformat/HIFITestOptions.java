@@ -24,7 +24,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 /**
  * Properties needed when using HadoopInputFormatIO with the Beam SDK.
  */
-public interface HIFITestOptions extends TestPipelineOptions {
+interface HIFITestOptions extends TestPipelineOptions {
 
   //Cassandra test options
   @Description("Cassandra Server IP")
