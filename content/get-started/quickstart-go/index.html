@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Java SDK</title>
+  <title>Beam Quickstart for Go</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -15,7 +15,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/get-started/quickstart-go/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -88,54 +88,26 @@
         <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
         <nav>
           <ul class="section-nav-list" data-section-nav>
-            <li><span class="section-nav-list-main-title">SDKS</span></li>
-
+            <li><span class="section-nav-list-main-title">Get started</span></li>
+<li><a href="/get-started/beam-overview/">Beam Overview</a></li>
 <li>
-  <span class="section-nav-list-title">Java SDK</span>
+  <span class="section-nav-list-title">Quickstarts</span>
+
   <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="/documentation/sdks/javadoc/2.4.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
-    <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
-    <li><a href="/documentation/sdks/java/nexmark/">Nexmark benchmark suite</a></li>
+    <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+    <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+    <li><a href="/get-started/quickstart-go/">Quickstart - Go</a></li>
   </ul>
 </li>
-
 <li>
-  <span class="section-nav-list-title">Python SDK</span>
+  <span class="section-nav-list-title">Example Walkthroughs</span>
   <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="/documentation/sdks/pydoc/2.4.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
-    <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
-    <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
-    <li><a href="/documentation/sdks/python-custom-io/">Creating new sources and sinks</a></li>
-  </ul>
+     <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+     <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+   </ul>
 </li>
+<li><a href="/get-started/downloads">Downloads</a></li>
 
-<li>
-  <span class="section-nav-list-title">Go SDK</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/go/">Go SDK overview</a></li>
-    <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">DSLs</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/dsls/sql/">SQL</a></li>
-  </ul>
-</li>
 
           </ul>
         </nav>
@@ -145,44 +117,80 @@
         
 
 <ul class="nav">
-  <li><a href="#get-started-with-the-java-sdk">Get Started with the Java SDK</a></li>
-  <li><a href="#supported-features">Supported Features</a></li>
-  <li><a href="#pipeline-io">Pipeline I/O</a></li>
-  <li><a href="#extensions">Extensions</a></li>
+  <li><a href="#set-up-your-environment">Set up your environment</a></li>
+  <li><a href="#get-the-sdk-and-the-examples">Get the SDK and the examples</a></li>
+  <li><a href="#run-wordcount">Run wordcount</a></li>
+  <li><a href="#next-steps">Next Steps</a></li>
 </ul>
 
 
       </nav>
 
       <div class="body__contained body__section-nav">
-        <h1 id="apache-beam-java-sdk">Apache Beam Java SDK</h1>
+        <h1 id="apache-beam-go-sdk-quickstart">Apache Beam Go SDK Quickstart</h1>
 
-<p>The Java SDK for Apache Beam provides a simple, powerful API for building both batch and streaming parallel data processing pipelines in Java.</p>
+<p>This Quickstart will walk you through executing your first Beam pipeline to run <a href="/get-started/wordcount-example">WordCount</a>, written using Beam’s <a href="/documentation/sdks/go">Go SDK</a>, on a <a href="/documentation#runners">runner</a> of your choice.</p>
 
-<h2 id="get-started-with-the-java-sdk">Get Started with the Java SDK</h2>
-
-<p>Get started with the <a href="/documentation/programming-guide/">Beam Programming Model</a> to learn the basic concepts that apply to all SDKs in Beam.</p>
-
-<p>See the <a href="/documentation/sdks/javadoc/">Java API Reference</a> for more information on individual APIs.</p>
-
-<h2 id="supported-features">Supported Features</h2>
-
-<p>The Java SDK supports all features currently supported by the Beam model.</p>
-
-<h2 id="pipeline-io">Pipeline I/O</h2>
-<p>See the <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a> page for a list of the currently available I/O transforms.</p>
-
-<h2 id="extensions">Extensions</h2>
-
-<p>The Java SDK has the following extensions:</p>
-
-<ul>
-  <li><a href="/documentation/sdks/java-extensions/#join-library">join-library</a> provides inner join, outer left join, and outer right join functions.</li>
-  <li><a href="/documentation/sdks/java-extensions/#sorter">sorter</a> is an efficient and scalable sorter for large iterables.</li>
-  <li><a href="/documentation/sdks/java/nexmark">Nexmark</a> is a benchmark suite that runs in batch and streaming modes.</li>
+<ul id="markdown-toc">
+  <li><a href="#set-up-your-environment" id="markdown-toc-set-up-your-environment">Set up your environment</a></li>
+  <li><a href="#get-the-sdk-and-the-examples" id="markdown-toc-get-the-sdk-and-the-examples">Get the SDK and the examples</a></li>
+  <li><a href="#run-wordcount" id="markdown-toc-run-wordcount">Run wordcount</a></li>
+  <li><a href="#next-steps" id="markdown-toc-next-steps">Next Steps</a></li>
 </ul>
 
-<p>In addition several <a href="/documentation/sdks/java-thirdparty/">3rd party Java libraries</a> exist.</p>
+<h2 id="set-up-your-environment">Set up your environment</h2>
+
+<p>The Beam SDK for Go requires <code class="highlighter-rouge">go</code> version 1.10 or newer. It can be downloaded <a href="https://golang.org/">here</a>. Check that you have version 1.10 by running:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ go --version
+</code></pre>
+</div>
+
+<h2 id="get-the-sdk-and-the-examples">Get the SDK and the examples</h2>
+
+<p>The easiest way to obtain the Apache Beam Go SDK is via <code class="highlighter-rouge">go get</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ go get -u github.com/apache/beam/sdks/go/...
+</code></pre>
+</div>
+
+<p>For development of the Go SDK itself, see <a href="https://github.com/apache/beam/blob/master/sdks/go/BUILD.md">BUILD.md</a> for details.</p>
+
+<h2 id="run-wordcount">Run wordcount</h2>
+
+<p>The Apache Beam
+<a href="https://github.com/apache/beam/tree/master/sdks/go/examples">examples</a>
+directory has many examples. All examples can be run by passing the
+required arguments described in the examples.</p>
+
+<p>For example, to run <code class="highlighter-rouge">wordcount</code>, run:</p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://&lt;your-gcs-bucket&gt;/counts \
+            --runner dataflow \
+            --project your-gcp-project \
+            --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+</code></pre>
+</div>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+  <li>Learn more about the <a href="/documentation/sdks/go/">Beam SDK for Go</a>
+and look through the <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam">godoc</a>.</li>
+  <li>Walk through these WordCount examples in the <a href="/get-started/wordcount-example">WordCount Example Walkthrough</a>.</li>
+  <li>Dive in to some of our favorite <a href="/documentation/resources">articles and presentations</a>.</li>
+  <li>Join the Beam <a href="/community/contact-us">users@</a> mailing list.</li>
+</ul>
+
+<p>Please don’t hesitate to <a href="/community/contact-us">reach out</a> if you encounter any issues!</p>
 
       </div>
     </div>
