@@ -596,8 +596,9 @@ public class MutationGroupEncoderTest {
     return true;
   }
 
-  // Is different from Mutation#equals. Case insensitive for table/column names, the order of
-  // the columns doesn't matter.
+  // Is different from Mutation#equals (hence suppression of warning). Case insensitive for
+  // table/column names, the order of the columns doesn't matter.
+  @SuppressWarnings("ReferenceEquality")
   private static boolean mutationsEqual(Mutation a, Mutation b) {
     if (a == b) {
       return true;

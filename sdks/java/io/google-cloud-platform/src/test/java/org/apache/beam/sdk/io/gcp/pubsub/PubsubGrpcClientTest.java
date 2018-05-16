@@ -40,9 +40,9 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
@@ -61,7 +61,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PubsubGrpcClientTest {
   private ManagedChannel inProcessChannel;
-  private Credentials testCredentials;
 
   private PubsubClient client;
   private String channelName;
@@ -78,7 +77,7 @@ public class PubsubGrpcClientTest {
   private static final String DATA = "testData";
   private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
-  private static final Map<String, String> ATTRIBUTES =
+  private static final ImmutableMap<String, String> ATTRIBUTES =
           ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
 
   @Before
@@ -86,7 +85,7 @@ public class PubsubGrpcClientTest {
     channelName = String.format("%s-%s",
         PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
     inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
-    testCredentials = new TestCredential();
+    Credentials testCredentials = new TestCredential();
     client =
         new PubsubGrpcClient(
             TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 10, inProcessChannel, testCredentials);
@@ -115,7 +114,7 @@ public class PubsubGrpcClientTest {
         PubsubMessage.newBuilder()
                      .setMessageId(MESSAGE_ID)
                      .setData(
-                         ByteString.copyFrom(DATA.getBytes()))
+                         ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
                      .setPublishTime(timestamp)
                      .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
@@ -151,7 +150,7 @@ public class PubsubGrpcClientTest {
       assertEquals(1, acutalMessages.size());
       IncomingMessage actualMessage = acutalMessages.get(0);
       assertEquals(ACK_ID, actualMessage.ackId);
-      assertEquals(DATA, new String(actualMessage.elementBytes));
+      assertEquals(DATA, new String(actualMessage.elementBytes, StandardCharsets.UTF_8));
       assertEquals(RECORD_ID, actualMessage.recordId);
       assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
       assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
@@ -166,7 +165,7 @@ public class PubsubGrpcClientTest {
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
-                     .setData(ByteString.copyFrom(DATA.getBytes()))
+                     .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
                      .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
                          ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
@@ -199,7 +198,7 @@ public class PubsubGrpcClientTest {
         .start();
     try {
       OutgoingMessage actualMessage = new OutgoingMessage(
-              DATA.getBytes(), ATTRIBUTES, MESSAGE_TIME, RECORD_ID);
+              DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, MESSAGE_TIME, RECORD_ID);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
