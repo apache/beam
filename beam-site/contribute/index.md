@@ -182,7 +182,7 @@ Work is in progress to add Python 3 support to Beam.  Current goal is to make Be
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)
 
 Contributions are welcome! If you are interested to help, you can select a subpackage to port and assign yourself the corresponding issue. Comment on the issue if you cannot assign it yourself.
-When submitting a new PR, please tag @RobbeSneyders, @aaltay, and @tvalentyn.
+When submitting a new PR, please tag [@RobbeSneyders](https://github.com/robbesneyders), [@aaltay](https://github.com/aaltay), and [@tvalentyn](https://github.com/tvalentyn).
 
 ## Stale pull requests
 
