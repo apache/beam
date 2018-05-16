@@ -145,12 +145,12 @@ public class TestPubsub implements TestRule {
   /**
    * Topic path where events will be published to.
    */
-  public String eventsTopicPath() {
+  public String topicPath() {
     return eventsTopicPath;
   }
 
   /**
-   * Publish messages to {@link #eventsTopicPath()}.
+   * Publish messages to {@link #topicPath()}.
    */
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
