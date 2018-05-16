@@ -258,13 +258,13 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
     @Override
     public final boolean start() throws IOException {
-      return startImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset())
+      return (startImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset()))
           || rangeTracker.markDone();
     }
 
     @Override
     public final boolean advance() throws IOException {
-      return advanceImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset())
+      return (advanceImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset()))
           || rangeTracker.markDone();
     }
 

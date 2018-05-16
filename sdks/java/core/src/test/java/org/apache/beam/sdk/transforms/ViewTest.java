@@ -1364,6 +1364,7 @@ public class ViewTest implements Serializable {
             .apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply(Combine.globally((Iterable<Void> input) -> null).asSingletonView());
 
+    @SuppressWarnings("ObjectToString")
     PCollection<String> output =
         pipeline.apply("CreateMainInput", Create.of(""))
             .apply(

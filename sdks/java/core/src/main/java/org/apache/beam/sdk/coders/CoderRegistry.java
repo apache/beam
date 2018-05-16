@@ -32,13 +32,13 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -200,7 +200,7 @@ public class CoderRegistry {
   }
 
   private CoderRegistry() {
-    coderProviders = new LinkedList<>(REGISTERED_CODER_FACTORIES);
+    coderProviders = new ArrayDeque<>(REGISTERED_CODER_FACTORIES);
   }
 
   /**
@@ -588,7 +588,7 @@ public class CoderRegistry {
   /**
    * The list of {@link CoderProvider coder providers} to use to provide Coders.
    */
-  private LinkedList<CoderProvider> coderProviders;
+  private ArrayDeque<CoderProvider> coderProviders;
 
   /**
    * Returns a {@link Coder} to use for values of the given type,

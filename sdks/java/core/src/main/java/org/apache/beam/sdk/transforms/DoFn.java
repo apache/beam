@@ -87,6 +87,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Information accessible while within the {@link StartBundle} method.
    */
+  @SuppressWarnings("ClassCanBeStatic") // Converting class to static is an API change.
   public abstract class StartBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link

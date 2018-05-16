@@ -33,7 +33,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BucketingFunctionTest {
 
-  private static final long BUCKET_WIDTH = 10;
+  private static final int BUCKET_WIDTH = 10;
   private static final int SIGNIFICANT_BUCKETS = 2;
   private static final int SIGNIFICANT_SAMPLES = 10;
 

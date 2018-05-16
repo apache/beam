@@ -22,7 +22,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -47,7 +46,7 @@ import org.joda.time.DateTime;
  *
  */
 public class DefaultRowTypeFactory implements RowTypeFactory {
-  private static final Map<Class, TypeName> SUPPORTED_TYPES =
+  private static final ImmutableMap<Class, TypeName> SUPPORTED_TYPES =
       ImmutableMap.<Class, TypeName>builder()
           .put(Boolean.class, TypeName.BOOLEAN)
           .put(boolean.class, TypeName.BOOLEAN)

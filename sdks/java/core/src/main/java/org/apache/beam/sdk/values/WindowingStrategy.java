@@ -293,8 +293,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
       return false;
     }
     WindowingStrategy<?, ?> other = (WindowingStrategy<?, ?>) object;
-    return isTriggerSpecified() == other.isTriggerSpecified()
-        && isAllowedLatenessSpecified() == other.isAllowedLatenessSpecified()
+    return isAllowedLatenessSpecified() == other.isAllowedLatenessSpecified()
         && isModeSpecified() == other.isModeSpecified()
         && isTimestampCombinerSpecified() == other.isTimestampCombinerSpecified()
         && getMode().equals(other.getMode())
@@ -309,7 +308,6 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   @Override
   public int hashCode() {
     return Objects.hash(
-        triggerSpecified,
         allowedLatenessSpecified,
         modeSpecified,
         timestampCombinerSpecified,

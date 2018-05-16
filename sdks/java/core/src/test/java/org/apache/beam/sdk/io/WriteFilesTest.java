@@ -32,12 +32,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -723,7 +724,7 @@ public class WriteFilesTest {
 
     List<String> actual = Lists.newArrayList();
     for (File outputFile : outputFiles) {
-      try (BufferedReader reader = new BufferedReader(new FileReader(outputFile))) {
+      try (BufferedReader reader = Files.newBufferedReader(outputFile.toPath(), Charsets.UTF_8)) {
         for (;;) {
           String line = reader.readLine();
           if (line == null) {

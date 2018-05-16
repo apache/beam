@@ -148,6 +148,7 @@ public class PAssert {
    */
   public static class DefaultConcludeTransform
       extends PTransform<PCollection<SuccessOrFailure>, PCollection<Void>> {
+    @Override
     public PCollection<Void> expand(PCollection<SuccessOrFailure> input) {
       return input.apply(ParDo.of(new DefaultConcludeFn()));
     }
@@ -1518,6 +1519,7 @@ public class PAssert {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
+    @Override
     public void leaveCompositeTransform(Node node) {
       if (node.isRootNode()) {
         pipelineVisited = true;

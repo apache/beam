@@ -52,7 +52,7 @@ public class MutationDetectorsTest {
    * Java's {@link Object#equals} method. Note that we do not expect users to create such
    * an implementation.
    */
-  private class ForSDKMutationDetectionTestCoder extends AtomicCoder<Object> {
+  private static class ForSDKMutationDetectionTestCoder extends AtomicCoder<Object> {
     // Use a unique instance that is returned as the structural value making all structural
     // values of this coder equivalent to each other.
     private final Object uniqueInstance = new Object();

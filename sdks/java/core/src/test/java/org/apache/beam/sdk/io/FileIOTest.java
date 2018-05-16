@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -236,9 +237,9 @@ public class FileIOTest implements Serializable {
   public void testRead() throws IOException {
     final String path = tmpFolder.newFile("file").getAbsolutePath();
     final String pathGZ = tmpFolder.newFile("file.gz").getAbsolutePath();
-    Files.write(new File(path).toPath(), "Hello world".getBytes());
-    try (Writer writer =
-        new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(pathGZ)))) {
+    Files.write(new File(path).toPath(), "Hello world".getBytes(Charsets.UTF_8));
+    try (Writer writer = new OutputStreamWriter(new GZIPOutputStream(
+        new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
       writer.write("Hello world");
     }
 

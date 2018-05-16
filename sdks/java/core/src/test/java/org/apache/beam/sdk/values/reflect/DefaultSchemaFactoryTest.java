@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,7 +38,7 @@ public class DefaultSchemaFactoryTest {
   private static class UnsupportedClass {
   }
 
-  private static final List<FieldValueGetter> GETTERS = ImmutableList
+  private static final ImmutableList<FieldValueGetter> GETTERS = ImmutableList
       .<FieldValueGetter>builder()
       .add(getter("byteGetter", Byte.class))
       .add(getter("integerGetter", Integer.class))

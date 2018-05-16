@@ -144,7 +144,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -437,6 +437,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   /** Return a subclass of {@link WriteOperation} that will manage the write to the sink. */
   public abstract WriteOperation<DestinationT, OutputT> createWriteOperation();
 
+  @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     getDynamicDestinations().populateDisplayData(builder);
   }
@@ -1090,6 +1091,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
     }
 
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(FileResult.class)
           .add("tempFilename", tempFilename)
