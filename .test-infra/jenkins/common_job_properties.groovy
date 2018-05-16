@@ -261,6 +261,8 @@ class common_job_properties {
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
       temp_dir: '$WORKSPACE',
+      // Use source cloned by Jenkins and not clone it second time (redundantly).
+      beam_location: '$WORKSPACE/src',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
