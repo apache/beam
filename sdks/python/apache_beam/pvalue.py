@@ -266,7 +266,7 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
-    if not isinstance(tag, (bytes, unicode)):
+    if not isinstance(tag, (str, unicode)):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' % tag)
     self.tag = tag
