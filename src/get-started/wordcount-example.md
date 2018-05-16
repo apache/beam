@@ -16,6 +16,7 @@ redirect_from: /use/wordcount-example/
   <ul>
     <li data-type="language-java">Java SDK</li>
     <li data-type="language-py">Python SDK</li>
+    <li data-type="language-go">Go SDK</li>
   </ul>
 </nav>
 
@@ -45,6 +46,7 @@ read from a text file, apply transforms to tokenize and count the words, and
 write the data to an output text file.
 
 {:.language-java}
+{:.language-go}
 This example hard-codes the locations for its input and output files and doesn't
 perform any error checking; it is intended to only show you the "bare bones" of
 creating a Beam pipeline. This lack of parameterization makes this particular
@@ -60,6 +62,11 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCou
 python -m apache_beam.examples.wordcount_minimal --input YOUR_INPUT_FILE --output counts
 ```
 
+```go
+$ go install github.com/apache/beam/sdks/go/examples/minimal_wordcount
+$ minimal_wordcount
+```
+
 {:.language-java}
 To view the full code in Java, see
 **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
@@ -67,6 +74,10 @@ To view the full code in Java, see
 {:.language-py}
 To view the full code in Python, see
 **[wordcount_minimal.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py).**
+
+{:.language-go}
+To view the full code in Go, see
+**[wordcount_minimal.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
 
 **Key Concepts:**
 
@@ -83,12 +94,16 @@ excerpts from the MinimalWordCount pipeline.
 
 ### Creating the pipeline
 
+{:.language-java}
+{:.language-py}
 In this example, the code first creates a `PipelineOptions` object. This object
 lets us set various options for our pipeline, such as the pipeline runner that
 will execute our pipeline and any runner-specific configuration required by the
 chosen runner. In this example we set these options programmatically, but more
 often, command-line arguments are used to set `PipelineOptions`.
 
+{:.language-java}
+{:.language-py}
 You can specify a runner for executing your pipeline, such as the
 `DataflowRunner` or `SparkRunner`. If you omit specifying a runner, as in this
 example, your pipeline executes locally using the `DirectRunner`. In the next
@@ -106,9 +121,16 @@ sections, we will specify the pipeline's runner.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_options
 %}```
 
+{:.language-java}
+{:.language-py}
 The next step is to create a `Pipeline` object with the options we've just
 constructed. The Pipeline object builds up the graph of transformations to be
 executed, associated with that particular pipeline.
+
+{:.language-go}
+The first step is to create a `Pipeline` object. It builds up the graph of
+transformations to be executed, associated with that particular pipeline.
+The scope allows grouping into composite transforms.
 
 ```java
 Pipeline p = Pipeline.create(options);
@@ -117,6 +139,11 @@ Pipeline p = Pipeline.create(options);
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_create
 %}```
+
+```go
+p := beam.NewPipeline
+s := p.Root()
+```
 
 ### Applying pipeline transforms
 
@@ -150,6 +177,10 @@ The MinimalWordCount pipeline contains five transforms:
     {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_read
     %}```
 
+    ```go
+    lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
+    ```
+
 2.  This transform splits the lines in `PCollection<String>`, where each element
     is an individual word in Shakespeare's collected texts.
     As an alternative, it would have been possible to use a
@@ -171,6 +202,14 @@ The MinimalWordCount pipeline contains five transforms:
     {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_pardo
     %}```
 
+    ```go
+    words := beam.ParDo(s, func(line string, emit func(string)) {
+        for _, word := range wordRE.FindAllString(line, -1) {
+            emit(word)
+        }
+    }, lines)
+    ```
+
 3.  The SDK-provided `Count` transform is a generic transform that takes a
     `PCollection` of any type, and returns a `PCollection` of key/value pairs.
     Each key represents a unique element from the input collection, and each
@@ -190,6 +229,10 @@ The MinimalWordCount pipeline contains five transforms:
     {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_count
     %}```
 
+    ```go
+    counted := stats.Count(s, words)
+    ```
+
 4.  The next transform formats each of the key/value pairs of unique words and
     occurrence counts into a printable string suitable for writing to an output
     file.
@@ -208,6 +251,12 @@ The MinimalWordCount pipeline contains five transforms:
     {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_map
     %}```
 
+    ```go
+    formatted := beam.ParDo(s, func(w string, c int) string {
+        return fmt.Sprintf("%s: %v", w, c)
+    }, counted)
+    ```
+
 5.  A text file write transform. This transform takes the final `PCollection` of
     formatted Strings as input and writes each element to an output text file.
     Each element in the input `PCollection` represents one line of text in the
@@ -221,13 +270,27 @@ The MinimalWordCount pipeline contains five transforms:
     {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_write
     %}```
 
+    ```go
+    textio.Write(s, "wordcounts.txt", formatted)
+    ```
+
+{:.language-java}
+{:.language-py}
 Note that the `Write` transform produces a trivial result value of type `PDone`,
 which in this case is ignored.
 
+{:.language-go}
+Note that the `Write` transform returns no PCollections.
+
 ### Running the pipeline
 
+{:.language-java}
+{:.language-py}
 Run the pipeline by calling the `run` method, which sends your pipeline to be
 executed by the pipeline runner that you specified in your `PipelineOptions`.
+
+{:.language-go}
+Run the pipeline by passing it to a runner.
 
 ```java
 p.run().waitUntilFinish();
@@ -237,6 +300,12 @@ p.run().waitUntilFinish();
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_run
 %}```
 
+```go
+direct.Execute(context.Background(), p)
+```
+
+{:.language-java}
+{:.language-py}
 Note that the `run` method is asynchronous. For a blocking execution, call the
 <span class="language-java">`waitUntilFinish`</span>
 <span class="language-py">`wait_until_finish`</span> method on the result object
@@ -340,6 +409,48 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 To view the full code in Python, see
 **[wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).**
 
+**To run this example in Go:**
+
+{:.runner-direct}
+```
+$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input <PATH_TO_INPUT_FILE> --output counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-dataflow}
+```
+$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://<your-gcs-bucket>/counts \
+            --runner dataflow \
+            --project your-gcp-project \
+            --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+To view the full code in Go, see
+**[wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/wordcount/wordcount.go).**
+
 **New Concepts:**
 
 * Applying `ParDo` with an explicit `DoFn`
@@ -351,6 +462,8 @@ pipeline code into smaller sections.
 
 ### Specifying explicit DoFns
 
+{:.language-java}
+{:.language-py}
 When using `ParDo` transforms, you need to specify the processing operation that
 gets applied to each element in the input `PCollection`. This processing
 operation is a subclass of the SDK class `DoFn`. You can create the `DoFn`
@@ -358,6 +471,15 @@ subclasses for each `ParDo` inline, as an anonymous inner class instance, as is
 done in the previous example (MinimalWordCount). However, it's often a good
 idea to define the `DoFn` at the global level, which makes it easier to unit
 test and can make the `ParDo` code more readable.
+
+{:.language-go}
+When using `ParDo` transforms, you need to specify the processing operation that
+gets applied to each element in the input `PCollection`. This processing
+operation is either a named function or a struct with specially-named methods. You
+can use anomynous functions (but not closures). However, it's often a good
+idea to define the `DoFn` at the global level, which makes it easier to unit
+test and can make the `ParDo` code more readable.
+
 
 ```java
 // In this example, ExtractWordsFn is a DoFn that is defined as a static class:
@@ -378,16 +500,37 @@ static class ExtractWordsFn extends DoFn<String, String> {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_wordcount_dofn
 %}```
 
+```go
+// In this example, extractFn is a DoFn that is defined as a function:
+
+func extractFn(ctx context.Context, line string, emit func(string)) {
+   ...
+}
+```
+
 ### Creating composite transforms
 
+{:.language-java}
+{:.language-py}
 If you have a processing operation that consists of multiple transforms or
 `ParDo` steps, you can create it as a subclass of `PTransform`. Creating a
 `PTransform` subclass allows you to encapsulate complex transforms, can make
 your pipeline's structure more clear and modular, and makes unit testing easier.
 
+{:.language-go}
+If you have a processing operation that consists of multiple transforms or
+`ParDo` steps, you can use a normal Go function to encapsulate them. You can
+furthermore use a named subscope to group them as a composite transform visible
+for monitoring.
+
+{:.language-java}
+{:.language-py}
 In this example, two transforms are encapsulated as the `PTransform` subclass
 `CountWords`. `CountWords` contains the `ParDo` that runs `ExtractWordsFn` and
 the SDK-provided `Count` transform.
+
+{:.language-go}
+In this example, two transforms are encapsulated as a `CountWords` function.
 
 When `CountWords` is defined, we specify its ultimate input and output; the
 input is the `PCollection<String>` for the extraction operation, and the output
@@ -424,6 +567,18 @@ public static void main(String[] args) throws IOException {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_wordcount_composite
 %}```
 
+```go
+func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
+	s = s.Scope("CountWords")
+
+	// Convert lines of text into individual words.
+	col := beam.ParDo(s, extractFn, lines)
+
+	// Count the number of times each word occurs.
+	return stats.Count(s, col)
+}
+```
+
 ### Using parameterizable PipelineOptions
 
 You can hard-code various execution options when you run your pipeline. However,
@@ -431,8 +586,14 @@ the more common way is to define your own configuration options via command-line
 argument parsing. Defining your configuration options via the command-line makes
 the code more easily portable across different runners.
 
+{:.language-java}
+{:.language-py}
 Add arguments to be processed by the command-line parser, and specify default
 values for them. You can then access the options values in your pipeline code.
+
+{:.language-go}
+You can use the standard `flag` package for this purpose.
+
 
 ```java
 public static interface WordCountOptions extends PipelineOptions {
@@ -454,6 +615,18 @@ public static void main(String[] args) {
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_wordcount_options
 %}```
+
+```go
+var input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
+
+func main() {
+    ...
+    p := beam.NewPipeline()
+    s := p.Root()
+
+    lines := textio.Read(s, *input)
+    ...
+```
 
 ## DebuggingWordCount example
 
@@ -547,6 +720,48 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 To view the full code in Python, see
 **[wordcount_debugging.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py).**
 
+**To run this example in Go:**
+
+{:.runner-direct}
+```
+$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+$ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-dataflow}
+```
+$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+$ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                      --output gs://<your-gcs-bucket>/counts \
+                      --runner dataflow \
+                      --project your-gcp-project \
+                      --temp_location gs://<your-gcs-bucket>/tmp/ \
+                      --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+To view the full code in Go, see
+**[debugging_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/debugging_wordcount/debugging_wordcount.go).**
+
 **New Concepts:**
 
 * Logging
@@ -585,6 +800,22 @@ public class DebuggingWordCount {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:example_wordcount_debugging_logging
 %}```
 
+```go
+type filterFn struct {
+    ...
+}
+
+func (f *filterFn) ProcessElement(ctx context.Context, word string, count int, emit func(string, int)) {
+    if f.re.MatchString(word) {
+         // Log at the "INFO" level each element that we match.
+         log.Infof(ctx, "Matched: %v", word)
+         emit(word, count)
+    } else {
+        // Log at the "DEBUG" level each element that is not matched.
+        log.Debugf(ctx, "Did not match: %v", word)
+    }
+}
+```
 
 #### Direct Runner
 
@@ -602,6 +833,8 @@ that Cloud Dataflow has spun up to complete your job. Logging statements in your
 pipeline's `DoFn` instances will appear in Stackdriver Logging as your pipeline
 runs.
 
+{:.language-java}
+{:.language-py}
 You can also control the worker log levels. Cloud Dataflow workers that execute
 user code are configured to log to Stackdriver Logging by default at "INFO" log
 level and higher. You can override log levels for specific logging namespaces by
@@ -611,6 +844,8 @@ when executing a pipeline using the Cloud Dataflow service, Stackdriver Logging
 will contain only "DEBUG" or higher level logs for the package in addition to
 the default "INFO" or higher level logs.
 
+{:.language-java}
+{:.language-py}
 The default Cloud Dataflow worker logging configuration can be overridden by
 specifying `--defaultWorkerLogLevel=<one of TRACE, DEBUG, INFO, WARN, ERROR>`.
 For example, by specifying `--defaultWorkerLogLevel=DEBUG` when executing a
@@ -635,11 +870,18 @@ or DEBUG significantly increases the amount of logs output.
 
 ### Testing your pipeline with asserts
 
+{:.language-java}
+{:.language-py}
 <span class="language-java">`PAssert`</span><span class="language-py">`assert_that`</span>
 is a set of convenient PTransforms in the style of Hamcrest's collection
 matchers that can be used when writing pipeline level tests to validate the
 contents of PCollections. Asserts are best used in unit tests with small data
 sets.
+
+{:.language-go}
+The `passert` package contains convenient PTransforms that can be used when
+writing pipeline level tests to validate the contents of PCollections. Asserts
+are best used in unit tests with small data sets.
 
 {:.language-java}
 The following example verifies that the set of filtered words matches our
@@ -647,6 +889,7 @@ expected counts. The assert does not produce any output, and the pipeline only
 succeeds if all of the expectations are met.
 
 {:.language-py}
+{:.language-go}
 The following example verifies that two collections contain the same values. The
 assert does not produce any output, and the pipeline only succeeds if all of the
 expectations are met.
@@ -668,6 +911,11 @@ from apache_beam.testing.util import equal_to
 
 with TestPipeline() as p:
   assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
+```
+
+```go
+...
+passert.Equals(s, formatted, "Flourish: 3", "stomach: 1")
 ```
 
 {:.language-java}
@@ -781,6 +1029,49 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
+**To run this example in Python:**
+
+{:.runner-direct}
+```
+$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+$ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-dataflow}
+```
+$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+$ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://<your-gcs-bucket>/counts \
+            --runner dataflow \
+            --project your-gcp-project \
+            --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+```
+
+To view the full code in Go, see
+**[windowed_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/windowed_wordcount/windowed_wordcount.go).**
+
+
 ### Unbounded and bounded pipeline input modes
 
 Beam allows you to create a single pipeline that can handle both bounded and
@@ -811,6 +1102,17 @@ public static void main(String[] args) throws IOException {
 # This feature is not yet available in the Beam SDK for Python.
 ```
 
+```go
+func main() {
+   ...
+   p := beam.NewPipeline()
+   s := p.Root()
+
+   lines := textio.Read(s, *input)
+   ...
+}
+```
+
 ### Adding timestamps to data
 
 Each element in a `PCollection` has an associated [timestamp]({{ site.baseurl }}/documentation/programming-guide#element-timestamps).
@@ -830,6 +1132,10 @@ each element in the `PCollection`.
 
 ```py
 # This feature is not yet available in the Beam SDK for Python.
+```
+
+```go
+timestampedLines := beam.ParDo(s, &addTimestampFn{Min: mtime.Now()}, lines)
 ```
 
 Below is the code for `AddTimestampFn`, a `DoFn` invoked by `ParDo`, that sets
@@ -869,6 +1175,21 @@ static class AddTimestampFn extends DoFn<String, String> {
 # This feature is not yet available in the Beam SDK for Python.
 ```
 
+```go
+type addTimestampFn struct {
+	Min beam.EventTime `json:"min"`
+}
+
+func (f *addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
+	timestamp := f.Min.Add(time.Duration(rand.Int63n(2 * time.Hour.Nanoseconds())))
+	return timestamp, x
+}
+```
+
+{:.language-go}
+Note that the use of the `beam.X` "type variable" allows the transform to be
+used for any type.
+
 ### Windowing
 
 Beam uses a concept called **Windowing** to subdivide a `PCollection` into
@@ -890,6 +1211,11 @@ PCollection<String> windowedWords = input
 # This feature is not yet available in the Beam SDK for Python.
 ```
 
+```go
+windowedLines := beam.WindowInto(s, window.NewFixedWindows(time.Minute), timestampedLines)
+
+```
+
 ### Reusing PTransforms over windowed PCollections
 
 You can reuse existing PTransforms that were created for manipulating simple
@@ -901,6 +1227,10 @@ PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.Cou
 
 ```py
 # This feature is not yet available in the Beam SDK for Python.
+```
+
+```go
+counted := wordcount.CountWords(s, windowedLines)
 ```
 
 ## StreamingWordCount example
@@ -967,6 +1297,11 @@ python -m apache_beam.examples.streaming_wordcount \
 To view the full code in Python, see
 **[streaming_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py).**
 
+**To run this example in Go:**
+
+> **Note:** StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
+([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
+
 
 ### Reading an unbounded data set
 
@@ -985,6 +1320,10 @@ messages from a Pub/Sub subscription or topic using
   else:
     lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
 ```
+
+```go
+  // This example is not currently available for the Beam SDK for Go.
+```
 ### Writing unbounded results
 
 When the input is unbounded, the same is true of the output `PCollection`. As
@@ -1002,5 +1341,8 @@ using [`beam.io.WriteStringsToPubSub`]({{ site.baseurl }}/documentation/sdks/pyd
 ```py
   # Write to Pub/Sub
   output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+```
+```go
+  // This example is not currently available for the Beam SDK for Go.
 ```
 

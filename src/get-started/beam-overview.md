@@ -22,6 +22,7 @@ Beam currently supports the following language-specific SDKs:
 
 * Java ![Java logo]({{ "/images/logos/sdks/java.png" | prepend: site.baseurl }})
 * Python ![Python logo]({{ "/images/logos/sdks/python.png" | prepend: site.baseurl }})
+* Go ![Go logo]({{ "/images/logos/sdks/go.png" | prepend: site.baseurl }}){: height="45px"}
 
 A Scala ![Scala logo]({{ "/images/logos/sdks/scala.png" | prepend: site.baseurl }}){: height="45px"} interface is also available as [Scio](https://github.com/spotify/scio).
 
@@ -43,7 +44,7 @@ Beam currently supports Runners that work with the following distributed process
 
 Get started using Beam for your data processing tasks.
 
-1. Follow the Quickstart for the [Java SDK]({{ site.baseurl }}/get-started/quickstart-java) or the [Python SDK]({{ site.baseurl }}/get-started/quickstart-py).
+1. Follow the Quickstart for the [Java SDK]({{ site.baseurl }}/get-started/quickstart-java), the [Python SDK]({{ site.baseurl }}/get-started/quickstart-py) or the [Go SDK]({{ site.baseurl }}/get-started/quickstart-go).
 
 2. See the [WordCount Examples Walkthrough]({{ site.baseurl }}/get-started/wordcount-example) for examples that introduce various features of the SDKs.
 
