@@ -2,10 +2,14 @@ package cz.seznam.euphoria.beam;
 
 import cz.seznam.euphoria.beam.common.InputToKvDoFn;
 import cz.seznam.euphoria.beam.io.KryoCoder;
+import cz.seznam.euphoria.beam.join.FullJoinFn;
 import cz.seznam.euphoria.beam.join.InnerJoinFn;
 import cz.seznam.euphoria.beam.join.JoinFn;
+import cz.seznam.euphoria.beam.join.LeftOuterJoinFn;
+import cz.seznam.euphoria.beam.join.RightOuterJoinFn;
 import cz.seznam.euphoria.beam.window.WindowingUtils;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -90,13 +94,22 @@ public class JoinTranslator implements OperatorTranslator<Join> {
       TupleTag<RightT> rightTag) {
 
     JoinFn<LeftT, RightT, K, OutputT> joinFn;
+    BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
+
     switch (operator.getType()) {
       case INNER:
-        joinFn = new InnerJoinFn<>(operator.getJoiner(), leftTag, rightTag);
+        joinFn = new InnerJoinFn<>(joiner, leftTag, rightTag);
+        break;
+      case LEFT:
+        joinFn = new LeftOuterJoinFn<>(joiner, leftTag, rightTag);
         break;
       case RIGHT:
-      case LEFT:
+        joinFn = new RightOuterJoinFn<>(joiner, leftTag, rightTag);
+        break;
       case FULL:
+        joinFn = new FullJoinFn<>(joiner, leftTag, rightTag);
+        break;
+
       default:
         throw new UnsupportedOperationException(String.format(
             "Cannot translate Euphoria '%s' operator to Beam transformations."
