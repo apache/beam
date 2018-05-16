@@ -58,5 +58,6 @@ python setup.py nosetests \
     --temp_location=$GCS_LOCATION/temp-it \
     --output=$GCS_LOCATION/py-it-cloud/output \
     --sdk_location=$SDK_LOCATION \
+    --requirements_file=postcommit_requirements.txt \
     --num_workers=1 \
     --sleep_secs=20"
