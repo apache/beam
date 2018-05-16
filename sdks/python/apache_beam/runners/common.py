@@ -371,15 +371,12 @@ class PerWindowInvoker(DoFnInvoker):
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
 
-    # Fill in sideInputs if they are globally windowed
-    global_window = GlobalWindow()
+    # Flag to cache additional arguments on the first element if all
+    # inputs are within the global window.
+    self.cache_globally_windowed_args = not self.has_windowed_inputs
 
     input_args = input_args if input_args else []
     input_kwargs = input_kwargs if input_kwargs else {}
-
-    if not self.has_windowed_inputs:
-      input_args, input_kwargs = util.insert_values_in_args(
-          input_args, input_kwargs, [si[global_window] for si in side_inputs])
 
     arguments = signature.process_method.args
     defaults = signature.process_method.defaults
@@ -474,6 +471,19 @@ class PerWindowInvoker(DoFnInvoker):
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process,
           side_inputs)
+    elif self.cache_globally_windowed_args:
+      # Attempt to cache additional args if all inputs are globally
+      # windowed inputs when processing the first element.
+      self.cache_globally_windowed_args = False
+
+      # Fill in sideInputs if they are globally windowed
+      global_window = GlobalWindow()
+      self.args_for_process, self.kwargs_for_process = (
+          util.insert_values_in_args(
+              self.args_for_process, self.kwargs_for_process,
+              [si[global_window] for si in self.side_inputs]))
+      args_for_process, kwargs_for_process = (
+          self.args_for_process, self.kwargs_for_process)
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)

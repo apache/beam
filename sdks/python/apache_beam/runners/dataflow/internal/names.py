@@ -88,3 +88,4 @@ class PropertyNames(object):
   VALIDATE_SINK = 'validate_sink'
   VALIDATE_SOURCE = 'validate_source'
   VALUE = 'value'
+  WINDOWING_STRATEGY = 'windowing_strategy'
