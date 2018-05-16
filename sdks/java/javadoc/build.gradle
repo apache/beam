@@ -27,7 +27,6 @@ def exportedJavadocProjects = [
   ':beam-runners-local-java-core',
   ':beam-runners-direct-java',
   ':beam-runners-reference-java',
-  ':beam-runners-reference-job-server',
   ':beam-runners-flink_2.11',
   ':beam-runners-google-cloud-dataflow-java',
   ':beam-runners-spark',

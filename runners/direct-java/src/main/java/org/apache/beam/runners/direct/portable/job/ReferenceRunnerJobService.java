@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.reference.job;
+package org.apache.beam.runners.direct.portable.job;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -30,7 +30,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -40,10 +39,10 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
+import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.reference.ReferenceRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +51,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
   public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
-    return new ReferenceRunnerJobService(
-        serverFactory, filesTempDirectory());
+    return new ReferenceRunnerJobService(serverFactory, filesTempDirectory());
   }
 
   private final ServerFactory serverFactory;
@@ -110,7 +108,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService()
       throws Exception {
     LocalFileSystemArtifactStagerService service =
-        LocalFileSystemArtifactStagerService.withRootDirectory(stagingPathSupplier.call().toFile());
+        LocalFileSystemArtifactStagerService.forRootDirectory(stagingPathSupplier.call().toFile());
     return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
@@ -134,9 +132,6 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       } catch (Exception e) {
         responseObserver.onError(e);
       }
-      // TODO: Return a real java 'job handle'; this gets used in getState, cancel, etc
-      ReferenceRunner.run(
-          preparingJob.getPipeline(), preparingJob.getOptions(), preparingJob.getStagingLocation());
       String jobId = preparingJob + Integer.toString(ThreadLocalRandom.current().nextInt());
       responseObserver.onNext(RunJobResponse.newBuilder().setJobId(jobId).build());
       responseObserver.onCompleted();
