@@ -1,18 +1,18 @@
 package cz.seznam.euphoria.beam.join;
-/*
+
 import cz.seznam.euphoria.beam.SingleValueCollector;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
+import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-*/
 
 /**
- * Left Join implementation of {@link JoinFn}.
+ * Right outer join implementation of {@link JoinFn}.
  */
-public class LeftJoinFn<LeftT, RightT, K, OutputT> /*extends JoinFn<LeftT, RightT, K, OutputT> */{
-/*
-  protected LeftJoinFn(
+public class RightOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
+
+  public RightOuterJoinFn(
       BinaryFunctor<LeftT, RightT, OutputT> joiner,
       TupleTag<LeftT> leftTag,
       TupleTag<RightT> rightTag) {
@@ -24,18 +24,29 @@ public class LeftJoinFn<LeftT, RightT, K, OutputT> /*extends JoinFn<LeftT, Right
 
     KV<K, CoGbkResult> element = c.element();
     CoGbkResult value = element.getValue();
+    K key = element.getKey();
 
     Iterable<LeftT> leftSideIter = value.getAll(leftTag);
     Iterable<RightT> rightSIdeIter = value.getAll(rightTag);
 
     SingleValueCollector<OutputT> outCollector = new SingleValueCollector<>();
 
+    for (RightT rightValue : rightSIdeIter) {
+      if (leftSideIter.iterator().hasNext()) {
+        for (LeftT leftValue : leftSideIter) {
+          joiner.apply(leftValue, rightValue, outCollector);
+          c.output(Pair.of(key, outCollector.get()));
+        }
+      } else {
+        joiner.apply(null, rightValue, outCollector);
+        c.output(Pair.of(key, outCollector.get()));
+      }
+    }
 
   }
 
   @Override
   public String getFnName() {
-    return "::left-join";
+    return "::right-outer-join";
   }
-  */
 }
