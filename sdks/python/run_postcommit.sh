@@ -22,7 +22,14 @@
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for service jobs.
 #
-# Execute from the root of the repository: sdks/python/run_postcommit.sh
+
+if [ -z "$1" ]; then
+  printf "Usage: \n$> ./run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
+  printf "\n\ttest_type: ValidatesRunner or IT"
+  printf "\n\tgcp_location: A gs:// path to stage artifacts and output results"
+  printf "\n\tgcp_project: A GCP project to run Dataflow pipelines\n"
+  exit 1
+fi
 
 set -e
 set -v
@@ -30,9 +37,9 @@ set -v
 # Run tests on the service.
 
 # Where to store integration test outputs.
-GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_LOCATION=${2:-gs://temp-storage-for-end-to-end-tests}
 
-PROJECT=apache-beam-testing
+PROJECT=${3:-apache-beam-testing}
 
 # Create a tarball
 python setup.py sdist
