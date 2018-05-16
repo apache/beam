@@ -111,6 +111,7 @@ REQUIRED_PACKAGES = [
     'six>=1.9,<1.12',
     'typing>=3.6.0,<3.7.0',
     'futures>=3.1.1,<4.0.0',
+    'future>=0.16.0,<1.0.0',
     ]
 
 REQUIRED_TEST_PACKAGES = [
