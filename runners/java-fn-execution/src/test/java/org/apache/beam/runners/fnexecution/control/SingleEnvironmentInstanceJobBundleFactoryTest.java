@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct.portable;
+package org.apache.beam.runners.fnexecution.control;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
@@ -42,8 +42,6 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
-import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
@@ -58,9 +56,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link DirectJobBundleFactory}. */
+/** Tests for {@link SingleEnvironmentInstanceJobBundleFactory}. */
 @RunWith(JUnit4.class)
-public class DirectJobBundleFactoryTest {
+public class SingleEnvironmentInstanceJobBundleFactoryTest {
   @Mock private EnvironmentFactory environmentFactory;
   @Mock private InstructionRequestHandler instructionRequestHandler;
 
@@ -81,7 +79,9 @@ public class DirectJobBundleFactoryTest {
         GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
     stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
-    factory = DirectJobBundleFactory.create(environmentFactory, dataServer, stateServer);
+    factory =
+        SingleEnvironmentInstanceJobBundleFactory.create(
+            environmentFactory, dataServer, stateServer);
   }
 
   @After
