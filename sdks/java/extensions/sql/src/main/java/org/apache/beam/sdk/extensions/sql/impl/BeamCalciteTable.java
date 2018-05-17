@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -45,18 +44,15 @@ import org.apache.calcite.schema.TranslatableTable;
 class BeamCalciteTable extends AbstractQueryableTable
     implements ModifiableTable, TranslatableTable {
   private final BeamSqlTable beamTable;
-  private final RelDataType rowType;
 
   public BeamCalciteTable(BeamSqlTable beamTable) {
     super(Object[].class);
     this.beamTable = beamTable;
-    this.rowType = CalciteUtils.toCalciteRowType(this.beamTable.getSchema(),
-        BeamQueryPlanner.TYPE_FACTORY);
   }
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return rowType;
+    return CalciteUtils.toCalciteRowType(this.beamTable.getSchema(), typeFactory);
   }
 
   @Override
