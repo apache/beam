@@ -23,11 +23,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.schemas.Schema;
@@ -57,9 +61,14 @@ public class PubsubJsonIT implements Serializable {
           .withVarcharField("name")
           .build();
 
-  @Rule public transient TestPubsub pubsub = TestPubsub.create();
-  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public transient TestPubsub eventsTopic = TestPubsub.create();
+  @Rule
+  public transient TestPubsub dlqTopic = TestPubsub.create();
+  @Rule
+  public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule
+  public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testSelectsPayloadContent() throws Exception {
@@ -73,7 +82,7 @@ public class PubsubJsonIT implements Serializable {
         + "           > \n"
         + ") \n"
         + "TYPE 'pubsub' \n"
-        + "LOCATION '" + pubsub.eventsTopicPath() + "' \n"
+        + "LOCATION '" + eventsTopic.topicPath() + "' \n"
         + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
@@ -100,8 +109,70 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
     pipeline.run();
-    pubsub.publish(messages);
+    eventsTopic.publish(messages);
     signal.waitForSuccess(Duration.standardSeconds(120));
+  }
+
+  @Test
+  public void testUsesDlq() throws Exception {
+    String createTableString =
+        "CREATE TABLE message (\n"
+        + "event_timestamp TIMESTAMP, \n"
+        + "attributes MAP<VARCHAR, VARCHAR>, \n"
+        + "payload ROW< \n"
+        + "             id INTEGER, \n"
+        + "             name VARCHAR \n"
+        + "           > \n"
+        + ") \n"
+        + "TYPE 'pubsub' \n"
+        + "LOCATION '" + eventsTopic.topicPath() + "' \n"
+        + "TBLPROPERTIES "
+        + "    '{ "
+        + "       \"timestampAttributeKey\" : \"ts\", "
+        + "       \"deadLetterQueue\" : \"" + dlqTopic.topicPath() + "\""
+        + "     }'";
+
+    String queryString = "SELECT message.payload.id, message.payload.name from message";
+
+    List<PubsubMessage> messages = ImmutableList.of(
+        message(ts(1), 3, "foo"),
+        message(ts(2), 5, "bar"),
+        message(ts(3), 7, "baz"),
+        message(ts(4), "{ - }"),   // invalid
+        message(ts(5), "{ + }"));  // invalid
+
+    BeamSqlEnv sqlEnv = newSqlEnv();
+
+    createTable(sqlEnv, createTableString);
+    query(sqlEnv, pipeline, queryString);
+
+    PCollection<PubsubMessage> dlq =
+        pipeline.apply(PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath()));
+
+    dlq.apply(
+        "waitForDlq",
+        signal.signalSuccessWhen(
+            PubsubMessageWithAttributesCoder.of(),
+            dlqMessages -> containsAll(dlqMessages,
+                                       message(ts(4), "{ - }"),
+                                       message(ts(5), "{ + }"))));
+
+    pipeline.run();
+    eventsTopic.publish(messages);
+    signal.waitForSuccess(Duration.standardSeconds(120));
+  }
+
+  private static Boolean containsAll(Set<PubsubMessage> set, PubsubMessage... subsetCandidate) {
+    return
+        Arrays
+            .stream(subsetCandidate)
+            .allMatch(
+                candidate -> set.stream().anyMatch(element -> messagesEqual(element, candidate)));
+  }
+
+  private static boolean messagesEqual(PubsubMessage message1, PubsubMessage message2) {
+    return message1.getAttributeMap().equals(message2.getAttributeMap())
+           && Arrays.equals(message1.getPayload(), message2.getPayload());
   }
 
   private BeamSqlEnv newSqlEnv() {
@@ -129,9 +200,13 @@ public class PubsubJsonIT implements Serializable {
   }
 
   private PubsubMessage message(Instant timestamp, int id, String name) {
+    return message(timestamp, jsonString(id, name));
+  }
+
+  private PubsubMessage message(Instant timestamp, String jsonPayload) {
     return
         new PubsubMessage(
-            jsonString(id, name).getBytes(UTF_8),
+            jsonPayload.getBytes(UTF_8),
             ImmutableMap.of("ts", String.valueOf(timestamp.getMillis())));
   }
 
