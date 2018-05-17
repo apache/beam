@@ -52,6 +52,10 @@ import logging
 import os
 import shutil
 import tempfile
+from builtins import object
+from builtins import zip
+
+from future.utils import with_metaclass
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -880,7 +884,7 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(object):
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.
@@ -888,7 +892,6 @@ class PTransformOverride(object):
   TODO: Update this to support cases where input and/our output types are
   different.
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def matches(self, applied_ptransform):
