@@ -28,6 +28,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads<DestinationT>
@@ -127,12 +129,14 @@ class BatchLoads<DestinationT>
   private int numFileShards;
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
+  private ValueProvider<String> loadJobProjectId;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations,
              Coder<DestinationT> destinationCoder,
-             ValueProvider<String> customGcsTempLocation) {
+             ValueProvider<String> customGcsTempLocation,
+             @Nullable ValueProvider<String> loadJobProjectId) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -144,6 +148,7 @@ class BatchLoads<DestinationT>
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
+    this.loadJobProjectId = loadJobProjectId;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -507,7 +512,8 @@ class BatchLoads<DestinationT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations));
+                dynamicDestinations,
+                loadJobProjectId));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -536,7 +542,8 @@ class BatchLoads<DestinationT>
                 writeDisposition,
                 createDisposition,
                 sideInputs,
-                dynamicDestinations));
+                dynamicDestinations,
+                loadJobProjectId));
   }
 
   private WriteResult writeResult(Pipeline p) {
