@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -247,6 +248,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public InputT element(DoFn<InputT, OutputT> doFn) {
               return processContext.element();
+            }
+
+            @Override
+            public Row asRow(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
 
             @Override

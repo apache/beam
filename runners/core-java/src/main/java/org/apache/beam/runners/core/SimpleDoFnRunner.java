@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
@@ -100,6 +101,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   @Nullable
   private final SchemaCoder<InputT> schemaCoder;
 
+  @Nullable
+  private final FieldAccessDescriptor fieldAccessDescriptor;
+
   public SimpleDoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
@@ -108,7 +112,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      @Nullable SchemaCoder<InputT> schemaCoder,
+      Coder<InputT> inputCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.options = options;
     this.fn = fn;
@@ -116,12 +120,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
-    this.schemaCoder = schemaCoder;
+    this. schemaCoder = (inputCoder instanceof SchemaCoder)
+    ? (SchemaCoder<InputT>) inputCoder : null;
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.outputTags =
         Sets.newHashSet(FluentIterable.<TupleTag<?>>of(mainOutputTag).append(additionalOutputTags));
     this.stepContext = stepContext;
+    DoFnSignature.ProcessElementMethod processElementMethod =
+        DoFnSignatures.getSignature(fn.getClass()).processElement();
+    FieldAccessDescriptor fieldAccessDescriptor = processElementMethod.getFieldAccessDescriptor();
+    if (fieldAccessDescriptor != null) {
+      checkArgument(schemaCoder != null,
+          "Cannot access object as a row if the input PCollection does not have a schema.");
+      fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
+    }
+    this.fieldAccessDescriptor = fieldAccessDescriptor;
 
     // This is a cast of an _invariant_ coder. But we are assured by pipeline validation
     // that it really is the coder for whatever BoundedWindow subclass is provided
@@ -281,7 +295,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -389,7 +403,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -601,7 +615,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
+      checkState(fieldAccessDescriptor.allFields());
      return schemaCoder.getToRowFunction().apply(element());
     }
 
@@ -745,7 +760,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(FieldAccessDescriptor fieldAccessDescriptor) {
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.reflect;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
@@ -140,7 +139,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * Provides a link to the input element converted to a {@link Row} object. The input
      * collection must have a schema registered for this to be called.
      */
-    Row asRow(FieldAccessDescriptor fieldAccessDescriptor);
+    Row asRow(DoFn<InputT, OutputT> doFn);
 
     /** Provide a link to the time domain for a timer firing.
      */
@@ -180,6 +179,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

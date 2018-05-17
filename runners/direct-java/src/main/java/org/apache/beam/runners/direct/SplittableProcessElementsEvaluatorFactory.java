@@ -188,6 +188,7 @@ class SplittableProcessElementsEvaluatorFactory<
         mainOutputTag,
         additionalOutputTags,
         stepContext,
+        inputCoder,
         windowingStrategy) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
@@ -199,6 +200,7 @@ class SplittableProcessElementsEvaluatorFactory<
           mainOutputTag,
           additionalOutputTags,
           stepContext,
+          inputCoder,
           windowingStrategy);
     };
   }
