@@ -55,6 +55,7 @@ RUN \
     pip install "six == 1.10.0" && \
     pip install "typing == 3.6.1" && \
     pip install "futures == 3.1.1" && \
+    pip install "future == 0.16.0" && \
     # Setup packages
     pip install "nose == 1.3.7" && \
     # GCP extra features
