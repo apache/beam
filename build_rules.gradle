@@ -955,6 +955,9 @@ ext.enableJavaPerformanceTesting = {
 
   // Task for running integration tests
   task integrationTest(type: Test) {
+    // Disable Gradle cache (it should not be used because the IT's won't run).
+    outputs.upToDateWhen { false }
+
     include "**/*IT.class"
     systemProperties.beamTestPipelineOptions = configuration.integrationTestPipelineOptions
   }
