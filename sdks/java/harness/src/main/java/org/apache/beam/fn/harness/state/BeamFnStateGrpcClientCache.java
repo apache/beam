@@ -26,13 +26,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
@@ -53,15 +53,17 @@ public class BeamFnStateGrpcClientCache {
           StreamObserver<StateRequest>>
       streamObserverFactory;
   private final PipelineOptions options;
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
 
   public BeamFnStateGrpcClientCache(
       PipelineOptions options,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<StreamObserverClientFactory<StateResponse, StateRequest>,
-          StreamObserver<StateResponse>,
-          StreamObserver<StateRequest>> streamObserverFactory) {
+      BiFunction<
+              StreamObserverClientFactory<StateResponse, StateRequest>,
+              StreamObserver<StateResponse>,
+              StreamObserver<StateRequest>>
+          streamObserverFactory) {
     this.options = options;
     this.idGenerator = idGenerator;
     this.channelFactory = channelFactory;
@@ -104,7 +106,7 @@ public class BeamFnStateGrpcClientCache {
     @Override
     public void handle(
         StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
-      requestBuilder.setId(idGenerator.get());
+      requestBuilder.setId(idGenerator.getId());
       StateRequest request = requestBuilder.build();
       outstandingRequests.put(request.getId(), response);
 
