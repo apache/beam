@@ -20,11 +20,14 @@ package org.apache.beam.sdk.extensions.euphoria.operator.test;
 import static org.junit.Assert.assertEquals;
 
 import java.time.Duration;
+import cz.seznam.euphoria.beam.window.BeamWindowing;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
@@ -48,9 +51,24 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 
-/** Test operator {@code Join}. */
+/**
+ * Test operator {@code Join}.
+ */
 @Processing(Processing.Type.ALL)
 public class JoinTest extends AbstractOperatorTest {
 
@@ -271,7 +289,10 @@ public class JoinTest extends AbstractOperatorTest {
                     (Optional<Integer> l, Optional<Long> r, Collector<String> c) -> {
                       c.collect(l.orElse(null) + "+" + r.orElse(null));
                     })
-                .windowBy(new EvenOddWindowing())
+                .windowBy(BeamWindowing.of(
+                    new EvenOddWindowFn(),
+                    AfterWatermark.pastEndOfWindow(),
+                    AccumulationMode.DISCARDING_FIRED_PANES))
                 .output();
           }
 
@@ -321,7 +342,10 @@ public class JoinTest extends AbstractOperatorTest {
                     (Integer l, Optional<Long> r, Collector<String> c) -> {
                       c.collect(l + "+" + r.orElse(null));
                     })
-                .windowBy(new EvenOddWindowing())
+                .windowBy(BeamWindowing.of(
+                    new EvenOddWindowFn(),
+                    AfterWatermark.pastEndOfWindow(),
+                    AccumulationMode.DISCARDING_FIRED_PANES))
                 .output();
           }
 
@@ -366,7 +390,10 @@ public class JoinTest extends AbstractOperatorTest {
                     (Optional<Integer> l, Long r, Collector<String> c) -> {
                       c.collect(l.orElse(null) + "+" + r);
                     })
-                .windowBy(new EvenOddWindowing())
+                .windowBy(BeamWindowing.of(
+                    new EvenOddWindowFn(),
+                    AfterWatermark.pastEndOfWindow(),
+                    AccumulationMode.DISCARDING_FIRED_PANES))
                 .output();
           }
 
@@ -403,7 +430,7 @@ public class JoinTest extends AbstractOperatorTest {
   public void joinOnSessionWindowingNoEarlyTriggering() {
     execute(
         new JoinTestCase<
-            Pair<String, Long>, Pair<String, Long>, Triple<TimeInterval, String, String>>() {
+            Pair<String, Long>, Pair<String, Long>, Pair<String, String>>() {
 
           @Override
           protected List<Pair<String, Long>> getLeftInput() {
@@ -416,37 +443,41 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Triple<TimeInterval, String, String>> getOutput(
+          protected Dataset<Pair<String, String>> getOutput(
               Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+
             left = AssignEventTime.of(left).using(Pair::getSecond).output();
             right = AssignEventTime.of(right).using(Pair::getSecond).output();
-            Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
+
+            Dataset<Pair<String, Pair<String, String>>> joined =
                 Join.of(left, right)
                     .by(p -> "", p -> "")
                     .using(
-                        (Pair<String, Long> l,
-                            Pair<String, Long> r,
-                            Collector<Triple<TimeInterval, String, String>> c) ->
-                            c.collect(
-                                Triple.of(
-                                    (TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
-                    .windowBy(Session.of(Duration.ofMillis(10)))
+                        (Pair<String, Long> l, Pair<String, Long> r,
+                            Collector<Pair<String, String>> c) ->
+                            c.collect(Pair.of(l.getFirst(), r.getFirst())))
+                    .windowBy(BeamWindowing.of(
+                        Sessions.withGapDuration(org.joda.time.Duration.millis(10)),
+                        AfterWatermark.pastEndOfWindow(),
+                        AccumulationMode.DISCARDING_FIRED_PANES))
                     .output();
             return MapElements.of(joined).using(Pair::getSecond).output();
           }
 
           @Override
-          public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
-            TimeInterval expectedWindow = new TimeInterval(1, 14);
+          public List<Pair<String, String>> getUnorderedOutput() {
             return Arrays.asList(
-                Triple.of(expectedWindow, "fi", "ha"),
-                Triple.of(expectedWindow, "fi", "ho"),
-                Triple.of(expectedWindow, "fa", "ha"),
-                Triple.of(expectedWindow, "fa", "ho"));
+                Pair.of("fi", "ha"),
+                Pair.of("fi", "ho"),
+                Pair.of("fa", "ha"),
+                Pair.of("fa", "ho"));
           }
         });
   }
 
+  @Ignore(
+      "This test is based on access to various objects through Environment which is "
+          + "unsupported feature. It may be possible to add this feature in future.")
   @Test
   public void testJoinAccumulators() {
     execute(
@@ -466,8 +497,10 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<Triple<TimeInterval, String, String>> getOutput(
               Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+
             left = AssignEventTime.of(left).using(Pair::getSecond).output();
             right = AssignEventTime.of(right).using(Pair::getSecond).output();
+
             Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
                 Join.of(left, right)
                     .by(p -> "", p -> "")
@@ -480,7 +513,11 @@ public class JoinTest extends AbstractOperatorTest {
                           c.getHistogram("hist-" + l.getFirst().charAt(1)).add(2345, 8);
                           c.collect(Triple.of(window, l.getFirst(), r.getFirst()));
                         })
-                    .windowBy(Time.of(Duration.ofMillis(3)))
+//                    .windowBy(Time.of(Duration.ofMillis(3)))
+                    .windowBy(BeamWindowing.of(
+                        FixedWindows.of(org.joda.time.Duration.millis(3)),
+                        AfterWatermark.pastEndOfWindow(),
+                        AccumulationMode.DISCARDING_FIRED_PANES))
                     .output();
             return MapElements.of(joined).using(Pair::getSecond).output();
           }
@@ -511,11 +548,9 @@ public class JoinTest extends AbstractOperatorTest {
 
   /**
    * Base for join test cases.
-   * @param <LeftT>
-   * @param <RightT>
-   * @param <OutputT>
    */
   public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
+
     @Override
     public Dataset<OutputT> getOutput(Flow flow, boolean bounded) {
       Dataset<LeftT> left = flow.createInput(ListDataSource.of(bounded, getLeftInput()));
@@ -530,36 +565,87 @@ public class JoinTest extends AbstractOperatorTest {
     protected abstract List<RightT> getRightInput();
   }
 
-  /** Stable windowing for test purposes. */
-  static class EvenOddWindowing implements Windowing<Either<Integer, Long>, IntWindow> {
+
+  /**
+   * Elements with even numeric values are are assigned to one 'even' window. All others are
+   * assigned to window named 'win: #', where '#' is value of assigned element.
+   */
+  private static class EvenOddWindowFn extends WindowFn<KV<Integer, Number>, BoundedWindow> {
+
+    private static final NamedGlobalWindow EVEN_WIN = new NamedGlobalWindow("even");
 
     @Override
-    public Iterable<IntWindow> assignWindowsToElement(
-        WindowedElement<?, Either<Integer, Long>> input) {
-      int element;
-      Either<Integer, Long> unwrapped = input.getElement();
-      if (unwrapped.isLeft()) {
-        element = unwrapped.left();
-      } else {
-        element = (int) (long) unwrapped.right();
+    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
+    public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
+      KV<Integer, Number> element = c.element();
+
+      Number value = element.getValue();
+
+      if (value == null) {
+        return Collections.singleton(EVEN_WIN);
       }
-      final int label = element % 2 == 0 ? 0 : element;
-      return Collections.singleton(new IntWindow(label));
+
+      NamedGlobalWindow win;
+      if (value.longValue() % 2 == 0) {
+        win = EVEN_WIN;
+      } else {
+        win = new NamedGlobalWindow("win: " + value.longValue());
+      }
+
+      return Collections.singleton(win);
     }
 
     @Override
-    public Trigger<IntWindow> getTrigger() {
-      return NoopTrigger.get();
+    public void mergeWindows(MergeContext c) throws Exception {
+      // no merging
     }
 
     @Override
-    public boolean equals(Object obj) {
-      return obj instanceof EvenOddWindowing;
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      return other instanceof EvenOddWindowFn;
+    }
+
+    @Override
+    public Coder<BoundedWindow> windowCoder() {
+      return new KryoCoder<>();
+    }
+
+    @Override
+    @Nullable
+    public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+      return null;
+    }
+
+    @Override
+    public boolean isNonMerging() {
+      return true;
+    }
+  }
+
+  private static class NamedGlobalWindow extends BoundedWindow {
+
+    private String name;
+
+    public NamedGlobalWindow(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public Instant maxTimestamp() {
+      return GlobalWindow.INSTANCE.maxTimestamp();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof NamedGlobalWindow) {
+        return name.equals(((NamedGlobalWindow) other).name);
+      }
+      return false;
     }
 
     @Override
     public int hashCode() {
-      return 0;
+      return name.hashCode();
     }
   }
 }
