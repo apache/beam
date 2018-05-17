@@ -63,7 +63,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
@@ -610,10 +609,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           @Override
           public StackManipulation dispatch(RowParameter p) {
             return new StackManipulation.Compound(
-                new TextConstant(p.referent().id()),
+                pushDelegate,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(ROW_PARAMETER_METHOD, String.class)),
-                TypeCasting.to(new TypeDescription.ForLoadedType(FieldAccessDescriptor.class)));
+                    getExtraContextFactoryMethodDescription(
+                        ROW_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

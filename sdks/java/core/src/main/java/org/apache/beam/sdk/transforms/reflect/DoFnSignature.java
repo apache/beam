@@ -103,9 +103,6 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract NewTrackerMethod newTracker();
 
-  @Nullable
-  public abstract FieldAccessDescriptor schemaFieldAccessDescriptor();
-
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
@@ -157,8 +154,6 @@ public abstract class DoFnSignature {
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
-
-    abstract Builder setSchemaFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
 
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
 
@@ -493,6 +488,11 @@ public abstract class DoFnSignature {
     }
 
 
+    /**
+     * Descriptor for a {@link Parameter} of Row type.
+     *
+     * <p>All such descriptors are equal.
+     */
     @AutoValue
     public abstract static class RowParameter extends  Parameter {
       RowParameter() { }
@@ -678,14 +678,15 @@ public abstract class DoFnSignature {
 
     /**
      * Whether this {@link DoFn} reads a schema {@link PCollection} type as a
-     * @link org.apache.beam.sdk.values.Row} object.
+     * {@link org.apache.beam.sdk.values.Row} object.
      */
-    public FieldAccessDescriptor readsRowDescriptor() {
+    @Nullable
+    public FieldAccessDescriptor getFieldAccessDescriptor() {
       Optional<Parameter> parameter = extraParameters()
           .stream()
           .filter(Predicates.instanceOf(RowParameter.class)::apply)
           .findFirst();
-      return parameter.isPresent() ? ((RowParameter)parameter.get()).fieldAccessDescriptor()
+      return parameter.isPresent() ? ((RowParameter) parameter.get()).fieldAccessDescriptor()
           : null;
     }
 

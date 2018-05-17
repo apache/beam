@@ -813,7 +813,7 @@ public class DoFnSignatures {
 
     if (hasElementAnnotation(param.getAnnotations())) {
       if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
-        return Parameter.rowParameter(FieldAccessDescriptor.allFields());
+        return Parameter.rowParameter(FieldAccessDescriptor.withAllFields());
       } else {
         methodErrors.checkArgument(paramT.equals(inputT),
             "@Element argument must have type %s", inputT);

@@ -33,9 +33,9 @@ import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.local.StructuralKey;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -57,7 +57,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DirectStepContext stepContext,
-        @Nullable SchemaCoder<InputT> schemaCoder,
+        @Nullable Coder<InputT> inputCoder,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy);
   }
 
@@ -92,7 +92,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       PipelineOptions options,
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
-      SchemaCoder<InputT> schemaCoder,
+      Coder<InputT> inputCoder,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       DoFn<InputT, OutputT> fn,
       StructuralKey<?> key,
@@ -117,7 +117,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            schemaCoder,
+            inputCoder,
             windowingStrategy);
 
     return create(runner, stepContext, application, outputManager);

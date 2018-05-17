@@ -21,6 +21,7 @@ package org.apache.beam.sdk.schemas;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 
 /**
@@ -41,7 +43,8 @@ public class FieldAccessDescriptor {
   private Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById;
   private Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName;
 
-  FieldAccessDescriptor(boolean allFields, Set<Integer> fieldsIdsAccessed,
+  FieldAccessDescriptor(boolean allFields,
+                        Set<Integer> fieldsIdsAccessed,
                         Set<String> fieldNamesAccessed,
                         Map<Integer, FieldAccessDescriptor> nestedFieldsAccessedById,
                         Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName) {
@@ -53,7 +56,7 @@ public class FieldAccessDescriptor {
   }
 
   // Return a descriptor that accesses all fields in a row.
-  public static FieldAccessDescriptor allFields() {
+  public static FieldAccessDescriptor withAllFields() {
     return new FieldAccessDescriptor(true, Collections.emptySet(), Collections.emptySet(),
         Collections.emptyMap(), Collections.emptyMap());
   }
@@ -61,46 +64,33 @@ public class FieldAccessDescriptor {
   /**
    * Return a descriptor that access the specified fields.
    */
-  public static FieldAccessDescriptor fieldNames(String... names) {
-    return fieldNames(Arrays.asList(names));
+  public static FieldAccessDescriptor withFieldNames(String... names) {
+    return withFieldNames(Arrays.asList(names));
   }
 
   /**
    * Return a descriptor that access the specified fields.
    */
-  public static FieldAccessDescriptor fieldNames(Iterable<String> fieldNames) {
+  public static FieldAccessDescriptor withFieldNames(Iterable<String> fieldNames) {
     return new FieldAccessDescriptor(false, Collections.emptySet(),
         Sets.newHashSet(fieldNames), Collections.emptyMap(), Collections.emptyMap());
-    //Iterable<Integer> ids = StreamSupport.stream(fieldNames.spliterator(), false)
-    //    .map(n -> schema.indexOf(n))
-   //     .collect(Collectors.toList());
-  //  return fieldIds(ids);
   }
 
   /**
    * Return a descriptor that access the specified fields.
    */
-  public FieldAccessDescriptor fieldIds(Integer... ids) {
-    return fieldIds(Arrays.asList(ids));
+  public static FieldAccessDescriptor withFieldIds(Integer... ids) {
+    return withFieldIds(Arrays.asList(ids));
   }
 
   /**
    * Return a descriptor that access the specified fields.
    */
-  public FieldAccessDescriptor fieldIds(Iterable<Integer> ids) {
+  public static FieldAccessDescriptor withFieldIds(Iterable<Integer> ids) {
     return new FieldAccessDescriptor(false, Sets.newHashSet(ids),
         Collections.emptySet(), Collections.emptyMap(), Collections.emptyMap());
   }
 
-  /**
-   * Return a descriptor that access the specified nested field. The nested field must be of type
-   * {@link Schema.TypeName#ROW}, and the fieldAccess argument specifies what fields of the nested
-   * type will be accessed.
-   */
-  public FieldAccessDescriptor withNestedField(
-      String nestedFieldName, FieldAccessDescriptor fieldAccess) {
-    return withNestedField(schema.indexOf(nestedFieldName), fieldAccess);
-  }
 
   /**
    * Return a descriptor that access the specified nested field. The nested field must be of type
@@ -109,7 +99,7 @@ public class FieldAccessDescriptor {
    */
   public FieldAccessDescriptor withNestedField(
       int nestedFieldId, FieldAccessDescriptor fieldAccess) {
-    checkState(TypeName.ROW.equals(schema.getField(nestedFieldId).getType().getTypeName()));
+   // checkState(TypeName.ROW.equals(schema.getField(nestedFieldId).getType().getTypeName()));
 
     Map<Integer, FieldAccessDescriptor> newNestedFieldAccess =
         ImmutableMap.<Integer, FieldAccessDescriptor>builder()
@@ -127,8 +117,6 @@ public class FieldAccessDescriptor {
    */
   public FieldAccessDescriptor withNestedField(
       String nestedFieldName, FieldAccessDescriptor fieldAccess) {
-    checkState(TypeName.ROW.equals(schema.getField(nestedFieldId).getType().getTypeName()));
-
     Map<String, FieldAccessDescriptor> newNestedFieldAccess =
         ImmutableMap.<String, FieldAccessDescriptor>builder()
             .putAll(nestedFieldsAccessedByName)
@@ -138,20 +126,49 @@ public class FieldAccessDescriptor {
         fieldNamesAccessed, nestedFieldsAccessedById, newNestedFieldAccess);
   }
 
-  public Iterable<Integer> resolveFieldIdsAccessed(Schema schema) {
-    if (!fieldNamesAccessed.isEmpty()) {
-      fieldIdsAccessed.addAll(
-          StreamSupport.stream(fieldNamesAccessed.spliterator(), false)
-              .map(n -> schema.indexOf(n))
-              .collect(Collectors.toList()));
-      // Once we've resolved all names into ids, no need to keep around the names.
-      fieldNamesAccessed.clear();
-    }
-
-    return fieldIdsAccessed;
+  public boolean allFields() {
+    return allFields;
   }
 
-  public Map<Integer, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
-    return nestedFieldsAccessed;
+  public FieldAccessDescriptor resolve(Schema schema) {
+    return new FieldAccessDescriptor(this.allFields,
+        resolveFieldIdsAccessed(schema),
+        Collections.emptySet(),
+        resolveNestedFieldsAccessed(schema),
+        Collections.emptyMap());
+  }
+
+  private Set<Integer> resolveFieldIdsAccessed(Schema schema) {
+    Set<Integer> fieldsIds = Sets.newHashSet(fieldIdsAccessed);
+    if (!fieldNamesAccessed.isEmpty()) {
+      fieldsIds.addAll(
+          StreamSupport.stream(fieldNamesAccessed.spliterator(), false)
+              .map(name -> schema.indexOf(name))
+              .collect(Collectors.toList()));
+    }
+    return fieldsIds;
+  }
+
+  private FieldAccessDescriptor resolvedNestedFieldsHelper(Field field,
+                                                           FieldAccessDescriptor subDescriptor) {
+    checkState(TypeName.ROW.equals(field.getType().getTypeName()));
+    return subDescriptor.resolve(field.getType().getRowSchema());
+  }
+
+  private Map<Integer, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
+    Map<Integer, FieldAccessDescriptor> nestedFields = Maps.newHashMap();
+
+    nestedFields.putAll(
+        nestedFieldsAccessedByName.entrySet().stream()
+        .collect(Collectors.toMap(
+            e -> schema.indexOf(e.getKey()),
+            e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
+    nestedFields.putAll(
+        nestedFieldsAccessedById.entrySet().stream()
+        .collect(Collectors.toMap(
+            e -> e.getKey(),
+            e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
+
+    return nestedFields;
   }
 }
