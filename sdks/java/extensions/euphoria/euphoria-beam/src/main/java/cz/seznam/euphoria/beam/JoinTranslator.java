@@ -45,7 +45,6 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     // get input data-sets transformed to Pcollections<KV<K,LeftT/RightT>>
     List<PCollection<Object>> inputs = context.getInputs(operator);
 
-    //TODO test left/right side indexes !
     PCollection<KV<K, LeftT>> leftKvInput = getKVInputCollection(inputs.get(0),
         operator.getLeftKeyExtractor(),
         keyCoder, new KryoCoder<>(), "::extract-keys-left");
@@ -53,6 +52,14 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     PCollection<KV<K, RightT>> rightKvInput = getKVInputCollection(inputs.get(1),
         operator.getRightKeyExtractor(),
         keyCoder, new KryoCoder<>(), "::extract-keys-right");
+
+    // and apply the same widowing on input Pcolections since the documentation states:
+    //'all of the PCollections you want to group must use the same
+    // windowing strategy and window sizing'
+    leftKvInput = WindowingUtils.applyWindowingIfSpecified(
+        operator, leftKvInput, context.getAllowedLateness(operator));
+    rightKvInput = WindowingUtils.applyWindowingIfSpecified(
+        operator, rightKvInput, context.getAllowedLateness(operator));
 
     // GoGroupByKey collections
     TupleTag<LeftT> leftTag = new TupleTag<>();
@@ -62,9 +69,6 @@ public class JoinTranslator implements OperatorTranslator<Join> {
         .of(leftTag, leftKvInput)
         .and(rightTag, rightKvInput)
         .apply("::co-group-by-key", CoGroupByKey.create());
-
-    coGrouped = WindowingUtils
-        .applyWindowingIfSpecified(operator, coGrouped, context.getAllowedLateness(operator));
 
     // Join
     JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);

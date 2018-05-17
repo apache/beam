@@ -26,7 +26,8 @@ public class WindowingUtils {
 
     if (!(userSpecifiedWindowing instanceof BeamWindowing)) {
       throw new IllegalStateException(String.format(
-          "%s class only is supported to specify windowing.", BeamWindowing.class.getSimpleName()));
+          "Use of '%s' is only way supported to specify windowing.",
+          BeamWindowing.class.getSimpleName()));
     }
 
     @SuppressWarnings("unchecked")
