@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
 
 import org.apache.beam.sdk.extensions.euphoria.operator.test.FlatMapTest;
+import org.apache.beam.sdk.extensions.euphoria.operator.test.JoinTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProvider;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProviderRunner;
@@ -36,7 +37,7 @@ import org.junit.runners.Suite;
     //    DistinctTest.class,
     //    FilterTest.class,
     FlatMapTest.class,
-    //    JoinTest.class,
+    JoinTest.class,
     //    JoinWindowEnforcementTest.class,
     //    MapElementsTest.class,
     //    ReduceByKeyTest.class,
