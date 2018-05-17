@@ -17,14 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
+import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.Frameworks;
 
 class ParserTestUtils {
+  private static final BeamSqlEnv env =
+      new BeamSqlEnv(new BeamSqlTableProvider("test", ImmutableMap.of()));
+
   static SqlNode parse(String sql) throws SqlParseException {
-    BeamQueryPlanner planner = new BeamQueryPlanner(Frameworks.createRootSchema(false));
-    return planner.parse(sql);
+    return env.getPlanner().parse(sql);
   }
 }

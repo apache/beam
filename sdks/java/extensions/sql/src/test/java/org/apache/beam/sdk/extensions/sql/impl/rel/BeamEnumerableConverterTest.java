@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,12 +38,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.linq4j.Enumerator;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.prepare.RelOptTableImpl;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.junit.Test;
@@ -53,14 +55,15 @@ import org.junit.Test;
  * Test for {@code BeamEnumerableConverter}.
  */
 public class BeamEnumerableConverterTest {
-  static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
+  static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
+  static RexBuilder rexBuilder = new RexBuilder(TYPE_FACTORY);
   static PipelineOptions options = PipelineOptionsFactory.create();
   static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
 
   @Test
   public void testToEnumerable_collectSingle() {
     Schema schema = Schema.builder().addInt64Field("id", false).build();
-    RelDataType type = CalciteUtils.toCalciteRowType(schema, BeamQueryPlanner.TYPE_FACTORY);
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)));
     BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
@@ -78,7 +81,7 @@ public class BeamEnumerableConverterTest {
   public void testToEnumerable_collectMultiple() {
     Schema schema =
         Schema.builder().addInt64Field("id", false).addInt64Field("otherid", false).build();
-    RelDataType type = CalciteUtils.toCalciteRowType(schema, BeamQueryPlanner.TYPE_FACTORY);
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(
             ImmutableList.of(
@@ -132,7 +135,7 @@ public class BeamEnumerableConverterTest {
   @Test
   public void testToEnumerable_count() {
     Schema schema = Schema.builder().addInt64Field("id", false).build();
-    RelDataType type = CalciteUtils.toCalciteRowType(schema, BeamQueryPlanner.TYPE_FACTORY);
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(
             ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)),

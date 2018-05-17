@@ -109,6 +109,9 @@ rat {
 
     // VCF test files
     "**/apache_beam/testing/data/vcf/*",
+
+    // JDBC package config files
+    "**/META-INF/services/java.sql.Driver",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
