@@ -34,6 +34,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
@@ -118,6 +120,7 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
       StreamObserverFactory streamObserverFactory) {
+    IdGenerator idGenerator = IdGenerators.decrementingLongs();
     try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
         options,
         loggingApiServiceDescriptor,
@@ -132,11 +135,9 @@ public class FnHarness {
       BeamFnDataGrpcClient beamFnDataMultiplexer = new BeamFnDataGrpcClient(
           options, channelFactory::forDescriptor, streamObserverFactory::from);
 
-      BeamFnStateGrpcClientCache beamFnStateGrpcClientCache = new BeamFnStateGrpcClientCache(
-          options,
-          IdGenerator::generate,
-          channelFactory::forDescriptor,
-          streamObserverFactory::from);
+      BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
+          new BeamFnStateGrpcClientCache(
+              options, idGenerator, channelFactory::forDescriptor, streamObserverFactory::from);
 
       ProcessBundleHandler processBundleHandler = new ProcessBundleHandler(
           options,
