@@ -19,11 +19,17 @@
 # This script will be run by Jenkins as a post commit test. In order to run
 # locally make the following changes:
 #
-# LOCAL_PATH   -> Path of tox and virtualenv if you have them already installed.
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for service jobs.
 #
-# Execute from the root of the repository: sdks/python/run_postcommit.sh
+
+if [ -z "$1" ]; then
+  printf "Usage: \n$> ./run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
+  printf "\n\ttest_type: ValidatesRunner or IT"
+  printf "\n\tgcp_location: A gs:// path to stage artifacts and output results"
+  printf "\n\tgcp_project: A GCP project to run Dataflow pipelines\n"
+  exit 1
+fi
 
 set -e
 set -v
@@ -31,20 +37,24 @@ set -v
 # Run tests on the service.
 
 # Where to store integration test outputs.
-GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_LOCATION=${2:-gs://temp-storage-for-end-to-end-tests}
 
-PROJECT=apache-beam-testing
+PROJECT=${3:-apache-beam-testing}
 
 # Create a tarball
 python setup.py sdist
 
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
+# Install test dependencies for ValidatesRunner tests.
+echo "pyhamcrest" > postcommit_requirements.txt
+echo "mock" >> postcommit_requirements.txt
+
 # Run integration tests on the Google Cloud Dataflow service
 # and validate that jobs finish successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
-  --attr IT \
+  --attr $1 \
   --nocapture \
   --processes=4 \
   --process-timeout=1800 \
@@ -55,5 +65,6 @@ python setup.py nosetests \
     --temp_location=$GCS_LOCATION/temp-it \
     --output=$GCS_LOCATION/py-it-cloud/output \
     --sdk_location=$SDK_LOCATION \
+    --requirements_file=postcommit_requirements.txt \
     --num_workers=1 \
     --sleep_secs=20"

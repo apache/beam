@@ -256,7 +256,7 @@ def _populate_requirements_cache(requirements_file, cache_dir):
   # the requirements file and will not download package dependencies.
   cmd_args = [
       _get_python_executable(), '-m', 'pip', 'download', '--dest', cache_dir,
-      '-r', requirements_file,
+      '-r', requirements_file, '--exists-action', 'i',
       # Download from PyPI source distributions.
       '--no-binary', ':all:']
   logging.info('Executing command: %s', cmd_args)
