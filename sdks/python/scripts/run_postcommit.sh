@@ -24,7 +24,7 @@
 #
 
 if [ -z "$1" ]; then
-  printf "Usage: \n$> ./run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
+  printf "Usage: \n$> ./scripts/run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
   printf "\n\ttest_type: ValidatesRunner or IT"
   printf "\n\tgcp_location: A gs:// path to stage artifacts and output results"
   printf "\n\tgcp_project: A GCP project to run Dataflow pipelines\n"

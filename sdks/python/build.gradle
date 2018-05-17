@@ -201,7 +201,7 @@ task postCommitVRTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh IT"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT"
     }
   }
 }
@@ -210,7 +210,7 @@ task validatesRunnerTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_postcommit.sh ValidatesRunner"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner"
     }
   }
 }
