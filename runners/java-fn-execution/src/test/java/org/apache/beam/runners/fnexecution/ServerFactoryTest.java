@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -42,6 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.junit.Test;
@@ -59,7 +61,7 @@ public class ServerFactoryTest {
       .build();
 
   @Test
-  public void testCreatingDefaultServer() throws Exception {
+  public void defaultServerWorks() throws Exception {
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         runTestUsing(ServerFactory.createDefault(), ManagedChannelFactory.createDefault());
     HostAndPort hostAndPort = HostAndPort.fromString(apiServiceDescriptor.getUrl());
@@ -67,6 +69,19 @@ public class ServerFactoryTest {
         equalTo(InetAddress.getLoopbackAddress().getHostName()),
         equalTo(InetAddress.getLoopbackAddress().getHostAddress())));
     assertThat(hostAndPort.getPort(), allOf(greaterThan(0), lessThan(65536)));
+  }
+
+  @Test
+  public void usesUrlFactory() throws Exception {
+    ServerFactory serverFactory = ServerFactory.createWithUrlFactory((host, port) -> "foo");
+    CallStreamObserver<Elements> observer =
+        TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build();
+    TestDataService service = new TestDataService(observer);
+    ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
+    Server server = serverFactory.allocatePortAndCreate(service, descriptorBuilder);
+    // Immediately terminate server. We don't actually use it here.
+    server.shutdown();
+    assertThat(descriptorBuilder.getUrl(), is("foo"));
   }
 
   private Endpoints.ApiServiceDescriptor runTestUsing(
