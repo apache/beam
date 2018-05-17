@@ -14,5 +14,5 @@ Follow this checklist to help us incorporate your contribution quickly and easil
  - [ ] Each commit in the pull request should have a meaningful subject line and body.
  - [ ] Run `./gradlew build` to make sure basic checks pass. A more thorough check will be performed on your pull request automatically.
  - [ ] If this contribution is large, please file an Apache [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.pdf).
- - [ ] Once your change is ready to be reviewed, tag a reviewer (r: @username) to start a code review process.
+ - [ ] Once your change is ready to be reviewed, tag a reviewer (by adding `r: @username`) to start a code review process.
 
