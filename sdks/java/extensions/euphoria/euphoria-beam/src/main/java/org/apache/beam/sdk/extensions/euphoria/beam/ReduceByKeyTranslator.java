@@ -50,6 +50,10 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>>
   doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
 
+    if (operator.getValueComparator() != null) { //TODO Could we even do values sorting ?
+      throw new UnsupportedOperationException("Values sorting is not supported.");
+    }
+
     final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
     final UnaryFunction<InputT, V> valueExtractor = operator.getValueExtractor();
     final ReduceFunctor<V, OutputT> reducer = operator.getReducer();
