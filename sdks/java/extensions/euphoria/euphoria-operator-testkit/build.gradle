@@ -23,5 +23,6 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
     compile project(':beam-sdks-java-extensions-euphoria-core')
+    compile project(':beam-sdks-java-extensions-euphoria-beam')
     compileOnly library.java.junit
 }
