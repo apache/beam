@@ -54,12 +54,15 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
     JSONObject tableProperties = tableDefintion.getProperties();
     String timestampAttributeKey = tableProperties.getString("timestampAttributeKey");
+    String deadLetterQueue = tableProperties.getString("deadLetterQueue");
+    validateDlq(deadLetterQueue);
 
     return
         PubsubIOJsonTable
             .builder()
             .setSchema(tableDefintion.getSchema())
             .setTimestampAttribute(timestampAttributeKey)
+            .setDeadLetterQueue(deadLetterQueue)
             .setTopic(tableDefintion.getLocation())
             .build();
   }
@@ -84,5 +87,11 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   private boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
     return schema.hasField(field) && expectedType.equals(schema.getField(field).getType());
+  }
+
+  private void validateDlq(String deadLetterQueue) {
+    if (deadLetterQueue != null && deadLetterQueue.isEmpty()) {
+      throw new IllegalArgumentException("Dead letter queue topic name is not specified");
+    }
   }
 }

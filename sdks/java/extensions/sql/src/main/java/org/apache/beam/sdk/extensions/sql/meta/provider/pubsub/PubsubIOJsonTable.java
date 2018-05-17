@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
+import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.DLQ_TAG;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
@@ -29,10 +32,13 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * <i>Experimental</i>
@@ -97,6 +103,18 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
   @Nullable abstract String getTimestampAttribute();
 
   /**
+   * Optional topic path which will be used as a dead letter queue.
+   *
+   * <p>Messages that cannot be processed will be sent to this topic. If it is not specified then
+   * exception will be thrown for errors during processing causing the pipeline to crash.
+   */
+  @Nullable abstract String getDeadLetterQueue();
+
+  private boolean useDlq() {
+    return getDeadLetterQueue() != null;
+  }
+
+  /**
    * Pubsub topic name.
    *
    * <p>Topic is the only way to specify the Pubsub source. Explicitly specifying the subscription
@@ -123,12 +141,32 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
 
   @Override
   public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return
+    PCollectionTuple rowsWithDlq =
         PBegin
             .in(pipeline)
             .apply("readFromPubsub", readMessagesWithAttributes())
-            .apply("parseMessageToRow", PubsubMessageToRow.forSchema(getSchema()))
-            .setCoder(getSchema().getRowCoder());
+            .apply("parseMessageToRow", createParserParDo());
+
+    if (useDlq()) {
+      rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());
+    }
+
+    return rowsWithDlq.get(MAIN_TAG).setCoder(getSchema().getRowCoder());
+  }
+
+  private ParDo.MultiOutput<PubsubMessage, Row> createParserParDo() {
+    return
+        ParDo
+            .of(PubsubMessageToRow
+                    .builder()
+                    .messageSchema(getSchema())
+                    .useDlq(getDeadLetterQueue() != null)
+                    .build())
+            .withOutputTags(
+                MAIN_TAG,
+                useDlq()
+                    ? TupleTagList.of(DLQ_TAG)
+                    : TupleTagList.empty());
   }
 
   private PubsubIO.Read<PubsubMessage> readMessagesWithAttributes() {
@@ -141,6 +179,16 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
         : read.withTimestampAttribute(getTimestampAttribute());
   }
 
+  private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
+    PubsubIO.Write<PubsubMessage> write = PubsubIO
+        .writeMessages()
+        .to(getDeadLetterQueue());
+
+    return (getTimestampAttribute() == null)
+        ? write
+        : write.withTimestampAttribute(getTimestampAttribute());
+  }
+
   @Override
   public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     throw new UnsupportedOperationException("Writing to a Pubsub topic is not supported");
@@ -150,6 +198,7 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
   abstract static class Builder {
     abstract Builder setSchema(Schema schema);
     abstract Builder setTimestampAttribute(String timestampAttribute);
+    abstract Builder setDeadLetterQueue(String deadLetterQueue);
     abstract Builder setTopic(String topic);
 
     abstract PubsubIOJsonTable build();
