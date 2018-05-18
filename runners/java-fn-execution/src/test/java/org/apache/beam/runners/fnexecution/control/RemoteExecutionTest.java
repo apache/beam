@@ -147,9 +147,7 @@ public class RemoteExecutionTest implements Serializable {
   @After
   public void tearDown() throws Exception {
     controlServer.close();
-    // TODO: Have the state server close properly. The state server shutdown takes a long time
-    // because the Java SDK harness does not properly hang up.
-    // stateServer.close();
+    stateServer.close();
     dataServer.close();
     loggingServer.close();
     controlClient.close();

@@ -69,7 +69,9 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
 
   @Override
   public StreamObserver<StateRequest> state(StreamObserver<StateResponse> responseObserver) {
-    return new Inbound(responseObserver);
+    Inbound rval = new Inbound(responseObserver);
+    clients.add(rval);
+    return rval;
   }
 
   @Override
