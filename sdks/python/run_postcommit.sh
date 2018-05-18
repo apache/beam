@@ -56,8 +56,8 @@ echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
   --attr $1 \
   --nocapture \
-  --processes=4 \
-  --process-timeout=1800 \
+  --processes=8 \
+  --process-timeout=2000 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
