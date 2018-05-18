@@ -48,8 +48,8 @@ import fmt "fmt"
 import math "math"
 import org_apache_beam_model_pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 import org_apache_beam_model_pipeline_v11 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-import google_protobuf1 "github.com/golang/protobuf/ptypes/timestamp"
-import google_protobuf2 "github.com/golang/protobuf/ptypes/wrappers"
+import google_protobuf2 "github.com/golang/protobuf/ptypes/timestamp"
+import google_protobuf3 "github.com/golang/protobuf/ptypes/wrappers"
 
 import (
 	context "golang.org/x/net/context"
@@ -218,9 +218,7 @@ func (m *InstructionRequest) String() string            { return proto.CompactTe
 func (*InstructionRequest) ProtoMessage()               {}
 func (*InstructionRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
-type isInstructionRequest_Request interface {
-	isInstructionRequest_Request()
-}
+type isInstructionRequest_Request interface{ isInstructionRequest_Request() }
 
 type InstructionRequest_Register struct {
 	Register *RegisterRequest `protobuf:"bytes,1000,opt,name=register,oneof"`
@@ -421,9 +419,7 @@ func (m *InstructionResponse) String() string            { return proto.CompactT
 func (*InstructionResponse) ProtoMessage()               {}
 func (*InstructionResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
-type isInstructionResponse_Response interface {
-	isInstructionResponse_Response()
-}
+type isInstructionResponse_Response interface{ isInstructionResponse_Response() }
 
 type InstructionResponse_Register struct {
 	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,oneof"`
@@ -761,7 +757,7 @@ type BundleSplit_Application struct {
 	// represented by invoking this Application and its downstream applications.
 	// The sum of fraction_of_work between all primary_roots and residual_roots
 	// must add up to approximately 1.0.
-	FractionOfWork *google_protobuf2.DoubleValue `protobuf:"bytes,5,opt,name=fraction_of_work,json=fractionOfWork" json:"fraction_of_work,omitempty"`
+	FractionOfWork *google_protobuf3.DoubleValue `protobuf:"bytes,5,opt,name=fraction_of_work,json=fractionOfWork" json:"fraction_of_work,omitempty"`
 }
 
 func (m *BundleSplit_Application) Reset()                    { *m = BundleSplit_Application{} }
@@ -797,7 +793,7 @@ func (m *BundleSplit_Application) GetOutputWatermarks() map[string]int64 {
 	return nil
 }
 
-func (m *BundleSplit_Application) GetFractionOfWork() *google_protobuf2.DoubleValue {
+func (m *BundleSplit_Application) GetFractionOfWork() *google_protobuf3.DoubleValue {
 	if m != nil {
 		return m.FractionOfWork
 	}
@@ -1081,9 +1077,7 @@ func (m *Metrics_User) String() string            { return proto.CompactTextStri
 func (*Metrics_User) ProtoMessage()               {}
 func (*Metrics_User) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11, 1} }
 
-type isMetrics_User_Data interface {
-	isMetrics_User_Data()
-}
+type isMetrics_User_Data interface{ isMetrics_User_Data() }
 
 type Metrics_User_CounterData_ struct {
 	CounterData *Metrics_User_CounterData `protobuf:"bytes,1001,opt,name=counter_data,json=counterData,oneof"`
@@ -1317,7 +1311,7 @@ func (m *Metrics_User_DistributionData) GetMax() int64 {
 // Data associated with a Gauge metric.
 type Metrics_User_GaugeData struct {
 	Value     int64                       `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
-	Timestamp *google_protobuf1.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
+	Timestamp *google_protobuf2.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
 }
 
 func (m *Metrics_User_GaugeData) Reset()                    { *m = Metrics_User_GaugeData{} }
@@ -1332,7 +1326,7 @@ func (m *Metrics_User_GaugeData) GetValue() int64 {
 	return 0
 }
 
-func (m *Metrics_User_GaugeData) GetTimestamp() *google_protobuf1.Timestamp {
+func (m *Metrics_User_GaugeData) GetTimestamp() *google_protobuf2.Timestamp {
 	if m != nil {
 		return m.Timestamp
 	}
@@ -1381,7 +1375,7 @@ type ProcessBundleSplitRequest struct {
 	// This is a hint and the value is approximate.
 	//
 	// The value is relative to the current scope of work of the bundle.
-	FractionOfRemainder *google_protobuf2.DoubleValue `protobuf:"bytes,2,opt,name=fraction_of_remainder,json=fractionOfRemainder" json:"fraction_of_remainder,omitempty"`
+	FractionOfRemainder *google_protobuf3.DoubleValue `protobuf:"bytes,2,opt,name=fraction_of_remainder,json=fractionOfRemainder" json:"fraction_of_remainder,omitempty"`
 }
 
 func (m *ProcessBundleSplitRequest) Reset()                    { *m = ProcessBundleSplitRequest{} }
@@ -1396,7 +1390,7 @@ func (m *ProcessBundleSplitRequest) GetInstructionReference() string {
 	return ""
 }
 
-func (m *ProcessBundleSplitRequest) GetFractionOfRemainder() *google_protobuf2.DoubleValue {
+func (m *ProcessBundleSplitRequest) GetFractionOfRemainder() *google_protobuf3.DoubleValue {
 	if m != nil {
 		return m.FractionOfRemainder
 	}
@@ -1506,9 +1500,7 @@ func (m *StateRequest) String() string            { return proto.CompactTextStri
 func (*StateRequest) ProtoMessage()               {}
 func (*StateRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
-type isStateRequest_Request interface {
-	isStateRequest_Request()
-}
+type isStateRequest_Request interface{ isStateRequest_Request() }
 
 type StateRequest_Get struct {
 	Get *StateGetRequest `protobuf:"bytes,1000,opt,name=get,oneof"`
@@ -1692,9 +1684,7 @@ func (m *StateResponse) String() string            { return proto.CompactTextStr
 func (*StateResponse) ProtoMessage()               {}
 func (*StateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
-type isStateResponse_Response interface {
-	isStateResponse_Response()
-}
+type isStateResponse_Response interface{ isStateResponse_Response() }
 
 type StateResponse_Get struct {
 	Get *StateGetResponse `protobuf:"bytes,1000,opt,name=get,oneof"`
@@ -1867,9 +1857,7 @@ func (m *StateKey) String() string            { return proto.CompactTextString(m
 func (*StateKey) ProtoMessage()               {}
 func (*StateKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
-type isStateKey_Type interface {
-	isStateKey_Type()
-}
+type isStateKey_Type interface{ isStateKey_Type() }
 
 type StateKey_Runner_ struct {
 	Runner *StateKey_Runner `protobuf:"bytes,1,opt,name=runner,oneof"`
@@ -2220,7 +2208,7 @@ type LogEntry struct {
 	// (Required) The severity of the log statement.
 	Severity LogEntry_Severity_Enum `protobuf:"varint,1,opt,name=severity,enum=org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum" json:"severity,omitempty"`
 	// (Required) The time at which this log statement occurred.
-	Timestamp *google_protobuf1.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
+	Timestamp *google_protobuf2.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
 	// (Required) A human readable message.
 	Message string `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
 	// (Optional) An optional trace of the functions involved. For example, in
@@ -2256,7 +2244,7 @@ func (m *LogEntry) GetSeverity() LogEntry_Severity_Enum {
 	return LogEntry_Severity_UNSPECIFIED
 }
 
-func (m *LogEntry) GetTimestamp() *google_protobuf1.Timestamp {
+func (m *LogEntry) GetTimestamp() *google_protobuf2.Timestamp {
 	if m != nil {
 		return m.Timestamp
 	}
