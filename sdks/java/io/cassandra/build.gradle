@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -31,6 +31,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
+  compileOnly library.java.findbugs_annotations
   shadow "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"
   shadow "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_version"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
@@ -39,4 +40,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
+  testCompileOnly library.java.findbugs_annotations
 }
