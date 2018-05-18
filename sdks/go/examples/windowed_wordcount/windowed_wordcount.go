@@ -42,13 +42,13 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/examples/windowed_wordcount/wordcount"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/test/integration/wordcount"
 )
 
 var (

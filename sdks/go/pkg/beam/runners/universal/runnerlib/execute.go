@@ -48,19 +48,20 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 
 	// (2) Stage artifacts.
 
-	if opt.Worker == "" {
+	bin := opt.Worker
+	if bin == "" {
 		worker, err := BuildTempWorkerBinary(ctx)
 		if err != nil {
 			return "", err
 		}
 		defer os.Remove(worker)
 
-		opt.Worker = worker
+		bin = worker
 	} else {
-		log.Infof(ctx, "Using specified worker binary: '%v'", opt.Worker)
+		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}
 
-	token, err := Stage(ctx, prepID, artifactEndpoint, opt.Worker)
+	token, err := Stage(ctx, prepID, artifactEndpoint, bin)
 	if err != nil {
 		return "", err
 	}
