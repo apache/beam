@@ -40,7 +40,7 @@ import fmt "fmt"
 import math "math"
 import org_apache_beam_model_pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 import org_apache_beam_model_pipeline_v11 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-import google_protobuf1 "github.com/golang/protobuf/ptypes/struct"
+import google_protobuf2 "github.com/golang/protobuf/ptypes/struct"
 
 import (
 	context "golang.org/x/net/context"
@@ -147,7 +147,7 @@ func (JobState_Enum) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, 
 // Throws error UNKNOWN for all other issues
 type PrepareJobRequest struct {
 	Pipeline        *org_apache_beam_model_pipeline_v1.Pipeline `protobuf:"bytes,1,opt,name=pipeline" json:"pipeline,omitempty"`
-	PipelineOptions *google_protobuf1.Struct                    `protobuf:"bytes,2,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
+	PipelineOptions *google_protobuf2.Struct                    `protobuf:"bytes,2,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
 	JobName         string                                      `protobuf:"bytes,3,opt,name=job_name,json=jobName" json:"job_name,omitempty"`
 }
 
@@ -163,7 +163,7 @@ func (m *PrepareJobRequest) GetPipeline() *org_apache_beam_model_pipeline_v1.Pip
 	return nil
 }
 
-func (m *PrepareJobRequest) GetPipelineOptions() *google_protobuf1.Struct {
+func (m *PrepareJobRequest) GetPipelineOptions() *google_protobuf2.Struct {
 	if m != nil {
 		return m.PipelineOptions
 	}
@@ -396,9 +396,7 @@ func (m *JobMessagesResponse) String() string            { return proto.CompactT
 func (*JobMessagesResponse) ProtoMessage()               {}
 func (*JobMessagesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
-type isJobMessagesResponse_Response interface {
-	isJobMessagesResponse_Response()
-}
+type isJobMessagesResponse_Response interface{ isJobMessagesResponse_Response() }
 
 type JobMessagesResponse_MessageResponse struct {
 	MessageResponse *JobMessage `protobuf:"bytes,1,opt,name=message_response,json=messageResponse,oneof"`
