@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import com.google.common.collect.ImmutableMap;
@@ -106,7 +107,11 @@ public class MongoDBIOIT {
   }
 
   @AfterClass
-  public static void tearDown() {
+  public static void tearDown() throws Exception {
+    executeWithRetry(MongoDBIOIT::dropDatabase);
+  }
+
+  public static void dropDatabase() throws Exception {
     new MongoClient(options.getMongoDBHostName())
         .getDatabase(options.getMongoDBDatabaseName())
         .drop();
