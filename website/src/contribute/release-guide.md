@@ -158,7 +158,7 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Verify that a Release Build Works
 
-From a new workspace, run `git clean -fdx` to clean, and then `./gradlew -PisRelease build` to ensure that the build processes necessary for release are in good shape.
+From a new workspace, run `git clean -fdx` to clean, and then `./gradlew -PisRelease build --no-parallel` to ensure that the build processes necessary for release are in good shape.
 
 ### Update and Verify Javadoc
 
