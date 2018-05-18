@@ -21,6 +21,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
@@ -60,9 +61,12 @@ public class SerializableConfiguration implements Externalizable {
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     String className = in.readUTF();
     try {
-      conf = (Configuration) Class.forName(className).newInstance();
+      conf = (Configuration) Class.forName(className).getDeclaredConstructor().newInstance();
       conf.readFields(in);
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw new IOException("Unable to create configuration: " + e);
     }
   }
