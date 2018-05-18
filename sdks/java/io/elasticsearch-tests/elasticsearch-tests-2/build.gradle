@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -45,4 +45,5 @@ dependencies {
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
   testCompile library.java.guava
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testCompileOnly library.java.findbugs_annotations
 }
