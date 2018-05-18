@@ -196,9 +196,7 @@ func (m *PutArtifactRequest) String() string            { return proto.CompactTe
 func (*PutArtifactRequest) ProtoMessage()               {}
 func (*PutArtifactRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{7} }
 
-type isPutArtifactRequest_Content interface {
-	isPutArtifactRequest_Content()
-}
+type isPutArtifactRequest_Content interface{ isPutArtifactRequest_Content() }
 
 type PutArtifactRequest_Metadata struct {
 	Metadata *ArtifactMetadata `protobuf:"bytes,1,opt,name=metadata,oneof"`
