@@ -71,24 +71,6 @@ cdef inline int64_t get_nsec_time() nogil:
 
 cdef class StateSampler(object):
   """Tracks time spent in states during pipeline execution."""
-  cdef int _sampling_period_ms
-  cdef int _sampling_period_ms_start
-  cdef double _sampling_period_ratio
-
-  cdef list scoped_states_by_index
-
-  cdef public bint started
-  cdef public bint finished
-  cdef object sampling_thread
-
-  # This lock guards members that are shared between threads, specificaly
-  # finished, scoped_states_by_index, and the nsecs field of each state therein.
-  cdef pythread.PyThread_type_lock lock
-
-  cdef public int64_t state_transition_count
-  cdef public int64_t time_since_transition
-
-  cdef int32_t current_state_index
 
   def __init__(self,
                sampling_period_ms,
