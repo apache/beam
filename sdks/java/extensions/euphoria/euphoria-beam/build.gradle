@@ -31,11 +31,9 @@ dependencies {
     shadow 'com.google.code.findbugs:annotations:3.0.1'
     testCompile project(':beam-sdks-java-extensions-euphoria-operator-testkit')
     testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-    //testCompile project(':beam-runners-direct-java')
+    testCompile project(':beam-runners-direct-java')
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
-    testCompile "org.apache.beam:beam-runners-direct-java:2.4.0"
-
 }
 
 test.testLogging.showStandardStreams = true
