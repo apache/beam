@@ -26,7 +26,6 @@ import static org.hamcrest.Matchers.lessThan;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -48,14 +47,14 @@ public class DockerCommandTest {
 
   @Test
   public void helloWorld() throws Exception {
-    DockerCommand docker = getWrapper();
+    DockerCommand docker = DockerCommand.getDefault();
     String container = docker.runImage("hello-world", Collections.emptyList());
     System.out.printf("Started container: %s%n", container);
   }
 
   @Test
   public void killContainer() throws Exception {
-    DockerCommand docker = getWrapper();
+    DockerCommand docker = DockerCommand.getDefault();
     String container = docker.runImage("debian", Arrays.asList("/bin/bash", "-c", "sleep 60"));
     Stopwatch stopwatch = Stopwatch.createStarted();
     docker.killContainer(container);
@@ -68,7 +67,7 @@ public class DockerCommandTest {
 
   @Test
   public void capturesErrorOutput() throws Exception {
-    DockerCommand docker = getWrapper();
+    DockerCommand docker = DockerCommand.getDefault();
     thrown.expect(instanceOf(IOException.class));
     thrown.expectMessage(containsString("Error response from daemon"));
     String badImageName = "this-image-should-hopefully-never-exist";
@@ -78,7 +77,4 @@ public class DockerCommandTest {
     Assert.fail(String.format("Container creation for %s should have failed", badImageName));
   }
 
-  private static DockerCommand getWrapper() {
-    return DockerCommand.forExecutable("docker", Duration.ofMillis(100_000));
-  }
 }

@@ -23,7 +23,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
@@ -32,6 +31,8 @@ import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,15 +45,34 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(DockerEnvironmentFactory.class);
 
+  /**
+   * Returns a {@link DockerEnvironmentFactory} for the provided {@link GrpcFnServer servers} using
+   * the default {@link DockerCommand} and {@link IdGenerators}.
+   */
   public static DockerEnvironmentFactory forServices(
+      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      ControlClientPool.Source clientSource) {
+    return forServicesWithDocker(
+        DockerCommand.getDefault(),
+        controlServiceServer,
+        loggingServiceServer,
+        retrievalServiceServer,
+        provisioningServiceServer,
+        clientSource,
+        IdGenerators.incrementingLongs());
+  }
+
+  static DockerEnvironmentFactory forServicesWithDocker(
       DockerCommand docker,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
-      // TODO: Refine this to IdGenerator when we determine where that should live.
-      Supplier<String> idGenerator) {
+      IdGenerator idGenerator) {
     return new DockerEnvironmentFactory(
         docker,
         controlServiceServer,
@@ -68,7 +88,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
 
   private DockerEnvironmentFactory(
@@ -77,7 +97,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
     this.docker = docker;
     this.controlServiceServer = controlServiceServer;
@@ -91,7 +111,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
-    String workerId = idGenerator.get();
+    String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
     Path workerPersistentDirectory = Files.createTempDirectory("worker_persistent_directory");
