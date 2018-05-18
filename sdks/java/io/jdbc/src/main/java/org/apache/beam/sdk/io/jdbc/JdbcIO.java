@@ -672,7 +672,7 @@ public class JdbcIO {
      * @param batchSize maximum batch size in number of statements
      */
     public Write<T> withBatchSize(long batchSize) {
-      checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
+      checkArgument(batchSize > 0, "batchSize must be > 0, but was %s", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
     }
 
