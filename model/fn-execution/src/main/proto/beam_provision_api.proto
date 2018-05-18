@@ -54,7 +54,10 @@ message ProvisionInfo {
     string job_id = 1;
     // (required) The job name.
     string job_name = 2;
-    // (required) The worker ID.
+    // (required) The worker ID. Often this will be the hostname.
+    //
+    // This is independent of the id passed to the SDK harness via the 'id'
+    // argument in the Beam container contract.
     string worker_id = 5;
 
     // (required) Pipeline options. For non-template jobs, the options are
