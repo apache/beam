@@ -22,10 +22,13 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,6 +56,11 @@ import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
+import org.apache.beam.runners.fnexecution.state.GrpcStateService;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandlerFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -66,10 +74,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,7 +96,9 @@ import org.junit.runners.JUnit4;
 public class RemoteExecutionTest implements Serializable {
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
+  private transient GrpcFnServer<GrpcStateService> stateServer;
   private transient GrpcFnServer<GrpcLoggingService> loggingServer;
+  private transient GrpcStateService stateDelegator;
   private transient SdkHarnessClient controlClient;
 
   private transient ExecutorService serverExecutor;
@@ -102,6 +116,10 @@ public class RemoteExecutionTest implements Serializable {
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
+    stateDelegator = GrpcStateService.create();
+    stateServer =
+        GrpcFnServer.allocatePortAndCreateFor(
+            stateDelegator, serverFactory);
 
     ControlClientPool clientPool = MapControlClientPool.create();
     controlServer =
@@ -129,6 +147,9 @@ public class RemoteExecutionTest implements Serializable {
   @After
   public void tearDown() throws Exception {
     controlServer.close();
+    // TODO: Have the state server close properly. The state server shutdown takes a long time
+    // because the Java SDK harness does not properly hang up.
+    // stateServer.close();
     dataServer.close();
     loggingServer.close();
     controlClient.close();
@@ -206,9 +227,119 @@ public class RemoteExecutionTest implements Serializable {
     }
   }
 
+  @Test
+  public void testExecutionWithSideInput() throws Exception {
+    Pipeline p = Pipeline.create();
+    PCollection<String> input = p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], String>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {
+                    ctxt.output("zero");
+                    ctxt.output("one");
+                    ctxt.output("two");
+                  }
+                })).setCoder(StringUtf8Coder.of());
+    PCollectionView<Iterable<String>> view =
+        input.apply("createSideInput", View.asIterable());
+
+    input
+        .apply("readSideInput", ParDo.of(new DoFn<String, KV<String, String>>() {
+          @ProcessElement
+          public void processElement(ProcessContext context) {
+            for (String value : context.sideInput(view)) {
+              context.output(KV.of(context.element(), value));
+            }
+          }
+        }).withSideInputs(view))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    Components components = pipelineProto.getComponents();
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    Optional<ExecutableStage> optionalStage = Iterables.tryFind(
+        fused.getFusedStages(),
+        (ExecutableStage stage) -> !stage.getSideInputs().isEmpty());
+    checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
+    ExecutableStage stage = optionalStage.get();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "test_stage",
+            stage,
+            dataServer.getApiServiceDescriptor(),
+            stateServer.getApiServiceDescriptor());
+    // TODO: This cast is nonsense
+    RemoteInputDestination<WindowedValue<byte[]>> remoteDestination =
+        (RemoteInputDestination<WindowedValue<byte[]>>)
+            (RemoteInputDestination) descriptor.getRemoteInputDestination();
+
+    BundleProcessor<byte[]> processor = controlClient.getProcessor(
+        descriptor.getProcessBundleDescriptor(), remoteDestination, stateDelegator);
+    Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
+    }
+
+    Iterable<byte[]> sideInputData = Arrays.asList(
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forMultimapSideInputHandlerFactory(
+            descriptor,
+            new MultimapSideInputHandlerFactory() {
+              @Override
+              public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
+                  String pTransformId, String sideInputId, Coder<K> keyCoder, Coder<V> valueCoder,
+                  Coder<W> windowCoder) {
+                return new MultimapSideInputHandler<K, V, W>() {
+                  @Override
+                  public Iterable<V> get(K key, W window) {
+                    return (Iterable) sideInputData;
+                  }
+                };
+              }
+            });
+
+    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers, stateRequestHandler)) {
+      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(
+          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(
+          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+    }
+    for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
+      assertThat(
+          windowedValues,
+          containsInAnyOrder(
+              WindowedValue.valueInGlobalWindow(kvBytes("X", "A")),
+              WindowedValue.valueInGlobalWindow(kvBytes("X", "B")),
+              WindowedValue.valueInGlobalWindow(kvBytes("X", "C")),
+              WindowedValue.valueInGlobalWindow(kvBytes("Y", "A")),
+              WindowedValue.valueInGlobalWindow(kvBytes("Y", "B")),
+              WindowedValue.valueInGlobalWindow(kvBytes("Y", "C"))));
+    }
+  }
+
   private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {
     return KV.of(
         CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
         CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
+  }
+
+  private KV<byte[], byte[]> kvBytes(String key, String value) throws CoderException {
+    return KV.of(
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), value));
   }
 }
