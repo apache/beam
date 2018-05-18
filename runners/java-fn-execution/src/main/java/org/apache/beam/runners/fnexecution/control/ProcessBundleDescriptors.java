@@ -57,10 +57,22 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 
-/** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
+/**
+ * Utility methods for creating {@link ProcessBundleDescriptor} instances.
+ */
 // TODO: Rename to ExecutableStages?
 public class ProcessBundleDescriptors {
 
+  /**
+   * Note that the {@link ProcessBundleDescriptor} is constructed by:
+   * <ul>
+   *   <li>Adding gRPC read and write nodes wiring them to the specified data endpoint.</li>
+   *   <li>Setting the state {@link ApiServiceDescriptor} to the specified state endpoint.</li>
+   *   <li>Modifying the coder on PCollections that are accessed as side inputs to be length
+   *   prefixed making them binary compatible with the coder chosen when that side input is
+   *   materialized.</li>
+   * </ul>
+   */
   public static ExecutableProcessBundleDescriptor fromExecutableStage(
       String id,
       ExecutableStage stage,
@@ -205,8 +217,6 @@ public class ProcessBundleDescriptors {
               components.getPcollectionsOrThrow(pCollectionId).getCoderId(),
               components,
               false);
-      String wireCoderId =
-          addWireCoder(sideInputReference.collection(), components, bundleDescriptorBuilder);
       String lengthPrefixedSideInputCoderId = SyntheticComponents.uniqueId(
           String.format(
               "fn/side_input/%s",
@@ -250,7 +260,7 @@ public class ProcessBundleDescriptors {
   }
 
   /**
-   * A container type storing references to the key, value, and window coder used when
+   * A container type storing references to the key, value, and window {@link Coder} used when
    * handling multimap side input state requests.
    */
   @AutoValue
@@ -300,11 +310,18 @@ public class ProcessBundleDescriptors {
         RemoteInputDestination<WindowedValue<?>> inputDestination,
         Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders,
         Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs) {
+      ImmutableTable.Builder copyOfMultimapSideInputSpecs = ImmutableTable.builder();
+      for (Map.Entry<String, Map<String, MultimapSideInputSpec>> outer
+          : multimapSideInputSpecs.entrySet()) {
+        for (Map.Entry<String, MultimapSideInputSpec> inner : outer.getValue().entrySet()) {
+          copyOfMultimapSideInputSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
+        }
+      }
       return new AutoValue_ProcessBundleDescriptors_ExecutableProcessBundleDescriptor(
           descriptor,
           inputDestination,
           Collections.unmodifiableMap(outputTargetCoders),
-          multimapSideInputSpecs);
+          copyOfMultimapSideInputSpecs.build().rowMap());
     }
 
     public abstract ProcessBundleDescriptor getProcessBundleDescriptor();

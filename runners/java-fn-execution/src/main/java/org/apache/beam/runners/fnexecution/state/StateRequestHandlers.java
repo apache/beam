@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -49,7 +50,10 @@ public class StateRequestHandlers {
 
   /**
    * A handler for multimap side inputs.
+   *
+   * <p>Note that this handler is expected to be thread safe as it will be invoked concurrently.
    */
+  @ThreadSafe
   public interface MultimapSideInputHandler<K, V, W extends BoundedWindow> {
     /**
      * Returns an {@link Iterable} of values representing the side input for the given key and
@@ -62,7 +66,10 @@ public class StateRequestHandlers {
 
   /**
    * A factory which constructs {@link MultimapSideInputHandler}s.
+   *
+   * <p>Note that this factory should be thread safe because it will be invoked concurrently.
    */
+  @ThreadSafe
   public interface MultimapSideInputHandlerFactory {
 
     /**
@@ -99,7 +106,10 @@ public class StateRequestHandlers {
 
   /**
    * A handler for bag user state.
+   *
+   * <p>Note that this handler is expected to be thread safe as it will be invoked concurrently.
    */
+  @ThreadSafe
   public interface BagUserStateHandler<K, V, W extends BoundedWindow> {
     /**
      * Returns an {@link Iterable} of values representing the bag user state for the given key and
@@ -123,7 +133,10 @@ public class StateRequestHandlers {
 
   /**
    * A factory which constructs {@link BagUserStateHandler}s.
+   *
+   * <p>Note that this factory should be thread safe.
    */
+  @ThreadSafe
   public interface BagUserStateHandlerFactory {
     <K, V, W extends BoundedWindow> BagUserStateHandler<K, V, W> forUserState(
         String pTransformId,
@@ -153,13 +166,16 @@ public class StateRequestHandlers {
   }
 
   /**
-   * Returns an adapter which converts a {@link MultimapSideInputHandlerFactory} to
+   * Returns an adapter which converts a {@link MultimapSideInputHandlerFactory} to a
    * {@link StateRequestHandler}.
    *
    * <p>The {@link MultimapSideInputHandlerFactory} is required to handle all multimap side inputs
    * contained within the {@link ExecutableProcessBundleDescriptor}. See
    * {@link ExecutableProcessBundleDescriptor#getMultimapSideInputSpecs} for the set of multimap
    * side inputs that are contained.
+   *
+   * <p>Instances of {@link MultimapSideInputHandler}s returned by the
+   * {@link MultimapSideInputHandlerFactory} are cached.
    */
   public static StateRequestHandler forMultimapSideInputHandlerFactory(
       ExecutableProcessBundleDescriptor processBundleDescriptor,
