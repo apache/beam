@@ -50,6 +50,7 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
   }
 
   @ProcessElement
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void processElement(ProcessContext ctx) throws Exception {
     checkForFailures();
 

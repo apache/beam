@@ -433,6 +433,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         ProducerSpEL.beginTransaction(producer);
       }
 
+      @SuppressWarnings("FutureReturnValueIgnored")
       void sendRecord(TimestampedValue<KV<K, V>> record, Counter sendCounter) {
         try {
           Long timestampMillis = spec.getPublishTimestampFunction() != null
@@ -563,6 +564,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
      * closed if it is stays in cache for more than 1 minute, i.e. not used inside
      * KafkaExactlyOnceSink DoFn for a minute.
      */
+    @SuppressWarnings("FutureReturnValueIgnored")
     private static class ShardWriterCache<K, V> {
 
       static final ScheduledExecutorService SCHEDULED_CLEAN_UP_THREAD =
