@@ -61,12 +61,11 @@ public class ParDoSchemaTest implements Serializable {
         .addInt32Field("integer_field", false)
         .build();
 
-    // TODO: Plumb schemas through Create.java
     PCollection<String> output = pipeline
         .apply(Create.of(pojoList)
-        .withCoder(SchemaCoder.of(schema,
+        .withSchema(schema,
             o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
-            r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field")))))
+            r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
         .apply(ParDo.of(new DoFn<MyPojo, String>() {
           @ProcessElement
           public void process(@Element Row row, OutputReceiver<String> r) {

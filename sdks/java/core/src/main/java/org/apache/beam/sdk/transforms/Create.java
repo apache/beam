@@ -53,10 +53,13 @@ import org.apache.beam.sdk.io.OffsetBasedSource.OffsetBasedReader;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -269,10 +272,21 @@ public class Create<T> {
     }
 
     /**
-     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code
-     * TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects into a
-     * value of type {@code T}. Note that a default coder must be registered for the class described
-     * in the {@code TypeDescriptor<T>}.
+     * Returns a {@link Create.Values} PTransform like this one that uses the given
+     * {@code Schema} to represent objects.
+     */
+    public Values<T> withSchema(
+        Schema schema,
+        SerializableFunction<T, Row> toRowFunction,
+        SerializableFunction<Row, T> fromRowFunction) {
+      return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    }
+
+    /**
+     * Returns a {@link Create.Values} PTransform like this one that uses the given
+     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
+     * objects into a value of type {@code T}. Note that a default coder must be registered for the
+     * class described in the {@code TypeDescriptor<T>}.
      *
      * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use if
      * all elements have the same non-parameterized run-time class, and a default coder is
@@ -519,9 +533,20 @@ public class Create<T> {
 
     /**
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
-     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects
-     * into a value of type {@code T}. Note that a default coder must be registered for the class
-     * described in the {@code TypeDescriptor<T>}.
+     * {@code Schema} to represent objects.
+     */
+    public TimestampedValues<T> withSchema(
+        Schema schema,
+        SerializableFunction<T, Row> toRowFunction,
+        SerializableFunction<Row, T> fromRowFunction) {
+      return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    }
+
+    /**
+     * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
+     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
+     * objects into a value of type {@code T}. Note that a default coder must be registered for the
+     * class described in the {@code TypeDescriptor<T>}.
      *
      * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
      * to use if all elements have the same non-parameterized run-time class, and a default coder is
