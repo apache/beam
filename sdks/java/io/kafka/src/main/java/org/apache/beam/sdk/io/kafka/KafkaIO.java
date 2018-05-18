@@ -1038,6 +1038,7 @@ public class KafkaIO {
       return PDone.in(input.getPipeline());
     }
 
+    @Override
     public void validate(PipelineOptions options) {
       if (isEOS()) {
         String runner = options.getRunner().getName();
