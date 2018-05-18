@@ -51,7 +51,7 @@ The key concepts in the Beam programming model are:
 
 Beam supports multiple language specific SDKs for writing pipelines against the Beam Model.
 
-Currently, this repository contains SDKs for both Java and Python.
+Currently, this repository contains SDKs for Java, Python and Go.
 
 Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
 
@@ -69,7 +69,7 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse
 
 ## Getting Started
 
-Please refer to the Quickstart[[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py)] available on our website.
+Please refer to the Quickstart[[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
 
 If you'd like to build and install the whole project from the source distribution, you may need some additional tools installed
 in your system. In a Debian-based distribution:
@@ -101,4 +101,4 @@ We also have a [contributor's guide](https://beam.apache.org/contribute/contribu
 
 * [Apache Beam](http://beam.apache.org)
 * [Overview](http://beam.apache.org/use/beam-overview/)
-* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py)
+* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)
