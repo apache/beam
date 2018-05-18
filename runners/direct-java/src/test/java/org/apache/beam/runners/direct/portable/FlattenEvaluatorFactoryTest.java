@@ -89,7 +89,7 @@ public class FlattenEvaluatorFactoryTest {
     CommittedBundle<Integer> rightBundle =
         bundleFactory.<Integer>createBundle(right).commit(Instant.now());
 
-    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(bundleFactory, graph);
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(graph, bundleFactory);
     TransformEvaluator<Integer> leftSideEvaluator = factory.forApplication(flatten, leftBundle);
     TransformEvaluator<Integer> rightSideEvaluator = factory.forApplication(flatten, rightBundle);
 
