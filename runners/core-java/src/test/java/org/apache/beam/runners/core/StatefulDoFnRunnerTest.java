@@ -203,6 +203,7 @@ public class StatefulDoFnRunnerTest {
         null,
         Collections.emptyList(),
         mockStepContext,
+        null,
         WINDOWING_STRATEGY);
   }
 

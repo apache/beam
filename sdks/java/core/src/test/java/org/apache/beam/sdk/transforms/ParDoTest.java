@@ -66,6 +66,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
@@ -93,6 +95,7 @@ import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Mean.CountSum;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.ParDoSchemaTest.MyPojo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
@@ -107,6 +110,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -324,6 +328,51 @@ public class ParDoTest implements Serializable {
           r.output(element);
         }
       }
+    }
+  }
+
+  /** Tests for basic {@link ParDo} schema scenarios. */
+  @RunWith(JUnit4.class)
+  public static class ParDoSchemaTest extends SharedTestBase implements Serializable {
+    static class MyPojo {
+      MyPojo(String stringField, Integer integerField) {
+        this.stringField = stringField;
+        this.integerField = integerField;
+      }
+
+      String stringField;
+      Integer integerField;
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testSchemaPipeline() {
+      List<ParDoSchemaTest.MyPojo> pojoList = Lists.newArrayList(
+          new ParDoSchemaTest.MyPojo("a", 1),
+          new ParDoSchemaTest.MyPojo("b", 2),
+          new ParDoSchemaTest.MyPojo("c", 3));
+
+      Schema schema = Schema.builder()
+          .addStringField("string_field", false)
+          .addInt32Field("integer_field", false)
+          .build();
+
+      // TODO: Plumb schemas through Create.java
+      PCollection<String> output = pipeline
+          .apply(Create.of(pojoList)
+              .withCoder(SchemaCoder.of(schema,
+                  o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
+                  r -> new ParDoSchemaTest.MyPojo(r.getString("string_field"),
+                      r.getInt32("integer_field")))))
+          .apply(ParDo.of(new DoFn<ParDoSchemaTest.MyPojo, String>() {
+            @ProcessElement
+            public void process(@Element Row row, OutputReceiver<String> r) {
+              r.output(row.getString(0) + ":" + row.getInt32(1));
+            }
+          }));
+      PAssert.that(output)
+          .containsInAnyOrder("a:1", "b:2", "c:3", "dfdfdfdf");
+      pipeline.run();
     }
   }
 

@@ -84,6 +84,7 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -104,6 +105,7 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -131,6 +133,7 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     // Setting the timer needs the current time, as it is set relative
@@ -159,6 +162,7 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -179,6 +183,7 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -203,6 +208,7 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(windowFn));
 
     Instant currentTime = new Instant(42);
@@ -242,6 +248,7 @@ public class SimpleDoFnRunnerTest {
             new TupleTag<>(),
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -278,6 +285,7 @@ public class SimpleDoFnRunnerTest {
             new TupleTag<>(),
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -315,6 +323,7 @@ public class SimpleDoFnRunnerTest {
             new TupleTag<>(),
             Collections.emptyList(),
             mockStepContext,
+            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
