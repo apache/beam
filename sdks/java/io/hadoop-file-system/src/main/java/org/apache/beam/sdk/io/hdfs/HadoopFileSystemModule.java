@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.hdfs;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -55,10 +54,10 @@ public class HadoopFileSystemModule extends SimpleModule {
   private static class ConfigurationMixin {}
 
   /** A Jackson {@link JsonDeserializer} for Hadoop {@link Configuration} objects. */
-  static class ConfigurationDeserializer extends JsonDeserializer<Configuration> {
+  private static class ConfigurationDeserializer extends JsonDeserializer<Configuration> {
     @Override
     public Configuration deserialize(JsonParser jsonParser,
-        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+        DeserializationContext deserializationContext) throws IOException {
       Map<String, String> rawConfiguration =
           jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
       Configuration configuration = new Configuration(false);
@@ -70,10 +69,10 @@ public class HadoopFileSystemModule extends SimpleModule {
   }
 
   /** A Jackson {@link JsonSerializer} for Hadoop {@link Configuration} objects. */
-  static class ConfigurationSerializer extends JsonSerializer<Configuration> {
+  private static class ConfigurationSerializer extends JsonSerializer<Configuration> {
     @Override
     public void serialize(Configuration configuration, JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+        SerializerProvider serializerProvider) throws IOException {
       Map<String, String> map = new TreeMap<>();
       for (Map.Entry<String, String> entry : configuration) {
         map.put(entry.getKey(), entry.getValue());
