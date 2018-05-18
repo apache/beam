@@ -32,7 +32,6 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,14 +46,15 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   /**
    * Returns a {@link DockerEnvironmentFactory} for the provided {@link GrpcFnServer servers} using
-   * the default {@link DockerCommand} and {@link IdGenerators}.
+   * the default {@link DockerCommand}.
    */
   public static DockerEnvironmentFactory forServices(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      ControlClientPool.Source clientSource) {
+      ControlClientPool.Source clientSource,
+      IdGenerator idGenerator) {
     return forServicesWithDocker(
         DockerCommand.getDefault(),
         controlServiceServer,
@@ -62,7 +62,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         retrievalServiceServer,
         provisioningServiceServer,
         clientSource,
-        IdGenerators.incrementingLongs());
+        idGenerator);
   }
 
   static DockerEnvironmentFactory forServicesWithDocker(
