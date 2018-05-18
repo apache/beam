@@ -359,6 +359,24 @@
       <artifactId>proto-google-common-protos</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.api</groupId>
+      <artifactId>api-common</artifactId>
+      <version>${google-api-common.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.api</groupId>
+      <artifactId>gax</artifactId>
+      <version>1.3.1</version>
+    </dependency>
+
+    <!-- Needed for test rules implemented here, for tests in other projects -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+    </dependency>
+
     <!--  Test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -395,12 +413,6 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
 
