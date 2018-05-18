@@ -29,7 +29,11 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
+
+from __future__ import absolute_import
+
 import threading
+from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
@@ -58,6 +62,9 @@ class MetricKey(object):
   def __eq__(self, other):
     return (self.step == other.step and
             self.metric == other.metric)
+
+  def __hash__(self):
+    return hash((self.step, self.metric))
 
   def __repr__(self):
     return 'MetricKey(step={}, metric={})'.format(
@@ -97,6 +104,9 @@ class MetricResult(object):
     return (self.key == other.key and
             self.committed == other.committed and
             self.attempted == other.attempted)
+
+  def __hash__(self):
+    return hash((self.key, self.committed, self.attempted))
 
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
