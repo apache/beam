@@ -110,7 +110,7 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      @Nullable Coder<InputT> inputCoder,
+      @Nullable Coder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> inputCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new ProcessFnRunner<>(
         simpleRunner(

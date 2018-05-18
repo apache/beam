@@ -120,7 +120,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
-    this. schemaCoder = (inputCoder instanceof SchemaCoder)
+    this. schemaCoder = (inputCoder != null && inputCoder instanceof SchemaCoder)
     ? (SchemaCoder<InputT>) inputCoder : null;
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
