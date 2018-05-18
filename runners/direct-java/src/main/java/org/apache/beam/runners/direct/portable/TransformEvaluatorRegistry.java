@@ -44,8 +44,8 @@ class TransformEvaluatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
 
   static TransformEvaluatorRegistry portableRegistry(
-      Components components,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
+      Components components,
       BundleFactory bundleFactory,
       JobBundleFactory jobBundleFactory,
       StateAndTimerProvider stateAndTimerProvider) {
@@ -53,17 +53,17 @@ class TransformEvaluatorRegistry {
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             .put(
                 PTransformTranslation.IMPULSE_TRANSFORM_URN,
-                new ImpulseEvaluatorFactory(bundleFactory, graph))
+                new ImpulseEvaluatorFactory(graph, bundleFactory))
             .put(
                 PTransformTranslation.FLATTEN_TRANSFORM_URN,
-                new FlattenEvaluatorFactory(bundleFactory, graph))
+                new FlattenEvaluatorFactory(graph, bundleFactory))
             .put(
                 DirectGroupByKey.DIRECT_GBKO_URN,
-                new GroupByKeyOnlyEvaluatorFactory(components, bundleFactory, graph))
+                new GroupByKeyOnlyEvaluatorFactory(graph, components, bundleFactory))
             .put(
                 DirectGroupByKey.DIRECT_GABW_URN,
                 new GroupAlsoByWindowEvaluatorFactory(
-                    bundleFactory, graph, components, stateAndTimerProvider))
+                    graph, components, bundleFactory, stateAndTimerProvider))
             .put(
                 ExecutableStage.URN,
                 new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
