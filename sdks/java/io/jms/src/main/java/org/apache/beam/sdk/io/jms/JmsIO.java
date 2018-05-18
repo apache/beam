@@ -297,7 +297,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read<T> withMaxNumRecords(long maxNumRecords) {
-      checkArgument(maxNumRecords >= 0, "maxNumRecords must be > 0, but was: %d", maxNumRecords);
+      checkArgument(maxNumRecords >= 0, "maxNumRecords must be > 0, but was: %s", maxNumRecords);
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
