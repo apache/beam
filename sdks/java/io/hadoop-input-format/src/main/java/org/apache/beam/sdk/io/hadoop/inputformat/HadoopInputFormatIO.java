@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -234,6 +235,7 @@ public class HadoopInputFormatIO {
     }
 
     /** Reads from the source using the options provided by the given configuration. */
+    @SuppressWarnings("unchecked")
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
       TypeDescriptor<?> inputFormatClass =
@@ -352,6 +354,7 @@ public class HadoopInputFormatIO {
      * coder, if not found in Coder Registry, then check if the type descriptor provided is of type
      * Writable, then WritableCoder is returned, else exception is thrown "Cannot find coder".
      */
+    @SuppressWarnings({"unchecked", "WeakerAccess"})
     public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
       Class classType = typeDesc.getRawType();
       try {
@@ -411,6 +414,7 @@ public class HadoopInputFormatIO {
           null);
     }
 
+    @SuppressWarnings("WeakerAccess")
     protected HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
         Coder<K> keyCoder,
@@ -426,6 +430,7 @@ public class HadoopInputFormatIO {
       this.valueTranslationFunction = valueTranslationFunction;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public SerializableConfiguration getConfiguration() {
       return conf;
     }
@@ -472,15 +477,13 @@ public class HadoopInputFormatIO {
           .stream()
           .map(
               serializableInputSplit -> {
-                HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                    new HadoopInputFormatBoundedSource<>(
-                        conf,
-                        keyCoder,
-                        valueCoder,
-                        keyTranslationFunction,
-                        valueTranslationFunction,
-                        serializableInputSplit);
-                return hifBoundedSource;
+                return new HadoopInputFormatBoundedSource<>(
+                    conf,
+                    keyCoder,
+                    valueCoder,
+                    keyTranslationFunction,
+                    valueTranslationFunction,
+                    serializableInputSplit);
               })
           .collect(Collectors.toList());
     }
@@ -531,6 +534,7 @@ public class HadoopInputFormatIO {
      * Creates instance of InputFormat class. The InputFormat class name is specified in the Hadoop
      * configuration.
      */
+    @SuppressWarnings("WeakerAccess")
     protected void createInputFormatInstance() throws IOException {
       if (inputFormatObj == null) {
         try {
@@ -541,6 +545,7 @@ public class HadoopInputFormatIO {
                   .get()
                   .getClassByName(
                       conf.get().get("mapreduce.job.inputformat.class"))
+                  .getConstructor()
                   .newInstance();
           /*
            * If InputFormat explicitly implements interface {@link Configurable}, then setConf()
@@ -552,7 +557,11 @@ public class HadoopInputFormatIO {
           if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
             ((Configurable) inputFormatObj).setConf(conf.get());
           }
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+        } catch (InstantiationException
+            | IllegalAccessException
+            | ClassNotFoundException
+            | NoSuchMethodException
+            | InvocationTargetException e) {
           throw new IOException("Unable to create InputFormat object: ", e);
         }
       }
@@ -604,13 +613,15 @@ public class HadoopInputFormatIO {
       private final SerializableSplit split;
       private RecordReader<T1, T2> recordReader;
       private volatile boolean doneReading = false;
-      private AtomicLong recordsReturned = new AtomicLong();
+      private final AtomicLong recordsReturned = new AtomicLong();
       // Tracks the progress of the RecordReader.
-      private AtomicDouble progressValue = new AtomicDouble();
-      private transient InputFormat<T1, T2> inputFormatObj;
-      private transient TaskAttemptContext taskAttemptContext;
+      private final AtomicDouble progressValue = new AtomicDouble();
+      private final transient InputFormat<T1, T2> inputFormatObj;
+      private final transient TaskAttemptContext taskAttemptContext;
 
-      private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
+      @SuppressWarnings("unchecked")
+      private HadoopInputFormatReader(
+          HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
           @Nullable SimpleFunction valueTranslationFunction,
           SerializableSplit split,
@@ -696,12 +707,14 @@ public class HadoopInputFormatIO {
 
       /**
        * Returns the serialized output of transformed key or value object.
+       *
        * @throws ClassCastException
        * @throws CoderException
        */
-      private <T, T3> T3 transformKeyOrValue(T input,
-          @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder) throws CoderException,
-          ClassCastException {
+      @SuppressWarnings("unchecked")
+      private <T, T3> T3 transformKeyOrValue(
+          T input, @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder)
+          throws CoderException, ClassCastException {
         T3 output;
         if (null != simpleFunction) {
           output = simpleFunction.apply(input);
@@ -777,9 +790,9 @@ public class HadoopInputFormatIO {
         if (doneReading) {
           return 0;
         }
-        /**
-         * This source does not currently support dynamic work rebalancing, so remaining parallelism
-         * is always 1.
+        /*
+          This source does not currently support dynamic work rebalancing, so remaining parallelism
+          is always 1.
          */
         return 1;
       }
@@ -802,11 +815,12 @@ public class HadoopInputFormatIO {
       this.inputSplit = split;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public InputSplit getSplit() {
       return inputSplit;
     }
 
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException {
       ObjectWritable ow = new ObjectWritable();
       ow.setConf(new Configuration(false));
       ow.readFields(in);
