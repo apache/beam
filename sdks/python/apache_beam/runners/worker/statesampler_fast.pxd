@@ -25,6 +25,8 @@ from libc.stdint cimport int32_t, int64_t
 cdef class StateSampler(object):
   """Tracks time spent in states during pipeline execution."""
   cdef int _sampling_period_ms
+  cdef int _sampling_period_ms_start
+  cdef double _sampling_period_ratio
 
   cdef list scoped_states_by_index
 
