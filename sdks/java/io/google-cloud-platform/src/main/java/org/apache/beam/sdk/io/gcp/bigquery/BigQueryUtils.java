@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableMap;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,11 +74,11 @@ public class BigQueryUtils {
 
   private static final Map<byte[], StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
       ImmutableMap.<byte[], StandardSQLTypeName>builder()
-          .put("DATE".getBytes(), StandardSQLTypeName.DATE)
-          .put("TIME".getBytes(), StandardSQLTypeName.TIME)
-          .put("TIME_WITH_LOCAL_TZ".getBytes(), StandardSQLTypeName.TIME)
-          .put("TS".getBytes(), StandardSQLTypeName.TIMESTAMP)
-          .put("TS_WITH_LOCAL_TZ".getBytes(), StandardSQLTypeName.TIMESTAMP)
+          .put("DATE".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.DATE)
+          .put("TIME".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
+          .put("TIME_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
+          .put("TS".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
+          .put("TS_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
           .build();
 
   /**

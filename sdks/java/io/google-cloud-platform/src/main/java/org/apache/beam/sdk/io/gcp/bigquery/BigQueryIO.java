@@ -398,6 +398,7 @@ public class BigQueryIO {
 
     public static final TableRowParser INSTANCE = new TableRowParser();
 
+    @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
       return BigQueryAvroUtils.convertGenericRecordToTableRow(
           schemaAndRecord.getRecord(),

@@ -175,7 +175,7 @@ class WriteTables<DestinationT>
     }
   }
 
-  private class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
+  private static class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       removeTemporaryFiles(c.element());
