@@ -1182,8 +1182,8 @@ public class BigtableIO {
     public boolean start() throws IOException {
       reader = service.createReader(getCurrentSource());
       boolean hasRecord =
-          reader.start()
-              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey()))
+          (reader.start()
+              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey())))
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
@@ -1199,8 +1199,8 @@ public class BigtableIO {
     @Override
     public boolean advance() throws IOException {
       boolean hasRecord =
-          reader.advance()
-              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey()))
+          (reader.advance()
+              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey())))
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;

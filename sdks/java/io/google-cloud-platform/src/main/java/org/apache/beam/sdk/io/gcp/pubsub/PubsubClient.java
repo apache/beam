@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.DateTime;
 import com.google.common.base.Objects;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.io.Closeable;
 import java.io.IOException;
@@ -127,12 +128,12 @@ public abstract class PubsubClient implements Closeable {
      * must be of the form {@code "projects/" + projectId}.
      */
     ProjectPath(String path) {
-      String[] splits = path.split("/");
+      List<String> splits = Splitter.on('/').splitToList(path);
       checkArgument(
-          splits.length == 2 && "projects".equals(splits[0]),
+          splits.size() == 2 && "projects".equals(splits.get(0)),
           "Malformed project path \"%s\": must be of the form \"projects/\" + <project id>",
           path);
-      this.projectId = splits[1];
+      this.projectId = splits.get(1);
     }
 
     public String getPath() {
@@ -184,13 +185,16 @@ public abstract class PubsubClient implements Closeable {
     private final String subscriptionName;
 
     SubscriptionPath(String path) {
-      String[] splits = path.split("/");
+      List<String> splits = Splitter.on('/').splitToList(path);
       checkState(
-          splits.length == 4 && "projects".equals(splits[0]) && "subscriptions".equals(splits[2]),
+          splits.size() == 4
+              && "projects".equals(splits.get(0))
+              && "subscriptions".equals(splits.get(2)),
           "Malformed subscription path %s: "
-          + "must be of the form \"projects/\" + <project id> + \"subscriptions\"", path);
-      this.projectId = splits[1];
-      this.subscriptionName = splits[3];
+              + "must be of the form \"projects/\" + <project id> + \"subscriptions\"",
+          path);
+      this.projectId = splits.get(1);
+      this.subscriptionName = splits.get(3);
     }
 
     public String getPath() {
@@ -254,15 +258,16 @@ public abstract class PubsubClient implements Closeable {
     }
 
     public String getName() {
-      String[] splits = path.split("/");
-      checkState(splits.length == 4, "Malformed topic path %s", path);
-      return splits[3];
+      List<String> splits = Splitter.on('/').splitToList(path);
+
+      checkState(splits.size() == 4, "Malformed topic path %s", path);
+      return splits.get(3);
     }
 
     public String getV1Beta1Path() {
-      String[] splits = path.split("/");
-      checkState(splits.length == 4, "Malformed topic path %s", path);
-      return String.format("/topics/%s/%s", splits[1], splits[3]);
+      List<String> splits = Splitter.on('/').splitToList(path);
+      checkState(splits.size() == 4, "Malformed topic path %s", path);
+      return String.format("/topics/%s/%s", splits.get(1), splits.get(3));
     }
 
     @Override

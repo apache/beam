@@ -139,7 +139,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /**
    * Timeout for round trip from receiving a message to finally ACKing it back to Pubsub.
    */
-  private static final Duration PROCESSING_TIMEOUT = Duration.standardSeconds(120);
+  private static final Duration PROCESSING_TIMEOUT = Duration.standardMinutes(2);
 
   /**
    * Percentage of ack timeout by which to extend acks when they are near timeout.
