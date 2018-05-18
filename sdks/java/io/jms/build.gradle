@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: JMS"
 ext.summary = """IO to read and write to JMS (Java Messaging Service)
@@ -25,6 +25,7 @@ destinations (queues and topics)."""
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
@@ -38,4 +39,5 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
+  testCompileOnly library.java.findbugs_annotations
 }

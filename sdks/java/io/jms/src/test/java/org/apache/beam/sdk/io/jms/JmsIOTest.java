@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Throwables;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -187,7 +188,7 @@ public class JmsIOTest {
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
     BytesMessage message = session.createBytesMessage();
-    message.writeBytes("This Is A Test".getBytes());
+    message.writeBytes("This Is A Test".getBytes(StandardCharsets.UTF_8));
     producer.send(message);
     producer.close();
     session.close();
@@ -354,7 +355,7 @@ public class JmsIOTest {
 
       byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
 
-      return new String(bytes);
+      return new String(bytes, StandardCharsets.UTF_8);
     }
   }
 
