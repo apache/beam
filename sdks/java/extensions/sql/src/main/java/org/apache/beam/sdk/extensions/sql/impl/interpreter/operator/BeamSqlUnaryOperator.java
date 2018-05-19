@@ -15,29 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-/** Base class for all string unary operators. */
-public abstract class BeamSqlStringUnaryExpression extends BeamSqlExpression {
-  public BeamSqlStringUnaryExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
-    super(operands, outputType);
+/** An operator that is applied to already-evaluated arguments. */
+public interface BeamSqlUnaryOperator extends BeamSqlOperator {
+
+  default BeamSqlPrimitive apply(List<BeamSqlPrimitive> arguments) {
+    checkArgument(arguments.size() == 1, "Unary operator %s received more than one argument", this);
+    return apply(arguments.get(0));
   }
 
-  @Override
-  public boolean accept() {
-    if (operands.size() != 1) {
-      return false;
-    }
-
-    if (!SqlTypeName.CHAR_TYPES.contains(opType(0))) {
-      return false;
-    }
-
-    return true;
+  default boolean accept(List<BeamSqlExpression> arguments) {
+    return arguments.size() == 1 && accept(arguments.get(0));
   }
+
+  boolean accept(BeamSqlExpression argument);
+
+  BeamSqlPrimitive apply(BeamSqlPrimitive argument);
 }

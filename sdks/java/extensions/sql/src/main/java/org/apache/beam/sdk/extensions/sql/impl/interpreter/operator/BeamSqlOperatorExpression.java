@@ -15,27 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-/** 'CHAR_LENGTH' operator. */
-public class BeamSqlCharLengthExpression extends BeamSqlStringUnaryExpression {
-  public BeamSqlCharLengthExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.INTEGER);
+/** A generic expression form for an operator applied to arguments. */
+public class BeamSqlOperatorExpression extends BeamSqlExpression {
+
+  private final BeamSqlOperator operator;
+
+  public BeamSqlOperatorExpression(BeamSqlOperator operator, List<BeamSqlExpression> operands) {
+    super(operands, operator.getOutputType());
+    this.operator = operator;
+  }
+
+  @Override
+  public boolean accept() {
+    return operator.accept(operands);
   }
 
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
-    return BeamSqlPrimitive.of(SqlTypeName.INTEGER, str.length());
+    List<BeamSqlPrimitive> arguments =
+        operands
+            .stream()
+            .map(operand -> operand.evaluate(inputRow, window, correlateEnv))
+            .collect(Collectors.toList());
+
+    return operator.apply(arguments);
   }
 }
