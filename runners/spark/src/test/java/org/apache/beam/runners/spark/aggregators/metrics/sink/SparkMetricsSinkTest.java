@@ -23,9 +23,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
@@ -63,9 +61,8 @@ public class SparkMetricsSinkTest {
   @Rule
   public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
 
-  private static final List<String> WORDS = Arrays
-      .asList("hi there", "hi", "hi sue bob", "hi sue", "", "bob hi");
-  private static final Set<String> EXPECTED_COUNTS = ImmutableSet
+  private static final ImmutableList<String> WORDS = ImmutableList.of("hi there", "hi", "hi sue bob", "hi sue", "", "bob hi");
+  private static final ImmutableSet<String> EXPECTED_COUNTS = ImmutableSet
       .of("hi: 5", "there: 1", "sue: 2", "bob: 2");
 
   @Test

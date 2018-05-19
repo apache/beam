@@ -74,7 +74,7 @@ public class ForceStreamingTest {
   /**
    * Traverses the Pipeline to check if the input is indeed a {@link Read.Unbounded}.
    */
-  private class UnboundedReadDetector extends Pipeline.PipelineVisitor.Defaults {
+  private static class UnboundedReadDetector extends Pipeline.PipelineVisitor.Defaults {
     private boolean isUnbounded = false;
 
     @Override

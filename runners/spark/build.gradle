@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Spark"
 
@@ -53,6 +53,8 @@ test {
 }
 
 dependencies {
+  compileOnly library.java.findbugs_annotations
+  testCompileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")

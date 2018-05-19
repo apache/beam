@@ -83,8 +83,8 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
                 .stream()
                 .anyMatch(
                     debugTransform ->
-                        debugTransform.getNode().equals(node) && debugTransform.isComposite())
-            && shouldDebug(node.getEnclosingNode());
+                            (debugTransform.getNode().equals(node) && debugTransform.isComposite())
+            && shouldDebug(node.getEnclosingNode()));
   }
 
   @Override
