@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
  *
  * pipeline
  *   .apply(...)
- *   .apply(HiveIO.write()
+ *   .apply(HCatalogIO.write()
  *       .withConfigProperties(configProperties)
  *       .withDatabase("default") //optional, assumes default if none specified
  *       .withTable("employee")
