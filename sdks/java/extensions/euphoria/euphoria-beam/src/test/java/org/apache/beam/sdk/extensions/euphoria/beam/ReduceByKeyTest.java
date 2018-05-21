@@ -19,9 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import static org.junit.Assert.assertTrue;
 
-import cz.seznam.euphoria.beam.TestUtils;
-import cz.seznam.euphoria.beam.window.BeamWindowing;
-import java.time.Duration;
+import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
@@ -49,8 +47,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;

@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.beam;
+package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import java.time.Duration;
 import org.apache.beam.sdk.options.PipelineOptions;
