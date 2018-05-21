@@ -12,8 +12,8 @@ public class InputToKvDoFn<InputT, K> extends DoFn<InputT, KV<K, InputT>> {
 
   private final UnaryFunction<InputT, K> keyExtractor;
 
-  public InputToKvDoFn(UnaryFunction<InputT, K> leftKeyExtractor) {
-    this.keyExtractor = leftKeyExtractor;
+  public InputToKvDoFn(UnaryFunction<InputT, K> keyExtractor) {
+    this.keyExtractor = keyExtractor;
   }
 
   @ProcessElement
