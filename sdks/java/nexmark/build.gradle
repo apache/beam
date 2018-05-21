@@ -42,6 +42,7 @@ configurations {
 }
 
 dependencies {
+  compile 'com.google.cloud:google-cloud-bigquery:1.28.0'
   compile library.java.guava
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
