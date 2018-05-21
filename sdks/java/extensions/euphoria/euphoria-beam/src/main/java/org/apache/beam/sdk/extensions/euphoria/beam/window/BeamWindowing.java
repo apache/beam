@@ -57,7 +57,8 @@ public class BeamWindowing<T, BeamWinT extends BoundedWindow> implements
   }
 
   @Override
-  public org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger<UnsupportedWindow> getTrigger() {
+  public org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger<UnsupportedWindow>
+  getTrigger() {
     throw new UnsupportedOperationException(
         "Beam window serves as envelope, it do not contains Euphoria trigger.");
   }
