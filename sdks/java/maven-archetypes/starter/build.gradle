@@ -23,15 +23,6 @@ description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 ext.summary = """A Maven archetype to create a simple starter pipeline to
 get started using the Apache Beam Java SDK."""
 
-task generateAndBuildArchetypeTest(type: Exec) {
-  if (project.hasProperty("maven_home")) {
-    commandLine "${maven_home}/bin/mvn", 'clean', 'install'
-    environment "MAVEN_HOME", "${maven_home}"
-  } else {
-    commandLine 'mvn', 'clean', 'install'
-  }
-}
-
 dependencies {
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
