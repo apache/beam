@@ -15,8 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.beam.window;
+
+import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+
 
 /**
- * {@link cz.seznam.euphoria.core.client.operator.Join} translation centered classes.
+ * Window used as type parameter of {@link BeamWindowing}.
  */
-package cz.seznam.euphoria.beam.join;
+final class UnsupportedWindow extends Window<UnsupportedWindow> {
+
+  private UnsupportedWindow(){
+    //Do not instantiate
+  }
+
+  @Override
+  public int compareTo(UnsupportedWindow o) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long maxTimestamp() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public int hashCode() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return Objects.equals(this, obj);
+  }
+
+
+}

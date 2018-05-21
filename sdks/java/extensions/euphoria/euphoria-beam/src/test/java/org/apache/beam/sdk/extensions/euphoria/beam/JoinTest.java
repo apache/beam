@@ -1,18 +1,18 @@
-package cz.seznam.euphoria.beam;
+package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import static java.util.Arrays.asList;
 
-import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
-import cz.seznam.euphoria.core.client.io.ListDataSink;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.operator.FullJoin;
-import cz.seznam.euphoria.core.client.operator.Join;
-import cz.seznam.euphoria.core.client.operator.LeftJoin;
-import cz.seznam.euphoria.core.client.operator.RightJoin;
-import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.testing.DatasetAssert;
 import java.util.Optional;
+import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FullJoin;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.junit.Test;
 
 /**

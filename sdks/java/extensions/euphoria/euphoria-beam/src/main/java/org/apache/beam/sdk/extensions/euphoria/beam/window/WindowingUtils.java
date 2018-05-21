@@ -1,8 +1,8 @@
-package cz.seznam.euphoria.beam.window;
+package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.operator.WindowWiseOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowWiseOperator;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;

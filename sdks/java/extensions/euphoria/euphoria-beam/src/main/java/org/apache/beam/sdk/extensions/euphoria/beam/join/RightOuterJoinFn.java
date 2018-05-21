@@ -1,19 +1,18 @@
-package cz.seznam.euphoria.beam.join;
+package org.apache.beam.sdk.extensions.euphoria.beam.join;
 
-import cz.seznam.euphoria.beam.SingleValueCollector;
-import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
-import cz.seznam.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.extensions.euphoria.beam.SingleValueCollector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
-
 /**
- * Left outer join implementation of {@link JoinFn}.
+ * Right outer join implementation of {@link JoinFn}.
  */
-public class LeftOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
+public class RightOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, RightT, K, OutputT> {
 
-  public LeftOuterJoinFn(
+  public RightOuterJoinFn(
       BinaryFunctor<LeftT, RightT, OutputT> joiner,
       TupleTag<LeftT> leftTag,
       TupleTag<RightT> rightTag) {
@@ -32,24 +31,22 @@ public class LeftOuterJoinFn<LeftT, RightT, K, OutputT> extends JoinFn<LeftT, Ri
 
     SingleValueCollector<OutputT> outCollector = new SingleValueCollector<>();
 
-    for (LeftT leftValue : leftSideIter) {
-      if (rightSIdeIter.iterator().hasNext()) {
-        for (RightT rightValue : rightSIdeIter) {
+    for (RightT rightValue : rightSIdeIter) {
+      if (leftSideIter.iterator().hasNext()) {
+        for (LeftT leftValue : leftSideIter) {
           joiner.apply(leftValue, rightValue, outCollector);
           c.output(Pair.of(key, outCollector.get()));
         }
       } else {
-          joiner.apply(leftValue, null, outCollector);
-          c.output(Pair.of(key, outCollector.get()));
+        joiner.apply(null, rightValue, outCollector);
+        c.output(Pair.of(key, outCollector.get()));
       }
     }
-
 
   }
 
   @Override
   public String getFnName() {
-    return "::left-outer-join";
+    return "::right-outer-join";
   }
-
 }
