@@ -19,7 +19,25 @@ import groovy.json.JsonOutput
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableSpotless: true)
+applyJavaNature(enableSpotless: true, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  dependencies {
+    include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
+    include(dependency("org.apache.calcite:.*"))
+    include(dependency("org.apache.calcite.avatica:.*"))
+    include(dependency("org.codehaus.janino:.*"))
+  }
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+
+  // Looking up the compiler factory in Calcite depends on having a properties
+  // file in the right location. We package one that is shading compatible
+  // in src/main/resources. Note that if this shaded path changes, that
+  // files name and contents need to be updated as well. TODO, swap to use
+  // getJavaRelocatedPath once the Maven build is no longer also shading this
+  // module.
+  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
+})
 apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
@@ -45,23 +63,25 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  compile "com.alibaba:fastjson:1.2.12"
   compileOnly library.java.findbugs_jsr305
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.commons_csv
+  shadow library.java.commons_lang3
+  shadow library.java.jackson_databind
   shadow library.java.joda_time
+  shadow "com.alibaba:fastjson:1.2.12"
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.mockito_core
-  testCompile library.java.quickcheck_core
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.mockito_core
+  shadowTest library.java.quickcheck_core
 }
 
 // Copy Caclcite templates and our own template into the build directory
@@ -103,26 +123,6 @@ compileJavacc {
   arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
 }
 
-shadowJar {
-  dependencies {
-    include(dependency("org.apache.calcite:.*"))
-    include(dependency("org.apache.calcite.avatica:.*"))
-    include(dependency("org.codehaus.janino:.*"))
-    include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
-  }
-  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-
-  // Looking up the compiler factory in Calcite depends on having a properties
-  // file in the right location. We package one that is shading compatible
-  // in src/main/resources. Note that if this shaded path changes, that
-  // files name and contents need to be updated as well. TODO, swap to use
-  // getJavaRelocatedPath once the Maven build is no longer also shading this
-  // module.
-  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
-}
-
 // Help IntelliJ find the fmpp bits
 idea {
   module {
@@ -149,7 +149,6 @@ task runPojoExample(type: JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }
-
 
 task integrationTest(type: Test) {
   group = "Verification"
