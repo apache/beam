@@ -50,14 +50,13 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /**
  * Tests for {@link UnboundedSourceWrapper}.
  */
-@RunWith(Enclosed.class)
 public class UnboundedSourceWrapperTest {
 
   /**
@@ -520,6 +519,7 @@ public class UnboundedSourceWrapperTest {
   /**
    * Not parameterized tests.
    */
+  @RunWith(JUnit4.class)
   public static class BasicTest {
 
     /**

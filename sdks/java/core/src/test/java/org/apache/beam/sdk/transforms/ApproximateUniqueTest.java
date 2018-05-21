@@ -55,18 +55,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
 
 /**
  * Tests for the ApproximateUnique transform.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    ApproximateUniqueTest.ApproximateUniqueWithDuplicatesTest.class,
-    ApproximateUniqueTest.ApproximateUniqueVariationsTest.class,
-    ApproximateUniqueTest.ApproximateUniqueCombineFnTest.class,
-    ApproximateUniqueTest.ApproximateUniqueMiscTest.class
-})
 public class ApproximateUniqueTest implements Serializable {
   // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 
