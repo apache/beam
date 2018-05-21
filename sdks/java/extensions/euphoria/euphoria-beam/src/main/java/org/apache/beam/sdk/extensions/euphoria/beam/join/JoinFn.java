@@ -31,7 +31,22 @@ public abstract class JoinFn<LeftT, RightT, K, OutputT> extends
   }
 
   @ProcessElement
-  public abstract void processElement(ProcessContext c);
+  public final void processElement(ProcessContext c) {
+
+    KV<K, CoGbkResult> element = c.element();
+    CoGbkResult value = element.getValue();
+    K key = element.getKey();
+
+    Iterable<LeftT> leftSideIter = value.getAll(leftTag);
+    Iterable<RightT> rightSideIter = value.getAll(rightTag);
+
+    doJoin(c, key, value, leftSideIter, rightSideIter);
+  }
+
+  protected abstract void doJoin(
+      ProcessContext c, K key, CoGbkResult value,
+      Iterable<LeftT> leftSideIter,
+      Iterable<RightT> rightSideIter);
 
   public abstract String getFnName();
 }
