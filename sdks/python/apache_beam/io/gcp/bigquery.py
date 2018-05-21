@@ -641,19 +641,44 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     else:
       self.query = self.source.query
 
+  def _parse_query(self):
+      """
+      Parse the query provided to determine the datasetId and Table id.
+
+      The query will have text of the form "FROM `(x).y.z`" or "FROM [(x):y.z]"
+       based on whether legacy or standard sql were provided.
+      """
+      if not self.source.use_legacy_sql:
+          m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
+                       self.source.query)
+      else:
+          m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
+                       self.source.query)
+          if m:
+              projectId = m.group(1)
+              datasetId = m.group(2)
+              tableId = m.group(3)
+          else:
+              raise ValueError("Project not provided, please rewrite the query"
+                               " explicitly declaring the project. i.e. in the"
+                               " format `project.dataset.table` or "
+                               " [project:dataset.table] depending")
+
+      return projectId, datasetId, tableId
+
   def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr is None:
-      # TODO: implement location retrieval for query sources
-      return
-
-    if tr.projectId is None:
-      source_project_id = self.executing_project
+        source_project_id, source_dataset_id, source_table_id = \
+            self._parse_query()
     else:
-      source_project_id = tr.projectId
+        source_dataset_id = tr.datasetId
+        source_table_id = tr.tableId
+        if tr.projectId is None:
+          source_project_id = self.executing_project
+        else:
+          source_project_id = tr.projectId
 
-    source_dataset_id = tr.datasetId
-    source_table_id = tr.tableId
     source_location = self.client.get_table_location(
         source_project_id, source_dataset_id, source_table_id)
     return source_location
