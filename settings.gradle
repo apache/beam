@@ -66,6 +66,8 @@ include "beam-sdks-go-container"
 project(":beam-sdks-go-container").dir = file("sdks/go/container")
 include "beam-sdks-go-examples"
 project(":beam-sdks-go-examples").dir = file("sdks/go/examples")
+include "beam-sdks-go-test"
+project(":beam-sdks-go-test").dir = file("sdks/go/test")
 include "beam-sdks-java-build-tools"
 project(":beam-sdks-java-build-tools").dir = file("sdks/java/build-tools")
 include "beam-sdks-java-container"
