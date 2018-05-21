@@ -157,8 +157,18 @@ task goPreCommit() {
 }
 
 task goPostCommit() {
-  // Same currently as precommit, but duplicated to provide a clearer signal of reliability.
   dependsOn ":goPreCommit"
+  dependsOn ":goIntegrationTests"
+}
+
+task goIntegrationTests() {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', './sdks/go/test/run_integration_tests.sh'
+    }
+  }
+  dependsOn ":beam-sdks-go-test:build"
 }
 
 task pythonPreCommit() {
