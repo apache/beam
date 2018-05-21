@@ -4,7 +4,7 @@ import static java.util.Arrays.asList;
 
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FullJoin;
@@ -42,12 +42,11 @@ public class JoinTest {
 
     ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
 
-    BinaryFunctor<Pair<Integer, String>, Pair<Integer, Integer>, Pair<String, Integer>> joiner =
-        (l, r, c) -> c.collect(Pair.of(l.getSecond(), r.getSecond()));
-
     Join.of(flow.createInput(left), flow.createInput(right))
         .by(Pair::getFirst, Pair::getFirst)
-        .using(joiner)
+        .using(
+            (Pair<Integer, String> l, Pair<Integer, Integer> r, Collector<Pair<String, Integer>> c)
+                -> c.collect(Pair.of(l.getSecond(), r.getSecond())))
         .output()
         .persist(output);
 
@@ -85,13 +84,11 @@ public class JoinTest {
 
     ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
 
-    BinaryFunctor<Pair<Integer, String>, Optional<Pair<Integer, Integer>>, Pair<String, Integer>>
-        joiner = (l, r, c) ->
-        c.collect(Pair.of(l.getSecond(), r.orElse(Pair.of(null, null)).getSecond()));
-
     LeftJoin.of(flow.createInput(left), flow.createInput(right))
         .by(Pair::getFirst, Pair::getFirst)
-        .using(joiner)
+        .using((Pair<Integer, String> l, Optional<Pair<Integer, Integer>> r,
+            Collector<Pair<String, Integer>> c) ->
+            c.collect(Pair.of(l.getSecond(), r.orElse(Pair.of(null, null)).getSecond())))
         .output()
         .persist(output);
 
@@ -131,13 +128,12 @@ public class JoinTest {
 
     ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
 
-    BinaryFunctor<Optional<Pair<Integer, String>>, Pair<Integer, Integer>, Pair<String, Integer>>
-        joiner = (l, r, c) ->
-        c.collect(Pair.of(l.orElse(Pair.of(null, null)).getSecond(), r.getSecond()));
-
     RightJoin.of(flow.createInput(left), flow.createInput(right))
         .by(Pair::getFirst, Pair::getFirst)
-        .using(joiner)
+        .using(
+            (Optional<Pair<Integer, String>> l, Pair<Integer, Integer> r,
+                Collector<Pair<String, Integer>> c) ->
+                c.collect(Pair.of(l.orElse(Pair.of(null, null)).getSecond(), r.getSecond())))
         .output()
         .persist(output);
 
@@ -177,14 +173,11 @@ public class JoinTest {
 
     ListDataSink<Pair<Integer, Pair<String, Integer>>> output = ListDataSink.get();
 
-    BinaryFunctor<
-        Optional<Pair<Integer, String>>, Optional<Pair<Integer, Integer>>, Pair<String, Integer>>
-        joiner = (l, r, c) -> c.collect(Pair.of(
-        l.orElse(Pair.of(null, null)).getSecond(), r.orElse(Pair.of(null, null)).getSecond()));
-
     FullJoin.of(flow.createInput(left), flow.createInput(right))
         .by(Pair::getFirst, Pair::getFirst)
-        .using(joiner)
+        .using((Optional<Pair<Integer, String>> l, Optional<Pair<Integer, Integer>> r,
+            Collector<Pair<String, Integer>> c) -> c.collect(Pair.of(
+            l.orElse(Pair.of(null, null)).getSecond(), r.orElse(Pair.of(null, null)).getSecond())))
         .output()
         .persist(output);
 

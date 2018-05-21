@@ -85,11 +85,11 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     PCollection<ValueT> typedInput = (PCollection<ValueT>) inputPCollection;
     typedInput.setCoder(valueCoder);
 
-    PCollection<KV<K, ValueT>> leftKvInput =
+    PCollection<KV<K, ValueT>> kvInput =
         typedInput.apply(transformName, ParDo.of(new InputToKvDoFn<>(keyExtractor)));
-    leftKvInput.setCoder(KvCoder.of(keyCoder, valueCoder));
+    kvInput.setCoder(KvCoder.of(keyCoder, valueCoder));
 
-    return leftKvInput;
+    return kvInput;
   }
 
   private <K, LeftT, RightT, OutputT, W extends Window<W>> JoinFn<LeftT, RightT, K, OutputT>

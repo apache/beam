@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -48,9 +50,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>>
   doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
 
-    if (operator.getValueComparator() != null) { //TODO Could we even do values sorting ?
-      throw new UnsupportedOperationException("Values sorting is not supported.");
-    }
+    //TODO Could we even do values sorting ?
+    checkState(operator.getValueComparator() == null, "Values sorting is not supported.");
 
     final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
     final UnaryFunction<InputT, V> valueExtractor = operator.getValueExtractor();
@@ -105,6 +106,12 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
       return grouped.apply(
           operator.getName() + "::reduce", ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
     }
+  }
+
+  @Override
+  public boolean canTranslate(ReduceByKey operator) {
+    // translation of sorted values is not supported yet
+    return operator.getValueComparator() == null;
   }
 
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
