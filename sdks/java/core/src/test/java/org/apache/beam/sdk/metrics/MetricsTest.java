@@ -75,7 +75,7 @@ public class MetricsTest implements Serializable {
   }
 
   /** Shared test helpers and setup/teardown. */
-  public abstract static class SharedTestBase {
+  public abstract static class SharedTestBase implements Serializable {
     @Rule
     public final transient ExpectedException thrown = ExpectedException.none();
 
