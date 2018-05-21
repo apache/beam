@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
