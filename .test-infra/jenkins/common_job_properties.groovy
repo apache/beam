@@ -260,6 +260,8 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
+      k8s_get_wait_interval: 10,
       temp_dir: '$WORKSPACE',
       // Use source cloned by Jenkins and not clone it second time (redundantly).
       beam_location: '$WORKSPACE/src',
