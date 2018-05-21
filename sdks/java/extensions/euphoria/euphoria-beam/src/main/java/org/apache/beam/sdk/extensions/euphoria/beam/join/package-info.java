@@ -17,6 +17,6 @@
  */
 
 /**
- * A set of commonly used classes enabling some code reuse.
+ * {@link cz.seznam.euphoria.core.client.operator.Join} translation centered classes.
  */
-package cz.seznam.euphoria.beam.common;
+package org.apache.beam.sdk.extensions.euphoria.beam.join;

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.beam.window;
+package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
