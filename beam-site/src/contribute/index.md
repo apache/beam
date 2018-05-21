@@ -206,6 +206,16 @@ See the [documentation](https://beam.apache.org/documentation/io/testing/#i-o-tr
 
 If you're willing to help in this area, tag the following people in PRs: [@chamikaramj](https://github.com/chamikaramj), [@DariuszAniszewski](https://github.com/dariuszaniszewski), [@lgajowy](https://github.com/lgajowy), [@szewi](https://github.com/szewi), [@kkucharc](https://github.com/kkucharc) 
 
+### Euphoria Java 8 DSL
+
+Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at [WordCount example]({{ site.baseurl
+}}/documentation/sdks/java/euphoria/#wordcount-example).
+
+- Feature branch: [dsl-euphoria](https://github.com/apache/beam/tree/dsl-euphoria)
+- JIRA: [dsl-euphoria](https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900) 
+- Contact: [David Moravek](mailto:david.moravek@gmail.com)
+
+
 ## Stale pull requests
 
 The community will close stale pull requests in order to keep the project
