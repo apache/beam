@@ -655,8 +655,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       try:
         return mg.group(1), mg.group(2), mg.group(3)
       except IndexError:
-        raise ValueError("Project not provided, please provide it as an"
-                         " argument to the class or in the query explicitly.")
+        return None, None, None  # No location, not a breaking change
 
   def _parse_query(self):
     """
