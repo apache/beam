@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.fn.stream;
 
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.collection.IsCollectionWithSize.*;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -167,6 +167,7 @@ public class DataStreamsTest {
     }
   }
 
+  /** Tests for {@link ElementDelimitedOutputStream delimited streams}. */
   @RunWith(JUnit4.class)
   public static class ElementDelimitedOutputStreamTest {
     @Test
