@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import java.util.IdentityHashMap;
-import java.util.Map;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import java.util.Collection;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.BeamWriteSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
@@ -44,8 +46,10 @@ import org.joda.time.Duration;
  */
 class FlowTranslator {
 
-  private static final Map<Class, OperatorTranslator> translators = new IdentityHashMap<>();
+  private static final Multimap<Class, OperatorTranslator> translators = ArrayListMultimap.create();
 
+  //Note that when there are more than one translator ordering defines priority.
+  //First added to `translators` is first asked whenever it can translate the operator.
   static {
     translators.put(FlowUnfolder.InputOperator.class, new InputTranslator());
     translators.put(FlatMap.class, new FlatMapTranslator());
@@ -56,6 +60,39 @@ class FlowTranslator {
     translators.put(ReduceByKey.class, new ReduceByKeyTranslator());
     translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     translators.put(Join.class, new JoinTranslator());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static boolean isOperatorDirectlyTranslatable(Operator operator){
+    Collection<OperatorTranslator> availableTranslators = translators.get(operator.getClass());
+    if (availableTranslators.isEmpty()){
+      return false;
+    }
+
+    for (OperatorTranslator translator : availableTranslators){
+      if (translator.canTranslate(operator)){
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  @Nullable
+  @SuppressWarnings("unchecked")
+  private static OperatorTranslator getTranslatorIfAvailable(Operator operator){
+    Collection<OperatorTranslator> availableTranslators = translators.get(operator.getClass());
+    if (availableTranslators.isEmpty()){
+      return null;
+    }
+
+    for (OperatorTranslator translator : availableTranslators){
+      if (translator.canTranslate(operator)){
+        return translator;
+      }
+    }
+
+    return null;
   }
 
   static Pipeline toPipeline(
@@ -77,12 +114,12 @@ class FlowTranslator {
 
   static DAG<Operator<?, ?>> toDAG(Flow flow) {
     final DAG<Operator<?, ?>> dag =
-        FlowUnfolder.unfold(flow, operator -> translators.containsKey(operator.getClass()));
+        FlowUnfolder.unfold(flow, FlowTranslator::isOperatorDirectlyTranslatable);
     return dag;
   }
 
   static DAG<Operator<?, ?>> unfold(DAG<Operator<?, ?>> dag) {
-    return FlowUnfolder.translate(dag, operator -> translators.containsKey(operator.getClass()));
+    return FlowUnfolder.translate(dag, FlowTranslator::isOperatorDirectlyTranslatable);
   }
 
   @SuppressWarnings("unchecked")
@@ -93,7 +130,7 @@ class FlowTranslator {
         .map(Node::get)
         .forEach(
             op -> {
-              final OperatorTranslator translator = translators.get(op.getClass());
+              final OperatorTranslator translator = getTranslatorIfAvailable(op);
               if (translator == null) {
                 throw new UnsupportedOperationException(
                     "Operator " + op.getClass().getSimpleName() + " not supported");
