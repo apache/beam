@@ -87,9 +87,12 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
+import org.apache.beam.sdk.nexmark.sources.EventGeneratorDoFn;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -161,11 +164,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   public NexmarkLauncher(OptionT options) {
     this.options = options;
-  }
-
-  /** Is this query running in streaming mode? */
-  private boolean isStreaming() {
-    return options.isStreaming();
   }
 
   /** Return maximum number of workers. */
@@ -760,12 +758,33 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /** Return a source of synthetic events. */
   private PCollection<Event> sourceEventsFromSynthetic(Pipeline p) {
-    if (isStreaming()) {
+    if (options.getUseParDoGenerator()) {
+      return sourceEventsFromSyntheticParDo(p);
+    }
+    return sourceEventsFromSyntheticSource(p);
+  }
+
+  /** Return a PCollection of synthetic events using the Source API. */
+  private PCollection<Event> sourceEventsFromSyntheticSource(Pipeline p) {
+    if (options.isStreaming()) {
       NexmarkUtils.console("Generating %d events in streaming mode", configuration.numEvents);
       return p.apply(queryName + ".ReadUnbounded", NexmarkUtils.streamEventsSource(configuration));
     } else {
       NexmarkUtils.console("Generating %d events in batch mode", configuration.numEvents);
       return p.apply(queryName + ".ReadBounded", NexmarkUtils.batchEventsSource(configuration));
+    }
+  }
+
+  /** Return a PCollection of synthetic events using the ParDo API. */
+  private PCollection<Event> sourceEventsFromSyntheticParDo(Pipeline p) {
+    if (options.isStreaming()) {
+      throw new UnsupportedOperationException("Can't generate unbounded events via ParDo.");
+    } else {
+      return p.apply(queryName + ".Create", Create.of((Void) null))
+          .apply(
+              queryName + ".Generate",
+              ParDo.of(new EventGeneratorDoFn(NexmarkUtils.standardGeneratorConfig(configuration))))
+          .apply(queryName + ".Reshuffle", Reshuffle.viaRandomKey());
     }
   }
 
