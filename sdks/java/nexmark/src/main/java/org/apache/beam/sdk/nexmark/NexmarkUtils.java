@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.nexmark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
@@ -185,7 +186,55 @@ public class NexmarkUtils {
     /** Names are suffixed with the query being run. */
     QUERY,
     /** Names are suffixed with the query being run and a random number. */
-    QUERY_AND_SALT
+    QUERY_AND_SALT,
+    /** Names are suffixed with the runner being used and a the mode (streaming/batch). */
+    QUERY_RUNNER_AND_MODE
+  }
+  /** Return a BigQuery table spec. */
+  static String tableSpec(NexmarkOptions options, String queryName, long now, String version) {
+    String baseTableName = options.getBigQueryTable();
+    if (Strings.isNullOrEmpty(baseTableName)) {
+      throw new RuntimeException("Missing --bigQueryTable");
+    }
+    switch (options.getResourceNameMode()) {
+      case VERBATIM:
+        return String.format(
+            "%s:%s.%s_%s",
+            options.getProject(), options.getBigQueryDataset(), baseTableName, version);
+      case QUERY:
+        return String.format(
+            "%s:%s.%s_%s_%s",
+            options.getProject(), options.getBigQueryDataset(), baseTableName, queryName, version);
+      case QUERY_AND_SALT:
+        return String.format(
+            "%s:%s.%s_%s_%s_%d",
+            options.getProject(),
+            options.getBigQueryDataset(),
+            baseTableName,
+            queryName,
+            version,
+            now);
+      case QUERY_RUNNER_AND_MODE:
+        return (version != null)
+            ? String.format(
+            "%s:%s.%s_%s_%s_%s_%s",
+            options.getProject(),
+            options.getBigQueryDataset(),
+            baseTableName,
+            queryName,
+            options.getRunner().getSimpleName(),
+            options.isStreaming(),
+            version)
+            : String.format(
+            "%s:%s.%s_%s_%s_%s",
+            options.getProject(),
+            options.getBigQueryDataset(),
+            baseTableName,
+            queryName,
+            options.getRunner().getSimpleName(),
+            options.isStreaming());
+    }
+    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
   /**

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.nexmark;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode.COMBINED;
-import static org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode.SUBSCRIBE_ONLY;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -728,27 +727,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
-  /**
-   * Return a BigQuery table spec.
-   */
-  private String tableSpec(long now, String version) {
-    String baseTableName = options.getBigQueryTable();
-    if (Strings.isNullOrEmpty(baseTableName)) {
-      throw new RuntimeException("Missing --bigQueryTable");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return String.format("%s:nexmark.%s_%s",
-                             options.getProject(), baseTableName, version);
-      case QUERY:
-        return String.format("%s:nexmark.%s_%s_%s",
-                             options.getProject(), baseTableName, queryName, version);
-      case QUERY_AND_SALT:
-        return String.format("%s:nexmark.%s_%s_%s_%d",
-                             options.getProject(), baseTableName, queryName, version, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
 
   /**
    * Return a directory for logs.
@@ -980,7 +958,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private void sinkResultsToBigQuery(
       PCollection<String> formattedResults, long now,
       String version) {
-    String tableSpec = tableSpec(now, version);
+    String tableSpec = NexmarkUtils.tableSpec(options, queryName, now, version);
     TableSchema tableSchema =
         new TableSchema().setFields(ImmutableList.of(
             new TableFieldSchema().setName("result").setType("STRING"),
