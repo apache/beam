@@ -1,16 +1,16 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.common.InputToKvDoFn;
+import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.FullJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.InnerJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.JoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.LeftOuterJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.RightOuterJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
-import java.util.List;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;

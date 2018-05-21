@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
 
-import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
