@@ -90,14 +90,12 @@ import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
-@RunWith(Enclosed.class)
 public class TextIOReadTest {
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();

@@ -45,7 +45,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,7 +53,6 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CombineTranslation}. */
-@RunWith(Enclosed.class)
 public class CombineTranslationTest {
 
   /** Tests that simple {@link CombineFn CombineFns} can be translated to and from proto. */
