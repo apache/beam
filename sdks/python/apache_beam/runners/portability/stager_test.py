@@ -421,8 +421,8 @@ class StagerTest(unittest.TestCase):
       return path.startswith('/tmp/remote/')
 
     with mock.patch(
-        'apache_beam.runners.portability.stager_test.stager.Stager._is_remote_path',
-        staticmethod(is_remote_path)):
+        'apache_beam.runners.portability.stager_test'
+        '.stager.Stager._is_remote_path', staticmethod(is_remote_path)):
       self.assertEqual([sdk_filename],
                        self.stager.stage_job_resources(
                            options, staging_location=staging_dir))
