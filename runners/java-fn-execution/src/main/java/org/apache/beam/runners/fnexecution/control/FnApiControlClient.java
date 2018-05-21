@@ -75,6 +75,7 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
     return new FnApiControlClient(workerId, requestObserver);
   }
 
+  @Override
   public CompletionStage<BeamFnApi.InstructionResponse> handle(
       BeamFnApi.InstructionRequest request) {
     LOG.debug("Sending InstructionRequest {}", request);
