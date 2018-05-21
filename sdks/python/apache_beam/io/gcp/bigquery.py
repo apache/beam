@@ -414,6 +414,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     self.validate = validate
     self.flatten_results = flatten_results
     self.coder = coder or RowAsDictJsonCoder()
+    self.project = project
 
   def display_data(self):
     if self.query is not None:
@@ -641,36 +642,56 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     else:
       self.query = self.source.query
 
+  def _parse_results(self, mg, project=False):
+    """
+    Extract matched groups from regex match.
+    If project is provided, retrienve 3 matched groups, else retrieve 2 groups.
+    :param mg: matched group
+    :param project: project passed in if not matched in regex
+    """
+    if project:
+      return project, mg.group(1), mg.group(2)
+    else:
+      try:
+        return mg.group(1), mg.group(2), mg.group(3)
+      except IndexError:
+        raise ValueError("Project not provided, please provide it as an"
+                         " argument to the class or in the query explicitly.")
+
   def _parse_query(self):
-      """
-      Parse the query provided to determine the datasetId and Table id.
+    """
+    Parse the query provided to determine the datasetId and Table id.
 
-      The query will have text of the form "FROM `(x).y.z`" or "FROM [(x):y.z]"
-       based on whether legacy or standard sql were provided.
-      """
-      if not self.source.use_legacy_sql:
-          m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
-                       self.source.query)
+    The query will have text of the form "FROM `(x).y.z`" or "FROM [(x):y.z]"
+     based on whether legacy or standard sql were provided.
+     :raises: ValueError if project is not supplied
+    """
+    if not self.source.use_legacy_sql:
+      m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
+                    self.source.query)
+      if m:
+        return self._parse_results(m)
       else:
-          m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
-                       self.source.query)
-          if m:
-              projectId = m.group(1)
-              datasetId = m.group(2)
-              tableId = m.group(3)
-          else:
-              raise ValueError("Project not provided, please rewrite the query"
-                               " explicitly declaring the project. i.e. in the"
-                               " format `project.dataset.table` or "
-                               " [project:dataset.table] depending")
-
-      return projectId, datasetId, tableId
+        s = re.search(r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)`',
+                      self.source.query)
+        if s:
+          return self._parse_results(s, self.source.project)
+    else:
+      m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
+                    self.source.query)
+      if m:
+        return self._parse_results(m)
+      else:
+        s = re.search(r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+)\.([\w-]+)\]',
+                      self.source.query)
+        return self._parse_results(s, self.source.project)
 
   def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr is None:
         source_project_id, source_dataset_id, source_table_id = \
             self._parse_query()
+
     else:
         source_dataset_id = tr.datasetId
         source_table_id = tr.tableId
