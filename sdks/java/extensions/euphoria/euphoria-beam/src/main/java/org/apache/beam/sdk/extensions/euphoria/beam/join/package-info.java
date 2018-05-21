@@ -17,6 +17,7 @@
  */
 
 /**
- * {@link cz.seznam.euphoria.core.client.operator.Join} translation centered classes.
+ * {@link org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join} translation centered
+ * classes.
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.join;
