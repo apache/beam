@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -32,22 +31,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
 /**
- * <b>For internal use only; no backwards compatibility guarantees.</b>
- *
- * <p>A {@link PTransform} that returns a {@link PCollection} equivalent to its input but
- * operationally provides some of the side effects of a {@link GroupByKey}, in particular preventing
- * fusion of the surrounding transforms, checkpointing and deduplication by id.
- *
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the {@link
  * WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user to
- * specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
+ * specify allowed lateness and accumulation mode before a user-inserted GroupByKey. This
+ * transform is often helpful for limiting or expanding key cardinality and allowed parallelism
+ * of processing the input. E.g. {@link #viaRandomKey()} pairs each element with a random key
+ * allowing processing of each of them in parallel downstream of this transform.
  *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
- * @deprecated this transform's intended side effects are not portable; it will likely be removed
  */
-@Internal
-@Deprecated
+@Experimental
 public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
   private Reshuffle() {
@@ -59,7 +53,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
   /**
    * Encapsulates the sequence "pair input with unique key, apply {@link
-   * Reshuffle#of}, drop the key" commonly used to break fusion.
+   * Reshuffle#of}, drop the key" commonly used to increase allowed parallelism of a PCollection.
    */
   @Experimental
   public static <T> ViaRandomKey<T> viaRandomKey() {
