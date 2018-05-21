@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
 ext.summary = "Library to read and write from/to HBase"
@@ -35,6 +35,7 @@ def hbase_version = "1.2.6"
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   shadow library.java.findbugs_jsr305
@@ -61,4 +62,6 @@ dependencies {
   }
   testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
   testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
+  testCompileOnly library.java.findbugs_annotations
 }
+
