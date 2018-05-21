@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import cz.seznam.euphoria.beam.JoinTranslator;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;

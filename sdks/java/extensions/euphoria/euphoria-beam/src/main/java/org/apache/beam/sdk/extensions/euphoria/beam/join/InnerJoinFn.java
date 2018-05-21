@@ -1,8 +1,8 @@
-package cz.seznam.euphoria.beam.join;
+package org.apache.beam.sdk.extensions.euphoria.beam.join;
 
-import cz.seznam.euphoria.beam.SingleValueCollector;
-import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
-import cz.seznam.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.extensions.euphoria.beam.SingleValueCollector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;

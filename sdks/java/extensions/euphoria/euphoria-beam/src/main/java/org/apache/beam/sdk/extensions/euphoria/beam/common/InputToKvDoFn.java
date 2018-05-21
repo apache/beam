@@ -1,6 +1,6 @@
-package cz.seznam.euphoria.beam.common;
+package org.apache.beam.sdk.extensions.euphoria.beam.common;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
