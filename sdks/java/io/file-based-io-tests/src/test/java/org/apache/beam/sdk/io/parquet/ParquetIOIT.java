@@ -106,8 +106,7 @@ public class ParquetIOIT {
 
     PCollection<String> consolidatedHashcode = testFiles.apply("Find files", FileIO.matchAll())
       .apply("Read matched files", FileIO.readMatches())
-      .apply("Read parquet files", ParquetIO.readFiles())
-      .setCoder(AvroCoder.of(SCHEMA))
+      .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
       .apply("Map records to strings", MapElements.into(strings())
         .via((SerializableFunction<GenericRecord, String>) record -> String
           .valueOf(record.get("row"))))

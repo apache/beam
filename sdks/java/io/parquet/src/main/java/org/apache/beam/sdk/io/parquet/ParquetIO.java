@@ -30,8 +30,10 @@ import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -58,23 +60,37 @@ import org.apache.parquet.io.SeekableInputStream;
  * <p>{@link ParquetIO} source returns a {@link PCollection} for
  * Parquet files. The elements in the {@link PCollection} are Avro {@link GenericRecord}.
  *
- * <p>To configure the {@link Read}, you have to provide the file patterns (from) of the
- * Parquet files and the coder.
+ * <p>To configure the {@link Read}, you have to provide the file patterns (from) of the Parquet
+ * files and the schema.
  *
  * <p>For example:
  *
  * <pre>{@code
- *  pipeline.apply(ParquetIO.read().from("/foo/bar")).setCoder(AvroCoder.of(SCHEMA));
+ *  PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar"));
  *  ...
- * }
- * </pre>
+ * }</pre>
  *
  * <p>As {@link Read} is based on {@link FileIO}, it supports any filesystem (hdfs, ...).
+ *
+ * <p>For more advanced use cases, like reading each file in a {@link PCollection}
+ * of {@link FileIO.ReadableFile}, use the {@link ReadFiles} transform.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ *  PCollection<FileIO.ReadableFile> files = pipeline
+ *    .apply(FileIO.match().filepattern(options.getInputFilepattern())
+ *    .apply(FileIO.readMatches());
+ *
+ *  PCollection<GenericRecord> output = files.apply(ParquetIO.readFiles(SCHEMA));
+ * }</pre>
+ *
  *
  * <h3>Writing Parquet files</h3>
  *
  * <p>{@link ParquetIO.Sink} allows you to write a {@link PCollection} of {@link GenericRecord}
- * into a Parquet file. It can be used with the general-purpose {@link FileIO}transforms.
+ * into a Parquet file. It can be used with the general-purpose {@link FileIO} transforms
+ * with FileIO.write/writeDynamic specifically.
  *
  * <p>For example:
  *
@@ -86,6 +102,9 @@ import org.apache.parquet.io.SeekableInputStream;
  *      .via(ParquetIO.sink(SCHEMA))
  *      .to("destination/path")
  * }</pre>
+ *
+ * <p>This IO API is considered experimental and may break or receive
+ * backwards-incompatible changes in future versions of the Apache Beam SDK.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ParquetIO {
@@ -94,32 +113,41 @@ public class ParquetIO {
    * Reads {@link GenericRecord} from a Parquet file (or multiple Parquet files matching
    * the pattern).
    */
-  public static Read read() {
-    return new AutoValue_ParquetIO_Read.Builder().build();
+  public static Read read(Schema schema) {
+    return new AutoValue_ParquetIO_Read.Builder()
+      .setSchema(schema)
+      .build();
   }
 
   /**
-   * Like {@link #read()}, but reads each file in a {@link PCollection}
+   * Like {@link #read(Schema)}, but reads each file in a {@link PCollection}
    * of {@link org.apache.beam.sdk.io.FileIO.ReadableFile},
    * which allows more flexible usage.
    */
-  public static ReadFiles readFiles() {
-    return new AutoValue_ParquetIO_ReadFiles.Builder().build();
+  public static ReadFiles readFiles(Schema schema) {
+    return new AutoValue_ParquetIO_ReadFiles.Builder()
+      .setSchema(schema)
+      .build();
   }
 
   /**
-   * Implementation of {@link #read()}.
+   * Implementation of {@link #read(Schema)}.
    */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<GenericRecord>> {
 
-    @Nullable abstract ValueProvider<String> getFilepattern();
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
+
+    @Nullable
+    abstract Schema getSchema();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+      abstract Builder setSchema(Schema schema);
 
       abstract Read build();
     }
@@ -144,7 +172,7 @@ public class ParquetIO {
         .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
         .apply(FileIO.matchAll())
         .apply(FileIO.readMatches())
-        .apply(readFiles());
+        .apply(readFiles(getSchema()));
     }
 
     @Override
@@ -156,20 +184,25 @@ public class ParquetIO {
   }
 
   /**
-   * Implementation of {@link #readFiles()}.
+   * Implementation of {@link #readFiles(Schema)}.
    */
   @AutoValue
   public abstract static class ReadFiles extends PTransform<PCollection<FileIO.ReadableFile>,
       PCollection<GenericRecord>> {
 
+    @Nullable
+    abstract Schema getSchema();
+
     @AutoValue.Builder
     abstract static class Builder {
+      abstract Builder setSchema(Schema schema);
       abstract ReadFiles build();
     }
 
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
-      return input.apply(ParDo.of(new ReadFn()));
+      checkNotNull(getSchema(), "Schema can not be null");
+      return input.apply(ParDo.of(new ReadFn())).setCoder(AvroCoder.of(getSchema()));
     }
 
     static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
@@ -179,7 +212,8 @@ public class ParquetIO {
         FileIO.ReadableFile file = processContext.element();
 
         if (!file.getMetadata().isReadSeekEfficient()) {
-          throw new RuntimeException("File has to be seekable.");
+          ResourceId filename = file.getMetadata().resourceId();
+          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
         }
 
         SeekableByteChannel seekableByteChannel = file.openSeekable();
