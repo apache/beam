@@ -48,7 +48,10 @@ class PortableStagerTest(unittest.TestCase):
     if self._remote_dir:
       shutil.rmtree(self._remote_dir)
 
-  def stage_files(self, files):
+  def _stage_files(self, files):
+    """
+     Utility method to stage given.
+    """
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         TestLocalFileSystemArtifactStagingServiceServicer(self._remote_dir),
@@ -71,12 +74,14 @@ class PortableStagerTest(unittest.TestCase):
     with open(os.path.join(self._temp_dir, from_file), 'wb') as f:
       f.write(b'abc')
 
-    copied_files = self.stage_files([('test_local.txt', 'test_remote.txt')])
+    copied_files = self._stage_files([('test_local.txt', 'test_remote.txt')])
     self.assertTrue(
         filecmp.cmp(
             os.path.join(self._temp_dir, from_file),
             os.path.join(self._remote_dir, to_file)))
-    self.assertEqual([to_file], [manifest.name for manifest in copied_files])
+    self.assertEqual(
+        [to_file],
+        [staged_file_metadata.name for staged_file_metadata in copied_files])
 
   def test_stage_multiple_files(self):
 
@@ -106,17 +111,19 @@ class PortableStagerTest(unittest.TestCase):
             buffering=2 << 22) as f:
           f.write(''.join(chars))
 
-    copied_files = self.stage_files(
+    copied_files = self._stage_files(
         [(from_file, to_file) for (from_file, to_file, _, _) in files])
 
     for from_file, to_file, _, _ in files:
-      ff = os.path.join(self._temp_dir, from_file)
-      rf = os.path.join(self._remote_dir, to_file)
+      from_file = os.path.join(self._temp_dir, from_file)
+      to_file = os.path.join(self._remote_dir, to_file)
       self.assertTrue(
-          filecmp.cmp(ff, rf),
-          'Local file {0} and remote file {1} are not the same.'.format(ff, rf))
-    self.assertEqual([to_file for _, to_file, _, _ in files],
-                     [manifest.name for manifest in copied_files])
+          filecmp.cmp(from_file, to_file),
+          'Local file {0} and remote file {1} are not the same.'.format(
+              from_file, to_file))
+    self.assertEqual([to_file for _, to_file, _, _ in files].sort(), [
+        staged_file_metadata.name for staged_file_metadata in copied_files
+    ].sort())
 
 
 class TestLocalFileSystemArtifactStagingServiceServicer(
