@@ -117,6 +117,7 @@ class common_job_properties {
       }
       credentialsBinding {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
     }
   }
