@@ -27,7 +27,7 @@ import org.joda.time.DateTime;
 
 /** Simple mock implementation of Kinesis service for testing, singletone. */
 public class KinesisServiceMock {
-  private static volatile KinesisServiceMock instance;
+  private static KinesisServiceMock instance;
 
   // Mock stream where client is supposed to write
   private String existedStream;
@@ -38,13 +38,9 @@ public class KinesisServiceMock {
 
   private KinesisServiceMock() {}
 
-  public static KinesisServiceMock getInstance() {
+  public static synchronized KinesisServiceMock getInstance() {
     if (instance == null) {
-      synchronized (KinesisServiceMock.class) {
-        if (instance == null) {
-          instance = new KinesisServiceMock();
-        }
-      }
+      instance = new KinesisServiceMock();
     }
     return instance;
   }
