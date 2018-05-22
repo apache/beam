@@ -59,9 +59,9 @@ class PortableStager(Stager):
       artifact_name: File name on the artifact server.
     """
     if not os.path.isfile(local_path_to_artifact):
-      raise ValueError('Can only stage file to artifact server. from_path: {0} '
-                       'to_path: {1}'.format(local_path_to_artifact,
-                                             artifact_name))
+      raise ValueError(
+          'Cannot stage {0} to artifact server. Only local files can be staged.'
+          .format(local_path_to_artifact))
 
     def artifact_request_generator():
       metadata = beam_artifact_api_pb2.ArtifactMetadata(name=artifact_name)
