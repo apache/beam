@@ -81,14 +81,14 @@ class PortableStagerTest(unittest.TestCase):
   def test_stage_multiple_files(self):
 
     files = [
-        ('test_local_100.txt', 'test_remote_100.txt', 101, 's'),  #
+        ('test_local_100.txt', 'test_remote_100.txt', 100, 's'),  #
         ('test_local_100.binary', 'test_remote_100.binary', 100, 'b'),  #
-        ('test_local_1k.txt', 'test_remote_1k.txt', 2 << 10, 's'),  #
-        ('test_local_1k.binary', 'test_remote_1k.binary', 2 << 10, 'b'),  #
-        ('test_local_1m.txt', 'test_remote_1m.txt', 2 << 20, 's'),
-        ('test_local_1m.binary', 'test_remote_1m.binary', 2 << 20, 'b'),
-        ('test_local_10m.txt', 'test_remote_10m.txt', 10 * (2 << 20), 's'),
-        ('test_local_10m.binary', 'test_remote_10m.binary', 10 * (2 << 20), 'b')
+        ('test_local_1k.txt', 'test_remote_1k.txt', 1 << 10, 's'),  #
+        ('test_local_1k.binary', 'test_remote_1k.binary', 1 << 10, 'b'),  #
+        ('test_local_1m.txt', 'test_remote_1m.txt', 1 << 20, 's'),
+        ('test_local_1m.binary', 'test_remote_1m.binary', 1 << 20, 'b'),
+        ('test_local_10m.txt', 'test_remote_10m.txt', 10 * (1 << 20), 's'),
+        ('test_local_10m.binary', 'test_remote_10m.binary', 10 * (1 << 20), 'b')
     ]
 
     for (from_file, _, size, type) in files:
