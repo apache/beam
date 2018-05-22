@@ -173,6 +173,7 @@ public class MongoDbIOTest implements Serializable {
                     "Map Scientist",
                     MapElements.via(
                         new SimpleFunction<Document, KV<String, Void>>() {
+                          @Override
                           public KV<String, Void> apply(Document input) {
                             return KV.of(input.getString("scientist"), null);
                           }
@@ -210,6 +211,7 @@ public class MongoDbIOTest implements Serializable {
                     "Map Scientist",
                     MapElements.via(
                         new SimpleFunction<Document, KV<String, Void>>() {
+                          @Override
                           public KV<String, Void> apply(Document input) {
                             return KV.of(input.getString("scientist"), null);
                           }
