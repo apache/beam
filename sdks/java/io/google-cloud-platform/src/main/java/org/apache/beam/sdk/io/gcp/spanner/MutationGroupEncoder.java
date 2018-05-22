@@ -82,7 +82,7 @@ class MutationGroupEncoder {
   private static void setBit(byte[] bytes, int i) {
     int word = i / 8;
     int bit = 7 - i % 8;
-    bytes[word] |= 1 << bit;
+    bytes[word] = (byte) (bytes[word] | 1 << bit);
   }
 
   private static boolean getBit(byte[] bytes, int i) {
@@ -519,9 +519,9 @@ class MutationGroupEncoder {
             break;
           case STRING:
             if (part.isDesc()) {
-              orderedCode.writeBytesDecreasing(val.getString().getBytes());
+              orderedCode.writeBytesDecreasing(val.getString().getBytes(StandardCharsets.UTF_8));
             } else {
-              orderedCode.writeBytes(val.getString().getBytes());
+              orderedCode.writeBytes(val.getString().getBytes(StandardCharsets.UTF_8));
             }
             break;
           case BYTES:
@@ -595,9 +595,9 @@ class MutationGroupEncoder {
         } else if (value instanceof String) {
           String v = (String) value;
           if (part.isDesc()) {
-            orderedCode.writeBytesDecreasing(v.getBytes());
+            orderedCode.writeBytesDecreasing(v.getBytes(StandardCharsets.UTF_8));
           } else {
-            orderedCode.writeBytes(v.getBytes());
+            orderedCode.writeBytes(v.getBytes(StandardCharsets.UTF_8));
           }
         } else if (value instanceof ByteArray) {
           ByteArray v = (ByteArray) value;

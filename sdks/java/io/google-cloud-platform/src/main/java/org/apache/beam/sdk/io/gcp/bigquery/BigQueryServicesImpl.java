@@ -52,7 +52,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -682,7 +681,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
         int strideIndex = 0;
         // Upload in batches.
-        List<TableDataInsertAllRequest.Rows> rows = new LinkedList<>();
+        List<TableDataInsertAllRequest.Rows> rows = new ArrayList<>();
         int dataSize = 0;
 
         List<Future<List<TableDataInsertAllResponse.InsertErrors>>> futures = new ArrayList<>();
@@ -737,7 +736,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
             dataSize = 0;
             strideIndex = i + 1;
-            rows = new LinkedList<>();
+            rows = new ArrayList<>();
           }
         }
 
