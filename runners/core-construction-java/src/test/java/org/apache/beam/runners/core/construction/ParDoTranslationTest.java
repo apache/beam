@@ -64,14 +64,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link ParDoTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  ParDoTranslationTest.TestParDoPayloadTranslation.class,
-  ParDoTranslationTest.TestStateAndTimerTranslation.class
-})
 public class ParDoTranslationTest {
 
   /**
