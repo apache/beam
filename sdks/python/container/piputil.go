@@ -129,3 +129,35 @@ func installExtraPackages(files []string, extraPackagesFile, dir string) error {
 	}
 	return nil
 }
+
+func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
+	for _, file := range files {
+		if strings.HasPrefix(file, "apache_beam") {
+			for _, s := range acceptableWhlSpecs {
+				if strings.HasSuffix(file, s) {
+					log.Printf("Found Apache Beam SDK wheel: %v", file)
+					return file
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// InstallSdk installs Beam SDK: First, we try to find a compiled
+// wheel distribution of Apache Beam among staged files. If we find it, we
+// assume that the pipleine was started with the Beam SDK found in the wheel
+// file, and we try to install it. If not successful, we fall back to installing
+// SDK from source tarball provided in sdkSrcFile.
+func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string) error {
+	sdkWhlFile := findBeamSdkWhl(files, acceptableWhlSpecs)
+	if sdkWhlFile != "" {
+		err := pipInstallPackage(files, workDir, sdkWhlFile, false, false, []string{"gcp"})
+		if err == nil {
+			return nil
+		}
+		log.Printf("Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
+	}
+	err := pipInstallPackage(files, workDir, sdkSrcFile, false, false, []string{"gcp"})
+	return err
+}
