@@ -37,8 +37,10 @@ class StateSampler(object):
   def _scoped_state(self,
                     counter_name,
                     output_counter,
-                    metrics_container=None):
-    return ScopedState(self, counter_name, output_counter, metrics_container)
+                    metrics_container=None,
+                    is_processing_state=False):
+    return ScopedState(self, counter_name, output_counter, metrics_container,
+                       is_processing_state)
 
   def _enter_state(self, state):
     self.state_transition_count += 1
@@ -58,7 +60,12 @@ class StateSampler(object):
 
 class ScopedState(object):
 
-  def __init__(self, sampler, name, counter=None, metrics_container=None):
+  def __init__(self,
+               sampler,
+               name,
+               counter=None,
+               metrics_container=None,
+               is_processing_state=False):
     self.state_sampler = sampler
     self.name = name
     self.counter = counter
