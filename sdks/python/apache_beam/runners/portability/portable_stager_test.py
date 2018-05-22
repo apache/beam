@@ -49,8 +49,12 @@ class PortableStagerTest(unittest.TestCase):
       shutil.rmtree(self._remote_dir)
 
   def _stage_files(self, files):
-    """
-     Utility method to stage given.
+    """Utility method to stage files.
+
+      Args:
+        files: a list of tuples of the form [(local_name, remote_name),...]
+          describing the name of the artifacts in local temp folder and desired
+          name in staging location.
     """
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     staging_service = TestLocalFileSystemArtifactStagingServiceServicer(
