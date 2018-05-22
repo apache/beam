@@ -20,9 +20,11 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -58,6 +60,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         List<TupleTag<?>> additionalOutputTags,
         DirectStepContext stepContext,
         @Nullable Coder<InputT> inputCoder,
+        Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy);
   }
 
@@ -71,6 +74,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         additionalOutputTags,
         stepContext,
         schemaCoder,
+        outputCoders,
         windowingStrategy) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
@@ -82,6 +86,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               additionalOutputTags,
               stepContext,
               schemaCoder,
+              outputCoders,
               windowingStrategy);
       return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
@@ -107,6 +112,10 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
 
+    Map<TupleTag<?>, Coder<?>> outputCoders = outputs.entrySet().stream()
+        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getCoder()));
+
+
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         runnerFactory.createRunner(
             options,
@@ -118,6 +127,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             additionalOutputTags,
             stepContext,
             inputCoder,
+            outputCoders,
             windowingStrategy);
 
     return create(runner, stepContext, application, outputManager);

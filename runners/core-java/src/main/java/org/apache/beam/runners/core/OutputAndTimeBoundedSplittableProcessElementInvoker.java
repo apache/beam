@@ -145,8 +145,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
+          public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+          }
+
+          @Override
           public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-            return DoFnOutputReceivers.windowedMultiReceiver(processContext);
+            return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
           }
 
           @Override

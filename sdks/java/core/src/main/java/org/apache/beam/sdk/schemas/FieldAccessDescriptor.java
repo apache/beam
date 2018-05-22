@@ -99,8 +99,6 @@ public class FieldAccessDescriptor {
    */
   public FieldAccessDescriptor withNestedField(
       int nestedFieldId, FieldAccessDescriptor fieldAccess) {
-   // checkState(TypeName.ROW.equals(schema.getField(nestedFieldId).getType().getTypeName()));
-
     Map<Integer, FieldAccessDescriptor> newNestedFieldAccess =
         ImmutableMap.<Integer, FieldAccessDescriptor>builder()
         .putAll(nestedFieldsAccessedById)
