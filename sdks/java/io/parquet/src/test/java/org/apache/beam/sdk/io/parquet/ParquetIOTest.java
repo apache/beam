@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
-import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,9 +85,8 @@ public class ParquetIOTest implements Serializable {
 
     PCollection<GenericRecord> readBack =
       readPipeline.apply(
-        ParquetIO.read()
-          .from(new File(temporaryFolder.getRoot().getAbsolutePath()).getAbsolutePath() + "/*"))
-        .setCoder(AvroCoder.of(SCHEMA));
+        ParquetIO.read(SCHEMA)
+          .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
@@ -108,8 +106,7 @@ public class ParquetIOTest implements Serializable {
       .apply(Values.create())
       .apply(FileIO.matchAll())
       .apply(FileIO.readMatches())
-      .apply(ParquetIO.readFiles())
-      .setCoder(AvroCoder.of(SCHEMA));
+      .apply(ParquetIO.readFiles(SCHEMA));
 
     PAssert.that(writeThenRead).containsInAnyOrder(records);
 
@@ -131,7 +128,7 @@ public class ParquetIOTest implements Serializable {
   public void testReadDisplayData() {
     DisplayData displayData =
       DisplayData.from(
-        ParquetIO.read()
+        ParquetIO.read(SCHEMA)
           .from("foo.parquet"));
 
     Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
