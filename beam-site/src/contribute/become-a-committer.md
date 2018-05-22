@@ -76,7 +76,7 @@ See the [ASF documentation](https://www.apache.org/dev/committers.html#committer
 
  - They have a proven commitment to the project
  - They share their intentions with the community
- - They accept and integrate community feedback in their on plans, designs,
+ - They accept and integrate community feedback in their plans, designs,
    code, etc.
  - They earnestly try to make Beam better with their contributions
  - In particular, if a code contributor:
