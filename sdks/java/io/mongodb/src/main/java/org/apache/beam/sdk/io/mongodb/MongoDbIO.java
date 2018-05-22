@@ -228,7 +228,7 @@ public class MongoDbIO {
      * Sets the user defined number of splits.
      */
     public Read withNumSplits(int numSplits) {
-      checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %d", numSplits);
+      checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %s", numSplits);
       return builder().setNumSplits(numSplits).build();
     }
 
@@ -597,7 +597,7 @@ public class MongoDbIO {
      * Define the size of the batch to group write operations.
      */
     public Write withBatchSize(long batchSize) {
-      checkArgument(batchSize >= 0, "Batch size must be >= 0, but was %d", batchSize);
+      checkArgument(batchSize >= 0, "Batch size must be >= 0, but was %s", batchSize);
       return builder().setBatchSize(batchSize).build();
     }
 
