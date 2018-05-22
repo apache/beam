@@ -36,7 +36,12 @@ import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
 public abstract class ServerFactory {
   /** Create a default {@link ServerFactory}. */
   public static ServerFactory createDefault() {
-    return new InetSocketAddressServerFactory();
+    return new InetSocketAddressServerFactory(UrlFactory.createDefault());
+  }
+
+  /** Create a {@link ServerFactory} that uses the given url factory. */
+  public static ServerFactory createWithUrlFactory(UrlFactory urlFactory) {
+    return new InetSocketAddressServerFactory(urlFactory);
   }
 
   /**
@@ -62,7 +67,11 @@ public abstract class ServerFactory {
    * <p>The server is created listening any open port on "localhost".
    */
   public static class InetSocketAddressServerFactory extends ServerFactory {
-    private InetSocketAddressServerFactory() {}
+    private final UrlFactory urlFactory;
+
+    private InetSocketAddressServerFactory(UrlFactory urlFactory) {
+      this.urlFactory = urlFactory;
+    }
 
     @Override
     public Server allocatePortAndCreate(
@@ -70,8 +79,7 @@ public abstract class ServerFactory {
         throws IOException {
       InetSocketAddress address = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
       Server server = createServer(service, address);
-      apiServiceDescriptor.setUrl(
-          HostAndPort.fromParts(address.getHostName(), server.getPort()).toString());
+      apiServiceDescriptor.setUrl(urlFactory.createUrl(address.getHostName(), server.getPort()));
       return server;
     }
 
@@ -102,6 +110,19 @@ public abstract class ServerFactory {
               .build();
       server.start();
       return server;
+    }
+  }
+
+  /**
+   * Factory that constructs client-accessible URLs from a local server address and port. Necessary
+   * when clients access server from a different networking context.
+   */
+  @FunctionalInterface
+  public interface UrlFactory {
+    String createUrl(String address, int port);
+
+    static UrlFactory createDefault() {
+      return (host, port) -> HostAndPort.fromParts(host, port).toString();
     }
   }
 }
