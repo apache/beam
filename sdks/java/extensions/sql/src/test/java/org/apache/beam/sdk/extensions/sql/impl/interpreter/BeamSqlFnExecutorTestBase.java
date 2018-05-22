@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -70,9 +69,8 @@ public class BeamSqlFnExecutorTestBase {
             .build();
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
-    final List<RelTraitDef> traitDefs = new ArrayList<>();
-    traitDefs.add(ConventionTraitDef.INSTANCE);
-    traitDefs.add(RelCollationTraitDef.INSTANCE);
+    final ImmutableList<RelTraitDef> traitDefs =
+        ImmutableList.of(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
     FrameworkConfig config =
         Frameworks.newConfigBuilder()
             .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())
