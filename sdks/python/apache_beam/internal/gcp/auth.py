@@ -17,17 +17,19 @@
 
 """Dataflow credentials and authentication."""
 
+from __future__ import absolute_import
+
 import datetime
 import json
 import logging
 import os
 
+from future.moves.urllib.request import Request
+from future.moves.urllib.request import urlopen
 from oauth2client.client import GoogleCredentials
 from oauth2client.client import OAuth2Credentials
 
 from apache_beam.utils import retry
-from six.moves.urllib.request import Request
-from six.moves.urllib.request import urlopen
 
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False

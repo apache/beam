@@ -17,6 +17,8 @@
 
 """Unit tests for the pickler module."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.internal import module_test

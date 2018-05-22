@@ -17,7 +17,10 @@
 
 """Module used to define functions and classes used by the coder unit tests."""
 
+from __future__ import absolute_import
+
 import re
+from builtins import object
 
 
 class TopClass(object):
