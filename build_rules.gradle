@@ -563,6 +563,32 @@ ext.applyJavaNature = {
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
 
+    // Create a task which emulates the maven-archiver plugin in generating a
+    // pom.properties file.
+    task generatePomPropertiesFileForMavenJavaPublication {
+      outputs.file "${project.buildDir}/publications/mavenJava/pom.properties"
+      doLast {
+        new File("${project.buildDir}/publications/mavenJava/pom.properties").text =
+"""version=${project.version}
+groupId=${project.group}
+artifactId=${project.name}
+"""
+      }
+    }
+
+    // Have the shaded include both the generate pom.xml and its properties file
+    // emulating the behavior of the maven-archiver plugin.
+    shadowJar {
+      dependsOn 'generatePomFileForMavenJavaPublication'
+      into("META-INF/maven/${project.group}/${project.name}") {
+        from "${project.buildDir}/publications/mavenJava/pom.xml"
+      }
+      dependsOn 'generatePomPropertiesFileForMavenJavaPublication'
+      into("META-INF/maven/${project.group}/${project.name}") {
+        from "${project.buildDir}/publications/mavenJava/pom.properties"
+      }
+    }
+
     // Only build artifacts for archives if we are publishing
     artifacts.archives shadowJar
     artifacts.archives shadowTestJar
@@ -601,7 +627,7 @@ ext.applyJavaNature = {
 
       model {
         tasks.generatePomFileForMavenJavaPublication {
-          destination = file("$buildDir/generated-pom.xml")
+          destination = file("$buildDir/publications/mavenJava/pom.xml")
         }
         tasks.publishMavenJavaPublicationToMavenLocal {
           dependsOn project.tasks.signArchives
@@ -784,7 +810,7 @@ ext.applyJavaNature = {
             elem.insertBefore(hdr, elem.getFirstChild())
 
             // create the sign pom artifact
-            def pomFile = file("${project.buildDir}/generated-pom.xml")
+            def pomFile = file("${project.buildDir}/publications/mavenJava/pom.xml")
             writeTo(pomFile)
             if (isRelease()) {
               def pomAscFile = signing.sign(pomFile).signatureFiles[0]
