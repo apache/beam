@@ -31,6 +31,7 @@ import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
 import org.apache.beam.sdk.testing.PAssert;
@@ -131,7 +132,7 @@ public class KinesisMockWriteTest {
 
   @Test
   public void testNotExistedStream() {
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes());
+    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
@@ -149,7 +150,7 @@ public class KinesisMockWriteTest {
     Properties properties = new Properties();
     properties.setProperty("KinesisPort", "qwe");
 
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes());
+    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
@@ -171,7 +172,11 @@ public class KinesisMockWriteTest {
     properties.setProperty("KinesisPort", "4567");
     properties.setProperty("VerifyCertificate", "false");
 
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(), "2".getBytes(), "3".getBytes());
+    Iterable<byte[]> data =
+        ImmutableList.of(
+            "1".getBytes(StandardCharsets.UTF_8),
+            "2".getBytes(StandardCharsets.UTF_8),
+            "3".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
@@ -186,7 +191,7 @@ public class KinesisMockWriteTest {
 
   @Test
   public void testWriteFailed() {
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes());
+    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
@@ -203,7 +208,9 @@ public class KinesisMockWriteTest {
   public void testWriteAndReadFromMockKinesis() {
     KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 
-    Iterable<byte[]> data = ImmutableList.of("1".getBytes(), "2".getBytes());
+    Iterable<byte[]> data =
+        ImmutableList.of(
+            "1".getBytes(StandardCharsets.UTF_8), "2".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
