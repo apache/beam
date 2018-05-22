@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -33,6 +33,7 @@ def aws_version = "1.11.255"
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
@@ -51,4 +52,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:2.5.0"
+  testCompileOnly library.java.findbugs_annotations
 }
