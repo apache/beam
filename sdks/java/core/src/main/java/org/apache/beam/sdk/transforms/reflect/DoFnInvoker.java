@@ -148,7 +148,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link OutputReceiver} for outputting to the default output. */
     OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
+    /**
+     * Provide a {@link OutputReceiver} for outputting rows to the default output.
+     */
+    OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
+
+    /**
+     * Provide a {@link MultiOutputReceiver} for outputing to the default output.
+     */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
 
     /**
@@ -211,6 +218,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

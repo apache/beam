@@ -372,8 +372,6 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
-    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
 
@@ -398,8 +396,8 @@ public abstract class DoFnSignature {
       return TIME_DOMAIN_PARAMETER;
     }
 
-    public static OutputReceiverParameter outputReceiverParameter() {
-      return OUTPUT_RECEIVER_PARAMETER;
+    public static OutputReceiverParameter outputReceiverParameter(boolean rowReceiver) {
+      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(rowReceiver);
     }
 
     public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
@@ -528,6 +526,8 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class OutputReceiverParameter extends Parameter {
       OutputReceiverParameter() {}
+
+      public abstract boolean isRowReceiver();
     }
 
     /**

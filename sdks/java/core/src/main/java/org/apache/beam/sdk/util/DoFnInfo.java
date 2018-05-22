@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -35,6 +36,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
+  Map<TupleTag<?>, Coder<?>> outputCoders;
   private final TupleTag<OutputT> mainOutput;
 
   /** Creates a {@link DoFnInfo} for the given {@link DoFn}. */
@@ -43,12 +45,19 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput) {
-    return new DoFnInfo<>(doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput);
+    return new DoFnInfo<>(
+        doFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput);
   }
 
   public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
-    return DoFnInfo.forFn(newFn, windowingStrategy, sideInputViews, inputCoder, mainOutput);
+    return DoFnInfo.forFn(newFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        outputCoders,
+        mainOutput);
   }
 
   private DoFnInfo(
@@ -56,11 +65,13 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.mainOutput = mainOutput;
   }
 
@@ -80,6 +91,11 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   public Coder<InputT> getInputCoder() {
     return inputCoder;
   }
+
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return outputCoders;
+  }
+
 
   public TupleTag<OutputT> getMainOutput() {
     return mainOutput;

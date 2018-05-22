@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
@@ -334,7 +335,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /** Receives tagged output for a multi-output function. */
   public interface MultiOutputReceiver {
+    /** Returns an {@link OutputReceiver} for the given tag. **/
     <T> OutputReceiver<T> get(TupleTag<T> tag);
+
+    /** Returns a {@link OutputReceiver} for publishing {@link Row} objects to the given tag.
+     *
+     * <p>The {@link PCollection} representing this tag must have a schema registered in order to
+     * call this function.
+     */
+    <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag);
   }
 
   /////////////////////////////////////////////////////////////////////////////

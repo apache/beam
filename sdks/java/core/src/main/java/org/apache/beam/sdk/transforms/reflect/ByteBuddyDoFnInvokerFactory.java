@@ -98,6 +98,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String ROW_PARAMETER_METHOD = "asRow";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
+  public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
@@ -635,10 +636,13 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(OutputReceiverParameter p) {
+            String method = p.isRowReceiver() ?
+                OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(OUTPUT_PARAMETER_METHOD, DoFn.class)));
+                    getExtraContextFactoryMethodDescription(
+                        method, DoFn.class)));
           }
 
           @Override

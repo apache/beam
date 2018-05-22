@@ -331,51 +331,6 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests for basic {@link ParDo} schema scenarios. */
-  @RunWith(JUnit4.class)
-  public static class ParDoSchemaTest extends SharedTestBase implements Serializable {
-    static class MyPojo {
-      MyPojo(String stringField, Integer integerField) {
-        this.stringField = stringField;
-        this.integerField = integerField;
-      }
-
-      String stringField;
-      Integer integerField;
-    }
-
-    @Test
-    @Category(NeedsRunner.class)
-    public void testSchemaPipeline() {
-      List<ParDoSchemaTest.MyPojo> pojoList = Lists.newArrayList(
-          new ParDoSchemaTest.MyPojo("a", 1),
-          new ParDoSchemaTest.MyPojo("b", 2),
-          new ParDoSchemaTest.MyPojo("c", 3));
-
-      Schema schema = Schema.builder()
-          .addStringField("string_field", false)
-          .addInt32Field("integer_field", false)
-          .build();
-
-      // TODO: Plumb schemas through Create.java
-      PCollection<String> output = pipeline
-          .apply(Create.of(pojoList)
-              .withCoder(SchemaCoder.of(schema,
-                  o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
-                  r -> new ParDoSchemaTest.MyPojo(r.getString("string_field"),
-                      r.getInt32("integer_field")))))
-          .apply(ParDo.of(new DoFn<ParDoSchemaTest.MyPojo, String>() {
-            @ProcessElement
-            public void process(@Element Row row, OutputReceiver<String> r) {
-              r.output(row.getString(0) + ":" + row.getInt32(1));
-            }
-          }));
-      PAssert.that(output)
-          .containsInAnyOrder("a:1", "b:2", "c:3", "dfdfdfdf");
-      pipeline.run();
-    }
-  }
-
   /** Tests for basic {@link ParDo} scenarios. */
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase implements Serializable {

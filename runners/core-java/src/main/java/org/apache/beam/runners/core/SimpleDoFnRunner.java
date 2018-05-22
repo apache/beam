@@ -26,13 +26,13 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
@@ -101,6 +101,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   @Nullable
   private final SchemaCoder<InputT> schemaCoder;
 
+  @Nullable final SchemaCoder<OutputT> mainOutputSchemaCoder;
+
+  @Nullable
+  private Map<TupleTag<?>, Coder<?>> outputCoders;
+
   @Nullable
   private final FieldAccessDescriptor fieldAccessDescriptor;
 
@@ -112,7 +117,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      Coder<InputT> inputCoder,
+      @Nullable Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.options = options;
     this.fn = fn;
@@ -120,8 +126,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
-    this. schemaCoder = (inputCoder != null && inputCoder instanceof SchemaCoder)
+    this.schemaCoder = (inputCoder != null && inputCoder instanceof SchemaCoder)
     ? (SchemaCoder<InputT>) inputCoder : null;
+    this.outputCoders = outputCoders;
+    if (outputCoders != null) {
+      Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
+      mainOutputSchemaCoder = (outputCoder instanceof SchemaCoder)
+          ? (SchemaCoder<OutputT>) outputCoder : null;
+    } else {
+      mainOutputSchemaCoder = null;
+    }
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.outputTags =
@@ -319,6 +333,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access output receiver outside of @ProcessElement method.");
+    }
+
+    @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access output receiver outside of @ProcessElement method.");
@@ -422,6 +442,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access outputReceiver in @FinishBundle method.");
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access outputReceiver in @FinishBundle method.");
     }
@@ -637,8 +663,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+    }
+
+    @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
     }
 
     @Override
@@ -781,8 +812,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+    }
+
+    @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
     }
 
     @Override

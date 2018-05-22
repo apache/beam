@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,6 +86,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -106,6 +108,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -134,6 +137,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     // Setting the timer needs the current time, as it is set relative
@@ -163,6 +167,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -184,6 +189,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -209,6 +215,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(windowFn));
 
     Instant currentTime = new Instant(42);
@@ -249,6 +256,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -286,6 +294,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -324,6 +333,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyList(),
             mockStepContext,
             null,
+            Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();

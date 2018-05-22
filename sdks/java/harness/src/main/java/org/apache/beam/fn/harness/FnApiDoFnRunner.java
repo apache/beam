@@ -93,7 +93,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
   private FnApiStateAccessor stateAccessor;
   private final DoFnSignature doFnSignature;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
-
   private final DoFn<InputT, OutputT>.StartBundleContext startBundleContext;
   private final ProcessBundleContext processContext;
   private final DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext;
@@ -114,7 +113,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
-
 
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
@@ -326,7 +324,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
     }
 
     @Override
