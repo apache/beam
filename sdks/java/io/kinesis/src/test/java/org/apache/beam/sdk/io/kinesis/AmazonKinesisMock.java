@@ -80,8 +80,10 @@ import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
+import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -101,7 +103,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     private final String sequenceNumber;
 
     public TestData(KinesisRecord record) {
-      this(new String(record.getData().array()),
+      this(new String(record.getData().array(), StandardCharsets.UTF_8),
           record.getApproximateArrivalTimestamp(),
           record.getSequenceNumber());
     }
@@ -115,7 +117,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     public Record convertToRecord() {
       return new Record().
           withApproximateArrivalTimestamp(arrivalTimestamp.toDate()).
-          withData(ByteBuffer.wrap(data.getBytes())).
+          withData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8))).
           withSequenceNumber(sequenceNumber).
           withPartitionKey("");
     }
@@ -176,9 +178,10 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public GetRecordsResult getRecords(GetRecordsRequest getRecordsRequest) {
-    String[] shardIteratorParts = getRecordsRequest.getShardIterator().split(":");
-    int shardId = parseInt(shardIteratorParts[0]);
-    int startingRecord = parseInt(shardIteratorParts[1]);
+    List<String> shardIteratorParts =
+        Splitter.on(':').splitToList(getRecordsRequest.getShardIterator());
+    int shardId = parseInt(shardIteratorParts.get(0));
+    int startingRecord = parseInt(shardIteratorParts.get(1));
     List<Record> shardData = shardedData.get(shardId);
 
     int toIndex = min(startingRecord + numberOfRecordsPerGet, shardData.size());

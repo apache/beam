@@ -22,6 +22,7 @@ import static com.google.common.collect.Lists.newArrayList;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -106,7 +107,7 @@ public class KinesisIOIT implements Serializable {
   private List<byte[]> prepareData() {
     List<byte[]> data = newArrayList();
     for (int i = 0; i < NUM_RECORDS; i++) {
-      data.add(String.valueOf(i).getBytes());
+      data.add(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
     }
     return data;
   }
