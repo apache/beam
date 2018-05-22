@@ -44,8 +44,6 @@ job('beam_PreCommit_Java_GradleBuild') {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':javaPreCommit')
       common_job_properties.setGradleSwitches(delegate)
-      // Specify maven home on Jenkins, needed by Maven archetype integration tests.
-      switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
     }
   }
 }
