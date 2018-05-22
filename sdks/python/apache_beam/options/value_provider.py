@@ -19,6 +19,9 @@
 and dynamically provided values.
 """
 
+from __future__ import absolute_import
+
+from builtins import object
 from functools import wraps
 
 from apache_beam import error
@@ -65,6 +68,9 @@ class StaticValueProvider(ValueProvider):
           self.value == other.value):
         return True
     return False
+
+  def __hash__(self):
+    return hash((type(self), self.value_type, self.value))
 
 
 class RuntimeValueProvider(ValueProvider):
