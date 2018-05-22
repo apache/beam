@@ -24,6 +24,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.io.Closeables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -619,7 +620,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
 
     // cycle through the partitions in order to interleave records from each.
-    curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
+    curBatch = Iterators.cycle(new ArrayDeque<>(partitionStates));
   }
 
   private void setupInitialOffset(PartitionState pState) {
