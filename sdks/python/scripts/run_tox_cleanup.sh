@@ -19,6 +19,17 @@
 # This script is used to remove generated files in previous Tox runs so that
 # they are not picked up by tests.
 
+# Check that the script is running in a known directory.
+if [[ $PWD != *sdks/python* ]]; then
+  echo 'Unable to locate Apache Beam Python SDK root directory'
+  exit 1
+fi
+
+# Go to the Apache Beam Python SDK root
+if [[ "*sdks/python" != $PWD ]]; then
+  cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
+
 set -e
 
 for dir in apache_beam target/build; do

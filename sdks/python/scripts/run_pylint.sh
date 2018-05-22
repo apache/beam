@@ -23,6 +23,17 @@
 #
 # The exit-code of the script indicates success or a failure.
 
+# Check that the script is running in a known directory.
+if [[ $PWD != *sdks/python* ]]; then
+  echo 'Unable to locate Apache Beam Python SDK root directory'
+  exit 1
+fi
+
+# Go to the Apache Beam Python SDK root
+if [[ "*sdks/python" != $PWD ]]; then
+  cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
+
 set -o errexit
 set -o pipefail
 
