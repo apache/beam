@@ -17,6 +17,8 @@
 
 """Unit tests for the json_value module."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.internal.gcp.json_value import from_json_value
