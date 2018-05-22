@@ -69,7 +69,7 @@ class PortableStager(Stager):
       yield request
       with open(local_path_to_artifact, 'rb') as f:
         while True:
-          chunk = f.read(2 << 20)  # 2MB
+          chunk = f.read(1 << 21)  # 2MB
           if not chunk:
             break
           request = beam_artifact_api_pb2.PutArtifactRequest(
