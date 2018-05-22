@@ -50,7 +50,6 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
@@ -60,7 +59,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GcpOptions}. */
-@RunWith(Enclosed.class)
 public class GcpOptionsTest {
 
   /** Tests for the majority of methods. */

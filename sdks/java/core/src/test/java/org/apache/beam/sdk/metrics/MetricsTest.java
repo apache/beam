@@ -49,7 +49,6 @@ import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -58,7 +57,6 @@ import org.mockito.Mockito;
 /**
  * Tests for {@link Metrics}.
  */
-@RunWith(Enclosed.class)
 public class MetricsTest implements Serializable {
 
   private static final String NS = "test";
