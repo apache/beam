@@ -106,6 +106,7 @@ public interface DataflowPipelineOptions
    *
    * <p>NOTE: The Cloud Dataflow service does not yet honor this setting. However, once service
    * support is added then users of this SDK will be able to control the region.
+   * The Cloud Dataflow now also supports the region flag.
    */
   @Hidden
   @Experimental
