@@ -53,9 +53,10 @@ class PortableStagerTest(unittest.TestCase):
      Utility method to stage given.
     """
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    staging_service = TestLocalFileSystemArtifactStagingServiceServicer(
+        self._remote_dir)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
-        TestLocalFileSystemArtifactStagingServiceServicer(self._remote_dir),
-        server)
+        staging_service, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
     stager = portable_stager.PortableStager(
@@ -64,8 +65,8 @@ class PortableStagerTest(unittest.TestCase):
       stager.stage_artifact(
           local_path_to_artifact=os.path.join(self._temp_dir, from_file),
           artifact_name=to_file)
-
-    return stager._artifacts
+    stager.commit_manifest()
+    return staging_service.manifest.artifact
 
   def test_stage_single_file(self):
     from_file = 'test_local.txt'
@@ -132,6 +133,7 @@ class TestLocalFileSystemArtifactStagingServiceServicer(
   def __init__(self, temp_dir):
     super(TestLocalFileSystemArtifactStagingServiceServicer, self).__init__()
     self.temp_dir = temp_dir
+    self.manifest = None
 
   def PutArtifact(self, request_iterator, context):
     first = True
@@ -147,6 +149,7 @@ class TestLocalFileSystemArtifactStagingServiceServicer(
     return beam_artifact_api_pb2.PutArtifactResponse()
 
   def CommitManifest(self, request, context):
+    self.manifest = request.manifest
     return beam_artifact_api_pb2.CommitManifestResponse(staging_token='token')
 
 
