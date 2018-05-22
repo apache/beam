@@ -23,8 +23,19 @@
 # PROJECT      -> Project name to use for service jobs.
 #
 
+# Check that the script is running in a known directory.
+if [[ $PWD != *sdks/python* ]]; then
+  echo 'Unable to locate Apache Beam Python SDK root directory'
+  exit 1
+fi
+
+# Go to the Apache Beam Python SDK root
+if [[ "*sdks/python" != $PWD ]]; then
+  cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
+
 if [ -z "$1" ]; then
-  printf "Usage: \n$> ./run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
+  printf "Usage: \n$> ./scripts/run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
   printf "\n\ttest_type: ValidatesRunner or IT"
   printf "\n\tgcp_location: A gs:// path to stage artifacts and output results"
   printf "\n\tgcp_project: A GCP project to run Dataflow pipelines\n"
