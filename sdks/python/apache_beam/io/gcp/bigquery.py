@@ -686,7 +686,6 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
     The query will have text of the form "FROM `(x).y.z`" or "FROM [(x):y.z]"
      based on whether legacy or standard sql were provided.
-     :raises: ValueError if project is not supplied
     """
     if not self.source.use_legacy_sql:
       return self._parse_results(
