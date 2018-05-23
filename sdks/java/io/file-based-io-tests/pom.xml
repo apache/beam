@@ -359,5 +359,10 @@
             <artifactId>beam-sdks-java-io-xml</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-sdks-java-io-parquet</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
