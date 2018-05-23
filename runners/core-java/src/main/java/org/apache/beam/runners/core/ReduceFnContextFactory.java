@@ -516,7 +516,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       @Nullable final SideInputReader sideInputReader,
       final W mainInputWindow) {
     if (options == null || sideInputReader == null) {
-      return StateContexts.nullContext();
+      return StateContexts.windowOnlyContext(mainInputWindow);
     } else {
       return new StateContext<W>() {
 
