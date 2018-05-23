@@ -18,6 +18,8 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import io.grpc.ClientInterceptor;
 import io.grpc.Metadata;
 import io.grpc.Metadata.Key;
@@ -28,6 +30,7 @@ public class AddHarnessIdInterceptor {
   private static final Key<String> ID_KEY = Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
 
   public static ClientInterceptor create(String harnessId) {
+    checkArgument(harnessId != null, "harnessId must not be null");
     Metadata md = new Metadata();
     md.put(ID_KEY, harnessId);
     return MetadataUtils.newAttachHeadersInterceptor(md);

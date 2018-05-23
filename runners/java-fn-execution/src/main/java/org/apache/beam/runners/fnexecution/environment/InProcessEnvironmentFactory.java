@@ -88,6 +88,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
             () -> {
               try {
                 FnHarness.main(
+                    "id",
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),

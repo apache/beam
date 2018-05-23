@@ -49,18 +49,21 @@ import org.slf4j.LoggerFactory;
  * Main entry point into the Beam SDK Fn Harness for Java.
  *
  * <p>This entry point expects the following environment variables:
+ *
  * <ul>
- *   <li>LOGGING_API_SERVICE_DESCRIPTOR: A
- *   {@link org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor} encoded as text
- *   representing the endpoint that is to be connected to for the Beam Fn Logging service.</li>
- *   <li>CONTROL_API_SERVICE_DESCRIPTOR: A
- *   {@link Endpoints.ApiServiceDescriptor} encoded as text
- *   representing the endpoint that is to be connected to for the Beam Fn Control service.</li>
+ *   <li>HARNESS_ID: A String representing the ID of this FnHarness. This will be added to the
+ *       headers of calls to the Beam Control Service
+ *   <li>LOGGING_API_SERVICE_DESCRIPTOR: A {@link
+ *       org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor} encoded as text
+ *       representing the endpoint that is to be connected to for the Beam Fn Logging service.
+ *   <li>CONTROL_API_SERVICE_DESCRIPTOR: A {@link Endpoints.ApiServiceDescriptor} encoded as text
+ *       representing the endpoint that is to be connected to for the Beam Fn Control service.
  *   <li>PIPELINE_OPTIONS: A serialized form of {@link PipelineOptions}. See {@link PipelineOptions}
- *   for further details.</li>
+ *       for further details.
  * </ul>
  */
 public class FnHarness {
+  private static final String HARNESS_ID = "HARNESS_ID";
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
@@ -76,14 +79,17 @@ public class FnHarness {
 
   public static void main(String[] args) throws Exception {
     System.out.format("SDK Fn Harness started%n");
+    System.out.format("Harness ID %s%n", System.getenv(HARNESS_ID));
     System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
     System.out.format("Control location %s%n", System.getenv(CONTROL_API_SERVICE_DESCRIPTOR));
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
 
-    ObjectMapper objectMapper = new ObjectMapper().registerModules(
-        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-    PipelineOptions options = objectMapper.readValue(
-        System.getenv(PIPELINE_OPTIONS), PipelineOptions.class);
+    String id = System.getenv(HARNESS_ID);
+    ObjectMapper objectMapper =
+        new ObjectMapper()
+            .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    PipelineOptions options =
+        objectMapper.readValue(System.getenv(PIPELINE_OPTIONS), PipelineOptions.class);
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
         getApiServiceDescriptor(LOGGING_API_SERVICE_DESCRIPTOR);
@@ -91,12 +97,15 @@ public class FnHarness {
     Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
         getApiServiceDescriptor(CONTROL_API_SERVICE_DESCRIPTOR);
 
-    main(options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
+    main(id, options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
   }
 
-  public static void main(PipelineOptions options,
+  public static void main(
+      String id,
+      PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor) throws Exception {
+      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor)
+      throws Exception {
     ManagedChannelFactory channelFactory;
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
@@ -107,6 +116,7 @@ public class FnHarness {
     StreamObserverFactory streamObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
     main(
+        id,
         options,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
@@ -115,43 +125,46 @@ public class FnHarness {
   }
 
   public static void main(
+      String id,
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
       StreamObserverFactory streamObserverFactory) {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
-    try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
-        options,
-        loggingApiServiceDescriptor,
-        channelFactory::forDescriptor)) {
+    try (BeamFnLoggingClient logging =
+        new BeamFnLoggingClient(
+            options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
 
       LOG.info("Fn Harness started");
-      EnumMap<BeamFnApi.InstructionRequest.RequestCase,
+      EnumMap<
+              BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<InstructionRequest, Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
-      BeamFnDataGrpcClient beamFnDataMultiplexer = new BeamFnDataGrpcClient(
-          options, channelFactory::forDescriptor, streamObserverFactory::from);
+      BeamFnDataGrpcClient beamFnDataMultiplexer =
+          new BeamFnDataGrpcClient(
+              options, channelFactory::forDescriptor, streamObserverFactory::from);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(
               options, idGenerator, channelFactory::forDescriptor, streamObserverFactory::from);
 
-      ProcessBundleHandler processBundleHandler = new ProcessBundleHandler(
-          options,
-          fnApiRegistry::getById,
-          beamFnDataMultiplexer,
-          beamFnStateGrpcClientCache);
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER,
-          fnApiRegistry::register);
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
+      ProcessBundleHandler processBundleHandler =
+          new ProcessBundleHandler(
+              options, fnApiRegistry::getById, beamFnDataMultiplexer, beamFnStateGrpcClientCache);
+      handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
-      BeamFnControlClient control = new BeamFnControlClient(controlApiServiceDescriptor,
-          channelFactory::forDescriptor,
-          streamObserverFactory::from,
-          handlers);
+      BeamFnControlClient control =
+          new BeamFnControlClient(
+              id,
+              controlApiServiceDescriptor,
+              channelFactory,
+              streamObserverFactory::from,
+              handlers);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());

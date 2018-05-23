@@ -133,8 +133,9 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client =
           new BeamFnControlClient(
+              "",
               apiServiceDescriptor,
-              new InProcessManagedChannelFactory(),
+              InProcessManagedChannelFactory.create(),
               this::createStreamForTest,
               handlers);
 
@@ -212,8 +213,9 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client =
           new BeamFnControlClient(
+              "",
               apiServiceDescriptor,
-              new InProcessManagedChannelFactory(),
+              InProcessManagedChannelFactory.create(),
               this::createStreamForTest,
               handlers);
 
@@ -254,6 +256,4 @@ public class BeamFnControlClientTest {
       StreamObserverClientFactory<ReqT, RespT> clientFactory, StreamObserver<ReqT> handler) {
     return clientFactory.outboundObserverFor(handler);
   }
-
-
 }
