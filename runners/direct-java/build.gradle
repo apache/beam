@@ -23,15 +23,19 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.protobuf_java_util))
+    include(dependency("io.grpc:.*"))
     include(project(path: ":beam-model-pipeline", configuration: "shadow"))
+    include(project(path: ":beam-model-fn-execution", configuration: "shadow"))
     include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
     include(project(path: ":beam-runners-core-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-java-fn-execution", configuration: "shadow"))
     include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
   }
-  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
+  relocate "io.grpc", getJavaRelocatedPath("io.grpc")
+  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
+  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+  relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
 })
 
 description = "Apache Beam :: Runners :: Direct Java"
@@ -55,10 +59,10 @@ dependencies {
   compile project(path: ":beam-model-pipeline", configuration: "shadow")
   compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
   compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
