@@ -690,28 +690,28 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     """
     if not self.source.use_legacy_sql:
       return self._parse_results(
-        r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
-        r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)`')
+          r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
+          r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)`')
     else:
       return self._parse_results(
-        r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
-        r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+)\.([\w-]+)\]'
+          r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
+          r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+)\.([\w-]+)\]'
       )
 
   def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr is None:
-        source_project_id, source_dataset_id, source_table_id = \
-            self._parse_query()
-        if not source_project_id:  # Impossible to determine location
-          return
+      source_project_id, source_dataset_id, source_table_id = \
+        self._parse_query()
+      if not source_project_id:  # Impossible to determine location
+        return
     else:
-        source_dataset_id = tr.datasetId
-        source_table_id = tr.tableId
-        if tr.projectId is None:
-          source_project_id = self.executing_project
-        else:
-          source_project_id = tr.projectId
+      source_dataset_id = tr.datasetId
+      source_table_id = tr.tableId
+      if tr.projectId is None:
+        source_project_id = self.executing_project
+      else:
+        source_project_id = tr.projectId
 
     source_location = self.client.get_table_location(
         source_project_id, source_dataset_id, source_table_id)
