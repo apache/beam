@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * String operators.
- */
+/** String operators. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;

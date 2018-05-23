@@ -30,13 +30,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link PubsubJsonTableProvider}.
- */
+/** Unit tests for {@link PubsubJsonTableProvider}. */
 public class PubsubJsonTableProviderTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testTableTypePubsub() {
@@ -47,12 +44,12 @@ public class PubsubJsonTableProviderTest {
   @Test
   public void testCreatesTable() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
-    Schema messageSchema = RowSqlTypes
-        .builder()
-        .withTimestampField("event_timestamp")
-        .withMapField("attributes", VARCHAR, VARCHAR)
-        .withRowField("payload", Schema.builder().build())
-        .build();
+    Schema messageSchema =
+        RowSqlTypes.builder()
+            .withTimestampField("event_timestamp")
+            .withMapField("attributes", VARCHAR, VARCHAR)
+            .withRowField("payload", Schema.builder().build())
+            .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
 
@@ -65,11 +62,11 @@ public class PubsubJsonTableProviderTest {
   @Test
   public void testThrowsIfTimestampFieldNotProvided() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
-    Schema messageSchema = RowSqlTypes
-        .builder()
-        .withMapField("attributes", VARCHAR, VARCHAR)
-        .withRowField("payload", Schema.builder().build())
-        .build();
+    Schema messageSchema =
+        RowSqlTypes.builder()
+            .withMapField("attributes", VARCHAR, VARCHAR)
+            .withRowField("payload", Schema.builder().build())
+            .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
 
@@ -81,11 +78,11 @@ public class PubsubJsonTableProviderTest {
   @Test
   public void testThrowsIfAttributesFieldNotProvided() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
-    Schema messageSchema = RowSqlTypes
-        .builder()
-        .withTimestampField("event_timestamp")
-        .withRowField("payload", Schema.builder().build())
-        .build();
+    Schema messageSchema =
+        RowSqlTypes.builder()
+            .withTimestampField("event_timestamp")
+            .withRowField("payload", Schema.builder().build())
+            .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
 
@@ -97,11 +94,11 @@ public class PubsubJsonTableProviderTest {
   @Test
   public void testThrowsIfPayloadFieldNotProvided() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
-    Schema messageSchema = RowSqlTypes
-        .builder()
-        .withTimestampField("event_timestamp")
-        .withMapField("attributes", VARCHAR, VARCHAR)
-        .build();
+    Schema messageSchema =
+        RowSqlTypes.builder()
+            .withTimestampField("event_timestamp")
+            .withMapField("attributes", VARCHAR, VARCHAR)
+            .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
 
@@ -113,13 +110,13 @@ public class PubsubJsonTableProviderTest {
   @Test
   public void testThrowsIfExtraFieldsExist() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
-    Schema messageSchema = RowSqlTypes
-        .builder()
-        .withTimestampField("event_timestamp")
-        .withMapField("attributes", VARCHAR, VARCHAR)
-        .withVarcharField("someField")
-        .withRowField("payload", Schema.builder().build())
-        .build();
+    Schema messageSchema =
+        RowSqlTypes.builder()
+            .withTimestampField("event_timestamp")
+            .withMapField("attributes", VARCHAR, VARCHAR)
+            .withVarcharField("someField")
+            .withRowField("payload", Schema.builder().build())
+            .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
 
@@ -129,14 +126,12 @@ public class PubsubJsonTableProviderTest {
   }
 
   private static Table.Builder tableDefinition() {
-    return
-        Table
-            .builder()
-            .name("FakeTable")
-            .comment("fake table")
-            .location("projects/project/topics/topic")
-            .schema(Schema.builder().build())
-            .type("pubsub")
-            .properties(JSON.parseObject("{ \"timestampAttributeKey\" : \"ts_field\" }"));
+    return Table.builder()
+        .name("FakeTable")
+        .comment("fake table")
+        .location("projects/project/topics/topic")
+        .schema(Schema.builder().build())
+        .type("pubsub")
+        .properties(JSON.parseObject("{ \"timestampAttributeKey\" : \"ts_field\" }"));
   }
 }

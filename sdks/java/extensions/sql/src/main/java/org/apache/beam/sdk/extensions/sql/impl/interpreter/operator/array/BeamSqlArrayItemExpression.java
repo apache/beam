@@ -24,14 +24,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Implements array element access expression.
- */
+/** Implements array element access expression. */
 public class BeamSqlArrayItemExpression extends BeamSqlExpression {
 
-  public BeamSqlArrayItemExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlArrayItemExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
 
     super(operands, sqlTypeName);
   }

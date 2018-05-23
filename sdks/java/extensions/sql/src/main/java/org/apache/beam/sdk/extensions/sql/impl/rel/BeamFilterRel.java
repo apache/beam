@@ -32,14 +32,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rex.RexNode;
 
-/**
- * BeamRelNode to replace a {@code Filter} node.
- *
- */
+/** BeamRelNode to replace a {@code Filter} node. */
 public class BeamFilterRel extends Filter implements BeamRelNode {
 
-  public BeamFilterRel(RelOptCluster cluster, RelTraitSet traits, RelNode child,
-      RexNode condition) {
+  public BeamFilterRel(
+      RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
     super(cluster, traits, child, condition);
   }
 

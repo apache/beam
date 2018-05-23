@@ -25,9 +25,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Utilities for {@code BeamRelNode}.
- */
+/** Utilities for {@code BeamRelNode}. */
 class BeamSqlRelUtils {
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRelUtils.class);
 
@@ -35,13 +33,20 @@ class BeamSqlRelUtils {
   private static final AtomicInteger classSequence = new AtomicInteger(0);
 
   public static String getStageName(BeamRelNode relNode) {
-    return relNode.getClass().getSimpleName().toUpperCase() + "_" + relNode.getId() + "_"
+    return relNode.getClass().getSimpleName().toUpperCase()
+        + "_"
+        + relNode.getId()
+        + "_"
         + sequence.getAndIncrement();
   }
 
   public static String getClassName(BeamRelNode relNode) {
-    return "Generated_" + relNode.getClass().getSimpleName().toUpperCase() + "_" + relNode.getId()
-        + "_" + classSequence.getAndIncrement();
+    return "Generated_"
+        + relNode.getClass().getSimpleName().toUpperCase()
+        + "_"
+        + relNode.getId()
+        + "_"
+        + classSequence.getAndIncrement();
   }
 
   public static BeamRelNode getBeamRelInput(RelNode input) {
@@ -61,11 +66,13 @@ class BeamSqlRelUtils {
     try {
       explain = RelOptUtil.toString(rel);
     } catch (StackOverflowError e) {
-      LOG.error("StackOverflowError occurred while extracting plan. "
-          + "Please report it to the dev@ mailing list.");
+      LOG.error(
+          "StackOverflowError occurred while extracting plan. "
+              + "Please report it to the dev@ mailing list.");
       LOG.error("RelNode " + rel + " ExplainLevel " + detailLevel, e);
-      LOG.error("Forcing plan to empty string and continue... "
-          + "SQL Runner may not working properly after.");
+      LOG.error(
+          "Forcing plan to empty string and continue... "
+              + "SQL Runner may not working properly after.");
     }
     return explain;
   }

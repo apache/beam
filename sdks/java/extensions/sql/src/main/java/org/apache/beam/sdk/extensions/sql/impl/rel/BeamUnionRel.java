@@ -39,40 +39,41 @@ import org.apache.calcite.rel.core.Union;
  * <p>1) Do not use {@code grouped window function}:
  *
  * <pre>{@code
- *   select * from person UNION select * from person
+ * select * from person UNION select * from person
  * }</pre>
  *
  * <p>2) Use the same {@code grouped window function}, with the same param:
+ *
  * <pre>{@code
- *   select id, count(*) from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
- *   UNION
- *   select * from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * select id, count(*) from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * UNION
+ * select * from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
  * }</pre>
  *
  * <p>Inputs with different group functions are NOT supported:
+ *
  * <pre>{@code
- *   select id, count(*) from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
- *   UNION
- *   select * from person
- *   group by id, TUMBLE(order_time, INTERVAL '2' HOUR)
+ * select id, count(*) from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * UNION
+ * select * from person
+ * group by id, TUMBLE(order_time, INTERVAL '2' HOUR)
  * }</pre>
  */
 public class BeamUnionRel extends Union implements BeamRelNode {
   private BeamSetOperatorRelBase delegate;
-  public BeamUnionRel(RelOptCluster cluster,
-      RelTraitSet traits,
-      List<RelNode> inputs,
-      boolean all) {
+
+  public BeamUnionRel(
+      RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
     super(cluster, traits, inputs, all);
-    this.delegate = new BeamSetOperatorRelBase(this,
-        BeamSetOperatorRelBase.OpType.UNION,
-        inputs, all);
+    this.delegate =
+        new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, inputs, all);
   }
 
-  @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
+  @Override
+  public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
   }
 

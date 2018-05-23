@@ -1,18 +1,15 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ *
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * <p>Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
@@ -53,13 +50,10 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamAggregationTransforms}.
- */
+/** Unit tests for {@link BeamAggregationTransforms}. */
 public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   private List<AggregateCall> aggCalls;
 
@@ -74,6 +68,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
   /**
    * This step equals to below query.
+   *
    * <pre>
    * SELECT `f_int`
    * , COUNT(*) AS `size`
@@ -102,8 +97,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
     PCollection<Row> input = p.apply(Create.of(inputRows));
 
-    Schema keySchema = Schema.builder()
-        .addFields(Lists.newArrayList(inputSchema.getField(0))).build();
+    Schema keySchema =
+        Schema.builder().addFields(Lists.newArrayList(inputSchema.getField(0))).build();
     // 1. extract fields in group-by key part
     PCollection<KV<Row, Row>> exGroupByStream =
         input
@@ -130,9 +125,11 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .setCoder(KvCoder.of(keyCoder, aggCoder));
 
     //4. flat KV to a single record
-    PCollection<Row> mergedStream = aggregatedStream.apply(
-        "mergeRecord",
-        ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(outputType, aggCalls, -1)));
+    PCollection<Row> mergedStream =
+        aggregatedStream.apply(
+            "mergeRecord",
+            ParDo.of(
+                new BeamAggregationTransforms.MergeAggregationRecord(outputType, aggCalls, -1)));
     mergedStream.setCoder(outRecordCoder);
 
     //assert function BeamAggregationTransform.AggregationGroupByKeyFn
@@ -152,9 +149,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
     prepareTypeAndCoder();
   }
 
-  /**
-   * create list of all {@link AggregateCall}.
-   */
+  /** create list of all {@link AggregateCall}. */
   @SuppressWarnings("deprecation")
   private void prepareAggregationCalls() {
     //aggregations for all data type
@@ -357,58 +352,44 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             "min8"));
   }
 
-  /**
-   * Coders used in aggregation steps.
-   */
+  /** Coders used in aggregation steps. */
   private void prepareTypeAndCoder() {
     inRecordCoder = inputSchema.getRowCoder();
 
-    keyType =
-        RowSqlTypes
-            .builder()
-            .withIntegerField("f_int")
-            .build();
+    keyType = RowSqlTypes.builder().withIntegerField("f_int").build();
 
     keyCoder = keyType.getRowCoder();
 
-    aggPartType = RowSqlTypes
-        .builder()
-        .withBigIntField("count")
-
-        .withBigIntField("sum1")
-        .withBigIntField("avg1")
-        .withBigIntField("max1")
-        .withBigIntField("min1")
-
-        .withSmallIntField("sum2")
-        .withSmallIntField("avg2")
-        .withSmallIntField("max2")
-        .withSmallIntField("min2")
-
-        .withTinyIntField("sum3")
-        .withTinyIntField("avg3")
-        .withTinyIntField("max3")
-        .withTinyIntField("min3")
-
-        .withFloatField("sum4")
-        .withFloatField("avg4")
-        .withFloatField("max4")
-        .withFloatField("min4")
-
-        .withDoubleField("sum5")
-        .withDoubleField("avg5")
-        .withDoubleField("max5")
-        .withDoubleField("min5")
-
-        .withTimestampField("max7")
-        .withTimestampField("min7")
-
-        .withIntegerField("sum8")
-        .withIntegerField("avg8")
-        .withIntegerField("max8")
-        .withIntegerField("min8")
-
-        .build();
+    aggPartType =
+        RowSqlTypes.builder()
+            .withBigIntField("count")
+            .withBigIntField("sum1")
+            .withBigIntField("avg1")
+            .withBigIntField("max1")
+            .withBigIntField("min1")
+            .withSmallIntField("sum2")
+            .withSmallIntField("avg2")
+            .withSmallIntField("max2")
+            .withSmallIntField("min2")
+            .withTinyIntField("sum3")
+            .withTinyIntField("avg3")
+            .withTinyIntField("max3")
+            .withTinyIntField("min3")
+            .withFloatField("sum4")
+            .withFloatField("avg4")
+            .withFloatField("max4")
+            .withFloatField("min4")
+            .withDoubleField("sum5")
+            .withDoubleField("avg5")
+            .withDoubleField("max5")
+            .withDoubleField("min5")
+            .withTimestampField("max7")
+            .withTimestampField("min7")
+            .withIntegerField("sum8")
+            .withIntegerField("avg8")
+            .withIntegerField("max8")
+            .withIntegerField("min8")
+            .build();
 
     aggCoder = aggPartType.getRowCoder();
 
@@ -416,35 +397,23 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
     outRecordCoder = outputType.getRowCoder();
   }
 
-  /**
-   * expected results after {@link BeamAggregationTransforms.AggregationGroupByKeyFn}.
-   */
+  /** expected results after {@link BeamAggregationTransforms.AggregationGroupByKeyFn}. */
   private List<KV<Row, Row>> prepareResultOfAggregationGroupByKeyFn() {
-    return
-        IntStream
-            .range(0, 4)
-            .mapToObj(i -> KV.of(
-                Row
-                    .withSchema(keyType)
-                    .addValues(inputRows.get(i).getInt32(0))
-                    .build(),
-                inputRows.get(i)
-            )).collect(Collectors.toList());
+    return IntStream.range(0, 4)
+        .mapToObj(
+            i ->
+                KV.of(
+                    Row.withSchema(keyType).addValues(inputRows.get(i).getInt32(0)).build(),
+                    inputRows.get(i)))
+        .collect(Collectors.toList());
   }
 
-  /**
-   * expected results.
-   */
-  private List<KV<Row, Row>> prepareResultOfAggregationCombineFn()
-      throws ParseException {
+  /** expected results. */
+  private List<KV<Row, Row>> prepareResultOfAggregationCombineFn() throws ParseException {
     return Arrays.asList(
         KV.of(
-            Row
-                .withSchema(keyType)
-                .addValues(inputRows.get(0).getInt32(0))
-                .build(),
-            Row
-                .withSchema(aggPartType)
+            Row.withSchema(keyType).addValues(inputRows.get(0).getInt32(0)).build(),
+            Row.withSchema(aggPartType)
                 .addValues(
                     4L,
                     10000L,
@@ -476,59 +445,43 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                 .build()));
   }
 
-
-  /**
-   * Row type of final output row.
-   */
+  /** Row type of final output row. */
   private Schema prepareFinalRowType() {
-    return
-        RowSqlTypes
-            .builder()
-            .withIntegerField("f_int")
-            .withBigIntField("count")
-
-            .withBigIntField("sum1")
-            .withBigIntField("avg1")
-            .withBigIntField("max1")
-            .withBigIntField("min1")
-
-            .withSmallIntField("sum2")
-            .withSmallIntField("avg2")
-            .withSmallIntField("max2")
-            .withSmallIntField("min2")
-
-            .withTinyIntField("sum3")
-            .withTinyIntField("avg3")
-            .withTinyIntField("max3")
-            .withTinyIntField("min3")
-
-            .withFloatField("sum4")
-            .withFloatField("avg4")
-            .withFloatField("max4")
-            .withFloatField("min4")
-
-            .withDoubleField("sum5")
-            .withDoubleField("avg5")
-            .withDoubleField("max5")
-            .withDoubleField("min5")
-
-            .withTimestampField("max7")
-            .withTimestampField("min7")
-
-            .withIntegerField("sum8")
-            .withIntegerField("avg8")
-            .withIntegerField("max8")
-            .withIntegerField("min8")
-
-            .build();
+    return RowSqlTypes.builder()
+        .withIntegerField("f_int")
+        .withBigIntField("count")
+        .withBigIntField("sum1")
+        .withBigIntField("avg1")
+        .withBigIntField("max1")
+        .withBigIntField("min1")
+        .withSmallIntField("sum2")
+        .withSmallIntField("avg2")
+        .withSmallIntField("max2")
+        .withSmallIntField("min2")
+        .withTinyIntField("sum3")
+        .withTinyIntField("avg3")
+        .withTinyIntField("max3")
+        .withTinyIntField("min3")
+        .withFloatField("sum4")
+        .withFloatField("avg4")
+        .withFloatField("max4")
+        .withFloatField("min4")
+        .withDoubleField("sum5")
+        .withDoubleField("avg5")
+        .withDoubleField("max5")
+        .withDoubleField("min5")
+        .withTimestampField("max7")
+        .withTimestampField("min7")
+        .withIntegerField("sum8")
+        .withIntegerField("avg8")
+        .withIntegerField("max8")
+        .withIntegerField("min8")
+        .build();
   }
 
-  /**
-   * expected results after {@link BeamAggregationTransforms.MergeAggregationRecord}.
-   */
+  /** expected results after {@link BeamAggregationTransforms.MergeAggregationRecord}. */
   private Row prepareResultOfMergeAggregationRow() throws ParseException {
-    return Row
-        .withSchema(outputType)
+    return Row.withSchema(outputType)
         .addValues(
             1,
             4L,

@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Table schema for {@link org.apache.beam.sdk.io.gcp.pubsub.PubsubIO}.
- */
+/** Table schema for {@link org.apache.beam.sdk.io.gcp.pubsub.PubsubIO}. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 

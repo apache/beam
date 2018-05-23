@@ -37,24 +37,22 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
-/**
- * BeamRelNode to replace a {@code Project} node.
- *
- */
+/** BeamRelNode to replace a {@code Project} node. */
 public class BeamProjectRel extends Project implements BeamRelNode {
 
-  /**
-   * projects: {@link RexLiteral}, {@link RexInputRef}, {@link RexCall}.
-   *
-   */
-  public BeamProjectRel(RelOptCluster cluster, RelTraitSet traits, RelNode input,
-      List<? extends RexNode> projects, RelDataType rowType) {
+  /** projects: {@link RexLiteral}, {@link RexInputRef}, {@link RexCall}. */
+  public BeamProjectRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      List<? extends RexNode> projects,
+      RelDataType rowType) {
     super(cluster, traits, input, projects, rowType);
   }
 
   @Override
-  public Project copy(RelTraitSet traitSet, RelNode input, List<RexNode> projects,
-      RelDataType rowType) {
+  public Project copy(
+      RelTraitSet traitSet, RelNode input, List<RexNode> projects, RelDataType rowType) {
     return new BeamProjectRel(getCluster(), traitSet, input, projects, rowType);
   }
 

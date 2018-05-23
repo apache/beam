@@ -27,24 +27,26 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Intersect;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 
-/**
- * {@code ConverterRule} to replace {@code Intersect} with {@code BeamIntersectRel}.
- */
+/** {@code ConverterRule} to replace {@code Intersect} with {@code BeamIntersectRel}. */
 public class BeamIntersectRule extends ConverterRule {
   public static final BeamIntersectRule INSTANCE = new BeamIntersectRule();
+
   private BeamIntersectRule() {
-    super(LogicalIntersect.class, Convention.NONE,
-        BeamLogicalConvention.INSTANCE, "BeamIntersectRule");
+    super(
+        LogicalIntersect.class,
+        Convention.NONE,
+        BeamLogicalConvention.INSTANCE,
+        "BeamIntersectRule");
   }
 
-  @Override public RelNode convert(RelNode rel) {
+  @Override
+  public RelNode convert(RelNode rel) {
     Intersect intersect = (Intersect) rel;
     final List<RelNode> inputs = intersect.getInputs();
     return new BeamIntersectRel(
         intersect.getCluster(),
         intersect.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convertList(inputs, BeamLogicalConvention.INSTANCE),
-        intersect.all
-    );
+        intersect.all);
   }
 }

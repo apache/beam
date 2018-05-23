@@ -28,30 +28,29 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamSqlExpression} for Reinterpret call.
  *
- * <p>Currently supported conversions:
- *  - {@link SqlTypeName#DATETIME_TYPES} to {@code BIGINT};
- *  - {@link SqlTypeName#INTEGER} to {@code BIGINT};
+ * <p>Currently supported conversions: - {@link SqlTypeName#DATETIME_TYPES} to {@code BIGINT}; -
+ * {@link SqlTypeName#INTEGER} to {@code BIGINT};
  */
 public class BeamSqlReinterpretExpression extends BeamSqlExpression {
 
-  private static final Reinterpreter REINTERPRETER = Reinterpreter.builder()
-      .withConversion(DatetimeReinterpretConversions.TIME_TO_BIGINT)
-      .withConversion(DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT)
-      .withConversion(IntegerReinterpretConversions.INTEGER_TYPES_TO_BIGINT)
-      .build();
+  private static final Reinterpreter REINTERPRETER =
+      Reinterpreter.builder()
+          .withConversion(DatetimeReinterpretConversions.TIME_TO_BIGINT)
+          .withConversion(DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT)
+          .withConversion(IntegerReinterpretConversions.INTEGER_TYPES_TO_BIGINT)
+          .build();
 
   public BeamSqlReinterpretExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
-  @Override public boolean accept() {
-    return getOperands().size() == 1
-        && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
+  @Override
+  public boolean accept() {
+    return getOperands().size() == 1 && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    return REINTERPRETER.convert(
-            SqlTypeName.BIGINT,
-            operands.get(0).evaluate(inputRow, window));
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+    return REINTERPRETER.convert(SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window));
   }
 }

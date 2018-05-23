@@ -30,43 +30,36 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
-/**
- * A Kafka topic that saves records as CSV format.
- *
- */
+/** A Kafka topic that saves records as CSV format. */
 public class BeamKafkaCSVTable extends BeamKafkaTable {
   private CSVFormat csvFormat;
-  public BeamKafkaCSVTable(Schema beamSchema, String bootstrapServers,
-                           List<String> topics) {
+
+  public BeamKafkaCSVTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
     this(beamSchema, bootstrapServers, topics, CSVFormat.DEFAULT);
   }
 
-  public BeamKafkaCSVTable(Schema beamSchema, String bootstrapServers,
-                           List<String> topics, CSVFormat format) {
+  public BeamKafkaCSVTable(
+      Schema beamSchema, String bootstrapServers, List<String> topics, CSVFormat format) {
     super(beamSchema, bootstrapServers, topics);
     this.csvFormat = format;
   }
 
   @Override
-  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
-      getPTransformForInput() {
+  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
     return new CsvRecorderDecoder(schema, csvFormat);
   }
 
   @Override
-  public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
-      getPTransformForOutput() {
+  public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
     return new CsvRecorderEncoder(schema, csvFormat);
   }
 
-  /**
-   * A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}.
-   *
-   */
+  /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
   public static class CsvRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private Schema schema;
     private CSVFormat format;
+
     public CsvRecorderDecoder(Schema schema, CSVFormat format) {
       this.schema = schema;
       this.format = format;
@@ -74,24 +67,25 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
-      return input.apply("decodeRecord", ParDo.of(new DoFn<KV<byte[], byte[]>, Row>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          String rowInString = new String(c.element().getValue());
-          c.output(csvLine2BeamRow(format, rowInString, schema));
-        }
-      }));
+      return input.apply(
+          "decodeRecord",
+          ParDo.of(
+              new DoFn<KV<byte[], byte[]>, Row>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
+                  String rowInString = new String(c.element().getValue());
+                  c.output(csvLine2BeamRow(format, rowInString, schema));
+                }
+              }));
     }
   }
 
-  /**
-   * A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}.
-   *
-   */
+  /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
   public static class CsvRecorderEncoder
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
     private Schema schema;
     private CSVFormat format;
+
     public CsvRecorderEncoder(Schema schema, CSVFormat format) {
       this.schema = schema;
       this.format = format;
@@ -99,13 +93,16 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
-      return input.apply("encodeRecord", ParDo.of(new DoFn<Row, KV<byte[], byte[]>>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          Row in = c.element();
-          c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes()));
-        }
-      }));
+      return input.apply(
+          "encodeRecord",
+          ParDo.of(
+              new DoFn<Row, KV<byte[], byte[]>>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
+                  Row in = c.element();
+                  c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes()));
+                }
+              }));
     }
   }
 }

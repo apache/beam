@@ -26,14 +26,12 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Implements CARDINALITY(collection) operation which returns
- * the number of elements in the collection.
+ * Implements CARDINALITY(collection) operation which returns the number of elements in the
+ * collection.
  */
 public class BeamSqlCardinalityExpression extends BeamSqlExpression {
 
-  public BeamSqlCardinalityExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlCardinalityExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
 
     super(operands, sqlTypeName);
   }

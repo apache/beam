@@ -33,65 +33,59 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamSetOperatorRelBase}.
- */
+/** Test for {@code BeamSetOperatorRelBase}. */
 public class BeamSetOperatorRelBaseTest extends BaseRelTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
   public static final DateTime THE_DATE = new DateTime(100000);
 
   @BeforeClass
   public static void prepare() {
-    registerTable("ORDER_DETAILS",
+    registerTable(
+        "ORDER_DETAILS",
         MockedBoundedTable.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price",
-            TypeName.DATETIME, "order_time"
-        ).addRows(
-            1L, 1, 1.0, THE_DATE,
-            2L, 2, 2.0, THE_DATE
-        )
-    );
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price",
+                TypeName.DATETIME, "order_time")
+            .addRows(1L, 1, 1.0, THE_DATE, 2L, 2, 2.0, THE_DATE));
   }
 
   @Test
   public void testSameWindow() throws Exception {
-    String sql = "SELECT "
-        + " order_id, site_id, count(*) as cnt "
-        + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
-        + ", TUMBLE(order_time, INTERVAL '1' HOUR) "
-        + " UNION SELECT "
-        + " order_id, site_id, count(*) as cnt "
-        + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
-        + ", TUMBLE(order_time, INTERVAL '1' HOUR) ";
+    String sql =
+        "SELECT "
+            + " order_id, site_id, count(*) as cnt "
+            + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
+            + ", TUMBLE(order_time, INTERVAL '1' HOUR) "
+            + " UNION SELECT "
+            + " order_id, site_id, count(*) as cnt "
+            + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
+            + ", TUMBLE(order_time, INTERVAL '1' HOUR) ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     // compare valueInString to ignore the windowStart & windowEnd
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                TypeName.INT64, "order_id",
-                TypeName.INT32, "site_id",
-                TypeName.INT64, "cnt"
-            ).addRows(
-                1L, 1, 1L,
-                2L, 2, 1L
-            ).getStringRows());
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.INT64, "cnt")
+                .addRows(1L, 1, 1L, 2L, 2, 1L)
+                .getStringRows());
     pipeline.run();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testDifferentWindows() throws Exception {
-    String sql = "SELECT "
-        + " order_id, site_id, count(*) as cnt "
-        + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
-        + ", TUMBLE(order_time, INTERVAL '1' HOUR) "
-        + " UNION SELECT "
-        + " order_id, site_id, count(*) as cnt "
-        + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
-        + ", TUMBLE(order_time, INTERVAL '2' HOUR) ";
+    String sql =
+        "SELECT "
+            + " order_id, site_id, count(*) as cnt "
+            + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
+            + ", TUMBLE(order_time, INTERVAL '1' HOUR) "
+            + " UNION SELECT "
+            + " order_id, site_id, count(*) as cnt "
+            + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
+            + ", TUMBLE(order_time, INTERVAL '2' HOUR) ";
 
     // use a real pipeline rather than the TestPipeline because we are
     // testing exceptions, the pipeline will not actually run.

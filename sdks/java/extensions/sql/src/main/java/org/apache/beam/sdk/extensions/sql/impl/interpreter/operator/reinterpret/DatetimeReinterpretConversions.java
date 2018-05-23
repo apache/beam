@@ -22,9 +22,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.ReadableInstant;
 
-/**
- * Utility class to contain implementations of datetime SQL type conversions.
- */
+/** Utility class to contain implementations of datetime SQL type conversions. */
 public abstract class DatetimeReinterpretConversions {
 
   public static final ReinterpretConversion TIME_TO_BIGINT =

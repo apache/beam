@@ -29,16 +29,15 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * Trim operator.
  *
- * <p>
- * TRIM( { BOTH | LEADING | TRAILING } string1 FROM string2)
- * </p>
+ * <p>TRIM( { BOTH | LEADING | TRAILING } string1 FROM string2)
  */
 public class BeamSqlTrimExpression extends BeamSqlExpression {
   public BeamSqlTrimExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() != 1 && operands.size() != 3) {
       return false;
     }
@@ -48,21 +47,20 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
     }
 
     if (operands.size() == 3
-        && (
-        SqlTypeName.SYMBOL != opType(0)
+        && (SqlTypeName.SYMBOL != opType(0)
             || !SqlTypeName.CHAR_TYPES.contains(opType(1))
-            || !SqlTypeName.CHAR_TYPES.contains(opType(2)))
-        ) {
+            || !SqlTypeName.CHAR_TYPES.contains(opType(2)))) {
       return false;
     }
 
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     if (operands.size() == 1) {
-      return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-          opValueEvaluated(0, inputRow, window).toString().trim());
+      return BeamSqlPrimitive.of(
+          SqlTypeName.VARCHAR, opValueEvaluated(0, inputRow, window).toString().trim());
     } else {
       SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window);
       String targetStr = opValueEvaluated(1, inputRow, window);
@@ -75,8 +73,8 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
           return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, trailingTrim(containingStr, targetStr));
         case BOTH:
         default:
-          return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-              trailingTrim(leadingTrim(containingStr, targetStr), targetStr));
+          return BeamSqlPrimitive.of(
+              SqlTypeName.VARCHAR, trailingTrim(leadingTrim(containingStr, targetStr), targetStr));
       }
     }
   }

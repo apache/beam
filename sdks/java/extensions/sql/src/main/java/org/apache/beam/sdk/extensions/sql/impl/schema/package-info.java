@@ -15,8 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * define table schema, to map with Beam IO components.
- *
- */
+/** define table schema, to map with Beam IO components. */
 package org.apache.beam.sdk.extensions.sql.impl.schema;

@@ -25,10 +25,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-
 /**
- * Base class for all unary functions such as
- * ABS, SQRT, LN, LOG10, EXP, CEIL, FLOOR, RAND, ACOS,
+ * Base class for all unary functions such as ABS, SQRT, LN, LOG10, EXP, CEIL, FLOOR, RAND, ACOS,
  * ASIN, ATAN, COS, COT, DEGREES, RADIANS, SIGN, SIN, TAN.
  */
 public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
@@ -37,7 +35,8 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     boolean acceptance = false;
 
     if (numberOfOperands() == 1 && SqlTypeName.NUMERIC_TYPES.contains(opType(0))) {
@@ -46,15 +45,12 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
     return acceptance;
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(Row inputRow,
-      BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive<? extends Number> evaluate(Row inputRow, BoundedWindow window) {
     BeamSqlExpression operand = op(0);
     return calculate(operand.evaluate(inputRow, window));
   }
 
-  /**
-   * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}.
-   * */
-
+  /** For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}. */
   public abstract BeamSqlPrimitive calculate(BeamSqlPrimitive op);
 }

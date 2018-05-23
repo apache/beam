@@ -34,17 +34,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BeamSqlTimestampMinusTimestampExpression}.
- */
+/** Unit tests for {@link BeamSqlTimestampMinusTimestampExpression}. */
 public class BeamSqlTimestampMinusTimestampExpressionTest {
 
   private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
 
-  private static final DateTime DATE = new DateTime()
-      .withDate(2017, 3, 4)
-      .withTime(3, 2, 1, 0);
+  private static final DateTime DATE = new DateTime().withDate(2017, 3, 4).withTime(3, 2, 1, 0);
   private static final DateTime DATE_MINUS_2_SEC = DATE.minusSeconds(2);
   private static final DateTime DATE_MINUS_3_MIN = DATE.minusMinutes(3);
   private static final DateTime DATE_MINUS_4_HOURS = DATE.minusHours(4);
@@ -54,27 +50,24 @@ public class BeamSqlTimestampMinusTimestampExpressionTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Test public void testOutputTypeIsBigint() {
+  @Test
+  public void testOutputTypeIsBigint() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_DAY,
-            timestamp(DATE_MINUS_2_SEC),
-            timestamp(DATE));
+        minusExpression(SqlTypeName.INTERVAL_DAY, timestamp(DATE_MINUS_2_SEC), timestamp(DATE));
 
     assertEquals(SqlTypeName.BIGINT, minusExpression.getOutputType());
   }
 
-  @Test public void testAccepts2Timestamps() {
+  @Test
+  public void testAccepts2Timestamps() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_DAY,
-            timestamp(DATE_MINUS_2_SEC),
-            timestamp(DATE));
+        minusExpression(SqlTypeName.INTERVAL_DAY, timestamp(DATE_MINUS_2_SEC), timestamp(DATE));
 
     assertTrue(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAccept3Timestamps() {
+  @Test
+  public void testDoesNotAccept3Timestamps() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
         minusExpression(
             SqlTypeName.INTERVAL_DAY,
@@ -85,131 +78,113 @@ public class BeamSqlTimestampMinusTimestampExpressionTest {
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAccept1Timestamp() {
+  @Test
+  public void testDoesNotAccept1Timestamp() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_DAY,
-            timestamp(DATE));
+        minusExpression(SqlTypeName.INTERVAL_DAY, timestamp(DATE));
 
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptUnsupportedIntervalToCount() {
+  @Test
+  public void testDoesNotAcceptUnsupportedIntervalToCount() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
         minusExpression(
-            SqlTypeName.INTERVAL_DAY_MINUTE,
-            timestamp(DATE_MINUS_2_SEC),
-            timestamp(DATE));
+            SqlTypeName.INTERVAL_DAY_MINUTE, timestamp(DATE_MINUS_2_SEC), timestamp(DATE));
 
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptNotTimestampAsOperandOne() {
+  @Test
+  public void testDoesNotAcceptNotTimestampAsOperandOne() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
         minusExpression(
-            SqlTypeName.INTERVAL_DAY,
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3),
-            timestamp(DATE));
+            SqlTypeName.INTERVAL_DAY, BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3), timestamp(DATE));
 
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptNotTimestampAsOperandTwo() {
+  @Test
+  public void testDoesNotAcceptNotTimestampAsOperandTwo() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
         minusExpression(
-            SqlTypeName.INTERVAL_DAY,
-            timestamp(DATE),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
+            SqlTypeName.INTERVAL_DAY, timestamp(DATE), BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
 
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testEvaluateDiffSeconds() {
+  @Test
+  public void testEvaluateDiffSeconds() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_SECOND,
-            timestamp(DATE),
-            timestamp(DATE_MINUS_2_SEC));
+        minusExpression(SqlTypeName.INTERVAL_SECOND, timestamp(DATE), timestamp(DATE_MINUS_2_SEC));
 
     long expectedResult = applyMultiplier(2L, TimeUnit.SECOND);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateDiffMinutes() {
+  @Test
+  public void testEvaluateDiffMinutes() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_MINUTE,
-            timestamp(DATE),
-            timestamp(DATE_MINUS_3_MIN));
+        minusExpression(SqlTypeName.INTERVAL_MINUTE, timestamp(DATE), timestamp(DATE_MINUS_3_MIN));
 
     long expectedResult = applyMultiplier(3L, TimeUnit.MINUTE);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateDiffHours() {
+  @Test
+  public void testEvaluateDiffHours() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_HOUR,
-            timestamp(DATE),
-            timestamp(DATE_MINUS_4_HOURS));
+        minusExpression(SqlTypeName.INTERVAL_HOUR, timestamp(DATE), timestamp(DATE_MINUS_4_HOURS));
 
     long expectedResult = applyMultiplier(4L, TimeUnit.HOUR);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateDiffDays() {
+  @Test
+  public void testEvaluateDiffDays() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_DAY,
-            timestamp(DATE),
-            timestamp(DATE_MINUS_7_DAYS));
+        minusExpression(SqlTypeName.INTERVAL_DAY, timestamp(DATE), timestamp(DATE_MINUS_7_DAYS));
 
     long expectedResult = applyMultiplier(7L, TimeUnit.DAY);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateDiffMonths() {
+  @Test
+  public void testEvaluateDiffMonths() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
         minusExpression(
-            SqlTypeName.INTERVAL_MONTH,
-            timestamp(DATE),
-            timestamp(DATE_MINUS_2_MONTHS));
+            SqlTypeName.INTERVAL_MONTH, timestamp(DATE), timestamp(DATE_MINUS_2_MONTHS));
 
     long expectedResult = applyMultiplier(2L, TimeUnit.MONTH);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateDiffYears() {
+  @Test
+  public void testEvaluateDiffYears() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_YEAR,
-            timestamp(DATE),
-            timestamp(DATE_MINUS_1_YEAR));
+        minusExpression(SqlTypeName.INTERVAL_YEAR, timestamp(DATE), timestamp(DATE_MINUS_1_YEAR));
 
     long expectedResult = applyMultiplier(1L, TimeUnit.YEAR);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateNegativeDiffSeconds() {
+  @Test
+  public void testEvaluateNegativeDiffSeconds() {
     BeamSqlTimestampMinusTimestampExpression minusExpression =
-        minusExpression(
-            SqlTypeName.INTERVAL_SECOND,
-            timestamp(DATE_MINUS_2_SEC),
-            timestamp(DATE));
+        minusExpression(SqlTypeName.INTERVAL_SECOND, timestamp(DATE_MINUS_2_SEC), timestamp(DATE));
 
     long expectedResult = applyMultiplier(-2L, TimeUnit.SECOND);
     assertEquals(expectedResult, eval(minusExpression));
   }
 
-  @Test public void testEvaluateThrowsForUnsupportedIntervalType() {
+  @Test
+  public void testEvaluateThrowsForUnsupportedIntervalType() {
 
     thrown.expect(IllegalArgumentException.class);
 
     BeamSqlTimestampMinusTimestampExpression minusExpression =
         minusExpression(
-            SqlTypeName.INTERVAL_DAY_MINUTE,
-            timestamp(DATE_MINUS_2_SEC),
-            timestamp(DATE));
+            SqlTypeName.INTERVAL_DAY_MINUTE, timestamp(DATE_MINUS_2_SEC), timestamp(DATE));
 
     eval(minusExpression);
   }

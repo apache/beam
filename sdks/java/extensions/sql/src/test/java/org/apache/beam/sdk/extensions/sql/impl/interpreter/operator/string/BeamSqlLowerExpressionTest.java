@@ -28,17 +28,14 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test of BeamSqlLowerExpression.
- */
+/** Test of BeamSqlLowerExpression. */
 public class BeamSqlLowerExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "HELLO"));
-    assertEquals("hello",
-        new BeamSqlLowerExpression(operands).evaluate(row, null).getValue());
+    assertEquals("hello", new BeamSqlLowerExpression(operands).evaluate(row, null).getValue());
   }
-
 }

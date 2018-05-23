@@ -24,17 +24,16 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'COS' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'COS' function. */
 public class BeamSqlCosExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlCosExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DOUBLE);
   }
 
-  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
-    return BeamSqlPrimitive
-        .of(SqlTypeName.DOUBLE, SqlFunctions.cos(SqlFunctions.toDouble(op.getValue())));
+  @Override
+  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+    return BeamSqlPrimitive.of(
+        SqlTypeName.DOUBLE, SqlFunctions.cos(SqlFunctions.toDouble(op.getValue())));
   }
 }

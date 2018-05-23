@@ -26,14 +26,13 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpre
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlLocalTimestampExpression.
- */
+/** Test for BeamSqlLocalTimestampExpression. */
 public class BeamSqlCurrentTimestampExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test
   public void test() {
     List<BeamSqlExpression> operands = new ArrayList<>();
-    assertEquals(SqlTypeName.TIMESTAMP,
+    assertEquals(
+        SqlTypeName.TIMESTAMP,
         new BeamSqlCurrentTimestampExpression(operands).evaluate(row, null).getOutputType());
   }
 }

@@ -23,16 +23,15 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- *  {@code BeamSqlCaseExpression} represents CASE, NULLIF, COALESCE in SQL.
- */
+/** {@code BeamSqlCaseExpression} represents CASE, NULLIF, COALESCE in SQL. */
 public class BeamSqlCaseExpression extends BeamSqlExpression {
   public BeamSqlCaseExpression(List<BeamSqlExpression> operands) {
     // the return type of CASE is the type of the `else` condition
     super(operands, operands.get(operands.size() - 1).getOutputType());
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     // `when`-`then` pair + `else`
     if (operands.size() % 2 != 1) {
       return false;
@@ -49,17 +48,14 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
       Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window);
       if (wasOpEvaluated != null && wasOpEvaluated) {
-        return BeamSqlPrimitive.of(
-            outputType,
-            opValueEvaluated(i + 1, inputRow, window)
-        );
+        return BeamSqlPrimitive.of(outputType, opValueEvaluated(i + 1, inputRow, window));
       }
     }
-    return BeamSqlPrimitive.of(outputType,
-        opValueEvaluated(operands.size() - 1, inputRow, window));
+    return BeamSqlPrimitive.of(outputType, opValueEvaluated(operands.size() - 1, inputRow, window));
   }
 }

@@ -31,15 +31,11 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
-/**
- * {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client.
- */
+/** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
 @Experimental
 public class BeamSqlCli {
   private BeamSqlEnv env;
-  /**
-   * The store which persists all the table meta data.
-   */
+  /** The store which persists all the table meta data. */
   private MetaStore metaStore;
 
   public BeamSqlCli metaStore(MetaStore metaStore) {
@@ -53,9 +49,7 @@ public class BeamSqlCli {
     return metaStore;
   }
 
-  /**
-   * Returns a human readable representation of the query execution plan.
-   */
+  /** Returns a human readable representation of the query execution plan. */
   public String explainQuery(String sqlString)
       throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode exeTree = env.getPlanner().convertToBeamRel(sqlString);
@@ -63,9 +57,7 @@ public class BeamSqlCli {
     return beamPlan;
   }
 
-  /**
-   * Executes the given sql.
-   */
+  /** Executes the given sql. */
   public void execute(String sqlString)
       throws ValidationException, RelConversionException, SqlParseException {
     SqlNode sqlNode = env.getPlanner().parse(sqlString);
@@ -74,8 +66,10 @@ public class BeamSqlCli {
     if (sqlNode instanceof SqlExecutableStatement) {
       ((SqlExecutableStatement) sqlNode).execute(env.getContext());
     } else {
-      PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-          .as(PipelineOptions.class);
+      PipelineOptions options =
+          PipelineOptionsFactory.fromArgs(new String[] {})
+              .withValidation()
+              .as(PipelineOptions.class);
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
       env.getPlanner().compileBeamPipeline(sqlString, pipeline);

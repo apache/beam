@@ -31,24 +31,19 @@ import org.apache.commons.csv.CSVFormat;
 /**
  * {@code BeamTextCSVTable} is a {@code BeamTextTable} which formatted in CSV.
  *
- * <p>
- * {@link CSVFormat} itself has many dialects, check its javadoc for more info.
- * </p>
+ * <p>{@link CSVFormat} itself has many dialects, check its javadoc for more info.
  */
 public class BeamTextCSVTable extends BeamTextTable {
 
   private String filePattern;
   private CSVFormat csvFormat;
 
-  /**
-   * CSV table with {@link CSVFormat#DEFAULT DEFAULT} format.
-   */
-  public BeamTextCSVTable(Schema beamSchema, String filePattern)  {
+  /** CSV table with {@link CSVFormat#DEFAULT DEFAULT} format. */
+  public BeamTextCSVTable(Schema beamSchema, String filePattern) {
     this(beamSchema, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(Schema schema, String filePattern,
-                          CSVFormat csvFormat) {
+  public BeamTextCSVTable(Schema schema, String filePattern, CSVFormat csvFormat) {
     super(schema, filePattern);
     this.filePattern = filePattern;
     this.csvFormat = csvFormat;
@@ -56,9 +51,9 @@ public class BeamTextCSVTable extends BeamTextTable {
 
   @Override
   public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
-        .apply("parseCSVLine",
-            new BeamTextCSVTableIOReader(schema, filePattern, csvFormat));
+    return PBegin.in(pipeline)
+        .apply("decodeRecord", TextIO.read().from(filePattern))
+        .apply("parseCSVLine", new BeamTextCSVTableIOReader(schema, filePattern, csvFormat));
   }
 
   @Override

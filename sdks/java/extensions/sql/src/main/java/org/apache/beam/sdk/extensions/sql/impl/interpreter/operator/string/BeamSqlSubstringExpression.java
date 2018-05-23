@@ -28,23 +28,25 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * 'SUBSTRING' operator.
  *
- * <p>
- *   SUBSTRING(string FROM integer)
- *   SUBSTRING(string FROM integer FOR integer)
- * </p>
+ * <p>Examples usage:
+ *
+ * <ul>
+ *   <li>{@code SUBSTRING(string FROM integer)}
+ *   <li>{@code SUBSTRING(string FROM integer FOR integer)}
+ * </ul>
  */
 public class BeamSqlSubstringExpression extends BeamSqlExpression {
   public BeamSqlSubstringExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() < 2 || operands.size() > 3) {
       return false;
     }
 
-    if (!SqlTypeName.CHAR_TYPES.contains(opType(0))
-        || !SqlTypeName.INT_TYPES.contains(opType(1))) {
+    if (!SqlTypeName.CHAR_TYPES.contains(opType(0)) || !SqlTypeName.INT_TYPES.contains(opType(1))) {
       return false;
     }
 
@@ -55,7 +57,8 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     String str = opValueEvaluated(0, inputRow, window);
     int idx = opValueEvaluated(1, inputRow, window);
     int startIdx = idx;

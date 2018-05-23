@@ -27,9 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Represents MAP expression in SQL.
- */
+/** Represents MAP expression in SQL. */
 public class BeamSqlMapExpression extends BeamSqlExpression {
   public BeamSqlMapExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.MAP);
@@ -37,19 +35,15 @@ public class BeamSqlMapExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return
-        operands
-            .stream()
-            .map(BeamSqlExpression::getOutputType)
-            .distinct()
-            .count() == 1;
+    return operands.stream().map(BeamSqlExpression::getOutputType).distinct().count() == 1;
   }
 
   @Override
   public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     Map<Object, Object> elements = new HashMap<>();
     for (int idx = 0; idx < operands.size() / 2; ++idx) {
-      elements.put(operands.get(idx * 2).evaluate(inputRow, window).getValue(),
+      elements.put(
+          operands.get(idx * 2).evaluate(inputRow, window).getValue(),
           operands.get(idx * 2 + 1).evaluate(inputRow, window).getValue());
     }
     return BeamSqlPrimitive.of(outputType, elements);

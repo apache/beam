@@ -115,10 +115,9 @@ import org.apache.calcite.util.NlsString;
 import org.joda.time.DateTime;
 
 /**
- * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
- * {@code BeamSqlFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression},
- * which can be evaluated against the {@link Row}.
- *
+ * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}. {@code
+ * BeamSqlFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression}, which can be
+ * evaluated against the {@link Row}.
  */
 public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   protected List<BeamSqlExpression> exps;
@@ -142,8 +141,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   /**
-   * {@link #buildExpression(RexNode)} visits the operands of {@link RexNode} recursively,
-   * and represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
+   * {@link #buildExpression(RexNode)} visits the operands of {@link RexNode} recursively, and
+   * represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
   static BeamSqlExpression buildExpression(RexNode rexNode) {
     BeamSqlExpression ret = null;
@@ -152,8 +151,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       SqlTypeName type = node.getTypeName();
       Object value = node.getValue();
 
-      if (SqlTypeName.CHAR_TYPES.contains(type)
-          && node.getValue() instanceof NlsString) {
+      if (SqlTypeName.CHAR_TYPES.contains(type) && node.getValue() instanceof NlsString) {
         // NlsString is not serializable, we need to convert
         // it to string explicitly.
         return BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
@@ -190,8 +188,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
               realValue = rawValue;
               break;
             default:
-              throw new IllegalStateException("type/realType mismatch: "
-                  + type + " VS " + realType);
+              throw new IllegalStateException(
+                  "type/realType mismatch: " + type + " VS " + realType);
           }
         } else if (type == SqlTypeName.DOUBLE) {
           Double rawValue = (Double) value;
@@ -210,10 +208,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       int nestedFieldIndex = fieldAccessNode.getField().getIndex();
       SqlTypeName nestedFieldType = fieldAccessNode.getField().getType().getSqlTypeName();
 
-      ret = new BeamSqlFieldAccessExpression(
-          referenceExpression,
-          nestedFieldIndex,
-          nestedFieldType);
+      ret =
+          new BeamSqlFieldAccessExpression(referenceExpression, nestedFieldIndex, nestedFieldType);
     } else if (rexNode instanceof RexCall) {
       RexCall node = (RexCall) rexNode;
       String opName = node.op.getName();
@@ -222,7 +218,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         subExps.add(buildExpression(subNode));
       }
       switch (opName) {
-        // logical operators
+          // logical operators
         case "AND":
           ret = new BeamSqlAndExpression(subExps);
           break;
@@ -251,7 +247,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlLessThanOrEqualsExpression(subExps);
           break;
 
-        // arithmetic operators
+          // arithmetic operators
         case "+":
           ret = new BeamSqlPlusExpression(subExps);
           break;
@@ -341,7 +337,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlRandIntegerExpression(subExps);
           break;
 
-        // string operators
+          // string operators
         case "||":
           ret = new BeamSqlConcatExpression(subExps);
           break;
@@ -371,7 +367,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlInitCapExpression(subExps);
           break;
 
-        // date functions
+          // date functions
         case "Reinterpret":
           return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
         case "CEIL":
@@ -404,24 +400,25 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "DATETIME_PLUS":
           return new BeamSqlDatetimePlusExpression(subExps);
 
-        // array functions
+          // array functions
         case "ARRAY":
           return new BeamSqlArrayExpression(subExps);
-       // map functions
+          // map functions
         case "MAP":
           return new BeamSqlMapExpression(subExps);
 
         case "ITEM":
-        switch (subExps.get(0).getOutputType()) {
-        case MAP:
-          return new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
-        case ARRAY:
-          return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
-        default:
-          throw new UnsupportedOperationException("Operator: " + opName + " is not supported yet");
-        }
+          switch (subExps.get(0).getOutputType()) {
+            case MAP:
+              return new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
+            case ARRAY:
+              return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+            default:
+              throw new UnsupportedOperationException(
+                  "Operator: " + opName + " is not supported yet");
+          }
 
-        // collections functions
+          // collections functions
         case "ELEMENT":
           return new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
 
@@ -431,7 +428,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "DOT":
           return new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
 
-        //DEFAULT keyword for UDF with optional parameter
+          //DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
           return new BeamSqlDefaultExpression();
 
@@ -469,8 +466,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
             SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
             ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
-            ret = new BeamSqlUdfExpression(fn.method, subExps,
-              ((RexCall) rexNode).type.getSqlTypeName());
+            ret =
+                new BeamSqlUdfExpression(
+                    fn.method, subExps, ((RexCall) rexNode).type.getSqlTypeName());
           } else {
             throw new UnsupportedOperationException(
                 "Operator: " + opName + " is not supported yet");
@@ -482,21 +480,19 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
     }
 
     if (ret != null && !ret.accept()) {
-      throw new IllegalStateException(ret.getClass().getSimpleName()
-          + " does not accept the operands.(" + rexNode + ")");
+      throw new IllegalStateException(
+          ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");
     }
 
     return ret;
   }
 
   private static boolean isDateNode(SqlTypeName type, Object value) {
-    return (type == SqlTypeName.DATE || type == SqlTypeName.TIMESTAMP)
-        && value instanceof Calendar;
+    return (type == SqlTypeName.DATE || type == SqlTypeName.TIMESTAMP) && value instanceof Calendar;
   }
 
   @Override
-  public void prepare() {
-  }
+  public void prepare() {}
 
   @Override
   public List<Object> execute(Row inputRow, BoundedWindow window) {
@@ -508,7 +504,5 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   @Override
-  public void close() {
-  }
-
+  public void close() {}
 }

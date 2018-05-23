@@ -31,15 +31,13 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Multiplication operator for intervals.
- * For example, allows to express things like '3 years'.
+ * Multiplication operator for intervals. For example, allows to express things like '3 years'.
  *
- * <p>One use case of this is implementation of TIMESTAMPADD().
- * Calcite converts TIMESTAMPADD(date, multiplier, inteval) into
- * DATETIME_PLUS(date, multiplier * interval).
- * The 'multiplier * interval' part is what this class implements. It's not a regular
- * numerical multiplication because the return type is expected to be an interval, and the value
- * is expected to use corresponding TimeUnit's internal value (e.g. 12 for YEAR, 60000 for MINUTE).
+ * <p>One use case of this is implementation of TIMESTAMPADD(). Calcite converts TIMESTAMPADD(date,
+ * multiplier, inteval) into DATETIME_PLUS(date, multiplier * interval). The 'multiplier * interval'
+ * part is what this class implements. It's not a regular numerical multiplication because the
+ * return type is expected to be an interval, and the value is expected to use corresponding
+ * TimeUnit's internal value (e.g. 12 for YEAR, 60000 for MINUTE).
  */
 public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
   public BeamSqlIntervalMultiplyExpression(List<BeamSqlExpression> operands) {
@@ -47,21 +45,17 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
   }
 
   /**
-   * Output type is null if no operands found with matching types.
-   * Execution will later fail when calling accept()
+   * Output type is null if no operands found with matching types. Execution will later fail when
+   * calling accept()
    */
   private static SqlTypeName deduceOutputType(List<BeamSqlExpression> operands) {
     Optional<BeamSqlExpression> intervalOperand =
         findExpressionOfType(operands, SqlTypeName.INTERVAL_TYPES);
 
-    return intervalOperand.isPresent()
-        ? intervalOperand.get().getOutputType()
-        : null;
+    return intervalOperand.isPresent() ? intervalOperand.get().getOutputType() : null;
   }
 
-  /**
-   * Requires exactly 2 operands. One should be integer, another should be interval
-   */
+  /** Requires exactly 2 operands. One should be integer, another should be interval */
   @Override
   public boolean accept() {
     return operands.size() == 2
@@ -77,10 +71,8 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
    * those internal multipliers. This means we need to do similar thing, so that this multiplication
    * expression behaves the same way as literal interval expression.
    *
-   * <p>That is, we need to make sure that this:
-   *   "TIMESTAMP '1984-04-19 01:02:03' + INTERVAL '2' YEAR"
-   * is equivalent tot this:
-   *   "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1984-04-19 01:02:03')"
+   * <p>That is, we need to make sure that this: "TIMESTAMP '1984-04-19 01:02:03' + INTERVAL '2'
+   * YEAR" is equivalent tot this: "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1984-04-19 01:02:03')"
    */
   @Override
   public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
@@ -93,8 +85,7 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
     BigDecimal integerOperandValue = new BigDecimal(integerOperandPrimitive.getInteger());
 
     BigDecimal multiplicationResult =
-        integerOperandValue.multiply(
-            timeUnitInternalMultiplier(intervalOperandType));
+        integerOperandValue.multiply(timeUnitInternalMultiplier(intervalOperandType));
 
     return BeamSqlPrimitive.of(outputType, multiplicationResult);
   }

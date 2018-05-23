@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Logical operators.
- */
+/** Logical operators. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;

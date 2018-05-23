@@ -47,16 +47,12 @@ public class BeamSqlEnv {
     planner = new BeamQueryPlanner(connection);
   }
 
-  /**
-   * Register a UDF function which can be used in SQL expression.
-   */
+  /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
     defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
   }
 
-  /**
-   * Register a UDF function which can be used in SQL expression.
-   */
+  /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
     registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
@@ -70,8 +66,8 @@ public class BeamSqlEnv {
   }
 
   /**
-   * Register a UDAF function which can be used in GROUP-BY expression.
-   * See {@link org.apache.beam.sdk.transforms.Combine.CombineFn} on how to implement a UDAF.
+   * Register a UDAF function which can be used in GROUP-BY expression. See {@link
+   * org.apache.beam.sdk.transforms.Combine.CombineFn} on how to implement a UDAF.
    */
   public void registerUdaf(String functionName, Combine.CombineFn combineFn) {
     defaultSchema.add(functionName, new UdafImpl(combineFn));

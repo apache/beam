@@ -26,30 +26,20 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * This interface defines a Beam Sql Table.
- */
+/** This interface defines a Beam Sql Table. */
 public interface BeamSqlTable {
   /**
-   * In Beam SQL, there's no difference between a batch query and a streaming
-   * query. {@link BeamIOType} is used to validate the sources.
+   * In Beam SQL, there's no difference between a batch query and a streaming query. {@link
+   * BeamIOType} is used to validate the sources.
    */
   BeamIOType getSourceType();
 
-  /**
-   * create a {@code PCollection<BeamSqlRow>} from source.
-   *
-   */
+  /** create a {@code PCollection<BeamSqlRow>} from source. */
   PCollection<Row> buildIOReader(Pipeline pipeline);
 
-  /**
-   * create a {@code IO.write()} instance to write to target.
-   *
-   */
-   PTransform<? super PCollection<Row>, POutput> buildIOWriter();
+  /** create a {@code IO.write()} instance to write to target. */
+  PTransform<? super PCollection<Row>, POutput> buildIOWriter();
 
-  /**
-   * Get the schema info of the table.
-   */
-   Schema getSchema();
+  /** Get the schema info of the table. */
+  Schema getSchema();
 }

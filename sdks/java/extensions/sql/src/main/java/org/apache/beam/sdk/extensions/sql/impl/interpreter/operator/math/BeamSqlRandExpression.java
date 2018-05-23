@@ -26,9 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'RAND([seed])' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'RAND([seed])' function. */
 public class BeamSqlRandExpression extends BeamSqlExpression {
   private Random rand = new Random();
   private Integer seed = null;

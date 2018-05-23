@@ -21,9 +21,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * DEFAULT keyword for UDF with optional parameter.
- */
+/** DEFAULT keyword for UDF with optional parameter. */
 public class BeamSqlDefaultExpression extends BeamSqlExpression {
 
   @Override
@@ -35,5 +33,4 @@ public class BeamSqlDefaultExpression extends BeamSqlExpression {
   public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     return BeamSqlPrimitive.of(SqlTypeName.ANY, null);
   }
-
 }

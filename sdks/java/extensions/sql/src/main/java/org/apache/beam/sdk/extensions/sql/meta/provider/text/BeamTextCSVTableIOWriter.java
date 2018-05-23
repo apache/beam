@@ -31,18 +31,14 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
-/**
- * IOWriter for {@code BeamTextCSVTable}.
- */
+/** IOWriter for {@code BeamTextCSVTable}. */
 public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, POutput>
     implements Serializable {
   private String filePattern;
   protected Schema schema;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(Schema schema,
-                                  String filePattern,
-                                  CSVFormat csvFormat) {
+  public BeamTextCSVTableIOWriter(Schema schema, String filePattern, CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.schema = schema;
     this.csvFormat = csvFormat;
@@ -50,13 +46,18 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, POutp
 
   @Override
   public POutput expand(PCollection<Row> input) {
-    return input.apply("encodeRecord", ParDo.of(new DoFn<Row, String>() {
+    return input
+        .apply(
+            "encodeRecord",
+            ParDo.of(
+                new DoFn<Row, String>() {
 
-      @ProcessElement
-      public void processElement(ProcessContext ctx) {
-        Row row = ctx.element();
-        ctx.output(beamRow2CsvLine(row, csvFormat));
-      }
-    })).apply(TextIO.write().to(filePattern));
+                  @ProcessElement
+                  public void processElement(ProcessContext ctx) {
+                    Row row = ctx.element();
+                    ctx.output(beamRow2CsvLine(row, csvFormat));
+                  }
+                }))
+        .apply(TextIO.write().to(filePattern));
   }
 }

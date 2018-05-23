@@ -24,32 +24,28 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test cases for {@link BeamSqlIsNullExpression} and
- * {@link BeamSqlIsNotNullExpression}.
- */
+/** Test cases for {@link BeamSqlIsNullExpression} and {@link BeamSqlIsNotNullExpression}. */
 public class BeamNullExperssionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testIsNull() {
-    BeamSqlIsNullExpression exp1 = new BeamSqlIsNullExpression(
-        new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
+    BeamSqlIsNullExpression exp1 =
+        new BeamSqlIsNullExpression(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
     Assert.assertEquals(false, exp1.evaluate(row, null).getValue());
 
-    BeamSqlIsNullExpression exp2 = new BeamSqlIsNullExpression(
-        BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
+    BeamSqlIsNullExpression exp2 =
+        new BeamSqlIsNullExpression(BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
     Assert.assertEquals(true, exp2.evaluate(row, null).getValue());
   }
 
   @Test
   public void testIsNotNull() {
-    BeamSqlIsNotNullExpression exp1 = new BeamSqlIsNotNullExpression(
-        new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
+    BeamSqlIsNotNullExpression exp1 =
+        new BeamSqlIsNotNullExpression(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
     Assert.assertEquals(true, exp1.evaluate(row, null).getValue());
 
-    BeamSqlIsNotNullExpression exp2 = new BeamSqlIsNotNullExpression(
-        BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
+    BeamSqlIsNotNullExpression exp2 =
+        new BeamSqlIsNotNullExpression(BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
     Assert.assertEquals(false, exp2.evaluate(row, null).getValue());
   }
-
 }

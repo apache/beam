@@ -27,15 +27,13 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * Base class for rel test.
- */
+/** Base class for rel test. */
 abstract class BaseRelTest {
   private static Map<String, BeamSqlTable> tables = new HashMap();
   private static BeamSqlEnv env = new BeamSqlEnv(new BeamSqlTableProvider("test", tables));
 
-  protected static PCollection<Row> compilePipeline (
-      String sql, Pipeline pipeline) throws Exception {
+  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline)
+      throws Exception {
     return env.getPlanner().compileBeamPipeline(sql, pipeline);
   }
 

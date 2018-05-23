@@ -42,16 +42,12 @@ import org.junit.rules.ExpectedException;
  * prepare input records to test {@link BeamSql}.
  *
  * <p>Note that, any change in these records would impact tests in this package.
- *
  */
 public class BeamSqlDslBase {
-  public static final DateTimeFormatter FORMAT =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+  public static final DateTimeFormatter FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public ExpectedException exceptions = ExpectedException.none();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException exceptions = ExpectedException.none();
 
   static Schema schemaInTableA;
   static List<Row> rowsInTableA;
@@ -67,8 +63,7 @@ public class BeamSqlDslBase {
   @BeforeClass
   public static void prepareClass() throws ParseException {
     schemaInTableA =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
             .withSmallIntField("f_short")
@@ -84,60 +79,95 @@ public class BeamSqlDslBase {
     rowsInTableA =
         TestUtils.RowsBuilder.of(schemaInTableA)
             .addRows(
-                1, 1000L, (short) 1, (byte) 1, 1.0f, 1.0d, "string_row1",
-                FORMAT.parseDateTime("2017-01-01 01:01:03"), 0, new BigDecimal(1))
+                1,
+                1000L,
+                (short) 1,
+                (byte) 1,
+                1.0f,
+                1.0d,
+                "string_row1",
+                FORMAT.parseDateTime("2017-01-01 01:01:03"),
+                0,
+                new BigDecimal(1))
             .addRows(
-                2, 2000L, (short) 2, (byte) 2, 2.0f, 2.0d, "string_row2",
-                FORMAT.parseDateTime("2017-01-01 01:02:03"), 0, new BigDecimal(2))
+                2,
+                2000L,
+                (short) 2,
+                (byte) 2,
+                2.0f,
+                2.0d,
+                "string_row2",
+                FORMAT.parseDateTime("2017-01-01 01:02:03"),
+                0,
+                new BigDecimal(2))
             .addRows(
-                3, 3000L, (short) 3, (byte) 3, 3.0f, 3.0d, "string_row3",
-                FORMAT.parseDateTime("2017-01-01 01:06:03"), 0, new BigDecimal(3))
+                3,
+                3000L,
+                (short) 3,
+                (byte) 3,
+                3.0f,
+                3.0d,
+                "string_row3",
+                FORMAT.parseDateTime("2017-01-01 01:06:03"),
+                0,
+                new BigDecimal(3))
             .addRows(
-                4, 4000L, (short) 4, (byte) 4, 4.0f, 4.0d, "第四行",
-                FORMAT.parseDateTime("2017-01-01 02:04:03"), 0, new BigDecimal(4))
+                4,
+                4000L,
+                (short) 4,
+                (byte) 4,
+                4.0f,
+                4.0d,
+                "第四行",
+                FORMAT.parseDateTime("2017-01-01 02:04:03"),
+                0,
+                new BigDecimal(4))
             .getRows();
   }
 
   @Before
   public void preparePCollections() {
-    boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
-        Create.of(rowsInTableA).withCoder(schemaInTableA.getRowCoder()));
+    boundedInput1 =
+        PBegin.in(pipeline)
+            .apply(
+                "boundedInput1", Create.of(rowsInTableA).withCoder(schemaInTableA.getRowCoder()));
 
-    boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
-        Create.of(rowsInTableA.get(0)).withCoder(schemaInTableA.getRowCoder()));
+    boundedInput2 =
+        PBegin.in(pipeline)
+            .apply(
+                "boundedInput2",
+                Create.of(rowsInTableA.get(0)).withCoder(schemaInTableA.getRowCoder()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
   private PCollection<Row> prepareUnboundedPCollection1() {
-    TestStream.Builder<Row> values = TestStream
-        .create(schemaInTableA.getRowCoder());
+    TestStream.Builder<Row> values = TestStream.create(schemaInTableA.getRowCoder());
 
     for (Row row : rowsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
       values = values.addElements(row);
     }
 
-    return PBegin
-        .in(pipeline)
+    return PBegin.in(pipeline)
         .apply("unboundedInput1", values.advanceWatermarkToInfinity())
-        .apply("unboundedInput1.fixedWindow1year",
-               Window.into(FixedWindows.of(Duration.standardDays(365))));
+        .apply(
+            "unboundedInput1.fixedWindow1year",
+            Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 
   private PCollection<Row> prepareUnboundedPCollection2() {
-    TestStream.Builder<Row> values = TestStream
-        .create(schemaInTableA.getRowCoder());
+    TestStream.Builder<Row> values = TestStream.create(schemaInTableA.getRowCoder());
 
     Row row = rowsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
     values = values.addElements(row);
 
-    return PBegin
-        .in(pipeline)
+    return PBegin.in(pipeline)
         .apply("unboundedInput2", values.advanceWatermarkToInfinity())
-        .apply("unboundedInput2.fixedWindow1year",
-               Window.into(FixedWindows.of(Duration.standardDays(365))));
+        .apply(
+            "unboundedInput2.fixedWindow1year",
+            Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 }

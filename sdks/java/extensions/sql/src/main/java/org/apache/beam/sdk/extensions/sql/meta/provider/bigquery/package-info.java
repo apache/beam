@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Table schema for BigQuery.
- */
+/** Table schema for BigQuery. */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;

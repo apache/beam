@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Expressions implementing array operations.
- */
+/** Expressions implementing array operations. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 

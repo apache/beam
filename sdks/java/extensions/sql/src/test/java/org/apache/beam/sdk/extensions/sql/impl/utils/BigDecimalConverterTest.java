@@ -27,9 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BigDecimalConverter}.
- */
+/** Unit tests for {@link BigDecimalConverter}. */
 public class BigDecimalConverterTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

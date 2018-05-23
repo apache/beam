@@ -24,17 +24,16 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'Log10' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'Log10' function. */
 public class BeamSqlLogExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlLogExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DOUBLE);
   }
 
-  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
-    return BeamSqlPrimitive
-        .of(SqlTypeName.DOUBLE, SqlFunctions.log10(SqlFunctions.toDouble(op.getValue())));
+  @Override
+  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+    return BeamSqlPrimitive.of(
+        SqlTypeName.DOUBLE, SqlFunctions.log10(SqlFunctions.toDouble(op.getValue())));
   }
 }

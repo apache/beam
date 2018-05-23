@@ -26,11 +26,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * Base class for mocked table.
- */
+/** Base class for mocked table. */
 public abstract class MockedTable extends BaseBeamTable {
   public static final AtomicInteger COUNTER = new AtomicInteger();
+
   public MockedTable(Schema beamSchema) {
     super(beamSchema);
   }

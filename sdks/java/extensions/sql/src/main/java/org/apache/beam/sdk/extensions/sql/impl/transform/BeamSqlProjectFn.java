@@ -29,17 +29,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
- */
+/** {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step. */
 public class BeamSqlProjectFn extends DoFn<Row, Row> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
   private Schema outputSchema;
 
   public BeamSqlProjectFn(
-      String stepName, BeamSqlExpressionExecutor executor,
-      Schema outputSchema) {
+      String stepName, BeamSqlExpressionExecutor executor, Schema outputSchema) {
     super();
     this.stepName = stepName;
     this.executor = executor;
@@ -57,16 +54,11 @@ public class BeamSqlProjectFn extends DoFn<Row, Row> {
     List<Object> rawResultValues = executor.execute(inputRow, window);
 
     List<Object> castResultValues =
-        IntStream
-            .range(0, outputSchema.getFieldCount())
+        IntStream.range(0, outputSchema.getFieldCount())
             .mapToObj(i -> castField(rawResultValues, i))
             .collect(toList());
 
-    c.output(
-        Row
-            .withSchema(outputSchema)
-            .addValues(castResultValues)
-            .build());
+    c.output(Row.withSchema(outputSchema).addValues(castResultValues).build());
   }
 
   private Object castField(List<Object> resultValues, int i) {
@@ -77,5 +69,4 @@ public class BeamSqlProjectFn extends DoFn<Row, Row> {
   public void close() {
     executor.close();
   }
-
 }

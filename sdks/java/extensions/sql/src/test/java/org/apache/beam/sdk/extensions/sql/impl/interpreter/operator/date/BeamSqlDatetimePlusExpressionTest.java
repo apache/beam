@@ -36,9 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Test for {@link BeamSqlDatetimePlusExpression}.
- */
+/** Test for {@link BeamSqlDatetimePlusExpression}. */
 public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTestBase {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -71,14 +69,16 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
   private static final BeamSqlExpression SQL_TIMESTAMP =
       BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, DATE);
 
-  @Test public void testHappyPath_outputTypeAndAccept() {
+  @Test
+  public void testHappyPath_outputTypeAndAccept() {
     BeamSqlExpression plusExpression = dateTimePlus(SQL_TIMESTAMP, SQL_INTERVAL_3_DAYS);
 
     assertEquals(SqlTypeName.TIMESTAMP, plusExpression.getOutputType());
     assertTrue(plusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptTreeOperands() {
+  @Test
+  public void testDoesNotAcceptTreeOperands() {
     BeamSqlDatetimePlusExpression plusExpression =
         dateTimePlus(SQL_TIMESTAMP, SQL_INTERVAL_3_DAYS, SQL_INTERVAL_4_MONTHS);
 
@@ -86,7 +86,8 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
     assertFalse(plusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptWithoutTimestampOperand() {
+  @Test
+  public void testDoesNotAcceptWithoutTimestampOperand() {
     BeamSqlDatetimePlusExpression plusExpression =
         dateTimePlus(SQL_INTERVAL_3_DAYS, SQL_INTERVAL_4_MONTHS);
 
@@ -94,15 +95,16 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
     assertFalse(plusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptWithoutIntervalOperand() {
-    BeamSqlDatetimePlusExpression plusExpression =
-        dateTimePlus(SQL_TIMESTAMP, SQL_TIMESTAMP);
+  @Test
+  public void testDoesNotAcceptWithoutIntervalOperand() {
+    BeamSqlDatetimePlusExpression plusExpression = dateTimePlus(SQL_TIMESTAMP, SQL_TIMESTAMP);
 
     assertEquals(SqlTypeName.TIMESTAMP, plusExpression.getOutputType());
     assertFalse(plusExpression.accept());
   }
 
-  @Test public void testEvaluate() {
+  @Test
+  public void testEvaluate() {
     assertEquals(DATE_PLUS_15_SECONDS, evalDatetimePlus(SQL_TIMESTAMP, SQL_INTERVAL_15_SECONDS));
     assertEquals(DATE_PLUS_10_MINUTES, evalDatetimePlus(SQL_TIMESTAMP, SQL_INTERVAL_10_MINUTES));
     assertEquals(DATE_PLUS_7_HOURS, evalDatetimePlus(SQL_TIMESTAMP, SQL_INTERVAL_7_HOURS));
@@ -111,7 +113,8 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
     assertEquals(DATE_PLUS_11_YEARS, evalDatetimePlus(SQL_TIMESTAMP, SQL_INTERVAL_11_YEARS));
   }
 
-  @Test public void testEvaluateThrowsForUnsupportedIntervalType() {
+  @Test
+  public void testEvaluateThrowsForUnsupportedIntervalType() {
     thrown.expect(UnsupportedOperationException.class);
 
     BeamSqlPrimitive unsupportedInterval = BeamSqlPrimitive.of(SqlTypeName.INTERVAL_YEAR_MONTH, 3);
@@ -123,14 +126,13 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
     return dateTimePlus(date, interval).evaluate(NULL_INPUT_ROW, NULL_WINDOW).getDate();
   }
 
-  private static BeamSqlDatetimePlusExpression dateTimePlus(BeamSqlExpression ... operands) {
+  private static BeamSqlDatetimePlusExpression dateTimePlus(BeamSqlExpression... operands) {
     return new BeamSqlDatetimePlusExpression(Arrays.asList(operands));
   }
 
   private static BeamSqlExpression interval(SqlTypeName type, int multiplier) {
-    return BeamSqlPrimitive.of(type,
-        timeUnitInternalMultiplier(type)
-            .multiply(new BigDecimal(multiplier)));
+    return BeamSqlPrimitive.of(
+        type, timeUnitInternalMultiplier(type).multiply(new BigDecimal(multiplier)));
   }
 
   private static BigDecimal timeUnitInternalMultiplier(final SqlTypeName sqlIntervalType) {
@@ -148,8 +150,8 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
       case INTERVAL_YEAR:
         return TimeUnit.YEAR.multiplier;
       default:
-        throw new IllegalArgumentException("Interval " + sqlIntervalType
-            + " cannot be converted to TimeUnit");
+        throw new IllegalArgumentException(
+            "Interval " + sqlIntervalType + " cannot be converted to TimeUnit");
     }
   }
 }

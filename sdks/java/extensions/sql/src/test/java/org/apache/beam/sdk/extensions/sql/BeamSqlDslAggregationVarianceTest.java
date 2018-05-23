@@ -31,52 +31,39 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Integration tests for {@code VAR_POP} and {@code VAR_SAMP}.
- */
+/** Integration tests for {@code VAR_POP} and {@code VAR_SAMP}. */
 public class BeamSqlDslAggregationVarianceTest {
 
   private static final double PRECISION = 1e-7;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   private PCollection<Row> boundedInput;
 
   @Before
   public void setUp() {
     Schema schema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withDoubleField("f_double")
             .withIntegerField("f_int2")
             .build();
 
     List<Row> rowsInTableB =
-        TestUtils.RowsBuilder
-            .of(schema)
+        TestUtils.RowsBuilder.of(schema)
             .addRows(
-                1,  1.0,  0,
-                4,  4.0,  0,
-                7,  7.0,  0,
-                13, 13.0, 0,
-                5,  5.0,  0,
-                10, 10.0, 0,
-                17, 17.0, 0)
+                1, 1.0, 0, 4, 4.0, 0, 7, 7.0, 0, 13, 13.0, 0, 5, 5.0, 0, 10, 10.0, 0, 17, 17.0, 0)
             .getRows();
 
-    boundedInput = PBegin
-        .in(pipeline)
-        .apply(Create.of(rowsInTableB).withCoder(schema.getRowCoder()));
+    boundedInput =
+        PBegin.in(pipeline).apply(Create.of(rowsInTableB).withCoder(schema.getRowCoder()));
   }
 
   @Test
   public void testPopulationVarianceDouble() {
     String sql = "SELECT VAR_POP(f_double) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert
-        .that(boundedInput.apply(BeamSql.query(sql)))
+    PAssert.that(boundedInput.apply(BeamSql.query(sql)))
         .satisfies(matchesScalar(26.40816326, PRECISION));
 
     pipeline.run().waitUntilFinish();
@@ -86,9 +73,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testPopulationVarianceInt() {
     String sql = "SELECT VAR_POP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert
-        .that(boundedInput.apply(BeamSql.query(sql)))
-        .satisfies(matchesScalar(26));
+    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(26));
 
     pipeline.run().waitUntilFinish();
   }
@@ -97,8 +82,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testSampleVarianceDouble() {
     String sql = "SELECT VAR_SAMP(f_double) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert
-        .that(boundedInput.apply(BeamSql.query(sql)))
+    PAssert.that(boundedInput.apply(BeamSql.query(sql)))
         .satisfies(matchesScalar(30.80952381, PRECISION));
 
     pipeline.run().waitUntilFinish();
@@ -108,9 +92,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testSampleVarianceInt() {
     String sql = "SELECT VAR_SAMP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert
-        .that(boundedInput.apply(BeamSql.query(sql)))
-        .satisfies(matchesScalar(30));
+    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(30));
 
     pipeline.run().waitUntilFinish();
   }

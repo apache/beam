@@ -29,11 +29,9 @@ import org.apache.calcite.schema.AggregateFunction;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.ImplementableAggFunction;
 
-/**
- * Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF.
- */
+/** Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF. */
 public final class UdafImpl<InputT, AccumT, OutputT>
-    implements AggregateFunction, ImplementableAggFunction, Serializable{
+    implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;
 
   public UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
@@ -47,7 +45,8 @@ public final class UdafImpl<InputT, AccumT, OutputT>
   @Override
   public List<FunctionParameter> getParameters() {
     List<FunctionParameter> para = new ArrayList<>();
-    para.add(new FunctionParameter() {
+    para.add(
+        new FunctionParameter() {
           public int getOrdinal() {
             return 0; //up to one parameter is supported in UDAF.
           }
@@ -60,7 +59,7 @@ public final class UdafImpl<InputT, AccumT, OutputT>
           public RelDataType getType(RelDataTypeFactory typeFactory) {
             ParameterizedType parameterizedType = findCombineFnSuperClass();
             return typeFactory.createJavaType(
-              (Class) parameterizedType.getActualTypeArguments()[0]);
+                (Class) parameterizedType.getActualTypeArguments()[0]);
           }
 
           private ParameterizedType findCombineFnSuperClass() {
@@ -96,4 +95,3 @@ public final class UdafImpl<InputT, AccumT, OutputT>
     return typeFactory.createJavaType((Class) combineFn.getOutputType().getType());
   }
 }
-

@@ -25,14 +25,10 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Class that tracks conversions between SQL types.
- */
+/** Class that tracks conversions between SQL types. */
 public class Reinterpreter {
 
-  /**
-   * Builder for Reinterpreter.
-   */
+  /** Builder for Reinterpreter. */
   public static class Builder {
 
     private Map<SqlTypeName, Map<SqlTypeName, ReinterpretConversion>> conversions = new HashMap<>();
@@ -78,8 +74,8 @@ public class Reinterpreter {
   public BeamSqlPrimitive convert(SqlTypeName to, BeamSqlPrimitive value) {
     Optional<ReinterpretConversion> conversion = getConversion(value.getOutputType(), to);
     if (!conversion.isPresent()) {
-      throw new UnsupportedOperationException("Unsupported conversion: "
-          + value.getOutputType().name() + "->" + to.name());
+      throw new UnsupportedOperationException(
+          "Unsupported conversion: " + value.getOutputType().name() + "->" + to.name());
     }
 
     return conversion.get().convert(value);

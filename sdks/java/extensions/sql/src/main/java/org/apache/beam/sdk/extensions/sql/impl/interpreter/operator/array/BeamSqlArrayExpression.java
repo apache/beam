@@ -26,9 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Represents ARRAY expression in SQL.
- */
+/** Represents ARRAY expression in SQL. */
 public class BeamSqlArrayExpression extends BeamSqlExpression {
   public BeamSqlArrayExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.ARRAY);
@@ -36,12 +34,7 @@ public class BeamSqlArrayExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return
-        operands
-            .stream()
-            .map(BeamSqlExpression::getOutputType)
-            .distinct()
-            .count() == 1;
+    return operands.stream().map(BeamSqlExpression::getOutputType).distinct().count() == 1;
   }
 
   @Override

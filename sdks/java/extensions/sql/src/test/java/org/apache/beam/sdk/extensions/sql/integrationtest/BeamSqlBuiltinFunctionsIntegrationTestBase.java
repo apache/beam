@@ -43,46 +43,43 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
-/**
- * Base class for all built-in functions integration tests.
- */
+/** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, TypeName> JAVA_CLASS_TO_FIELDTYPE = ImmutableMap
-      .<Class, TypeName>builder()
-      .put(Byte.class, TypeName.BYTE)
-      .put(Short.class, TypeName.INT16)
-      .put(Integer.class, TypeName.INT32)
-      .put(Long.class, TypeName.INT64)
-      .put(Float.class, TypeName.FLOAT)
-      .put(Double.class, TypeName.DOUBLE)
-      .put(BigDecimal.class, TypeName.DECIMAL)
-      .put(String.class, TypeName.STRING)
-      .put(DateTime.class, TypeName.DATETIME)
-      .put(Boolean.class, TypeName.BOOLEAN)
-      .build();
+  private static final Map<Class, TypeName> JAVA_CLASS_TO_FIELDTYPE =
+      ImmutableMap.<Class, TypeName>builder()
+          .put(Byte.class, TypeName.BYTE)
+          .put(Short.class, TypeName.INT16)
+          .put(Integer.class, TypeName.INT32)
+          .put(Long.class, TypeName.INT64)
+          .put(Float.class, TypeName.FLOAT)
+          .put(Double.class, TypeName.DOUBLE)
+          .put(BigDecimal.class, TypeName.DECIMAL)
+          .put(String.class, TypeName.STRING)
+          .put(DateTime.class, TypeName.DATETIME)
+          .put(Boolean.class, TypeName.BOOLEAN)
+          .build();
 
-  private static final Schema ROW_TYPE = RowSqlTypes.builder()
-      .withDateField("ts")
-      .withTinyIntField("c_tinyint")
-      .withSmallIntField("c_smallint")
-      .withIntegerField("c_integer")
-      .withBigIntField("c_bigint")
-      .withFloatField("c_float")
-      .withDoubleField("c_double")
-      .withDecimalField("c_decimal")
-      .withTinyIntField("c_tinyint_max")
-      .withSmallIntField("c_smallint_max")
-      .withIntegerField("c_integer_max")
-      .withBigIntField("c_bigint_max")
-      .build();
+  private static final Schema ROW_TYPE =
+      RowSqlTypes.builder()
+          .withDateField("ts")
+          .withTinyIntField("c_tinyint")
+          .withSmallIntField("c_smallint")
+          .withIntegerField("c_integer")
+          .withBigIntField("c_bigint")
+          .withFloatField("c_float")
+          .withDoubleField("c_double")
+          .withDecimalField("c_decimal")
+          .withTinyIntField("c_tinyint_max")
+          .withSmallIntField("c_smallint_max")
+          .withIntegerField("c_integer_max")
+          .withBigIntField("c_bigint_max")
+          .build();
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   protected PCollection<Row> getTestPCollection() {
     try {
-      return MockedBoundedTable
-          .of(ROW_TYPE)
+      return MockedBoundedTable.of(ROW_TYPE)
           .addRows(
               parseDate("1986-02-15 11:35:26"),
               (byte) 1,
@@ -95,8 +92,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               (byte) 127,
               (short) 32767,
               2147483647,
-              9223372036854775807L
-          )
+              9223372036854775807L)
           .buildIOReader(pipeline)
           .setCoder(ROW_TYPE.getRowCoder());
     } catch (Exception e) {
@@ -108,11 +104,11 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
   }
 
-
   /**
    * Helper class to make write integration test for built-in functions easier.
    *
    * <p>example usage:
+   *
    * <pre>{@code
    * ExpressionChecker checker = new ExpressionChecker()
    *   .addExpr("1 + 1", 2)
@@ -139,29 +135,25 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       return "SELECT " + Joiner.on(",\n  ").join(expStrs) + " FROM PCOLLECTION";
     }
 
-    /**
-     * Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result.
-     */
+    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
     public void buildRunAndCheck() {
       PCollection<Row> inputCollection = getTestPCollection();
       System.out.println("SQL:>\n" + getSql());
       try {
         Schema schema =
             exps.stream()
-                .map(exp -> Schema.Field.of(
-                    exp.getKey(),
-                    FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
+                .map(
+                    exp ->
+                        Schema.Field.of(
+                            exp.getKey(),
+                            FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
                 .collect(toSchema());
 
         List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
 
         PCollection<Row> rows = inputCollection.apply(BeamSql.query(getSql()));
-        PAssert.that(rows).containsInAnyOrder(
-            TestUtils.RowsBuilder
-                .of(schema)
-                .addRows(values)
-                .getRows()
-        );
+        PAssert.that(rows)
+            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(values).getRows());
         inputCollection.getPipeline().run();
       } catch (Exception e) {
         throw new RuntimeException(e);

@@ -34,27 +34,25 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- */
+/** */
 public class SqlSchemaFactoryTest {
 
-  private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES = ImmutableList
-      .<FieldValueGetter>builder()
-      .add(getter("byteGetter", Byte.class))
-      .add(getter("shortGetter", Short.class))
-      .add(getter("integerGetter", Integer.class))
-      .add(getter("longGetter", Long.class))
-      .add(getter("floatGetter", Float.class))
-      .add(getter("doubleGetter", Double.class))
-      .add(getter("bigDecimalGetter", BigDecimal.class))
-      .add(getter("booleanGetter", Boolean.class))
-      .add(getter("stringGetter", String.class))
-      .add(getter("timeGetter", DateTime.class))
-      .add(getter("dateGetter", DateTime.class))
-      .build();
+  private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES =
+      ImmutableList.<FieldValueGetter>builder()
+          .add(getter("byteGetter", Byte.class))
+          .add(getter("shortGetter", Short.class))
+          .add(getter("integerGetter", Integer.class))
+          .add(getter("longGetter", Long.class))
+          .add(getter("floatGetter", Float.class))
+          .add(getter("doubleGetter", Double.class))
+          .add(getter("bigDecimalGetter", BigDecimal.class))
+          .add(getter("booleanGetter", Boolean.class))
+          .add(getter("stringGetter", String.class))
+          .add(getter("timeGetter", DateTime.class))
+          .add(getter("dateGetter", DateTime.class))
+          .build();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testContainsCorrectFields() throws Exception {
