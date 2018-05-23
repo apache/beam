@@ -703,7 +703,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     if tr is None:
         source_project_id, source_dataset_id, source_table_id = \
             self._parse_query()
-        if not source_project_id: # Impossible to determine location
+        if not source_project_id:  # Impossible to determine location
           return
     else:
         source_dataset_id = tr.datasetId
