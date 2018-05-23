@@ -49,6 +49,9 @@ configurations {
   // TODO: Migrate to a FMPP plugin once one exists
   fmppTask
   fmppTemplates
+
+  // Run tests from shaded jar
+  shadowTestRuntimeClasspath
 }
 
 def calcite_version = "1.16.0"
@@ -82,6 +85,12 @@ dependencies {
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
+  shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
+  shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
+}
+
+test {
+  classpath = configurations.shadowTestRuntimeClasspath
 }
 
 // Copy Caclcite templates and our own template into the build directory
