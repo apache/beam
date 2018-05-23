@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * BeamSQL specified nodes, to replace {@link org.apache.calcite.rel.RelNode}.
- *
- */
+/** BeamSQL specified nodes, to replace {@link org.apache.calcite.rel.RelNode}. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 

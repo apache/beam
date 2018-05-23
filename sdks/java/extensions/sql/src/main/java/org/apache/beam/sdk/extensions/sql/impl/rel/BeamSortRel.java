@@ -51,27 +51,27 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement
- * the {@code Sort} algebra. The following types of ORDER BY are supported:
-
+ * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement the
+ * {@code Sort} algebra. The following types of ORDER BY are supported:
+ *
  * <pre>{@code
- *     select * from t order by id desc limit 10;
- *     select * from t order by id desc limit 10 offset 5;
+ * select * from t order by id desc limit 10;
+ * select * from t order by id desc limit 10 offset 5;
  * }</pre>
  *
  * <p>but Order BY without a limit is NOT supported:
  *
  * <pre>{@code
- *   select * from t order by id desc
+ * select * from t order by id desc
  * }</pre>
  *
  * <h3>Constraints</h3>
+ *
  * <ul>
- *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT`
- *   must fit into the memory of a single machine.</li>
- *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`,
- *   it does not make much sense to use `ORDER BY` with `WINDOW`.
- *   </li>
+ *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into the
+ *       memory of a single machine.
+ *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`, it does not
+ *       make much sense to use `ORDER BY` with `WINDOW`.
  * </ul>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
@@ -180,8 +180,13 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation,
-      RexNode offset, RexNode fetch) {
+  @Override
+  public Sort copy(
+      RelTraitSet traitSet,
+      RelNode newInput,
+      RelCollation newCollation,
+      RexNode offset,
+      RexNode fetch) {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
@@ -190,15 +195,15 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
 
-    public BeamSqlRowComparator(List<Integer> fieldsIndices,
-        List<Boolean> orientation,
-        List<Boolean> nullsFirst) {
+    public BeamSqlRowComparator(
+        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
       this.fieldsIndices = fieldsIndices;
       this.orientation = orientation;
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(Row row1, Row row2) {
+    @Override
+    public int compare(Row row1, Row row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
@@ -244,5 +249,4 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       return 0;
     }
   }
-
 }

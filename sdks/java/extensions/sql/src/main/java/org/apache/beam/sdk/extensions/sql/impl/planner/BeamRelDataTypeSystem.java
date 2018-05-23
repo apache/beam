@@ -20,15 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.planner;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
 
-/**
- * customized data type in Beam.
- *
- */
+/** customized data type in Beam. */
 public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   public static final RelDataTypeSystem INSTANCE = new BeamRelDataTypeSystem();
 
-  private BeamRelDataTypeSystem() {
-  }
+  private BeamRelDataTypeSystem() {}
 
   @Override
   public int getMaxNumericScale() {
@@ -39,5 +35,4 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   public int getMaxNumericPrecision() {
     return 38;
   }
-
 }

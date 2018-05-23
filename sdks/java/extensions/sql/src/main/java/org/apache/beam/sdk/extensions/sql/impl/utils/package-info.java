@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utility classes.
- */
+/** Utility classes. */
 package org.apache.beam.sdk.extensions.sql.impl.utils;

@@ -29,72 +29,62 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamUnionRel}.
- */
+/** Test for {@code BeamUnionRel}. */
 public class BeamUnionRelTest extends BaseRelTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() {
-    registerTable("ORDER_DETAILS",
+    registerTable(
+        "ORDER_DETAILS",
         MockedBoundedTable.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            2L, 2, 2.0
-        )
-    );
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price")
+            .addRows(1L, 1, 1.0, 2L, 2, 2.0));
   }
 
   @Test
   public void testUnion() throws Exception {
-    String sql = "SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS "
-        + " UNION SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS ";
+    String sql =
+        "SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + " UNION SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            2L, 2, 2.0
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, 1, 1.0, 2L, 2, 2.0)
+                .getRows());
     pipeline.run();
   }
 
   @Test
   public void testUnionAll() throws Exception {
-    String sql = "SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS"
-        + " UNION ALL "
-        + " SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS";
+    String sql =
+        "SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS"
+            + " UNION ALL "
+            + " SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            1L, 1, 1.0,
-            2L, 2, 2.0,
-            2L, 2, 2.0
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 2L, 2, 2.0)
+                .getRows());
     pipeline.run();
   }
 }

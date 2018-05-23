@@ -24,21 +24,15 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
-/**
- * Tests for WHERE queries with BOUNDED PCollection.
- */
+/** Tests for WHERE queries with BOUNDED PCollection. */
 public class BeamSqlDslFilterTest extends BeamSqlDslBase {
-  /**
-   * single filter with bounded PCollection.
-   */
+  /** single filter with bounded PCollection. */
   @Test
   public void testSingleFilterWithBounded() throws Exception {
     runSingleFilter(boundedInput1);
   }
 
-  /**
-   * single filter with unbounded PCollection.
-   */
+  /** single filter with unbounded PCollection. */
   @Test
   public void testSingleFilterWithUnbounded() throws Exception {
     runSingleFilter(unboundedInput1);
@@ -47,33 +41,29 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   private void runSingleFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
-    PCollection<Row> result =
-        input.apply("testSingleFilter", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("testSingleFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * composite filters with bounded PCollection.
-   */
+  /** composite filters with bounded PCollection. */
   @Test
   public void testCompositeFilterWithBounded() throws Exception {
     runCompositeFilter(boundedInput1);
   }
 
-  /**
-   * composite filters with unbounded PCollection.
-   */
+  /** composite filters with unbounded PCollection. */
   @Test
   public void testCompositeFilterWithUnbounded() throws Exception {
     runCompositeFilter(unboundedInput1);
   }
 
   private void runCompositeFilter(PCollection<Row> input) throws Exception {
-    String sql = "SELECT * FROM TABLE_A"
-        + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
+    String sql =
+        "SELECT * FROM TABLE_A"
+            + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
@@ -84,17 +74,13 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * nothing return with filters in bounded PCollection.
-   */
+  /** nothing return with filters in bounded PCollection. */
   @Test
   public void testNoReturnFilterWithBounded() throws Exception {
     runNoReturnFilter(boundedInput1);
   }
 
-  /**
-   * nothing return with filters in unbounded PCollection.
-   */
+  /** nothing return with filters in unbounded PCollection. */
   @Test
   public void testNoReturnFilterWithUnbounded() throws Exception {
     runNoReturnFilter(unboundedInput1);

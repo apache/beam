@@ -42,9 +42,10 @@ import org.apache.calcite.rex.RexLiteral;
  * {@code BeamRelNode} to replace a {@code Values} node.
  *
  * <p>{@code BeamValuesRel} will be used in the following SQLs:
+ *
  * <ul>
- *   <li>{@code insert into t (name, desc) values ('hello', 'world')}</li>
- *   <li>{@code select 1, '1', LOCALTIME}</li>
+ *   <li>{@code insert into t (name, desc) values ('hello', 'world')}
+ *   <li>{@code select 1, '1', LOCALTIME}
  * </ul>
  */
 public class BeamValuesRel extends Values implements BeamRelNode {
@@ -55,7 +56,6 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       ImmutableList<ImmutableList<RexLiteral>> tuples,
       RelTraitSet traits) {
     super(cluster, rowType, tuples, traits);
-
   }
 
   @Override
@@ -85,10 +85,8 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   }
 
   private Row tupleToRow(Schema schema, ImmutableList<RexLiteral> tuple) {
-    return
-        IntStream
-            .range(0, tuple.size())
-            .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
-            .collect(toRow(schema));
+    return IntStream.range(0, tuple.size())
+        .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
+        .collect(toRow(schema));
   }
 }

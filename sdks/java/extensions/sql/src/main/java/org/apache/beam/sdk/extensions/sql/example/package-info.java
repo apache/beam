@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Examples on how to use Beam SQL.
- */
+/** Examples on how to use Beam SQL. */
 package org.apache.beam.sdk.extensions.sql.example;

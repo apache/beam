@@ -28,9 +28,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.reflect.InferredRowCoder;
 
-/**
- * Utility methods to help wire up schema inferring using {@link InferredRowCoder}.
- */
+/** Utility methods to help wire up schema inferring using {@link InferredRowCoder}. */
 class SchemaHelper {
 
   static PCollection<Row> toRows(PInput input) {
@@ -43,27 +41,26 @@ class SchemaHelper {
 
     if (coder instanceof InferredRowCoder) {
       InferredRowCoder inferredSchemaCoder = (InferredRowCoder) coder;
-      return
-          pCollection
-              .apply(
-                  pCollection.getName() + "_transformToRows",
-                  transformToRows(inferredSchemaCoder))
-              .setCoder(inferredSchemaCoder.rowCoder());
+      return pCollection
+          .apply(pCollection.getName() + "_transformToRows", transformToRows(inferredSchemaCoder))
+          .setCoder(inferredSchemaCoder.rowCoder());
     }
 
-    throw new UnsupportedOperationException("Input PCollections for Beam SQL should either "
-                                                + "have RowCoder set and contain Rows or "
-                                                + "have InferredRowCoder for its elements");
+    throw new UnsupportedOperationException(
+        "Input PCollections for Beam SQL should either "
+            + "have RowCoder set and contain Rows or "
+            + "have InferredRowCoder for its elements");
   }
 
   private static PTransform<PCollection<?>, PCollection<Row>> transformToRows(
       InferredRowCoder coder) {
 
-    return ParDo.of(new DoFn<Object, Row>() {
-      @ProcessElement
-      public void processElement(DoFn<Object, Row>.ProcessContext c) {
-        c.output(coder.createRow(c.element()));
-      }
-    });
+    return ParDo.of(
+        new DoFn<Object, Row>() {
+          @ProcessElement
+          public void processElement(DoFn<Object, Row>.ProcessContext c) {
+            c.output(coder.createRow(c.element()));
+          }
+        });
   }
 }

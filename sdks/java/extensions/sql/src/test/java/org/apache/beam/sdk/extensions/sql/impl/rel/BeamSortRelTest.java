@@ -31,223 +31,242 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamSortRel}.
- */
+/** Test for {@code BeamSortRel}. */
 public class BeamSortRelTest extends BaseRelTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void prepare() {
-    registerTable("ORDER_DETAILS",
+    registerTable(
+        "ORDER_DETAILS",
+        MockedBoundedTable.of(
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price",
+                TypeName.DATETIME, "order_time")
+            .addRows(
+                1L,
+                2,
+                1.0,
+                new DateTime(0),
+                1L,
+                1,
+                2.0,
+                new DateTime(1),
+                2L,
+                4,
+                3.0,
+                new DateTime(2),
+                2L,
+                1,
+                4.0,
+                new DateTime(3),
+                5L,
+                5,
+                5.0,
+                new DateTime(4),
+                6L,
+                6,
+                6.0,
+                new DateTime(5),
+                7L,
+                7,
+                7.0,
+                new DateTime(6),
+                8L,
+                8888,
+                8.0,
+                new DateTime(7),
+                8L,
+                999,
+                9.0,
+                new DateTime(8),
+                10L,
+                100,
+                10.0,
+                new DateTime(9)));
+    registerTable(
+        "SUB_ORDER_RAM",
         MockedBoundedTable.of(
             TypeName.INT64, "order_id",
             TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price",
-            TypeName.DATETIME, "order_time"
-        ).addRows(
-            1L, 2, 1.0, new DateTime(0),
-            1L, 1, 2.0, new DateTime(1),
-            2L, 4, 3.0, new DateTime(2),
-            2L, 1, 4.0, new DateTime(3),
-            5L, 5, 5.0, new DateTime(4),
-            6L, 6, 6.0, new DateTime(5),
-            7L, 7, 7.0, new DateTime(6),
-            8L, 8888, 8.0, new DateTime(7),
-            8L, 999, 9.0, new DateTime(8),
-            10L, 100, 10.0, new DateTime(9)
-        )
-    );
-    registerTable("SUB_ORDER_RAM",
-        MockedBoundedTable.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        )
-    );
+            TypeName.DOUBLE, "price"));
   }
 
   @Test
   public void testOrderBy_basic() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS "
-        + "ORDER BY order_id asc, site_id desc limit 4";
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc limit 4";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
-        TypeName.INT64, "order_id",
-        TypeName.INT32, "site_id",
-        TypeName.DOUBLE, "price"
-    ).addRows(
-        1L, 2, 1.0,
-        1L, 1, 2.0,
-        2L, 4, 3.0,
-        2L, 1, 4.0
-    ).getRows());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, 2, 1.0, 1L, 1, 2.0, 2L, 4, 3.0, 2L, 1, 4.0)
+                .getRows());
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testOrderBy_timestamp() throws Exception {
-    String sql = "SELECT order_id, site_id, price, order_time "
-        + "FROM ORDER_DETAILS "
-        + "ORDER BY order_time desc limit 4";
+    String sql =
+        "SELECT order_id, site_id, price, order_time "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_time desc limit 4";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
-        TypeName.INT64, "order_id",
-        TypeName.INT32, "site_id",
-        TypeName.DOUBLE, "price",
-        TypeName.DATETIME, "order_time"
-    ).addRows(
-        7L, 7, 7.0, new DateTime(6),
-        8L, 8888, 8.0, new DateTime(7),
-        8L, 999, 9.0, new DateTime(8),
-        10L, 100, 10.0, new DateTime(9)
-    ).getRows());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price",
+                    TypeName.DATETIME, "order_time")
+                .addRows(
+                    7L,
+                    7,
+                    7.0,
+                    new DateTime(6),
+                    8L,
+                    8888,
+                    8.0,
+                    new DateTime(7),
+                    8L,
+                    999,
+                    9.0,
+                    new DateTime(8),
+                    10L,
+                    100,
+                    10.0,
+                    new DateTime(9))
+                .getRows());
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testOrderBy_nullsFirst() throws Exception {
-    registerTable("ORDER_DETAILS",
+    registerTable(
+        "ORDER_DETAILS",
+        MockedBoundedTable.of(
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price")
+            .addRows(1L, 2, 1.0, 1L, null, 2.0, 2L, 1, 3.0, 2L, null, 4.0, 5L, 5, 5.0));
+    registerTable(
+        "SUB_ORDER_RAM",
         MockedBoundedTable.of(
             TypeName.INT64, "order_id",
             TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 2, 1.0,
-            1L, null, 2.0,
-            2L, 1, 3.0,
-            2L, null, 4.0,
-            5L, 5, 5.0
-        )
-    );
-    registerTable("SUB_ORDER_RAM", MockedBoundedTable
-        .of(TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
             TypeName.DOUBLE, "price"));
 
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS "
-        + "ORDER BY order_id asc, site_id desc NULLS FIRST limit 4";
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc NULLS FIRST limit 4";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, null, 2.0,
-            1L, 2, 1.0,
-            2L, null, 4.0,
-            2L, 1, 3.0
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, null, 2.0, 1L, 2, 1.0, 2L, null, 4.0, 2L, 1, 3.0)
+                .getRows());
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testOrderBy_nullsLast() throws Exception {
-    registerTable("ORDER_DETAILS", MockedBoundedTable
-        .of(TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 2, 1.0,
-            1L, null, 2.0,
-            2L, 1, 3.0,
-            2L, null, 4.0,
-            5L, 5, 5.0));
-    registerTable("SUB_ORDER_RAM", MockedBoundedTable
-        .of(TypeName.INT64, "order_id",
+    registerTable(
+        "ORDER_DETAILS",
+        MockedBoundedTable.of(
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price")
+            .addRows(1L, 2, 1.0, 1L, null, 2.0, 2L, 1, 3.0, 2L, null, 4.0, 5L, 5, 5.0));
+    registerTable(
+        "SUB_ORDER_RAM",
+        MockedBoundedTable.of(
+            TypeName.INT64, "order_id",
             TypeName.INT32, "site_id",
             TypeName.DOUBLE, "price"));
 
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS "
-        + "ORDER BY order_id asc, site_id desc NULLS LAST limit 4";
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc NULLS LAST limit 4";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 2, 1.0,
-            1L, null, 2.0,
-            2L, 1, 3.0,
-            2L, null, 4.0
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, 2, 1.0, 1L, null, 2.0, 2L, 1, 3.0, 2L, null, 4.0)
+                .getRows());
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testOrderBy_with_offset() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS "
-        + "ORDER BY order_id asc, site_id desc limit 4 offset 4";
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc limit 4 offset 4";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            5L, 5, 5.0,
-            6L, 6, 6.0,
-            7L, 7, 7.0,
-            8L, 8888, 8.0
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(5L, 5, 5.0, 6L, 6, 6.0, 7L, 7, 7.0, 8L, 8888, 8.0)
+                .getRows());
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testOrderBy_bigFetch() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS "
-        + "ORDER BY order_id asc, site_id desc limit 11";
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc limit 11";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 2, 1.0,
-            1L, 1, 2.0,
-            2L, 4, 3.0,
-            2L, 1, 4.0,
-            5L, 5, 5.0,
-            6L, 6, 6.0,
-            7L, 7, 7.0,
-            8L, 8888, 8.0,
-            8L, 999, 9.0,
-            10L, 100, 10.0
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(
+                    1L, 2, 1.0, 1L, 1, 2.0, 2L, 4, 3.0, 2L, 1, 4.0, 5L, 5, 5.0, 6L, 6, 6.0, 7L, 7,
+                    7.0, 8L, 8888, 8.0, 8L, 999, 9.0, 10L, 100, 10.0)
+                .getRows());
     pipeline.run().waitUntilFinish();
   }
 
   @Test(expected = ValidationException.class)
   public void testOrderBy_exception() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "
-        + " order_id, COUNT(*) "
-        + "FROM ORDER_DETAILS "
-        + "GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)"
-        + "ORDER BY order_id asc limit 11";
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "
+            + " order_id, COUNT(*) "
+            + "FROM ORDER_DETAILS "
+            + "GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)"
+            + "ORDER BY order_id asc limit 11";
 
     TestPipeline pipeline = TestPipeline.create();
     compilePipeline(sql, pipeline);

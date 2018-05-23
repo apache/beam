@@ -22,22 +22,20 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
-/**
- * Accumulates current variance of a sample, its sum, and number of elements.
- */
+/** Accumulates current variance of a sample, its sum, and number of elements. */
 @AutoValue
 abstract class VarianceAccumulator implements Serializable {
   static final VarianceAccumulator EMPTY =
       newVarianceAccumulator(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
   abstract BigDecimal variance();
+
   abstract BigDecimal count();
+
   abstract BigDecimal sum();
 
   static VarianceAccumulator newVarianceAccumulator(
-      BigDecimal variance,
-      BigDecimal count,
-      BigDecimal sum) {
+      BigDecimal variance, BigDecimal count, BigDecimal sum) {
 
     return new AutoValue_VarianceAccumulator(variance, count, sum);
   }
@@ -50,9 +48,7 @@ abstract class VarianceAccumulator implements Serializable {
     return newVarianceAccumulator(BigDecimal.ZERO, BigDecimal.ONE, inputElement);
   }
 
-  /**
-   * See {@link VarianceFn} doc above for explanation.
-   */
+  /** See {@link VarianceFn} doc above for explanation. */
   VarianceAccumulator combineWith(VarianceAccumulator otherVariance) {
     if (EMPTY.equals(this)) {
       return otherVariance;
@@ -63,10 +59,7 @@ abstract class VarianceAccumulator implements Serializable {
     }
 
     BigDecimal increment = calculateIncrement(this, otherVariance);
-    BigDecimal combinedVariance =
-        this.variance()
-            .add(otherVariance.variance())
-            .add(increment);
+    BigDecimal combinedVariance = this.variance().add(otherVariance.variance()).add(increment);
 
     return newVarianceAccumulator(
         combinedVariance,
@@ -74,12 +67,9 @@ abstract class VarianceAccumulator implements Serializable {
         this.sum().add(otherVariance.sum()));
   }
 
-  /**
-   * Implements this part: {@code increment = m/(n(m+n)) * (sum(x) * n/m  - sum(y))^2 }.
-   */
+  /** Implements this part: {@code increment = m/(n(m+n)) * (sum(x) * n/m - sum(y))^2 }. */
   private BigDecimal calculateIncrement(
-      VarianceAccumulator varianceX,
-      VarianceAccumulator varianceY) {
+      VarianceAccumulator varianceX, VarianceAccumulator varianceY) {
 
     BigDecimal m = varianceX.count();
     BigDecimal n = varianceY.count();

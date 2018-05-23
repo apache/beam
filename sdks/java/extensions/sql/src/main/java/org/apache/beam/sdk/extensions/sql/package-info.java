@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * BeamSQL provides a new interface to run a SQL statement with Beam.
- */
+/** BeamSQL provides a new interface to run a SQL statement with Beam. */
 package org.apache.beam.sdk.extensions.sql;

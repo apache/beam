@@ -53,9 +53,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The core component to handle through a SQL statement, from explain execution plan,
- * to generate a Beam pipeline.
- *
+ * The core component to handle through a SQL statement, from explain execution plan, to generate a
+ * Beam pipeline.
  */
 public class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
@@ -64,12 +63,13 @@ public class BeamQueryPlanner {
 
   public BeamQueryPlanner(CalciteConnection connection) {
     final CalciteConnectionConfig config = connection.config();
-    final SqlParser.ConfigBuilder parserConfig = SqlParser.configBuilder()
-        .setQuotedCasing(config.quotedCasing())
-        .setUnquotedCasing(config.unquotedCasing())
-        .setQuoting(config.quoting())
-        .setConformance(config.conformance())
-        .setCaseSensitive(config.caseSensitive());
+    final SqlParser.ConfigBuilder parserConfig =
+        SqlParser.configBuilder()
+            .setQuotedCasing(config.quotedCasing())
+            .setUnquotedCasing(config.unquotedCasing())
+            .setQuoting(config.quoting())
+            .setConformance(config.conformance())
+            .setCaseSensitive(config.caseSensitive());
     final SqlParserImplFactory parserFactory =
         config.parserFactory(SqlParserImplFactory.class, null);
     if (parserFactory != null) {
@@ -79,9 +79,8 @@ public class BeamQueryPlanner {
     final SchemaPlus schema = connection.getRootSchema();
     final SchemaPlus defaultSchema = JdbcDriver.getDefaultSchema(connection);
 
-    final ImmutableList<RelTraitDef> traitDefs = ImmutableList.of(
-      ConventionTraitDef.INSTANCE,
-      RelCollationTraitDef.INSTANCE);
+    final ImmutableList<RelTraitDef> traitDefs =
+        ImmutableList.of(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
 
     final CalciteCatalogReader catalogReader =
         new CalciteCatalogReader(
@@ -90,8 +89,7 @@ public class BeamQueryPlanner {
             connection.getTypeFactory(),
             connection.config());
     final SqlOperatorTable opTab0 =
-        connection.config().fun(SqlOperatorTable.class,
-            SqlStdOperatorTable.instance());
+        connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
     this.config =
         Frameworks.newConfigBuilder()
@@ -106,9 +104,7 @@ public class BeamQueryPlanner {
             .build();
   }
 
-  /**
-   * Parse input SQL query, and return a {@link SqlNode} as grammar tree.
-   */
+  /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
   public SqlNode parse(String sqlStatement) throws SqlParseException {
     Planner planner = getPlanner();
     SqlNode parsed;
@@ -121,9 +117,9 @@ public class BeamQueryPlanner {
   }
 
   /**
-   * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow,
-   * which is linked with the given {@code pipeline}. The final output stream is returned as
-   * {@code PCollection} so more operations can be applied.
+   * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow, which is
+   * linked with the given {@code pipeline}. The final output stream is returned as {@code
+   * PCollection} so more operations can be applied.
    */
   public PCollection<Row> compileBeamPipeline(String sqlStatement, Pipeline basePipeline)
       throws ValidationException, RelConversionException, SqlParseException {
@@ -133,11 +129,7 @@ public class BeamQueryPlanner {
     return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform());
   }
 
-  /**
-   * It parses and validate the input query, then convert into a
-   * {@link BeamRelNode} tree.
-   *
-   */
+  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode beamRelNode;
@@ -150,10 +142,12 @@ public class BeamQueryPlanner {
       RelRoot root = planner.rel(validated);
       LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
 
-      RelTraitSet desiredTraits = root.rel.getTraitSet()
-          .replace(BeamLogicalConvention.INSTANCE)
-          .replace(root.collation)
-          .simplify();
+      RelTraitSet desiredTraits =
+          root.rel
+              .getTraitSet()
+              .replace(BeamLogicalConvention.INSTANCE)
+              .replace(root.collation)
+              .simplify();
       beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
     } finally {
       planner.close();
@@ -164,5 +158,4 @@ public class BeamQueryPlanner {
   private Planner getPlanner() {
     return Frameworks.getPlanner(config);
   }
-
 }

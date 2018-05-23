@@ -39,12 +39,14 @@ public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
     super(operands, SqlTypeName.TIME);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     int opCount = getOperands().size();
     return opCount <= 1;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     return BeamSqlPrimitive.of(outputType, DateTime.now());
   }
 }

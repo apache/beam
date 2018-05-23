@@ -36,11 +36,13 @@ public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
     super(Collections.emptyList(), SqlTypeName.DATE);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     return getOperands().isEmpty();
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     return BeamSqlPrimitive.of(outputType, DateTime.now());
   }
 }

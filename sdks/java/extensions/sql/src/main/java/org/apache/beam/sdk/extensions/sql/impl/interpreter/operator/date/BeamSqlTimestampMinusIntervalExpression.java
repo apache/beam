@@ -67,8 +67,10 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
     BigDecimal intervalValue = operand.getDecimal();
     SqlTypeName intervalType = operand.getOutputType();
 
-    int numberOfIntervals = intervalValue
-        .divide(TimeUnitUtils.timeUnitInternalMultiplier(intervalType)).intValueExact();
+    int numberOfIntervals =
+        intervalValue
+            .divide(TimeUnitUtils.timeUnitInternalMultiplier(intervalType))
+            .intValueExact();
 
     return new Period().withField(durationFieldType(intervalType), numberOfIntervals);
   }

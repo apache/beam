@@ -24,9 +24,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for 'OR' operation.
- */
+/** {@code BeamSqlExpression} for 'OR' operation. */
 public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
   public BeamSqlOrExpression(List<BeamSqlExpression> operands) {
     super(operands);
@@ -37,12 +35,11 @@ public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
     boolean result = false;
     for (BeamSqlExpression exp : operands) {
       BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window);
-        result = expOut.getValue();
-        if (result) {
-          break;
-        }
+      result = expOut.getValue();
+      if (result) {
+        break;
+      }
     }
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
-
 }

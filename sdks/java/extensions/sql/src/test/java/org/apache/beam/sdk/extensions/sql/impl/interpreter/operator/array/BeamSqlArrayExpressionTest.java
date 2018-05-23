@@ -31,9 +31,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlArrayExpression}.
- */
+/** Unit tests for {@link BeamSqlArrayExpression}. */
 public class BeamSqlArrayExpressionTest {
 
   private static final Row NULL_ROW = null;
@@ -49,8 +47,7 @@ public class BeamSqlArrayExpressionTest {
     BeamSqlArrayExpression arrayExpression = new BeamSqlArrayExpression(elements);
 
     assertEquals(
-        Arrays.asList("aaa", "bbb"),
-        arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+        Arrays.asList("aaa", "bbb"), arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
   }
 
   @Test

@@ -24,9 +24,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * A {@code BeamSqlTableProvider} provides read only set of {@code BeamSqlTable}.
- */
+/** A {@code BeamSqlTableProvider} provides read only set of {@code BeamSqlTable}. */
 public class BeamSqlTableProvider implements TableProvider {
   private final String typeName;
   private final Map<String, BeamSqlTable> tables;
@@ -36,7 +34,8 @@ public class BeamSqlTableProvider implements TableProvider {
     this.tables = tables;
   }
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return typeName;
   }
 
@@ -54,12 +53,13 @@ public class BeamSqlTableProvider implements TableProvider {
   public Map<String, Table> getTables() {
     ImmutableMap.Builder<String, Table> map = ImmutableMap.builder();
     for (Map.Entry<String, BeamSqlTable> table : tables.entrySet()) {
-      map.put(table.getKey(),
+      map.put(
+          table.getKey(),
           Table.builder()
-            .type(getTableType())
-            .name(table.getKey())
-            .schema(Schema.builder().build())
-            .build());
+              .type(getTableType())
+              .name(table.getKey())
+              .schema(Schema.builder().build())
+              .build());
     }
     return map.build();
   }

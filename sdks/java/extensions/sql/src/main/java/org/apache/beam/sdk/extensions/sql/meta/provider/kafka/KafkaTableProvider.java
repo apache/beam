@@ -43,7 +43,8 @@ import org.apache.beam.sdk.schemas.Schema;
  * }</pre>
  */
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
 
     JSONObject properties = table.getProperties();
@@ -57,7 +58,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     return txtTable;
   }
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "kafka";
   }
 }

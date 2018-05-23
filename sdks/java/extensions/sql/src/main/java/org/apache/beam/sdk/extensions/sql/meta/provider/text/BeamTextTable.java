@@ -22,9 +22,7 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
- */
+/** {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}). */
 public abstract class BeamTextTable extends BaseBeamTable {
   protected String filePattern;
 

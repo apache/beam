@@ -26,27 +26,24 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
-/**
- * Utilities concerning {@link SqlNode} for DDL.
- */
+/** Utilities concerning {@link SqlNode} for DDL. */
 public class SqlDdlNodes {
   private SqlDdlNodes() {}
 
   /** Creates a DROP TABLE. */
-  public static SqlDropTable dropTable(SqlParserPos pos, boolean ifExists,
-      SqlIdentifier name) {
+  public static SqlDropTable dropTable(SqlParserPos pos, boolean ifExists, SqlIdentifier name) {
     return new SqlDropTable(pos, ifExists, name);
   }
 
   /** Creates a column declaration. */
-  public static SqlNode column(SqlParserPos pos, SqlIdentifier name,
-      SqlDataTypeSpec dataType, SqlNode comment) {
+  public static SqlNode column(
+      SqlParserPos pos, SqlIdentifier name, SqlDataTypeSpec dataType, SqlNode comment) {
     return new SqlColumnDeclaration(pos, name, dataType, comment);
   }
 
   /** Returns the schema in which to create an object. */
-  static Pair<CalciteSchema, String> schema(CalcitePrepare.Context context,
-      boolean mutable, SqlIdentifier id) {
+  static Pair<CalciteSchema, String> schema(
+      CalcitePrepare.Context context, boolean mutable, SqlIdentifier id) {
     final String name;
     final List<String> path;
     if (id.isSimple()) {
@@ -56,8 +53,7 @@ public class SqlDdlNodes {
       path = Util.skipLast(id.names);
       name = Util.last(id.names);
     }
-    CalciteSchema schema = mutable ? context.getMutableRootSchema()
-        : context.getRootSchema();
+    CalciteSchema schema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
     for (String p : path) {
       schema = schema.getSubSchema(p, true);
     }

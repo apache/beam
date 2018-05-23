@@ -35,13 +35,11 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.rel.RelNode;
 
 /**
- * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel}
- * and {@code BeamMinusRel}.
+ * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
+ * BeamMinusRel}.
  */
 public class BeamSetOperatorRelBase {
-  /**
-   * Set operator type.
-   */
+  /** Set operator type. */
   public enum OpType implements Serializable {
     UNION,
     INTERSECT,
@@ -53,8 +51,8 @@ public class BeamSetOperatorRelBase {
   private boolean all;
   private OpType opType;
 
-  public BeamSetOperatorRelBase(BeamRelNode beamRelNode, OpType opType,
-      List<RelNode> inputs, boolean all) {
+  public BeamSetOperatorRelBase(
+      BeamRelNode beamRelNode, OpType opType, List<RelNode> inputs, boolean all) {
     this.beamRelNode = beamRelNode;
     this.opType = opType;
     this.inputs = inputs;
@@ -73,8 +71,12 @@ public class BeamSetOperatorRelBase {
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
     if (!leftWindow.isCompatible(rightWindow)) {
       throw new IllegalArgumentException(
-          "inputs of " + opType + " have different window strategy: "
-          + leftWindow + " VS " + rightWindow);
+          "inputs of "
+              + opType
+              + " have different window strategy: "
+              + leftWindow
+              + " VS "
+              + rightWindow);
     }
 
     final TupleTag<Row> leftTag = new TupleTag<>();
@@ -94,9 +96,11 @@ public class BeamSetOperatorRelBase {
                     stageName + "_CreateRightIndex",
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
             .apply(CoGroupByKey.create());
-    PCollection<Row> ret = coGbkResultCollection
-        .apply(ParDo.of(new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(leftTag, rightTag,
-            opType, all)));
+    PCollection<Row> ret =
+        coGbkResultCollection.apply(
+            ParDo.of(
+                new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                    leftTag, rightTag, opType, all)));
     return ret;
   }
 }

@@ -22,9 +22,7 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlCli} Pubsub functionality.
- */
+/** Unit tests for {@link BeamSqlCli} Pubsub functionality. */
 public class BeamSqlCliPubsubTest {
 
   @Test
@@ -38,16 +36,18 @@ public class BeamSqlCliPubsubTest {
 
     cli.execute(
         "CREATE TABLE topic (\n"
-        + "event_timestamp TIMESTAMP, \n"
-        + "attributes MAP<VARCHAR, VARCHAR>, \n"
-        + "payload ROW< \n"
-        + "             `id` INTEGER, \n"
-        + "             `name` VARCHAR \n"
-        + "           > \n"
-        + ") \n"
-        + "TYPE 'pubsub' \n"
-        + "LOCATION '" + pubsubTopic + "' \n"
-        + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'");
+            + "event_timestamp TIMESTAMP, \n"
+            + "attributes MAP<VARCHAR, VARCHAR>, \n"
+            + "payload ROW< \n"
+            + "             `id` INTEGER, \n"
+            + "             `name` VARCHAR \n"
+            + "           > \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + pubsubTopic
+            + "' \n"
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'");
 
     cli.execute("SELECT topic.payload.name from topic");
   }

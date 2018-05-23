@@ -23,9 +23,7 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/**
- * Base class for all date related expression test.
- */
+/** Base class for all date related expression test. */
 public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
   static DateTime str2DateTime(String dateStr) {
     DateTimeFormatter format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();

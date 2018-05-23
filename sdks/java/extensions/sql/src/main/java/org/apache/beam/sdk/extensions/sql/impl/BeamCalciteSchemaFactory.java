@@ -28,18 +28,14 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaFactory;
 import org.apache.calcite.schema.SchemaPlus;
 
-/**
- * Factory that creates a {@link BeamCalciteSchema}.
- */
+/** Factory that creates a {@link BeamCalciteSchema}. */
 public class BeamCalciteSchemaFactory implements SchemaFactory {
   public static final BeamCalciteSchemaFactory INSTANCE = new BeamCalciteSchemaFactory();
 
-  private BeamCalciteSchemaFactory() {
-  }
+  private BeamCalciteSchemaFactory() {}
 
   @Override
-  public Schema create(SchemaPlus parentSchema, String name,
-      Map<String, Object> operand) {
+  public Schema create(SchemaPlus parentSchema, String name, Map<String, Object> operand) {
     MetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new BigQueryTableProvider());
     metaStore.registerProvider(new KafkaTableProvider());

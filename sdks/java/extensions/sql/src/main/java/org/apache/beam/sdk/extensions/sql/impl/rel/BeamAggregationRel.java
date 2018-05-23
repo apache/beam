@@ -51,9 +51,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Duration;
 
-/**
- * {@link BeamRelNode} to replace a {@link Aggregate} node.
- */
+/** {@link BeamRelNode} to replace a {@link Aggregate} node. */
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private final int windowFieldIndex;
   private Optional<AggregateWindowField> windowField;
@@ -87,115 +85,116 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<Row> upstream =
           inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
       if (windowField.isPresent()) {
-        upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
-          .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
-          .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
-          .setCoder(upstream.getCoder());
+        upstream =
+            upstream
+                .apply(
+                    stageName + "assignEventTimestamp",
+                    WithTimestamps.of(
+                            new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
+                        .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
+                .setCoder(upstream.getCoder());
       }
 
-    PCollection<Row> windowedStream =
-        windowField.isPresent()
-            ? upstream.apply(stageName + "window", Window.into(windowField.get().windowFn()))
-            : upstream;
+      PCollection<Row> windowedStream =
+          windowField.isPresent()
+              ? upstream.apply(stageName + "window", Window.into(windowField.get().windowFn()))
+              : upstream;
 
-    validateWindowIsSupported(windowedStream);
+      validateWindowIsSupported(windowedStream);
 
-    Schema keySchema = exKeyFieldsSchema(input.getRowType());
-    RowCoder keyCoder = keySchema.getRowCoder();
-    PCollection<KV<Row, Row>> exCombineByStream = windowedStream.apply(
-        stageName + "exCombineBy",
-        WithKeys
-            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                keySchema, windowFieldIndex, groupSet)))
-        .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
+      Schema keySchema = exKeyFieldsSchema(input.getRowType());
+      RowCoder keyCoder = keySchema.getRowCoder();
+      PCollection<KV<Row, Row>> exCombineByStream =
+          windowedStream
+              .apply(
+                  stageName + "exCombineBy",
+                  WithKeys.of(
+                      new BeamAggregationTransforms.AggregationGroupByKeyFn(
+                          keySchema, windowFieldIndex, groupSet)))
+              .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
 
-    RowCoder aggCoder = exAggFieldsSchema().getRowCoder();
+      RowCoder aggCoder = exAggFieldsSchema().getRowCoder();
 
-    PCollection<KV<Row, Row>> aggregatedStream =
-        exCombineByStream
-            .apply(
-                stageName + "combineBy",
-                Combine.perKey(
-                    new BeamAggregationTransforms.AggregationAdaptor(
-                        getAggCallList(), CalciteUtils.toBeamSchema(input.getRowType()))))
-            .setCoder(KvCoder.of(keyCoder, aggCoder));
+      PCollection<KV<Row, Row>> aggregatedStream =
+          exCombineByStream
+              .apply(
+                  stageName + "combineBy",
+                  Combine.perKey(
+                      new BeamAggregationTransforms.AggregationAdaptor(
+                          getAggCallList(), CalciteUtils.toBeamSchema(input.getRowType()))))
+              .setCoder(KvCoder.of(keyCoder, aggCoder));
 
-    PCollection<Row> mergedStream = aggregatedStream.apply(
-        stageName + "mergeRecord",
-        ParDo.of(
-            new BeamAggregationTransforms.MergeAggregationRecord(
-                CalciteUtils.toBeamSchema(getRowType()),
-                getAggCallList(),
-                windowFieldIndex)));
-    mergedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+      PCollection<Row> mergedStream =
+          aggregatedStream.apply(
+              stageName + "mergeRecord",
+              ParDo.of(
+                  new BeamAggregationTransforms.MergeAggregationRecord(
+                      CalciteUtils.toBeamSchema(getRowType()),
+                      getAggCallList(),
+                      windowFieldIndex)));
+      mergedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
-    return mergedStream;
-  }
-
-
-  /**
-   * Performs the same check as {@link GroupByKey}, provides more context in exception.
-   *
-   * <p>Verifies that the input PCollection is bounded, or that there is windowing/triggering being
-   * used. Without this, the watermark (at end of global window) will never be reached.
-   *
-   * <p>Throws {@link UnsupportedOperationException} if validation fails.
-   */
-  private void validateWindowIsSupported(PCollection<Row> upstream) {
-    WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
-    if (windowingStrategy.getWindowFn() instanceof GlobalWindows
-        && windowingStrategy.getTrigger() instanceof DefaultTrigger
-        && upstream.isBounded() != BOUNDED) {
-
-      throw new UnsupportedOperationException(
-          "Please explicitly specify windowing in SQL query using HOP/TUMBLE/SESSION functions "
-              + "(default trigger will be used in this case). "
-              + "Unbounded input with global windowing and default trigger is not supported "
-              + "in Beam SQL aggregations. "
-              + "See GroupByKey section in Beam Programming Guide");
+      return mergedStream;
     }
-  }
 
-  /**
-   * Type of sub-rowrecord used as Group-By keys.
-   */
-  private Schema exKeyFieldsSchema(RelDataType relDataType) {
-    Schema inputSchema = CalciteUtils.toBeamSchema(relDataType);
-    return groupSet
-        .asList()
-        .stream()
-        .filter(i -> i != windowFieldIndex)
-        .map(i -> newRowField(inputSchema, i))
-        .collect(toSchema());
-  }
+    /**
+     * Performs the same check as {@link GroupByKey}, provides more context in exception.
+     *
+     * <p>Verifies that the input PCollection is bounded, or that there is windowing/triggering
+     * being used. Without this, the watermark (at end of global window) will never be reached.
+     *
+     * <p>Throws {@link UnsupportedOperationException} if validation fails.
+     */
+    private void validateWindowIsSupported(PCollection<Row> upstream) {
+      WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
+      if (windowingStrategy.getWindowFn() instanceof GlobalWindows
+          && windowingStrategy.getTrigger() instanceof DefaultTrigger
+          && upstream.isBounded() != BOUNDED) {
 
-  private Schema.Field newRowField(Schema schema, int i) {
-    return schema.getField(i);
-  }
+        throw new UnsupportedOperationException(
+            "Please explicitly specify windowing in SQL query using HOP/TUMBLE/SESSION functions "
+                + "(default trigger will be used in this case). "
+                + "Unbounded input with global windowing and default trigger is not supported "
+                + "in Beam SQL aggregations. "
+                + "See GroupByKey section in Beam Programming Guide");
+      }
+    }
 
-  /**
-   * Type of sub-rowrecord, that represents the list of aggregation fields.
-   */
-  private Schema exAggFieldsSchema() {
-    return
-        getAggCallList()
-            .stream()
-            .map(this::newRowField)
-            .collect(toSchema());
-  }
+    /** Type of sub-rowrecord used as Group-By keys. */
+    private Schema exKeyFieldsSchema(RelDataType relDataType) {
+      Schema inputSchema = CalciteUtils.toBeamSchema(relDataType);
+      return groupSet
+          .asList()
+          .stream()
+          .filter(i -> i != windowFieldIndex)
+          .map(i -> newRowField(inputSchema, i))
+          .collect(toSchema());
+    }
 
-  private Schema.Field newRowField(AggregateCall aggCall) {
-    return Schema.Field.of(aggCall.getName(), CalciteUtils.toFieldType(aggCall.getType()))
-        .withNullable(aggCall.getType().isNullable());
-  }
+    private Schema.Field newRowField(Schema schema, int i) {
+      return schema.getField(i);
+    }
+
+    /** Type of sub-rowrecord, that represents the list of aggregation fields. */
+    private Schema exAggFieldsSchema() {
+      return getAggCallList().stream().map(this::newRowField).collect(toSchema());
+    }
+
+    private Schema.Field newRowField(AggregateCall aggCall) {
+      return Schema.Field.of(aggCall.getName(), CalciteUtils.toFieldType(aggCall.getType()))
+          .withNullable(aggCall.getType().isNullable());
+    }
   }
 
   @Override
   public Aggregate copy(
-      RelTraitSet traitSet, RelNode input, boolean indicator
-      , ImmutableBitSet groupSet,
-      List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
-    return new BeamAggregationRel(getCluster(), traitSet, input, indicator
-        , groupSet, groupSets, aggCalls, windowField);
+      RelTraitSet traitSet,
+      RelNode input,
+      boolean indicator,
+      ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets,
+      List<AggregateCall> aggCalls) {
+    return new BeamAggregationRel(
+        getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls, windowField);
   }
 }

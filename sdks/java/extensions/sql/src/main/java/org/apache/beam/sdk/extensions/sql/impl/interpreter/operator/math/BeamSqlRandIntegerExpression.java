@@ -26,10 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'RAND_INTEGER([seed, ] numeric)'
- * function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'RAND_INTEGER([seed, ] numeric)' function. */
 public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
   private Random rand = new Random();
   private Integer seed = null;
@@ -53,7 +50,7 @@ public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
       }
       numericIdx = 1;
     }
-    return BeamSqlPrimitive.of(SqlTypeName.INTEGER,
-        rand.nextInt((int) opValueEvaluated(numericIdx, inputRow, window)));
+    return BeamSqlPrimitive.of(
+        SqlTypeName.INTEGER, rand.nextInt((int) opValueEvaluated(numericIdx, inputRow, window)));
   }
 }

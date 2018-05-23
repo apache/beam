@@ -28,16 +28,15 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * 'OVERLAY' operator.
  *
- * <p>
- *   OVERLAY(string1 PLACING string2 FROM integer [ FOR integer2 ])
- * </p>
+ * <p>OVERLAY(string1 PLACING string2 FROM integer [ FOR integer2 ])
  */
 public class BeamSqlOverlayExpression extends BeamSqlExpression {
   public BeamSqlOverlayExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() < 3 || operands.size() > 4) {
       return false;
     }
@@ -55,7 +54,8 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     String str = opValueEvaluated(0, inputRow, window);
     String replaceStr = opValueEvaluated(1, inputRow, window);
     int idx = opValueEvaluated(2, inputRow, window);
@@ -66,11 +66,8 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
       length = opValueEvaluated(3, inputRow, window);
     }
 
-    StringBuilder result = new StringBuilder(
-        str.length() + replaceStr.length() - length);
-    result.append(str.substring(0, idx))
-        .append(replaceStr)
-        .append(str.substring(idx + length));
+    StringBuilder result = new StringBuilder(str.length() + replaceStr.length() - length);
+    result.append(str.substring(0, idx)).append(replaceStr).append(str.substring(idx + length));
 
     return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, result.toString());
   }

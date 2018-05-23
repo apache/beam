@@ -34,41 +34,38 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-
-/**
- * Unit test for {@link ReinterpretConversion}.
- */
+/** Unit test for {@link ReinterpretConversion}. */
 public class ReinterpretConversionTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Test public void testNewInstanceProperties() {
+  @Test
+  public void testNewInstanceProperties() {
     Set<SqlTypeName> from = ImmutableSet.of(SqlTypeName.FLOAT, SqlTypeName.TIME);
     SqlTypeName to = SqlTypeName.BOOLEAN;
     Function<BeamSqlPrimitive, BeamSqlPrimitive> mockConversionFunction = mock(Function.class);
 
-    ReinterpretConversion conversion = ReinterpretConversion.builder()
-        .from(from)
-        .to(to)
-        .convert(mockConversionFunction)
-        .build();
+    ReinterpretConversion conversion =
+        ReinterpretConversion.builder().from(from).to(to).convert(mockConversionFunction).build();
 
     assertEquals(from, conversion.from());
     assertEquals(to, conversion.to());
   }
 
-  @Test public void testConvert() {
+  @Test
+  public void testConvert() {
     BeamSqlPrimitive integerPrimitive = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3);
     BeamSqlPrimitive booleanPrimitive = BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true);
 
     Function<BeamSqlPrimitive, BeamSqlPrimitive> mockConversionFunction = mock(Function.class);
     doReturn(booleanPrimitive).when(mockConversionFunction).apply(same(integerPrimitive));
 
-    ReinterpretConversion conversion = ReinterpretConversion.builder()
-        .from(SqlTypeName.INTEGER)
-        .to(SqlTypeName.BOOLEAN)
-        .convert(mockConversionFunction)
-        .build();
+    ReinterpretConversion conversion =
+        ReinterpretConversion.builder()
+            .from(SqlTypeName.INTEGER)
+            .to(SqlTypeName.BOOLEAN)
+            .convert(mockConversionFunction)
+            .build();
 
     BeamSqlPrimitive conversionResult = conversion.convert(integerPrimitive);
 
@@ -76,38 +73,34 @@ public class ReinterpretConversionTest {
     verify(mockConversionFunction).apply(same(integerPrimitive));
   }
 
-  @Test public void testBuilderThrowsWithoutFrom() {
+  @Test
+  public void testBuilderThrowsWithoutFrom() {
     thrown.expect(IllegalArgumentException.class);
-    ReinterpretConversion.builder()
-        .to(SqlTypeName.BOOLEAN)
-        .convert(mock(Function.class))
-        .build();
+    ReinterpretConversion.builder().to(SqlTypeName.BOOLEAN).convert(mock(Function.class)).build();
   }
 
-  @Test public void testBuilderThrowsWihtoutTo() {
+  @Test
+  public void testBuilderThrowsWihtoutTo() {
     thrown.expect(IllegalArgumentException.class);
-    ReinterpretConversion.builder()
-        .from(SqlTypeName.BOOLEAN)
-        .convert(mock(Function.class))
-        .build();
+    ReinterpretConversion.builder().from(SqlTypeName.BOOLEAN).convert(mock(Function.class)).build();
   }
 
-  @Test public void testBuilderThrowsWihtoutConversionFunction() {
+  @Test
+  public void testBuilderThrowsWihtoutConversionFunction() {
     thrown.expect(IllegalArgumentException.class);
-    ReinterpretConversion.builder()
-        .from(SqlTypeName.BOOLEAN)
-        .to(SqlTypeName.SMALLINT)
-        .build();
+    ReinterpretConversion.builder().from(SqlTypeName.BOOLEAN).to(SqlTypeName.SMALLINT).build();
   }
 
-  @Test public void testConvertThrowsForUnsupportedInput() {
+  @Test
+  public void testConvertThrowsForUnsupportedInput() {
     thrown.expect(IllegalArgumentException.class);
 
-    ReinterpretConversion conversion = ReinterpretConversion.builder()
-        .from(SqlTypeName.DATE)
-        .to(SqlTypeName.BOOLEAN)
-        .convert(mock(Function.class))
-        .build();
+    ReinterpretConversion conversion =
+        ReinterpretConversion.builder()
+            .from(SqlTypeName.DATE)
+            .to(SqlTypeName.BOOLEAN)
+            .convert(mock(Function.class))
+            .build();
 
     conversion.convert(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
   }

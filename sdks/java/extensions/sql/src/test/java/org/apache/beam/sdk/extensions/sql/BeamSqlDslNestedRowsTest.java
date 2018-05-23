@@ -39,16 +39,14 @@ public class BeamSqlDslNestedRowsTest {
   @Test
   public void testRowConstructorKeyword() {
     Schema nestedSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
             .build();
 
     Schema resultSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withIntegerField("f_int2")
             .withVarcharField("f_varchar")
@@ -56,24 +54,17 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlTypes
-            .builder()
-            .withIntegerField("f_int")
-            .withRowField("f_row", nestedSchema)
-            .build();
+        RowSqlTypes.builder().withIntegerField("f_int").withRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
         PBegin.in(pipeline)
-              .apply(
-                  Create.of(
-                      Row.withSchema(inputType)
-                         .addValues(
-                             1,
-                             Row.withSchema(nestedSchema)
-                                .addValues(312, "CC", 313)
-                                .build())
-                         .build())
-                        .withCoder(inputType.getRowCoder()));
+            .apply(
+                Create.of(
+                        Row.withSchema(inputType)
+                            .addValues(
+                                1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
+                            .build())
+                    .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
@@ -82,13 +73,8 @@ public class BeamSqlDslNestedRowsTest {
                     "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
-    PAssert
-        .that(result)
-        .containsInAnyOrder(
-            Row
-                .withSchema(resultSchema)
-                .addValues(1, 3, "BB", 2)
-                .build());
+    PAssert.that(result)
+        .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
 
     pipeline.run();
   }
@@ -97,16 +83,14 @@ public class BeamSqlDslNestedRowsTest {
   public void testRowConstructorBraces() {
 
     Schema nestedSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
             .build();
 
     Schema resultSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withIntegerField("f_int2")
             .withVarcharField("f_varchar")
@@ -114,24 +98,17 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlTypes
-            .builder()
-            .withIntegerField("f_int")
-            .withRowField("f_row", nestedSchema)
-            .build();
+        RowSqlTypes.builder().withIntegerField("f_int").withRowField("f_row", nestedSchema).build();
 
     PCollection<Row> input =
         PBegin.in(pipeline)
-              .apply(
-                  Create.of(
-                      Row.withSchema(inputType)
-                         .addValues(
-                             1,
-                             Row.withSchema(nestedSchema)
-                                .addValues(312, "CC", 313)
-                                .build())
-                         .build())
-                        .withCoder(inputType.getRowCoder()));
+            .apply(
+                Create.of(
+                        Row.withSchema(inputType)
+                            .addValues(
+                                1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
+                            .build())
+                    .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
@@ -140,13 +117,8 @@ public class BeamSqlDslNestedRowsTest {
                     "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
-    PAssert
-        .that(result)
-        .containsInAnyOrder(
-            Row
-                .withSchema(resultSchema)
-                .addValues(1, 3, "BB", 2)
-                .build());
+    PAssert.that(result)
+        .containsInAnyOrder(Row.withSchema(resultSchema).addValues(1, 3, "BB", 2).build());
 
     pipeline.run();
   }
@@ -155,45 +127,33 @@ public class BeamSqlDslNestedRowsTest {
   public void testNestedRowFieldAccess() {
 
     Schema nestedSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
             .build();
 
-    Schema resultSchema =
-        RowSqlTypes
-            .builder()
-            .withVarcharField("f_nestedString")
-            .build();
+    Schema resultSchema = RowSqlTypes.builder().withVarcharField("f_nestedString").build();
 
     Schema inputType =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withRowField("f_nestedRow", nestedSchema)
             .build();
 
     PCollection<Row> input =
         PBegin.in(pipeline)
-              .apply(
-                  Create.of(
-                      Row.withSchema(inputType)
-                         .addValues(
-                             1,
-                             Row.withSchema(nestedSchema)
-                                .addValues(312, "CC", 313)
-                                .build())
-                         .build(),
-                      Row.withSchema(inputType)
-                         .addValues(
-                             2,
-                             Row.withSchema(nestedSchema)
-                                .addValues(412, "DD", 413)
-                                .build())
-                         .build())
-                        .withCoder(inputType.getRowCoder()));
+            .apply(
+                Create.of(
+                        Row.withSchema(inputType)
+                            .addValues(
+                                1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
+                            .build(),
+                        Row.withSchema(inputType)
+                            .addValues(
+                                2, Row.withSchema(nestedSchema).addValues(412, "DD", 413).build())
+                            .build())
+                    .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
@@ -202,17 +162,10 @@ public class BeamSqlDslNestedRowsTest {
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedString` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
-            Row
-                .withSchema(resultSchema)
-                .addValues("CC")
-                .build(),
-            Row
-                .withSchema(resultSchema)
-                .addValues("DD")
-                .build());
+            Row.withSchema(resultSchema).addValues("CC").build(),
+            Row.withSchema(resultSchema).addValues("DD").build());
 
     pipeline.run();
   }
@@ -221,14 +174,10 @@ public class BeamSqlDslNestedRowsTest {
   public void testNestedRowArrayFieldAccess() {
 
     Schema resultSchema =
-        RowSqlTypes
-            .builder()
-            .withArrayField("f_nestedArray", SqlTypeName.VARCHAR)
-            .build();
+        RowSqlTypes.builder().withArrayField("f_nestedArray", SqlTypeName.VARCHAR).build();
 
     Schema nestedSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
@@ -236,8 +185,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withRowField("f_nestedRow", nestedSchema)
             .build();
@@ -257,8 +205,8 @@ public class BeamSqlDslNestedRowsTest {
                             .addValues(
                                 2,
                                 Row.withSchema(nestedSchema)
-                                   .addValues(412, "DD", 413, Arrays.asList("three", "four"))
-                                   .build())
+                                    .addValues(412, "DD", 413, Arrays.asList("three", "four"))
+                                    .build())
                             .build())
                     .withCoder(inputType.getRowCoder()));
 
@@ -269,17 +217,10 @@ public class BeamSqlDslNestedRowsTest {
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
-            Row
-                .withSchema(resultSchema)
-                .addArray(Arrays.asList("one", "two"))
-                .build(),
-            Row
-                .withSchema(resultSchema)
-                .addArray(Arrays.asList("three", "four"))
-                .build());
+            Row.withSchema(resultSchema).addArray(Arrays.asList("one", "two")).build(),
+            Row.withSchema(resultSchema).addArray(Arrays.asList("three", "four")).build());
 
     pipeline.run();
   }
@@ -288,14 +229,10 @@ public class BeamSqlDslNestedRowsTest {
   public void testNestedRowArrayElementAccess() {
 
     Schema resultSchema =
-        RowSqlTypes
-            .builder()
-            .withVarcharField("f_nestedArrayStringField")
-            .build();
+        RowSqlTypes.builder().withVarcharField("f_nestedArrayStringField").build();
 
     Schema nestedSchema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
@@ -303,31 +240,30 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withRowField("f_nestedRow", nestedSchema)
             .build();
 
     PCollection<Row> input =
         PBegin.in(pipeline)
-              .apply(
-                  Create.of(
-                      Row.withSchema(inputType)
-                         .addValues(
-                             1,
-                             Row.withSchema(nestedSchema)
-                                .addValues(312, "CC", 313, Arrays.asList("one", "two"))
-                                .build())
-                         .build(),
-                      Row.withSchema(inputType)
-                         .addValues(
-                             2,
-                             Row.withSchema(nestedSchema)
-                                .addValues(412, "DD", 413, Arrays.asList("three", "four"))
-                                .build())
-                         .build())
-                        .withCoder(inputType.getRowCoder()));
+            .apply(
+                Create.of(
+                        Row.withSchema(inputType)
+                            .addValues(
+                                1,
+                                Row.withSchema(nestedSchema)
+                                    .addValues(312, "CC", 313, Arrays.asList("one", "two"))
+                                    .build())
+                            .build(),
+                        Row.withSchema(inputType)
+                            .addValues(
+                                2,
+                                Row.withSchema(nestedSchema)
+                                    .addValues(412, "DD", 413, Arrays.asList("three", "four"))
+                                    .build())
+                            .build())
+                    .withCoder(inputType.getRowCoder()));
 
     PCollection<Row> result =
         input
@@ -336,17 +272,10 @@ public class BeamSqlDslNestedRowsTest {
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[1] FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
-            Row
-                .withSchema(resultSchema)
-                .addValues("two")
-                .build(),
-            Row
-                .withSchema(resultSchema)
-                .addValues("four")
-                .build());
+            Row.withSchema(resultSchema).addValues("two").build(),
+            Row.withSchema(resultSchema).addValues("four").build());
 
     pipeline.run();
   }

@@ -32,9 +32,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * {@code BeamBigQueryTable} represent a BigQuery table as a target.
- * This provider does not currently support being a source.
- *
+ * {@code BeamBigQueryTable} represent a BigQuery table as a target. This provider does not
+ * currently support being a source.
  */
 @Experimental
 public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
@@ -60,10 +59,11 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
     return new PTransform<PCollection<Row>, POutput>() {
       @Override
       public WriteResult expand(PCollection<Row> input) {
-        return input.apply(BigQueryIO.<Row>write()
-          .withSchema(BigQueryUtils.toTableSchema(getSchema()))
-          .withFormatFunction(BigQueryUtils.toTableRow())
-          .to(tableSpec));
+        return input.apply(
+            BigQueryIO.<Row>write()
+                .withSchema(BigQueryUtils.toTableSchema(getSchema()))
+                .withFormatFunction(BigQueryUtils.toTableRow())
+                .to(tableSpec));
       }
     };
   }

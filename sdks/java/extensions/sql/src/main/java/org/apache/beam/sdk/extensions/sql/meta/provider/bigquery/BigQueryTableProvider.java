@@ -27,6 +27,7 @@ import org.apache.beam.sdk.schemas.Schema;
  * BigQuery table provider.
  *
  * <p>A sample of text table is:
+ *
  * <pre>{@code
  * CREATE TABLE ORDERS(
  *   ID INT COMMENT 'this is the primary key',
@@ -39,11 +40,13 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 public class BigQueryTableProvider extends InMemoryMetaTableProvider {
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "bigquery";
   }
 
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
     String filePattern = table.getLocation();
 

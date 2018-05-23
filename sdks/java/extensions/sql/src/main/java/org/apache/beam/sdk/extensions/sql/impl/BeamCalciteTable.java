@@ -38,9 +38,7 @@ import org.apache.calcite.schema.ModifiableTable;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.TranslatableTable;
 
-/**
- * Adapter from {@link BeamSqlTable} to a calcite Table.
- */
+/** Adapter from {@link BeamSqlTable} to a calcite Table. */
 class BeamCalciteTable extends AbstractQueryableTable
     implements ModifiableTable, TranslatableTable {
   private final BeamSqlTable beamTable;

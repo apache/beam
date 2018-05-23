@@ -31,14 +31,11 @@ import org.apache.beam.sdk.values.reflect.InferredRowCoder;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Tests for automatic inferring schema from the input {@link PCollection} of pojos.
- */
+/** Tests for automatic inferring schema from the input {@link PCollection} of pojos. */
 public class InferredRowCoderSqlTest {
 
   private static final boolean NOT_NULLABLE = false;
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   /** Person POJO. */
   public static class PersonPojo implements Serializable {
@@ -81,28 +78,23 @@ public class InferredRowCoderSqlTest {
   @Test
   public void testSelect() {
     PCollection<PersonPojo> input =
-        PBegin.in(pipeline).apply(
-            "input",
-            Create
-                .of(
-                    new PersonPojo("Foo", 5),
-                    new PersonPojo("Bar", 53))
-                .withCoder(
-                    InferredRowCoder.ofSerializable(PersonPojo.class)));
+        PBegin.in(pipeline)
+            .apply(
+                "input",
+                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
+                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
 
     String sql = "SELECT name, ageYears FROM PCOLLECTION";
 
     PCollection<Row> result = input.apply("sql", BeamSql.query(sql));
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.rowsBuilderOf(
-                Schema
-                    .builder()
-                      .addStringField("name", NOT_NULLABLE)
-                      .addInt32Field("ageYears", NOT_NULLABLE)
-                      .build())
+                    Schema.builder()
+                        .addStringField("name", NOT_NULLABLE)
+                        .addInt32Field("ageYears", NOT_NULLABLE)
+                        .build())
                 .addRows(
                     "Foo", 5,
                     "Bar", 53)
@@ -114,27 +106,19 @@ public class InferredRowCoderSqlTest {
   @Test
   public void testProject() {
     PCollection<PersonPojo> input =
-        PBegin.in(pipeline).apply(
-            "input",
-            Create
-                .of(
-                    new PersonPojo("Foo", 5),
-                    new PersonPojo("Bar", 53))
-                .withCoder(
-                    InferredRowCoder.ofSerializable(PersonPojo.class)));
+        PBegin.in(pipeline)
+            .apply(
+                "input",
+                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
+                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
 
     String sql = "SELECT name FROM PCOLLECTION";
 
     PCollection<Row> result = input.apply("sql", BeamSql.query(sql));
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
-            TestUtils.rowsBuilderOf(
-                Schema
-                    .builder()
-                    .addStringField("name", NOT_NULLABLE)
-                    .build())
+            TestUtils.rowsBuilderOf(Schema.builder().addStringField("name", NOT_NULLABLE).build())
                 .addRows("Foo", "Bar")
                 .getRows());
 
@@ -144,28 +128,24 @@ public class InferredRowCoderSqlTest {
   @Test
   public void testJoin() {
     PCollection<PersonPojo> people =
-        PBegin.in(pipeline).apply(
-            "people",
-            Create
-                .of(
-                    new PersonPojo("Foo", 5),
-                    new PersonPojo("Bar", 53))
-                .withCoder(
-                    InferredRowCoder.ofSerializable(PersonPojo.class)));
+        PBegin.in(pipeline)
+            .apply(
+                "people",
+                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
+                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
 
     PCollection<OrderPojo> orders =
-        PBegin.in(pipeline).apply(
-            "orders",
-            Create
-                .of(
-                    new OrderPojo("Foo", 15),
-                    new OrderPojo("Foo", 10),
-                    new OrderPojo("Foo", 5),
-                    new OrderPojo("Bar", 53),
-                    new OrderPojo("Bar", 54),
-                    new OrderPojo("Bar", 55))
-                .withCoder(
-                    InferredRowCoder.ofSerializable(OrderPojo.class)));
+        PBegin.in(pipeline)
+            .apply(
+                "orders",
+                Create.of(
+                        new OrderPojo("Foo", 15),
+                        new OrderPojo("Foo", 10),
+                        new OrderPojo("Foo", 5),
+                        new OrderPojo("Bar", 53),
+                        new OrderPojo("Bar", 54),
+                        new OrderPojo("Bar", 55))
+                    .withCoder(InferredRowCoder.ofSerializable(OrderPojo.class)));
 
     String sql =
         "SELECT name, amount "
@@ -174,19 +154,18 @@ public class InferredRowCoderSqlTest {
             + "WHERE ageYears = 5";
 
     PCollection<Row> result =
-        tuple("buyers", people,
-              "orders", orders)
+        tuple(
+                "buyers", people,
+                "orders", orders)
             .apply("sql", BeamSql.query(sql));
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.rowsBuilderOf(
-                Schema
-                    .builder()
-                    .addStringField("name", NOT_NULLABLE)
-                    .addInt32Field("amount", NOT_NULLABLE)
-                    .build())
+                    Schema.builder()
+                        .addStringField("name", NOT_NULLABLE)
+                        .addInt32Field("amount", NOT_NULLABLE)
+                        .build())
                 .addRows(
                     "Foo", 15,
                     "Foo", 10,
@@ -199,28 +178,24 @@ public class InferredRowCoderSqlTest {
   @Test
   public void testAggregation() {
     PCollection<PersonPojo> people =
-        PBegin.in(pipeline).apply(
-            "people",
-            Create
-                .of(
-                    new PersonPojo("Foo", 5),
-                    new PersonPojo("Bar", 53))
-                .withCoder(
-                    InferredRowCoder.ofSerializable(PersonPojo.class)));
+        PBegin.in(pipeline)
+            .apply(
+                "people",
+                Create.of(new PersonPojo("Foo", 5), new PersonPojo("Bar", 53))
+                    .withCoder(InferredRowCoder.ofSerializable(PersonPojo.class)));
 
     PCollection<OrderPojo> orders =
-        PBegin.in(pipeline).apply(
-            "orders",
-            Create
-                .of(
-                    new OrderPojo("Foo", 15),
-                    new OrderPojo("Foo", 10),
-                    new OrderPojo("Foo", 5),
-                    new OrderPojo("Bar", 53),
-                    new OrderPojo("Bar", 54),
-                    new OrderPojo("Bar", 55))
-                .withCoder(
-                    InferredRowCoder.ofSerializable(OrderPojo.class)));
+        PBegin.in(pipeline)
+            .apply(
+                "orders",
+                Create.of(
+                        new OrderPojo("Foo", 15),
+                        new OrderPojo("Foo", 10),
+                        new OrderPojo("Foo", 5),
+                        new OrderPojo("Bar", 53),
+                        new OrderPojo("Bar", 54),
+                        new OrderPojo("Bar", 55))
+                    .withCoder(InferredRowCoder.ofSerializable(OrderPojo.class)));
 
     String sql =
         "SELECT name, SUM(amount) as total "
@@ -229,19 +204,18 @@ public class InferredRowCoderSqlTest {
             + "GROUP BY name";
 
     PCollection<Row> result =
-        tuple("buyers", people,
-              "orders", orders)
+        tuple(
+                "buyers", people,
+                "orders", orders)
             .apply("sql", BeamSql.query(sql));
 
-    PAssert
-        .that(result)
+    PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.rowsBuilderOf(
-                Schema
-                    .builder()
-                    .addStringField("name", NOT_NULLABLE)
-                    .addInt32Field("total", NOT_NULLABLE)
-                    .build())
+                    Schema.builder()
+                        .addStringField("name", NOT_NULLABLE)
+                        .addInt32Field("total", NOT_NULLABLE)
+                        .build())
                 .addRows(
                     "Foo", 30,
                     "Bar", 162)
