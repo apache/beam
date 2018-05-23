@@ -375,4 +375,11 @@
   -->
     <Package name="org.apache.beam.sdk.extensions.sql.impl.parser.impl"/>
   </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory$SimpleStageBundleFactory"/>
+    <Field name="wrappedClient"/>
+    <Bug pattern="URF_UNREAD_FIELD"/>
+    <!-- Fix build. -->
+  </Match>
 </FindBugsFilter>

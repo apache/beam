@@ -25,7 +25,6 @@ import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.net.HostAndPort;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -224,7 +223,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     private final ExecutableProcessBundleDescriptor processBundleDescriptor;
 
     // Store the wrapped client in order to keep a live reference into the cache.
-    @SuppressFBWarnings private WrappedSdkHarnessClient wrappedClient;
+    private WrappedSdkHarnessClient wrappedClient;
 
     static <InputT> SimpleStageBundleFactory<InputT> create(
         WrappedSdkHarnessClient wrappedClient,
