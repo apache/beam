@@ -264,7 +264,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
       KafkaExactlyOnceSink.ensureEOSSupport();
     }
 
-    // Note: Futures ignored as exceptions will be flushed out in the commitTxn
+    // Futures ignored as exceptions will be flushed out in the commitTxn
     @SuppressWarnings("FutureReturnValueIgnored")
     @ProcessElement
     public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState,
@@ -579,7 +579,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
       private final Cache<Integer, ShardWriter<K, V>> cache;
 
-      // Note: Exceptions arising from the cache cleanup are ignored
+      // Exceptions arising from the cache cleanup are ignored
       @SuppressWarnings("FutureReturnValueIgnored")
       ShardWriterCache() {
         this.cache =
