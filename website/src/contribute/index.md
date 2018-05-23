@@ -193,6 +193,19 @@ Work to support the next LTS release of Java is in progress. For more details ab
 - JIRA: [BEAM-2530](https://issues.apache.org/jira/issues/BEAM-2530)
 - Contact: [Ismaël Mejía](mailto:iemejia@gmail.com)
 
+### IO Performance Testing
+
+We are also working on writing Performance Tests for IOs and developing a Performance Testing Framework for them. Contributions are welcome in the following areas:
+
+ - developing more IO Performance Tests (IOITs)
+ - providing necessary kubernetes infrastructure (eg. for databases or filesystems to be used in tests)
+ - running Performance Tests on runners other than Dataflow and Direct
+ - improving existing Performance Testing Framework and it's documentation
+ 
+See the [documentation](https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests) and the [initial proposal](https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing)(for file based tests). 
+
+If you're willing to help in this area, tag the following people in PRs: [@chamikaramj](https://github.com/chamikaramj), [@DariuszAniszewski](https://github.com/dariuszaniszewski), [@lgajowy](https://github.com/lgajowy), [@szewi](https://github.com/szewi), [@kkucharc](https://github.com/kkucharc) 
+
 ## Stale pull requests
 
 The community will close stale pull requests in order to keep the project
