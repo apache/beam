@@ -138,17 +138,13 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
       throws Exception {
-    SchemaCoder<InputT> schemaCoder = null;
-    if (mainInput.getCoder() instanceof SchemaCoder) {
-      schemaCoder = (SchemaCoder<InputT>) mainInput.getCoder();
-    }
     try {
       return ParDoEvaluator.create(
           evaluationContext,
           options,
           stepContext,
           application,
-          schemaCoder,
+          mainInput.getCoder(),
           mainInput.getWindowingStrategy(),
           fn,
           key,

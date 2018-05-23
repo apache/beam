@@ -145,8 +145,21 @@ public class PCollection<T> extends PValueBase implements PValue {
       inputCoderException = exc;
     }
 
-    // Third option for a coder: Look in the coder registry.
     TypeDescriptor<T> token = getTypeDescriptor();
+    // If there is a schema registered for the type, attempt to create a SchemaCoder.
+    if (token != null) {
+      try {
+        SchemaCoder<T> schemaCoder = SchemaCoder.of(
+            schemaRegistry.getSchema(token),
+            schemaRegistry.getToRowFunction(token),
+            schemaRegistry.getFromRowFunction(token));
+        return new CoderOrFailure<>(schemaCoder, null);
+      } catch (NoSuchSchemaException esc) {
+        // No schema.
+      }
+    }
+
+    // Fourth option for a coder: Look in the coder registry.
     CannotProvideCoderException inferFromTokenException = null;
     if (token != null) {
       try {
@@ -165,19 +178,6 @@ public class PCollection<T> extends PValueBase implements PValue {
                       + "TupleTag for this output is constructed with proper type information (see "
                       + "TupleTag Javadoc) or explicitly set the Coder to use if this is not possible.");
         }
-      }
-    }
-
-    // If there is a schema registered for the type, attempt to create a SchemaCoder.
-    if (token != null) {
-      try {
-        SchemaCoder<T> schemaCoder = SchemaCoder.of(
-            schemaRegistry.getSchema(token),
-            schemaRegistry.getToRowFunction(token),
-            schemaRegistry.getFromRowFunction(token));
-        return new CoderOrFailure<>(schemaCoder, null);
-      } catch (NoSuchSchemaException esc) {
-        // No schema.
       }
     }
 

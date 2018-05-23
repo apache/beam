@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental
 public class SchemaRegistry {
-  class SchemaEntry<T> {
+  private static class SchemaEntry<T> {
     Schema schema;
     SerializableFunction<T, Row> toRow;
     SerializableFunction<Row, T> fromRow;

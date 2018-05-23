@@ -127,7 +127,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
     this.schemaCoder = (inputCoder != null && inputCoder instanceof SchemaCoder)
-    ? (SchemaCoder<InputT>) inputCoder : null;
+        ? (SchemaCoder<InputT>) inputCoder : null;
     this.outputCoders = outputCoders;
     if (outputCoders != null) {
       Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
@@ -146,7 +146,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     FieldAccessDescriptor fieldAccessDescriptor = processElementMethod.getFieldAccessDescriptor();
     if (fieldAccessDescriptor != null) {
       checkArgument(schemaCoder != null,
-          "Cannot access object as a row if the input PCollection does not have a schema.");
+          "Cannot access object as a row if the input PCollection does not have a schema ."
+      + "DoFn " + fn.getClass() + " Coder " + inputCoder.getClass());
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;

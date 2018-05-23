@@ -192,4 +192,41 @@ public class ParDoSchemaTest implements Serializable {
         .containsInAnyOrder("a:1", "b:2", "c:3");
     pipeline.run();
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadAndWriteWithSchemaRegistry() {
+    Schema schema = Schema.builder()
+        .addStringField("string_field", false)
+        .addInt32Field("integer_field", false)
+        .build();
+
+    pipeline.getSchemaRegistry()
+        .registerSchemaForClass(MyPojo.class,
+            schema,
+            o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
+            r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field")));
+
+    List<MyPojo> pojoList = Lists.newArrayList(
+        new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
+
+    PCollection<String> output = pipeline
+        .apply(Create.of(pojoList))
+        .apply("first", ParDo.of(new DoFn<MyPojo, MyPojo>() {
+          @ProcessElement
+          public void process(@Element Row row, OutputReceiver<Row> r) {
+            r.output(Row.withSchema(schema).addValues(row.getString(0), row.getInt32(1))
+                .build());
+          }
+        }))
+        .apply("second", ParDo.of(new DoFn<MyPojo, String>() {
+          @ProcessElement
+          public void process(@Element Row row, OutputReceiver<String> r) {
+            r.output(row.getString(0) + ":" + row.getInt32(1));
+          }
+        }));
+    PAssert.that(output)
+        .containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
 }
