@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -56,7 +57,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
   public List<KafkaUnboundedSource<K, V>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
 
-    List<TopicPartition> partitions = new ArrayList<>(spec.getTopicPartitions());
+    List<TopicPartition> partitions = new ArrayList<>(spec.getTopicPartitions().get());
 
     // (a) fetch partitions for each topic
     // (b) sort by <topic, partition>
@@ -65,7 +66,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     if (partitions.isEmpty()) {
       try (Consumer<?, ?> consumer =
           spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
-        for (String topic : spec.getTopics()) {
+        for (String topic : spec.getTopics().get()) {
           for (PartitionInfo p : consumer.partitionsFor(topic)) {
             partitions.add(new TopicPartition(p.topic(), p.partition()));
           }
@@ -102,8 +103,8 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
       result.add(
           new KafkaUnboundedSource<>(
               spec.toBuilder()
-                  .setTopics(Collections.emptyList())
-                  .setTopicPartitions(assignedToSplit)
+                  .setTopics(ValueProvider.StaticValueProvider.of(Collections.emptyList()))
+                  .setTopicPartitions(ValueProvider.StaticValueProvider.of(assignedToSplit))
                   .build(),
               i));
     }
@@ -114,7 +115,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
   @Override
   public KafkaUnboundedReader<K, V> createReader(PipelineOptions options,
                                                  KafkaCheckpointMark checkpointMark) {
-    if (spec.getTopicPartitions().isEmpty()) {
+    if (spec.getTopicPartitions().get().isEmpty()) {
       LOG.warn("Looks like generateSplits() is not called. Generate single split.");
       try {
         return new KafkaUnboundedReader<>(split(1, options).get(0), checkpointMark);

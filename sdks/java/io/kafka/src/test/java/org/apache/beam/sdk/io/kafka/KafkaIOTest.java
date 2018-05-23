@@ -390,10 +390,11 @@ public class KafkaIOTest {
     thrown.expectMessage("Reader-0: Timeout while initializing partition 'test-0'");
 
     int numElements = 1000;
+    String bootStrapServers = "8.8.8.8:9092"; // Google public DNS ip.
     PCollection<Long> input =
         p.apply(
                 KafkaIO.<Integer, Long>read()
-                    .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
+                    .withBootstrapServers(bootStrapServers)
                     .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
                     .withKeyDeserializer(IntegerDeserializer.class)
                     .withValueDeserializer(LongDeserializer.class)
@@ -420,7 +421,7 @@ public class KafkaIOTest {
 
     KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
         .withBootstrapServers("none")
-        .withTopic("my_topic")
+        .withTopic(topic)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
         .withMaxNumRecords(numElements)
@@ -1135,6 +1136,23 @@ public class KafkaIOTest {
         .withBootstrapServers("myServer1:9092,myServer2:9092")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5),
             new TopicPartition("test", 6)))
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)); // 10 partitions
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithExplicitStringCsvPartitionsDisplayData() {
+    KafkaIO.Read<byte[], byte[]> read = KafkaIO.readBytes()
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
+        .withTopicPartitionsCsv("test:5,test:6")
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)); // 10 partitions
 
