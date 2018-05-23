@@ -365,6 +365,17 @@
     </dependency>
 
     <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>fastjson</artifactId>
+      <version>1.2.12</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <!-- this is a hack to make it available at compile time but not bundled.-->
@@ -407,27 +418,25 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>com.pholser</groupId>
       <artifactId>junit-quickcheck-core</artifactId>
       <version>${quickcheck.version}</version>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.alibaba</groupId>
-      <artifactId>fastjson</artifactId>
-      <version>1.2.12</version>
     </dependency>
   </dependencies>
 </project>
