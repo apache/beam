@@ -103,7 +103,8 @@ public class StreamingWriteTables
                     .discardingFiredPanes())
             .apply(
                 "StreamingWrite",
-                ParDo.of(new StreamingWriteFn(bigQueryServices, retryPolicy, failedInsertsTag))
+                ParDo.of(new StreamingWriteFn<>(bigQueryServices, retryPolicy, failedInsertsTag,
+                    ErrorContainers.TABLE_ROW_ERROR_CONTAINER))
                     .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
     PCollection<TableRow> failedInserts = tuple.get(failedInsertsTag);
     failedInserts.setCoder(TableRowJsonCoder.of());

@@ -36,13 +36,18 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
-/** Implementation of DoFn to perform streaming BigQuery write. */
+/**
+ * Implementation of DoFn to perform streaming BigQuery write.
+ */
 @SystemDoFnInternal
 @VisibleForTesting
-class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
+class StreamingWriteFn<T>
+    extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
-  private final TupleTag<TableRow> failedOutputTag;
+  private final TupleTag<T> failedOutputTag;
+  private final ErrorContainer<T> errorContainer;
+
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
@@ -53,13 +58,12 @@ class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
 
-  StreamingWriteFn(
-      BigQueryServices bqServices,
-      InsertRetryPolicy retryPolicy,
-      TupleTag<TableRow> failedOutputTag) {
+  StreamingWriteFn(BigQueryServices bqServices, InsertRetryPolicy retryPolicy,
+                   TupleTag<T> failedOutputTag, ErrorContainer<T> errorContainer) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
+    this.errorContainer = errorContainer;
   }
 
   /** Prepares a target BigQuery table. */
@@ -87,7 +91,7 @@ class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> 
   /** Writes the accumulated rows into BigQuery with streaming API. */
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws Exception {
-    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<T>> failedInserts = Lists.newArrayList();
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
     for (Map.Entry<String, List<ValueInSingleWindow<TableRow>>> entry : tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
@@ -101,25 +105,23 @@ class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> 
     tableRows.clear();
     uniqueIdsForTableRows.clear();
 
-    for (ValueInSingleWindow<TableRow> row : failedInserts) {
+    for (ValueInSingleWindow<T> row : failedInserts) {
       context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
     }
   }
 
-  /** Writes the accumulated rows into BigQuery with streaming API. */
-  private void flushRows(
-      TableReference tableReference,
-      List<ValueInSingleWindow<TableRow>> tableRows,
-      List<String> uniqueIds,
-      BigQueryOptions options,
-      List<ValueInSingleWindow<TableRow>> failedInserts)
+  /**
+   * Writes the accumulated rows into BigQuery with streaming API.
+   */
+  private void flushRows(TableReference tableReference,
+                         List<ValueInSingleWindow<TableRow>> tableRows,
+                         List<String> uniqueIds, BigQueryOptions options,
+                         List<ValueInSingleWindow<T>> failedInserts)
       throws InterruptedException {
     if (!tableRows.isEmpty()) {
       try {
-        long totalBytes =
-            bqServices
-                .getDatasetService(options)
-                .insertAll(tableReference, tableRows, uniqueIds, retryPolicy, failedInserts);
+        long totalBytes = bqServices.getDatasetService(options).insertAll(
+            tableReference, tableRows, uniqueIds, retryPolicy, failedInserts, errorContainer);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);
