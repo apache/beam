@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
+package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
 /**
- * TODO: write javadoc.
+ * Test which runs whole {@link OperatorsTestSuite}.
  */
-public class BeamOperatorsTest extends BeamOperatorsSuite implements BeamExecutorProvider {
+public class OperatorsTest extends OperatorsTestSuite implements BeamExecutorProvider {
 
 }
