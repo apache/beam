@@ -133,8 +133,9 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client =
           new BeamFnControlClient(
+              "",
               apiServiceDescriptor,
-              new InProcessManagedChannelFactory(),
+              InProcessManagedChannelFactory.create(),
               OutboundObserverFactory.trivial(),
               handlers);
 
@@ -212,8 +213,9 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client =
           new BeamFnControlClient(
+              "",
               apiServiceDescriptor,
-              new InProcessManagedChannelFactory(),
+              InProcessManagedChannelFactory.create(),
               OutboundObserverFactory.trivial(),
               handlers);
 
