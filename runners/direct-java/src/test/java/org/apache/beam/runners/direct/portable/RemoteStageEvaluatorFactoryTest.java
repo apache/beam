@@ -44,10 +44,12 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -89,8 +91,11 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
     EnvironmentFactory environmentFactory =
-        new InProcessEnvironmentFactory(
-            loggingServer, controlServer, (workerId, timeout) -> clientPool.take());
+        InProcessEnvironmentFactory.create(
+            PipelineOptionsFactory.create(),
+            loggingServer,
+            controlServer,
+            (workerId, timeout) -> clientPool.take());
     executor = Executors.newCachedThreadPool();
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);

@@ -58,14 +58,13 @@ dependencies {
   compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
   compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  compileOnly project(path: ":beam-sdks-java-harness")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.hamcrest_core
   shadow library.java.junit
-  testCompile project(path: ":beam-sdks-java-harness")
+  testRuntime project(path: ":beam-sdks-java-harness")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
