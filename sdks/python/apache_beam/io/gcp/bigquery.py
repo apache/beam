@@ -655,7 +655,30 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       try:
         return mg.group(1), mg.group(2), mg.group(3)
       except IndexError:
-        return None, None, None  # No location, not a breaking change
+        return (None for _ in range(3))  # No location, not a breaking change
+
+  def _parse_results(self, project_regex, not_project_regex):
+    """
+    Extract matched groups from query given regexes passed into method.
+    Given two regexes, return three items:
+      projectID, datasetID and tableID. If prejectID is not provided in the
+      query, try and get the projet from the Class. Else, return None.
+    :param project_regex: Regex to match the full name of the dataset.
+      i.e. project.dataset.table
+    :param not_project_regex: Regex to match table and dataset when project is
+      not provided.
+      ie. dataset.table
+    :return: project, dataset, table
+    """
+    pm = re.search(project_regex, self.source.query)
+    if pm:
+      return pm.group(1), pm.group(2), pm.group(3)
+    else:
+      npm = re.search(not_project_regex, self.source.query)
+      if npm:
+        if self.source.project:
+          return self.source.project, npm.group(1), npm.group(2)
+    return (None for _ in range(3))  # No matches
 
   def _parse_query(self):
     """
@@ -666,31 +689,22 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
      :raises: ValueError if project is not supplied
     """
     if not self.source.use_legacy_sql:
-      m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
-                    self.source.query)
-      if m:
-        return self._parse_results(m)
-      else:
-        s = re.search(r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)`',
-                      self.source.query)
-        if s:
-          return self._parse_results(s, self.source.project)
+      return self._parse_results(
+        r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)\.([-\w]+)`',
+        r'.*[Ff][Rr][Oo][Mm]\s*`([-\w]+)\.([-\w]+)`')
     else:
-      m = re.search(r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
-                    self.source.query)
-      if m:
-        return self._parse_results(m)
-      else:
-        s = re.search(r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+)\.([\w-]+)\]',
-                      self.source.query)
-        return self._parse_results(s, self.source.project)
+      return self._parse_results(
+        r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+):([\w-]+)\.([\w-]+)\]',
+        r'.*[Ff][Rr][Oo][Mm]\s*\[([\w-]+)\.([\w-]+)\]'
+      )
 
   def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr is None:
         source_project_id, source_dataset_id, source_table_id = \
             self._parse_query()
-
+        if not source_project_id: # Impossible to determine location
+          return
     else:
         source_dataset_id = tr.datasetId
         source_table_id = tr.tableId
