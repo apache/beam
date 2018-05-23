@@ -340,6 +340,9 @@ class JavaNatureConfiguration {
   boolean enableErrorProne = true // Controls whether the errorprone plugin is enabled and configured
   boolean failOnWarning = false // Controls whether compiler warnings are treated as errors
 
+  //TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this default to true?
+  boolean enableSpotless = false // Controls whether spotless plugin enforces autoformat
+
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
   // DEFAULT_SHADOW_CLOSURE << {
@@ -495,8 +498,15 @@ ext.applyJavaNature = {
   apply plugin: "net.ltgt.apt-eclipse"
 
   // Enables a plugin which can apply code formatting to source.
-  // TODO: Should this plugin be enabled for all projects?
-  apply plugin: "com.diffplug.gradle.spotless"
+  // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
+  if (configuration.enableSpotless) {
+    apply plugin: "com.diffplug.gradle.spotless"
+    spotless {
+      java {
+        googleJavaFormat()
+      }
+    }
+  }
 
   // Enables a plugin which performs code analysis for common bugs.
   // This plugin is configured to only analyze the "main" source set.
