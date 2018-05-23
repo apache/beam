@@ -19,7 +19,7 @@ import groovy.json.JsonOutput
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(enableSpotless: true)
 apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
