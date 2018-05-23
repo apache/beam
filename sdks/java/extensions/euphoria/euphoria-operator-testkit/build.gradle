@@ -22,7 +22,12 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
     compile project(':beam-sdks-java-extensions-euphoria-beam')
+    testCompile project(':beam-runners-direct-java')
+    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
+    shadow 'com.google.code.findbugs:annotations:3.0.1'
     compileOnly library.java.junit
+    testCompile library.java.slf4j_api
 }
+
+test.testLogging.showStandardStreams = true

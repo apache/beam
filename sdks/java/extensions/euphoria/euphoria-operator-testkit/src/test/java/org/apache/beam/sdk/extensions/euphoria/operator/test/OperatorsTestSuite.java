@@ -22,23 +22,28 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProvi
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
-/** Subclass this class to have the whole suite operate on your executor of choice. */
+/**
+ * Euphoria operators test suite.
+ */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({
-  BroadcastHashJoinTest.class,
-  CountByKeyTest.class,
-  DistinctTest.class,
-  FilterTest.class,
-  FlatMapTest.class,
-  JoinTest.class,
-  JoinWindowEnforcementTest.class,
-  MapElementsTest.class,
-  ReduceByKeyTest.class,
-  ReduceStateByKeyTest.class,
-  SumByKeyTest.class,
-  TopPerKeyTest.class,
-  UnionTest.class,
-  WindowingTest.class,
-  WatermarkTest.class,
+    //    BroadcastHashJoinTest.class,
+    //    CountByKeyTest.class,
+    //    DistinctTest.class,
+    //    FilterTest.class,
+    FlatMapTest.class,
+    JoinTest.class,
+    //    JoinWindowEnforcementTest.class,
+    //    MapElementsTest.class,
+    ReduceByKeyTest.class,
+    //    ReduceStateByKeyTest.class,
+    //    SumByKeyTest.class,
+    //    TopPerKeyTest.class,
+    //    SortTest.class,
+    UnionTest.class,
+    //    WindowingTest.class,
+    //    WatermarkTest.class,
 })
-public abstract class AllOperatorsSuite implements ExecutorProvider {}
+public abstract class OperatorsTestSuite implements ExecutorProvider {
+
+}
