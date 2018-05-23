@@ -24,9 +24,7 @@ applyJavaNature(
   // Bigtable needs to expose Guava types.
   shadowClosure: {
     dependencies {
-      exclude(".*")
-      // Exclude netty due to conflict with spark runner, see [BEAM-3519].
-      exclude("io/netty/**")
+      exclude(dependency(".*:.*"))
     }
   })
 
