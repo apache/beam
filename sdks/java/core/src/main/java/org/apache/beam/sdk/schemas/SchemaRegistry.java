@@ -18,6 +18,11 @@
 
 package org.apache.beam.sdk.schemas;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -33,6 +38,22 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental
 public class SchemaRegistry {
+  class SchemaEntry<T> {
+    Schema schema;
+    SerializableFunction<T, Row> toRow;
+    SerializableFunction<Row, T> fromRow;
+
+    SchemaEntry(Schema schema,
+                SerializableFunction<T, Row> toRow,
+                SerializableFunction<Row, T> fromRow) {
+      this.schema = schema;
+      this.toRow = toRow;
+      this.fromRow = fromRow;
+    }
+  }
+  Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
+  List<SchemaProvider> providers = Lists.newArrayList();
+
 
   public static SchemaRegistry createDefault() {
     return new SchemaRegistry();
@@ -45,7 +66,7 @@ public class SchemaRegistry {
                                          Schema schema,
                                          SerializableFunction<T, Row> toRow,
                                          SerializableFunction<Row, T> fromRow) {
-
+    registerSchemaForType(TypeDescriptor.of(clazz), schema, toRow, fromRow);
   }
 
   /**
@@ -55,18 +76,18 @@ public class SchemaRegistry {
                                         Schema schema,
                                         SerializableFunction<T, Row> toRow,
                                         SerializableFunction<Row, T> fromRow) {
-
+    entries.put(type, new SchemaEntry<>(schema, toRow, fromRow));
   }
 
   /**
    * Register a {@link SchemaProvider}.
    *
    * <p>A {@link SchemaProvider} allows for deferred lookups of per-type schemas. This can be
-   * used when scheams are registered in an external service. The SchemaProvider will lookup the
+   * used when schemas are registered in an external service. The SchemaProvider will lookup the
    * type in the external service and return the correct {@link Schema}.
    */
   public void registerSchemaProvider(SchemaProvider schemaProvider) {
-
+    providers.add(schemaProvider);
   }
 
   /**
@@ -74,6 +95,17 @@ public class SchemaRegistry {
    * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(Class<T> clazz) throws NoSuchSchemaException {
+    return getSchema(TypeDescriptor.of(clazz));
+  }
+
+
+  private <R> R getProviderResult(Function<SchemaProvider, R> f) throws NoSuchSchemaException {
+    for (SchemaProvider provider : providers) {
+      R result = f.apply(provider);
+      if (result != null) {
+        return result;
+      }
+    }
     throw new NoSuchSchemaException();
   }
 
@@ -82,7 +114,11 @@ public class SchemaRegistry {
    * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-    throw new NoSuchSchemaException();
+    SchemaEntry entry = entries.get(typeDescriptor);
+    if (entry != null) {
+      return entry.schema;
+    }
+    return getProviderResult((SchemaProvider p) -> p.schemaFor(typeDescriptor));
   }
 
   /**
@@ -90,7 +126,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-    throw new NoSuchSchemaException();
+    return getToRowFunction(TypeDescriptor.of(clazz));
   }
 
   /**
@@ -98,7 +134,11 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-    throw new NoSuchSchemaException();
+    SchemaEntry entry = entries.get(typeDescriptor);
+    if (entry != null) {
+      return entry.toRow;
+    }
+    return getProviderResult((SchemaProvider p) -> p.toRowFunction(typeDescriptor));
   }
 
   /**
@@ -106,7 +146,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-    throw new NoSuchSchemaException();
+    return getFromRowFunction(TypeDescriptor.of(clazz));
   }
 
   /**
@@ -114,6 +154,9 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-    throw new NoSuchSchemaException();
-  }
+    SchemaEntry entry = entries.get(typeDescriptor);
+    if (entry != null) {
+      return entry.fromRow;
+    }
+    return getProviderResult((SchemaProvider p) -> p.fromRowFunction(typeDescriptor));  }
 }
