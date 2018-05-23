@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -44,7 +45,7 @@ public class KafkaRecordCoderTest {
   @Test
   public void testKafkaRecordSerializableWithHeaders() throws IOException {
     RecordHeaders headers = new RecordHeaders();
-    headers.add("headerKey", "headerVal".getBytes());
+    headers.add("headerKey", "headerVal".getBytes(StandardCharsets.UTF_8));
     verifySerialization(headers);
   }
 

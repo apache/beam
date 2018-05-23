@@ -108,7 +108,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
     // (3) Verify that Watermark advances when there is no backlog
 
     // advance current time by 5 minutes
-    now = now.plus(Duration.standardSeconds(300));
+    now = now.plus(Duration.standardMinutes(5));
     Instant backlogCheckTime = now.minus(Duration.standardSeconds(10));
 
     when(ctx.getMessageBacklog()).thenReturn(0L);
