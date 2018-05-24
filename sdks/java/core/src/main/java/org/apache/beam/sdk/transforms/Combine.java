@@ -1283,6 +1283,10 @@ public class Combine {
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
           combined.getCoder());
+
+      // GBK's inside view writers for singleton view should discard previous values.
+      materializationInput.setWindowingStrategyInternal(materializationInput.getWindowingStrategy()
+          .withMode(WindowingStrategy.AccumulationMode.DISCARDING_FIRED_PANES));
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
