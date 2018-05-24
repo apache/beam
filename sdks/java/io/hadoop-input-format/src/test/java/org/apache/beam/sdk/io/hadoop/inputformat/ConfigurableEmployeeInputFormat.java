@@ -34,7 +34,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * Configurable. This validates if setConf() method is called before getSplits(). Known InputFormats
  * which implement Configurable are DBInputFormat, TableInputFormat etc.
  */
-public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implements
+class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implements
     Configurable {
   public boolean isConfSet = false;
 
@@ -55,7 +55,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
-      TaskAttemptContext context) throws IOException, InterruptedException {
+      TaskAttemptContext context) {
     return new ConfigurableEmployeeRecordReader();
   }
 
@@ -64,7 +64,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
    * {@link #setConf()} is not called.
    */
   @Override
-  public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
+  public List<InputSplit> getSplits(JobContext context) throws IOException {
     if (!isConfSet) {
       throw new IOException("Configuration is not set.");
     }
@@ -76,21 +76,21 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
   /**
    * InputSplit implementation for ConfigurableEmployeeInputFormat.
    */
-  public class ConfigurableEmployeeInputSplit extends InputSplit implements Writable {
+  static class ConfigurableEmployeeInputSplit extends InputSplit implements Writable {
 
     @Override
-    public void readFields(DataInput arg0) throws IOException {}
+    public void readFields(DataInput arg0) {}
 
     @Override
-    public void write(DataOutput arg0) throws IOException {}
+    public void write(DataOutput arg0) {}
 
     @Override
-    public long getLength() throws IOException, InterruptedException {
+    public long getLength() {
       return 0;
     }
 
     @Override
-    public String[] getLocations() throws IOException, InterruptedException {
+    public String[] getLocations() {
       return null;
     }
   }
@@ -98,33 +98,33 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
   /**
    * RecordReader for ConfigurableEmployeeInputFormat.
    */
-  public class ConfigurableEmployeeRecordReader extends RecordReader<Text, Employee> {
+  static class ConfigurableEmployeeRecordReader extends RecordReader<Text, Employee> {
 
     @Override
-    public void initialize(InputSplit paramInputSplit, TaskAttemptContext paramTaskAttemptContext)
-        throws IOException, InterruptedException {}
+    public void initialize(
+        InputSplit paramInputSplit, TaskAttemptContext paramTaskAttemptContext) {}
 
     @Override
-    public boolean nextKeyValue() throws IOException, InterruptedException {
+    public boolean nextKeyValue() {
       return false;
     }
 
     @Override
-    public Text getCurrentKey() throws IOException, InterruptedException {
+    public Text getCurrentKey() {
       return null;
     }
 
     @Override
-    public Employee getCurrentValue() throws IOException, InterruptedException {
+    public Employee getCurrentValue() {
       return null;
     }
 
     @Override
-    public float getProgress() throws IOException, InterruptedException {
+    public float getProgress() {
       return 0;
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() {}
   }
 }

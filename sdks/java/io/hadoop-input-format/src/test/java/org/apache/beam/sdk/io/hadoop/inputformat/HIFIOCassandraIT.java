@@ -109,7 +109,7 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+  private final SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
     @Override
     public String apply(Row input) {
       return input.getString("y_id") + "|" + input.getString("field0") + "|"
