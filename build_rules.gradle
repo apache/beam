@@ -571,6 +571,11 @@ ext.applyJavaNature = {
     classifier = "shaded-tests"
     from sourceSets.test.output
     configurations = [project.configurations.testRuntime]
+
+    exclude "META-INF/INDEX.LIST"
+    exclude "META-INF/*.SF"
+    exclude "META-INF/*.DSA"
+    exclude "META-INF/*.RSA"
   } << configuration.shadowClosure)
 
   // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
