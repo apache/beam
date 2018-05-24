@@ -26,8 +26,6 @@ import static org.hamcrest.Matchers.lessThan;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker;
 import org.junit.Assert;
@@ -48,14 +46,16 @@ public class DockerCommandTest {
   @Test
   public void helloWorld() throws Exception {
     DockerCommand docker = DockerCommand.getDefault();
-    String container = docker.runImage("hello-world", Collections.emptyList());
+    String container = docker.runImage("hello-world", ImmutableList.of(), ImmutableList.of());
     System.out.printf("Started container: %s%n", container);
   }
 
   @Test
   public void killContainer() throws Exception {
     DockerCommand docker = DockerCommand.getDefault();
-    String container = docker.runImage("debian", Arrays.asList("/bin/bash", "-c", "sleep 60"));
+    String container =
+        docker.runImage(
+            "debian", ImmutableList.of(), ImmutableList.of("/bin/bash", "-c", "sleep 60"));
     Stopwatch stopwatch = Stopwatch.createStarted();
     docker.killContainer(container);
     long elapsedSec = stopwatch.elapsed(TimeUnit.SECONDS);
@@ -71,10 +71,9 @@ public class DockerCommandTest {
     thrown.expect(instanceOf(IOException.class));
     thrown.expectMessage(containsString("Error response from daemon"));
     String badImageName = "this-image-should-hopefully-never-exist";
-    String container = docker.runImage(badImageName, ImmutableList.of());
+    String container = docker.runImage(badImageName, ImmutableList.of(), ImmutableList.of());
     // We should never reach this line, but clean up in case we do.
     docker.killContainer(container);
     Assert.fail(String.format("Container creation for %s should have failed", badImageName));
   }
-
 }
