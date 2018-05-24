@@ -319,9 +319,12 @@ ext.getJavaRelocatedPath = { String suffix ->
           + suffix)
 }
 
+// By default if there is at least one include rule then all included dependencies must be specified.
+// This overrides the default behavior of include all if no includes are specified.
+// See details here:
+// https://github.com/johnrengelman/shadow/blob/98191096a94674245c7b3e63975df9e14f67074e/src/main/groovy/com/github/jengelman/gradle/plugins/shadow/internal/DefaultDependencyFilter.groovy#L123
 ext.DEFAULT_SHADOW_CLOSURE = {
   dependencies {
-    exclude(".*")
     include(dependency(library.java.guava))
   }
   relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
