@@ -136,7 +136,7 @@ public class RemoteExecutionTest implements Serializable {
                 PipelineOptionsFactory.create(),
                 loggingServer.getApiServiceDescriptor(),
                 controlServer.getApiServiceDescriptor(),
-                new InProcessManagedChannelFactory(),
+                InProcessManagedChannelFactory.create(),
                 StreamObserverFactory.direct()));
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =

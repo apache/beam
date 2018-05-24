@@ -64,6 +64,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.hamcrest_core
   shadow library.java.junit
+  testRuntime project(path: ":beam-sdks-java-harness")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
