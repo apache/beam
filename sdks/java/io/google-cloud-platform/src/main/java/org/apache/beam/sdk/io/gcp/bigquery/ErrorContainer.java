@@ -30,14 +30,25 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * @param <T>
  */
 public interface ErrorContainer<T> extends Serializable {
-  void add(List<ValueInSingleWindow<T>> failedInserts,
+  void add(
+      List<ValueInSingleWindow<T>> failedInserts,
       TableDataInsertAllResponse.InsertErrors error,
       TableReference ref,
-      ValueInSingleWindow<TableRow> tableRowValueInSingleWindow);
-}
+      ValueInSingleWindow<TableRow> tableRow);
 
-final class ErrorContainers {
-  public static final ErrorContainer<TableRow> TABLE_ROW_ERROR_CONTAINER =
-      (failedInserts, error, ref, tableRowValueInSingleWindow) ->
-          failedInserts.add(tableRowValueInSingleWindow);
+  ErrorContainer<TableRow> TABLE_ROW_ERROR_CONTAINER =
+      (failedInserts, error, ref, tableRow) ->
+          failedInserts.add(tableRow);
+
+  ErrorContainer<BigQueryInsertError> BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER =
+      (failedInserts, error, ref, tableRow) -> {
+        BigQueryInsertError err =
+            new BigQueryInsertError(tableRow.getValue(), error, ref);
+        failedInserts.add(
+            ValueInSingleWindow.of(
+                err,
+                tableRow.getTimestamp(),
+                tableRow.getWindow(),
+                tableRow.getPane()));
+      };
 }
