@@ -250,7 +250,8 @@ class FakeDatasetService implements DatasetService, Serializable {
         if (shouldInsert) {
           dataSize += tableContainer.addRow(row, insertIdList.get(i));
         } else {
-          errorContainer.add(failedInserts, allErrors.get(i), ref, rowList.get(i));
+          errorContainer.add(
+              failedInserts, allErrors.get(allErrors.size() - 1), ref, rowList.get(i));
         }
       }
       return dataSize;

@@ -1052,6 +1052,7 @@ public class BigQueryIO {
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
         .setNumFileShards(0)
         .setMethod(Write.Method.DEFAULT)
+        .setExtendedErrorInfo(false)
         .build();
   }
 
@@ -1158,6 +1159,8 @@ public class BigQueryIO {
     @Nullable
     abstract ValueProvider<String> getCustomGcsTempLocation();
 
+    abstract boolean getExtendedErrorInfo();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1202,6 +1205,8 @@ public class BigQueryIO {
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
       abstract Builder<T> setCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation);
+
+      abstract Builder<T> setExtendedErrorInfo(boolean extendedErrorInfo);
 
       abstract Write<T> build();
     }
@@ -1482,6 +1487,19 @@ public class BigQueryIO {
       return toBuilder().setCustomGcsTempLocation(customGcsTempLocation).build();
     }
 
+    /**
+     * Enables extended error information by enabling {@link WriteResult#getFailedInsertsWithErr()}
+     *
+     * <p>ATM this only works if using {@link Method#STREAMING_INSERTS}.
+     * See {@link Write#withMethod(Method)}.
+     *
+     * <p>Disclaimer: Enabling this may cause your job not to be able to update
+     * (you may need to drain it before)
+     */
+    public Write<T> withExtendedErrorInfo() {
+      return toBuilder().setExtendedErrorInfo(true).build();
+    }
+
     @VisibleForTesting
     /** This method is for test usage only */
     public Write<T> withTestServices(BigQueryServices testServices) {
@@ -1666,7 +1684,8 @@ public class BigQueryIO {
         StreamingInserts<DestinationT> streamingInserts =
             new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
                 .withInsertRetryPolicy(retryPolicy)
-                .withTestServices((getBigQueryServices()));
+                .withTestServices((getBigQueryServices()))
+                .withExtendedErrorInfo(getExtendedErrorInfo());
         return rowsWithDestination.apply(streamingInserts);
       } else {
         checkArgument(
