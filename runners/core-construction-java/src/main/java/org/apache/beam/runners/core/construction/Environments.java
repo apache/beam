@@ -32,7 +32,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
-import org.apache.beam.sdk.util.ReleaseInfo;
 
 /**
  * Utilities for interacting with portability {@link Environment environments}.
@@ -48,10 +47,15 @@ public class Environments {
 
   private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
 
+  /* For development, use the container build by the current user to ensure that the SDK harness and
+   * the SDK agree on how they should interact. This should be changed to a version-specific
+   * container during a release.
+   *
+   * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
+   * container.
+   */
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      String.format(
-          "%s-%s",
-          ReleaseInfo.getReleaseInfo().getName(), ReleaseInfo.getReleaseInfo().getVersion());
+      String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       Environment.newBuilder().setUrl(JAVA_SDK_HARNESS_CONTAINER_URL).build();
 
