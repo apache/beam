@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.direct.portable.job;
 
-package org.apache.beam.runners.reference.job;
-
+import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -49,31 +49,40 @@ public class ReferenceRunnerJobServer {
     System.err.println();
   }
 
-  private static void runServer(ServerConfiguration configuration)
-      throws Exception {
+  private static void runServer(ServerConfiguration configuration) throws Exception {
     ServerFactory serverFactory = ServerFactory.createDefault();
     ReferenceRunnerJobService service = ReferenceRunnerJobService.create(serverFactory);
     try (GrpcFnServer<ReferenceRunnerJobService> server =
-        GrpcFnServer.create(
-            service,
-            ApiServiceDescriptor.newBuilder().setUrl("localhost:" + configuration.port).build(),
-            serverFactory)) {
+        createServer(configuration, serverFactory, service)) {
       System.out.println(
           String.format(
-              "Started %s on port %s",
-              ReferenceRunnerJobService.class.getSimpleName(), configuration.port));
+              "Started %s at %s",
+              ReferenceRunnerJobService.class.getSimpleName(),
+              server.getApiServiceDescriptor().getUrl()));
       server.getServer().awaitTermination();
     }
     System.out.println("Server shut down, exiting");
   }
 
+  private static GrpcFnServer<ReferenceRunnerJobService> createServer(
+      ServerConfiguration configuration,
+      ServerFactory serverFactory,
+      ReferenceRunnerJobService service)
+      throws IOException {
+    if (configuration.port < 0) {
+      return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    }
+    return GrpcFnServer.create(
+        service,
+        ApiServiceDescriptor.newBuilder().setUrl("localhost:" + configuration.port).build(),
+        serverFactory);
+  }
+
   private static class ServerConfiguration {
     @Option(
-      name = "-p",
-      aliases = {"--port"},
-      required = true,
-      usage = "The local port to expose the server on"
-    )
+        name = "-p",
+        aliases = {"--port"},
+        usage = "The local port to expose the server on")
     private int port = -1;
   }
 }

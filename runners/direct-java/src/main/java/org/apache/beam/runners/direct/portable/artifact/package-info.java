@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Provides local implementations of the Artifact API services.
- */
-package org.apache.beam.artifact.local;
+/** Provides local implementations of the Artifact API services. */
+package org.apache.beam.runners.direct.portable.artifact;

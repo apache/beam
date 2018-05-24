@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.artifact.local;
+package org.apache.beam.runners.direct.portable.artifact;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -45,7 +45,7 @@ public class LocalFileSystemArtifactStagerService
   private static final Logger LOG =
       LoggerFactory.getLogger(LocalFileSystemArtifactStagerService.class);
 
-  public static LocalFileSystemArtifactStagerService withRootDirectory(File base) {
+  public static LocalFileSystemArtifactStagerService forRootDirectory(File base) {
     return new LocalFileSystemArtifactStagerService(base);
   }
 
@@ -207,9 +207,13 @@ public class LocalFileSystemArtifactStagerService
     public void onNext(ArtifactApi.PutArtifactRequest value) {
       try {
         if (value.getData() == null) {
-          StatusRuntimeException e = Status.INVALID_ARGUMENT.withDescription(String.format(
-              "Expected all chunks in the current stream state to contain data, got %s",
-              value.getContentCase())).asRuntimeException();
+          StatusRuntimeException e =
+              Status.INVALID_ARGUMENT
+                  .withDescription(
+                      String.format(
+                          "Expected all chunks in the current stream state to contain data, got %s",
+                          value.getContentCase()))
+                  .asRuntimeException();
           throw e;
         }
         value.getData().getData().writeTo(target);

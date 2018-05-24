@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.artifact.local;
+package org.apache.beam.runners.direct.portable.artifact;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -29,7 +29,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
  * A location where the results of an {@link LocalFileSystemArtifactStagerService} are stored and
  * where the retrieval service retrieves them from.
  */
-public class LocalArtifactStagingLocation {
+class LocalArtifactStagingLocation {
   /**
    * Create a new {@link LocalArtifactStagingLocation} rooted at the specified location, creating
    * any directories or subdirectories as necessary.
