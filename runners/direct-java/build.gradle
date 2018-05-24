@@ -18,24 +18,28 @@
 
 import groovy.json.JsonOutput
 
+//the list used for defining include set and the set of project level dependencies
+def dependOnProjects = [":beam-model-pipeline", ":beam-runners-core-construction-java",
+                        ":beam-runners-core-java", ":beam-runners-local-java-core",
+                        ":beam-runners-java-fn-execution", ":beam-sdks-java-fn-execution"]
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.protobuf_java_util))
     include(dependency("io.grpc:.*"))
-    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
-    include(project(path: ":beam-model-fn-execution", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-java-fn-execution", configuration: "shadow"))
-    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
+    dependOnProjects.each {
+      include(project(path: it, configuration: "shadow"))
+    }
   }
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
   relocate "io.grpc", getJavaRelocatedPath("io.grpc")
   relocate "org.apache.beam.model", getJavaRelocatedPath("model")
   relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
   relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
+  relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
+  relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
 })
 
 description = "Apache Beam :: Runners :: Direct Java"
@@ -56,6 +60,9 @@ configurations {
 
 dependencies {
   compile library.java.guava
+  dependOnProjects.each {
+    compile project(path: it, configuration: "shadow")
+  }
   compile project(path: ":beam-model-pipeline", configuration: "shadow")
   compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   compile project(path: ":beam-runners-core-java", configuration: "shadow")
