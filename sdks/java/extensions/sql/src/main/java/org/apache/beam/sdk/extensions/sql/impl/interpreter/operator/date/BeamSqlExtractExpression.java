@@ -32,18 +32,19 @@ import org.joda.time.ReadableInstant;
  * {@code BeamSqlExpression} for EXTRACT.
  *
  * <p>The following date functions also implicitly converted to {@code EXTRACT}:
+ *
  * <ul>
- *   <li>YEAR(date) =&gt; EXTRACT(YEAR FROM date)</li>
- *   <li>MONTH(date) =&gt; EXTRACT(MONTH FROM date)</li>
- *   <li>DAY(date) =&gt; EXTRACT(DAY FROM date)</li>
- *   <li>QUARTER(date) =&gt; EXTRACT(QUARTER FROM date)</li>
- *   <li>WEEK(date) =&gt; EXTRACT(WEEK FROM date)</li>
- *   <li>DAYOFYEAR(date) =&gt; EXTRACT(DOY FROM date)</li>
- *   <li>DAYOFMONTH(date) =&gt; EXTRACT(DAY FROM date)</li>
- *   <li>DAYOFWEEK(date) =&gt; EXTRACT(DOW FROM date)</li>
- *   <li>HOUR(date) =&gt; EXTRACT(HOUR FROM date)</li>
- *   <li>MINUTE(date) =&gt; EXTRACT(MINUTE FROM date)</li>
- *   <li>SECOND(date) =&gt; EXTRACT(SECOND FROM date)</li>
+ *   <li>YEAR(date) =&gt; EXTRACT(YEAR FROM date)
+ *   <li>MONTH(date) =&gt; EXTRACT(MONTH FROM date)
+ *   <li>DAY(date) =&gt; EXTRACT(DAY FROM date)
+ *   <li>QUARTER(date) =&gt; EXTRACT(QUARTER FROM date)
+ *   <li>WEEK(date) =&gt; EXTRACT(WEEK FROM date)
+ *   <li>DAYOFYEAR(date) =&gt; EXTRACT(DOY FROM date)
+ *   <li>DAYOFMONTH(date) =&gt; EXTRACT(DAY FROM date)
+ *   <li>DAYOFWEEK(date) =&gt; EXTRACT(DOW FROM date)
+ *   <li>HOUR(date) =&gt; EXTRACT(HOUR FROM date)
+ *   <li>MINUTE(date) =&gt; EXTRACT(MINUTE FROM date)
+ *   <li>SECOND(date) =&gt; EXTRACT(SECOND FROM date)
  * </ul>
  */
 public class BeamSqlExtractExpression extends BeamSqlExpression {
@@ -51,12 +52,13 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
     super(operands, SqlTypeName.BIGINT);
   }
 
-  @Override public boolean accept() {
-    return operands.size() == 2
-        && opType(1) == SqlTypeName.TIMESTAMP;
+  @Override
+  public boolean accept() {
+    return operands.size() == 2 && opType(1) == SqlTypeName.TIMESTAMP;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     ReadableInstant time = opValueEvaluated(1, inputRow, window);
 
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(0)).getValue();
@@ -72,20 +74,14 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
       case CENTURY:
       case MILLENNIUM:
         Long timeByDay = time.getMillis() / DateTimeUtils.MILLIS_PER_DAY;
-        Long extracted = DateTimeUtils.unixDateExtract(
-            unit,
-            timeByDay
-        );
+        Long extracted = DateTimeUtils.unixDateExtract(unit, timeByDay);
         return BeamSqlPrimitive.of(outputType, extracted);
 
       case HOUR:
       case MINUTE:
       case SECOND:
         int timeInDay = (int) (time.getMillis() % DateTimeUtils.MILLIS_PER_DAY);
-        extracted = (long) DateTimeUtils.unixTimeExtract(
-            unit,
-            timeInDay
-        );
+        extracted = (long) DateTimeUtils.unixTimeExtract(unit, timeInDay);
         return BeamSqlPrimitive.of(outputType, extracted);
 
       default:

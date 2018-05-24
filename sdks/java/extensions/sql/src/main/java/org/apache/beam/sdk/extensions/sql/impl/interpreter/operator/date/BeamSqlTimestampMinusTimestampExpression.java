@@ -34,9 +34,9 @@ import org.joda.time.PeriodType;
 /**
  * Infix '-' operation for timestamps.
  *
- * <p>Currently this implementation is specific to how Calcite parses 'TIMESTAMPDIFF(..)'.
- * It converts the TIMESTAMPDIFF() call into infix minus and normalizes it
- * with corresponding TimeUnit's multiplier.
+ * <p>Currently this implementation is specific to how Calcite parses 'TIMESTAMPDIFF(..)'. It
+ * converts the TIMESTAMPDIFF() call into infix minus and normalizes it with corresponding
+ * TimeUnit's multiplier.
  *
  * <p>See {@link BeamSqlDatetimeMinusExpression} for other kinds of datetime types subtraction.
  */
@@ -49,9 +49,7 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
     this.intervalType = intervalType;
   }
 
-  /**
-   * Requires exactly 2 operands. One should be a timestamp, another an interval
-   */
+  /** Requires exactly 2 operands. One should be a timestamp, another an interval */
   @Override
   public boolean accept() {
     return accept(operands, intervalType);
@@ -80,15 +78,18 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
   }
 
   private long numberOfIntervalsBetweenDates(DateTime timestampStart, DateTime timestampEnd) {
-    Period period = new Period(timestampStart, timestampEnd,
-        PeriodType.forFields(new DurationFieldType[] { durationFieldType(intervalType) }));
+    Period period =
+        new Period(
+            timestampStart,
+            timestampEnd,
+            PeriodType.forFields(new DurationFieldType[] {durationFieldType(intervalType)}));
     return period.get(durationFieldType(intervalType));
   }
 
   private static DurationFieldType durationFieldType(SqlTypeName intervalTypeToCount) {
     if (!INTERVALS_DURATIONS_TYPES.containsKey(intervalTypeToCount)) {
-      throw new IllegalArgumentException("Counting "
-          + intervalTypeToCount.getName() + "s between dates is not supported");
+      throw new IllegalArgumentException(
+          "Counting " + intervalTypeToCount.getName() + "s between dates is not supported");
     }
 
     return INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);

@@ -35,7 +35,8 @@ public class BeamSqlNotExpression extends BeamSqlLogicalExpression {
     super(operands);
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     Boolean value = opValueEvaluated(0, inputRow, window);
     if (value == null) {
       return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, window);

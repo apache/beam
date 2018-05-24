@@ -25,25 +25,24 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
- * Provides converters from {@link BigDecimal} to other numeric types based on
- * the input {@link TypeName}.
+ * Provides converters from {@link BigDecimal} to other numeric types based on the input {@link
+ * TypeName}.
  */
 public class BigDecimalConverter {
 
   private static final Map<TypeName, SerializableFunction<BigDecimal, ? extends Number>>
-      CONVERTER_MAP = ImmutableMap
-      .<TypeName, SerializableFunction<BigDecimal, ? extends Number>>builder()
-      .put(TypeName.INT32, BigDecimal::intValue)
-      .put(TypeName.INT16, BigDecimal::shortValue)
-      .put(TypeName.BYTE, BigDecimal::byteValue)
-      .put(TypeName.INT64, BigDecimal::longValue)
-      .put(TypeName.FLOAT, BigDecimal::floatValue)
-      .put(TypeName.DOUBLE, BigDecimal::doubleValue)
-      .put(TypeName.DECIMAL, v -> v)
-      .build();
+      CONVERTER_MAP =
+          ImmutableMap.<TypeName, SerializableFunction<BigDecimal, ? extends Number>>builder()
+              .put(TypeName.INT32, BigDecimal::intValue)
+              .put(TypeName.INT16, BigDecimal::shortValue)
+              .put(TypeName.BYTE, BigDecimal::byteValue)
+              .put(TypeName.INT64, BigDecimal::longValue)
+              .put(TypeName.FLOAT, BigDecimal::floatValue)
+              .put(TypeName.DOUBLE, BigDecimal::doubleValue)
+              .put(TypeName.DECIMAL, v -> v)
+              .build();
 
-  public static SerializableFunction<BigDecimal, ? extends Number> forSqlType(
-      TypeName typeName) {
+  public static SerializableFunction<BigDecimal, ? extends Number> forSqlType(TypeName typeName) {
     if (!CONVERTER_MAP.containsKey(typeName)) {
       throw new UnsupportedOperationException(
           "Conversion from " + typeName + " to BigDecimal is not supported");

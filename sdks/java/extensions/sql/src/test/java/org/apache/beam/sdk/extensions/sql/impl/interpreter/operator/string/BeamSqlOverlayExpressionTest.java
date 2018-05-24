@@ -29,12 +29,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlOverlayExpression.
- */
+/** Test for BeamSqlOverlayExpression. */
 public class BeamSqlOverlayExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void accept() throws Exception {
+  @Test
+  public void accept() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -50,38 +49,38 @@ public class BeamSqlOverlayExpressionTest extends BeamSqlFnExecutorTestBase {
     assertTrue(new BeamSqlOverlayExpression(operands).accept());
   }
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "resou"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
-    Assert.assertEquals("w3resou3rce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
+    Assert.assertEquals(
+        "w3resou3rce", new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "resou"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4));
-    Assert.assertEquals("w3resou33rce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
+    Assert.assertEquals(
+        "w3resou33rce", new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "resou"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
-    Assert.assertEquals("w3resou3rce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
+    Assert.assertEquals(
+        "w3resou3rce", new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "resou"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 7));
-    Assert.assertEquals("w3resouce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
+    Assert.assertEquals(
+        "w3resouce", new BeamSqlOverlayExpression(operands).evaluate(row, null).getValue());
   }
-
 }

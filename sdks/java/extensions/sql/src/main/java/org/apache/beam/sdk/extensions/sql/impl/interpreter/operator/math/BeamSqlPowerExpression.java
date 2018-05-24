@@ -24,9 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathBinaryExpression} for 'POWER' function.
- */
+/** {@code BeamSqlMathBinaryExpression} for 'POWER' function. */
 public class BeamSqlPowerExpression extends BeamSqlMathBinaryExpression {
 
   public BeamSqlPowerExpression(List<BeamSqlExpression> operands) {
@@ -34,11 +32,11 @@ public class BeamSqlPowerExpression extends BeamSqlMathBinaryExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
-      BeamSqlPrimitive rightOp) {
-    return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions
-        .power(SqlFunctions.toDouble(leftOp.getValue()),
-            SqlFunctions.toDouble(rightOp.getValue())));
+  public BeamSqlPrimitive<? extends Number> calculate(
+      BeamSqlPrimitive leftOp, BeamSqlPrimitive rightOp) {
+    return BeamSqlPrimitive.of(
+        SqlTypeName.DOUBLE,
+        SqlFunctions.power(
+            SqlFunctions.toDouble(leftOp.getValue()), SqlFunctions.toDouble(rightOp.getValue())));
   }
-
 }

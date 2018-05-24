@@ -39,12 +39,13 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
     super(operands, SqlTypeName.TIMESTAMP);
   }
 
-  @Override public boolean accept() {
-    return operands.size() == 2
-        && opType(1) == SqlTypeName.SYMBOL;
+  @Override
+  public boolean accept() {
+    return operands.size() == 2 && opType(1) == SqlTypeName.SYMBOL;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     ReadableInstant date = opValueEvaluated(0, inputRow, window);
     long time = date.getMillis();
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();

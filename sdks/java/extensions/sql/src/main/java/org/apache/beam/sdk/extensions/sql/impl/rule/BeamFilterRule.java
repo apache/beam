@@ -25,10 +25,7 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalFilter;
 
-/**
- * A {@code ConverterRule} to replace {@link Filter} with {@link BeamFilterRel}.
- *
- */
+/** A {@code ConverterRule} to replace {@link Filter} with {@link BeamFilterRel}. */
 public class BeamFilterRule extends ConverterRule {
   public static final BeamFilterRule INSTANCE = new BeamFilterRule();
 
@@ -41,7 +38,8 @@ public class BeamFilterRule extends ConverterRule {
     final Filter filter = (Filter) rel;
     final RelNode input = filter.getInput();
 
-    return new BeamFilterRel(filter.getCluster(),
+    return new BeamFilterRel(
+        filter.getCluster(),
         filter.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         filter.getCondition());

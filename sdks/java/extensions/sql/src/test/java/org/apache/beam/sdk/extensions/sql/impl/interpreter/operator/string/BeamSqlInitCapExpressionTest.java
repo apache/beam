@@ -28,27 +28,25 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test of BeamSqlInitCapExpression.
- */
+/** Test of BeamSqlInitCapExpression. */
 public class BeamSqlInitCapExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello world"));
-    assertEquals("Hello World",
-        new BeamSqlInitCapExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "Hello World", new BeamSqlInitCapExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hEllO wOrld"));
-    assertEquals("Hello World",
-        new BeamSqlInitCapExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "Hello World", new BeamSqlInitCapExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello     world"));
-    assertEquals("Hello     World",
-        new BeamSqlInitCapExpression(operands).evaluate(row, null).getValue());
+    assertEquals(
+        "Hello     World", new BeamSqlInitCapExpression(operands).evaluate(row, null).getValue());
   }
-
 }

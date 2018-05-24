@@ -57,9 +57,7 @@ import org.apache.calcite.rel.convert.ConverterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * BeamRelNode to replace a {@code Enumerable} node.
- */
+/** BeamRelNode to replace a {@code Enumerable} node. */
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
@@ -98,12 +96,10 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return collect(options, node);
   }
 
-  private static PipelineResult run(PipelineOptions options, BeamRelNode node,
-      DoFn<Row, Void> doFn) {
+  private static PipelineResult run(
+      PipelineOptions options, BeamRelNode node, DoFn<Row, Void> doFn) {
     Pipeline pipeline = Pipeline.create(options);
-    PCollectionTuple.empty(pipeline)
-        .apply(node.toPTransform())
-        .apply(ParDo.of(doFn));
+    PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
     return result;
@@ -113,8 +109,11 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     long id = options.getOptionsId();
     Queue<Object> values = new ConcurrentLinkedQueue<Object>();
 
-    checkArgument(options.getRunner().getCanonicalName()
-        .equals("org.apache.beam.runners.direct.DirectRunner"));
+    checkArgument(
+        options
+            .getRunner()
+            .getCanonicalName()
+            .equals("org.apache.beam.runners.direct.DirectRunner"));
     Collector.globalValues.put(id, values);
     run(options, node, new Collector());
     Collector.globalValues.remove(id);
@@ -127,8 +126,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
 
-    @Nullable
-    private volatile Queue<Object> values;
+    @Nullable private volatile Queue<Object> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
@@ -149,16 +147,19 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> count(PipelineOptions options, BeamRelNode node) {
     PipelineResult result = run(options, node, new RowCounter());
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
-        .build());
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
+                    .build());
     long count = metrics.getCounters().iterator().next().getAttempted();
     return Linq4j.singletonEnumerable(count);
   }
 
   private static class RowCounter extends DoFn<Row, Void> {
-    final Counter rows =
-        Metrics.counter(BeamEnumerableConverter.class, "rows");
+    final Counter rows = Metrics.counter(BeamEnumerableConverter.class, "rows");
 
     @ProcessElement
     public void processElement(ProcessContext context) {

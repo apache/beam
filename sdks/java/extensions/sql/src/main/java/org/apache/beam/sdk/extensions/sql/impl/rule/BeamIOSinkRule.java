@@ -38,10 +38,7 @@ public class BeamIOSinkRule extends ConverterRule {
 
   @Override
   public RelNode convert(RelNode rel) {
-    final RelNode convertedInput = convert(
-        rel.getInput(0),
-        rel.getTraitSet());
-    return rel.copy(rel.getTraitSet(),
-        Arrays.asList(convertedInput));
+    final RelNode convertedInput = convert(rel.getInput(0), rel.getTraitSet());
+    return rel.copy(rel.getTraitSet(), Arrays.asList(convertedInput));
   }
 }

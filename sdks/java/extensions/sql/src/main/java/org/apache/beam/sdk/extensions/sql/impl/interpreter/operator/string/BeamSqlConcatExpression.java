@@ -25,9 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * String concat operator.
- */
+/** String concat operator. */
 public class BeamSqlConcatExpression extends BeamSqlExpression {
 
   protected BeamSqlConcatExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
@@ -38,7 +36,8 @@ public class BeamSqlConcatExpression extends BeamSqlExpression {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() != 2) {
       return false;
     }
@@ -52,12 +51,13 @@ public class BeamSqlConcatExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     String left = opValueEvaluated(0, inputRow, window);
     String right = opValueEvaluated(1, inputRow, window);
 
-    return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-        new StringBuilder(left.length() + right.length())
-            .append(left).append(right).toString());
+    return BeamSqlPrimitive.of(
+        SqlTypeName.VARCHAR,
+        new StringBuilder(left.length() + right.length()).append(left).append(right).toString());
   }
 }

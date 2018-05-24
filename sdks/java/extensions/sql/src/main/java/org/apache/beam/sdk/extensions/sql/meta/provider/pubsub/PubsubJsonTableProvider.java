@@ -36,8 +36,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
- * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO}
- * for consumption by Beam SQL.
+ * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO} for consumption
+ * by Beam SQL.
  */
 @Internal
 @Experimental
@@ -57,14 +57,12 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     String deadLetterQueue = tableProperties.getString("deadLetterQueue");
     validateDlq(deadLetterQueue);
 
-    return
-        PubsubIOJsonTable
-            .builder()
-            .setSchema(tableDefintion.getSchema())
-            .setTimestampAttribute(timestampAttributeKey)
-            .setDeadLetterQueue(deadLetterQueue)
-            .setTopic(tableDefintion.getLocation())
-            .build();
+    return PubsubIOJsonTable.builder()
+        .setSchema(tableDefintion.getSchema())
+        .setTimestampAttribute(timestampAttributeKey)
+        .setDeadLetterQueue(deadLetterQueue)
+        .setTopic(tableDefintion.getLocation())
+        .build();
   }
 
   private void validatePubsubMessageSchema(Table tableDefinition) {
@@ -74,14 +72,14 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
         || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)
         || !fieldPresent(schema, ATTRIBUTES_FIELD, MAP.type().withMapType(VARCHAR, VARCHAR))
         || !(schema.hasField(PAYLOAD_FIELD)
-             && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
+            && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
 
       throw new IllegalArgumentException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE. "
-          + "CREATE TABLE for Pubsub topic should define exactly the following fields: "
-          + "'event_timestamp' field of type 'TIMESTAMP', 'attributes' field of type "
-          + "MAP<VARCHAR, VARCHAR>, and 'payload' field of type 'ROW<...>' which matches the "
-          + "payload JSON format.");
+              + "CREATE TABLE for Pubsub topic should define exactly the following fields: "
+              + "'event_timestamp' field of type 'TIMESTAMP', 'attributes' field of type "
+              + "MAP<VARCHAR, VARCHAR>, and 'payload' field of type 'ROW<...>' which matches the "
+              + "payload JSON format.");
     }
   }
 

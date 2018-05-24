@@ -30,9 +30,7 @@ import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.Driver;
 import org.apache.calcite.schema.SchemaPlus;
 
-/**
- * Calcite JDBC driver with Beam defaults.
- */
+/** Calcite JDBC driver with Beam defaults. */
 public class JdbcDriver extends Driver {
   public static final JdbcDriver INSTANCE = new JdbcDriver();
   public static final String CONNECT_STRING_PREFIX = "jdbc:beam:";
@@ -42,28 +40,31 @@ public class JdbcDriver extends Driver {
     INSTANCE.register();
   }
 
-  @Override protected String getConnectStringPrefix() {
+  @Override
+  protected String getConnectStringPrefix() {
     return CONNECT_STRING_PREFIX;
   }
 
-  @Override public Connection connect(String url, Properties info) throws SQLException {
+  @Override
+  public Connection connect(String url, Properties info) throws SQLException {
     final BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) info.get(BEAM_CALCITE_SCHEMA);
 
     Properties info2 = new Properties(info);
     setDefault(info2, CalciteConnectionProperty.LEX, Lex.JAVA.name());
-    setDefault(info2, CalciteConnectionProperty.PARSER_FACTORY,
+    setDefault(
+        info2,
+        CalciteConnectionProperty.PARSER_FACTORY,
         BeamSqlParserImpl.class.getName() + "#FACTORY");
-    setDefault(info2, CalciteConnectionProperty.TYPE_SYSTEM,
-        BeamRelDataTypeSystem.class.getName());
+    setDefault(info2, CalciteConnectionProperty.TYPE_SYSTEM, BeamRelDataTypeSystem.class.getName());
     setDefault(info2, CalciteConnectionProperty.SCHEMA, "beam");
-    setDefault(info2, CalciteConnectionProperty.SCHEMA_FACTORY,
-        BeamCalciteSchemaFactory.class.getName());
+    setDefault(
+        info2, CalciteConnectionProperty.SCHEMA_FACTORY, BeamCalciteSchemaFactory.class.getName());
 
     CalciteConnection connection = (CalciteConnection) super.connect(url, info2);
     final SchemaPlus defaultSchema;
     if (beamCalciteSchema != null) {
-      defaultSchema = connection.getRootSchema()
-          .add(connection.config().schema(), beamCalciteSchema);
+      defaultSchema =
+          connection.getRootSchema().add(connection.config().schema(), beamCalciteSchema);
       connection.setSchema(defaultSchema.getName());
     } else {
       defaultSchema = getDefaultSchema(connection);

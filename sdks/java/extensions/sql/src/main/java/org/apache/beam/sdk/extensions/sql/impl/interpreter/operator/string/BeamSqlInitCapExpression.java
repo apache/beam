@@ -25,15 +25,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * 'INITCAP' operator.
- */
+/** 'INITCAP' operator. */
 public class BeamSqlInitCapExpression extends BeamSqlStringUnaryExpression {
   public BeamSqlInitCapExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     String str = opValueEvaluated(0, inputRow, window);
 
     StringBuilder ret = new StringBuilder(str);

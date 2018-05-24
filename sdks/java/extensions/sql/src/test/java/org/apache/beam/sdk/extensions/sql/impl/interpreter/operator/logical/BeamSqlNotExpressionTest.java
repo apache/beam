@@ -27,11 +27,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamSqlNotExpression}.
- */
+/** Test for {@code BeamSqlNotExpression}. */
 public class BeamSqlNotExpressionTest extends BeamSqlFnExecutorTestBase {
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
     Assert.assertTrue(new BeamSqlNotExpression(operands).evaluate(row, null).getBoolean());

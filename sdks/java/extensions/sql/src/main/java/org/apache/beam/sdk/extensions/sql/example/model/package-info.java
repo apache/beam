@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Java classes used to for modeling the examples.
- */
+/** Java classes used to for modeling the examples. */
 package org.apache.beam.sdk.extensions.sql.example.model;

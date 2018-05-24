@@ -25,45 +25,43 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-/**
- * Unit test for {@link DatetimeReinterpretConversions}.
- */
+/** Unit test for {@link DatetimeReinterpretConversions}. */
 public class DatetimeReinterpretConversionsTest {
   private static final long DATE_LONG = 1000L;
   private static final DateTime DATE = new DateTime(DATE_LONG);
   private static final DateTime TIME = new DateTime().withDate(2017, 8, 9);
 
-  private static final BeamSqlPrimitive DATE_PRIMITIVE = BeamSqlPrimitive.of(
-      SqlTypeName.DATE, DATE);
+  private static final BeamSqlPrimitive DATE_PRIMITIVE =
+      BeamSqlPrimitive.of(SqlTypeName.DATE, DATE);
 
-  private static final BeamSqlPrimitive TIME_PRIMITIVE = BeamSqlPrimitive.of(
-      SqlTypeName.TIME, TIME);
+  private static final BeamSqlPrimitive TIME_PRIMITIVE =
+      BeamSqlPrimitive.of(SqlTypeName.TIME, TIME);
 
-  private static final BeamSqlPrimitive TIMESTAMP_PRIMITIVE = BeamSqlPrimitive.of(
-      SqlTypeName.TIMESTAMP, DATE);
+  private static final BeamSqlPrimitive TIMESTAMP_PRIMITIVE =
+      BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, DATE);
 
-  @Test public void testTimeToBigint() {
+  @Test
+  public void testTimeToBigint() {
     BeamSqlPrimitive conversionResultPrimitive =
-        DatetimeReinterpretConversions.TIME_TO_BIGINT
-          .convert(TIME_PRIMITIVE);
+        DatetimeReinterpretConversions.TIME_TO_BIGINT.convert(TIME_PRIMITIVE);
 
     assertEquals(SqlTypeName.BIGINT, conversionResultPrimitive.getOutputType());
     assertEquals(TIME.getMillis(), conversionResultPrimitive.getLong());
   }
 
-  @Test public void testDateToBigint() {
+  @Test
+  public void testDateToBigint() {
     BeamSqlPrimitive conversionResultPrimitive =
-        DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT
-            .convert(DATE_PRIMITIVE);
+        DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT.convert(DATE_PRIMITIVE);
 
     assertEquals(SqlTypeName.BIGINT, conversionResultPrimitive.getOutputType());
     assertEquals(DATE_LONG, conversionResultPrimitive.getLong());
   }
 
-  @Test public void testTimestampToBigint() {
+  @Test
+  public void testTimestampToBigint() {
     BeamSqlPrimitive conversionResultPrimitive =
-        DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT
-            .convert(TIMESTAMP_PRIMITIVE);
+        DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT.convert(TIMESTAMP_PRIMITIVE);
 
     assertEquals(SqlTypeName.BIGINT, conversionResultPrimitive.getOutputType());
     assertEquals(DATE_LONG, conversionResultPrimitive.getLong());

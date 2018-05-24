@@ -41,13 +41,9 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
-/**
- * Test utilities.
- */
+/** Test utilities. */
 public class TestUtils {
-  /**
-   * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}.
-   */
+  /** A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}. */
   public static class BeamSqlRow2StringDoFn extends DoFn<Row, String> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
@@ -55,9 +51,7 @@ public class TestUtils {
     }
   }
 
-  /**
-   * Convert list of {@code BeamSqlRow} to list of {@code String}.
-   */
+  /** Convert list of {@code BeamSqlRow} to list of {@code String}. */
   public static List<String> beamSqlRows2Strings(List<Row> rows) {
     List<String> strs = new ArrayList<>();
     for (Row row : rows) {
@@ -75,7 +69,7 @@ public class TestUtils {
    * Convenient way to build a list of {@code BeamSqlRow}s.
    *
    * <p>You can use it like this:
-
+   *
    * <pre>{@code
    * TestUtils.RowsBuilder.of(
    *   Types.INTEGER, "order_id",
@@ -86,6 +80,7 @@ public class TestUtils {
    *   2, 5, "bond"
    *   ).getStringRows()
    * }</pre>
+   *
    * {@code}
    */
   public static class RowsBuilder {
@@ -96,12 +91,14 @@ public class TestUtils {
      * Create a RowsBuilder with the specified row type info.
      *
      * <p>For example:
+     *
      * <pre>{@code
      * TestUtils.RowsBuilder.of(
      *   Types.INTEGER, "order_id",
      *   Types.INTEGER, "sum_site_id",
      *   Types.VARCHAR, "buyer"
-     * )}</pre>
+     * )
+     * }</pre>
      *
      * @args pairs of column type and column names.
      */
@@ -117,10 +114,12 @@ public class TestUtils {
      * Create a RowsBuilder with the specified row type info.
      *
      * <p>For example:
+     *
      * <pre>{@code
      * TestUtils.RowsBuilder.of(
      *   schema
-     * )}</pre>
+     * )
+     * }</pre>
      *
      * @beamSQLRowType the row type.
      */
@@ -160,10 +159,7 @@ public class TestUtils {
     }
 
     public PCollectionBuilder getPCollectionBuilder() {
-      return
-          pCollectionBuilder()
-              .withRowType(type)
-              .withRows(rows);
+      return pCollectionBuilder().withRowType(type).withRows(rows);
     }
   }
 
@@ -187,9 +183,7 @@ public class TestUtils {
       return this;
     }
 
-    /**
-     * Event time field, defines watermark.
-     */
+    /** Event time field, defines watermark. */
     public PCollectionBuilder withTimestampField(String timestampField) {
       this.timestampField = timestampField;
       return this;
@@ -201,11 +195,11 @@ public class TestUtils {
     }
 
     /**
-     * Builds an unbounded {@link PCollection} in {@link Pipeline}
-     * set by {@link #inPipeline(Pipeline)}.
+     * Builds an unbounded {@link PCollection} in {@link Pipeline} set by {@link
+     * #inPipeline(Pipeline)}.
      *
-     * <p>If timestamp field was set with {@link #withTimestampField(String)} then
-     * watermark will be advanced to the values from that field.
+     * <p>If timestamp field was set with {@link #withTimestampField(String)} then watermark will be
+     * advanced to the values from that field.
      */
     public PCollection<Row> buildUnbounded() {
       checkArgument(pipeline != null);
@@ -225,9 +219,7 @@ public class TestUtils {
         values = values.addElements(row);
       }
 
-      return PBegin
-          .in(pipeline)
-          .apply("unboundedPCollection", values.advanceWatermarkToInfinity());
+      return PBegin.in(pipeline).apply("unboundedPCollection", values.advanceWatermarkToInfinity());
     }
   }
 
@@ -237,28 +229,25 @@ public class TestUtils {
    * <p>e.g.
    *
    * <pre>{@code
-   *   buildBeamSqlRowType(
-   *       SqlCoders.BIGINT, "order_id",
-   *       SqlCoders.INTEGER, "site_id",
-   *       SqlCoders.DOUBLE, "price",
-   *       SqlCoders.TIMESTAMP, "order_time"
-   *   )
+   * buildBeamSqlRowType(
+   *     SqlCoders.BIGINT, "order_id",
+   *     SqlCoders.INTEGER, "site_id",
+   *     SqlCoders.DOUBLE, "price",
+   *     SqlCoders.TIMESTAMP, "order_time"
+   * )
    * }</pre>
    */
   public static Schema buildBeamSqlRowType(Object... args) {
-    return
-        Stream
-            .iterate(0, i -> i + 2)
-            .limit(args.length / 2)
-            .map(i -> toRecordField(args, i))
-            .collect(toSchema());
+    return Stream.iterate(0, i -> i + 2)
+        .limit(args.length / 2)
+        .map(i -> toRecordField(args, i))
+        .collect(toSchema());
   }
 
   // TODO: support nested.
   // TODO: support nullable.
   private static Schema.Field toRecordField(Object[] args, int i) {
-    return Schema.Field.of((String) args[i + 1],
-        FieldType.of((TypeName) args[i]))
+    return Schema.Field.of((String) args[i + 1], FieldType.of((TypeName) args[i]))
         .withNullable(true);
   }
 
@@ -268,43 +257,43 @@ public class TestUtils {
    * <p>e.g.
    *
    * <pre>{@code
-   *   buildRows(
-   *       schema,
-   *       1, 1, 1, // the first row
-   *       2, 2, 2, // the second row
-   *       ...
-   *   )
+   * buildRows(
+   *     schema,
+   *     1, 1, 1, // the first row
+   *     2, 2, 2, // the second row
+   *     ...
+   * )
    * }</pre>
    */
   public static List<Row> buildRows(Schema type, List<?> rowsValues) {
-    return
-        Lists
-            .partition(rowsValues, type.getFieldCount())
-            .stream()
-            .map(values -> values.stream().collect(toRow(type)))
-            .collect(toList());
+    return Lists.partition(rowsValues, type.getFieldCount())
+        .stream()
+        .map(values -> values.stream().collect(toRow(type)))
+        .collect(toList());
   }
 
-  public static <T> PCollectionTuple tuple(
-      String tag, PCollection<T> pCollection) {
+  public static <T> PCollectionTuple tuple(String tag, PCollection<T> pCollection) {
 
     return PCollectionTuple.of(new TupleTag<>(tag), pCollection);
   }
 
   public static <T, V> PCollectionTuple tuple(
-      String tag1, PCollection<T> pCollection1,
-      String tag2, PCollection<V> pCollection2) {
+      String tag1, PCollection<T> pCollection1, String tag2, PCollection<V> pCollection2) {
 
     return tuple(tag1, pCollection1).and(new TupleTag<>(tag2), pCollection2);
   }
 
   public static <T, V, W> PCollectionTuple tuple(
-      String tag1, PCollection<T> pCollection1,
-      String tag2, PCollection<V> pCollection2,
-      String tag3, PCollection<W> pCollection3) {
+      String tag1,
+      PCollection<T> pCollection1,
+      String tag2,
+      PCollection<V> pCollection2,
+      String tag3,
+      PCollection<W> pCollection3) {
 
     return tuple(
-        tag1, pCollection1,
-        tag2, pCollection2).and(new TupleTag<>(tag3), pCollection3);
+            tag1, pCollection1,
+            tag2, pCollection2)
+        .and(new TupleTag<>(tag3), pCollection3);
   }
 }

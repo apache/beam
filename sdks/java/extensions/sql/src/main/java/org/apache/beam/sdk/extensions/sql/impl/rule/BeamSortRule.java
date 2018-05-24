@@ -26,17 +26,16 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalSort;
 
-/**
- * {@code ConverterRule} to replace {@code Sort} with {@code BeamSortRel}.
- */
+/** {@code ConverterRule} to replace {@code Sort} with {@code BeamSortRel}. */
 public class BeamSortRule extends ConverterRule {
   public static final BeamSortRule INSTANCE = new BeamSortRule();
+
   private BeamSortRule() {
-    super(LogicalSort.class, Convention.NONE,
-        BeamLogicalConvention.INSTANCE, "BeamSortRule");
+    super(LogicalSort.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamSortRule");
   }
 
-  @Override public RelNode convert(RelNode rel) {
+  @Override
+  public RelNode convert(RelNode rel) {
     Sort sort = (Sort) rel;
     final RelNode input = sort.getInput();
     return new BeamSortRel(
@@ -45,7 +44,6 @@ public class BeamSortRule extends ConverterRule {
         convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         sort.getCollation(),
         sort.offset,
-        sort.fetch
-    );
+        sort.fetch);
   }
 }

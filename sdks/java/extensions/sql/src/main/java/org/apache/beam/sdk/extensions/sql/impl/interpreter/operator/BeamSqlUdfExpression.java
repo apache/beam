@@ -25,9 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * invoke a UDF function.
- */
+/** invoke a UDF function. */
 public class BeamSqlUdfExpression extends BeamSqlExpression {
   //as Method is not Serializable, need to keep class/method information, and rebuild it.
   private transient Method method;
@@ -36,8 +34,8 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
   private String methodName;
   private List<String> paraClassName = new ArrayList<>();
 
-  public BeamSqlUdfExpression(Method method, List<BeamSqlExpression> subExps,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlUdfExpression(
+      Method method, List<BeamSqlExpression> subExps, SqlTypeName sqlTypeName) {
     super(subExps, sqlTypeName);
     this.method = method;
 
@@ -64,16 +62,14 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
         paras.add(e.evaluate(inputRow, window).getValue());
       }
 
-      return BeamSqlPrimitive.of(getOutputType(),
-          method.invoke(udfIns, paras.toArray(new Object[]{})));
+      return BeamSqlPrimitive.of(
+          getOutputType(), method.invoke(udfIns, paras.toArray(new Object[] {})));
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
   }
 
-  /**
-   * re-construct method from class/method.
-   */
+  /** re-construct method from class/method. */
   private void reConstructMethod() {
     try {
       List<Class<?>> paraClass = new ArrayList<>();
@@ -88,5 +84,4 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
       throw new RuntimeException(e);
     }
   }
-
 }

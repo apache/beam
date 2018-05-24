@@ -34,9 +34,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.Test;
 
-/**
- * UnitTest for {@link BeamSqlParserImpl}.
- */
+/** UnitTest for {@link BeamSqlParserImpl}. */
 public class BeamDDLTest {
 
   @Test
@@ -47,19 +45,16 @@ public class BeamDDLTest {
     hello.add("bond");
     properties.put("hello", hello);
 
-    Table table = parseTable(
-        "create table person (\n"
-            + "id int COMMENT 'id', \n"
-            + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
-            + "COMMENT 'person table' \n"
-            + "LOCATION '/home/admin/person'\n"
-            + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
-    );
-    assertEquals(
-        mockTable("person", "text", "person table", properties),
-        table
-    );
+    Table table =
+        parseTable(
+            "create table person (\n"
+                + "id int COMMENT 'id', \n"
+                + "name varchar COMMENT 'name') \n"
+                + "TYPE 'text' \n"
+                + "COMMENT 'person table' \n"
+                + "LOCATION '/home/admin/person'\n"
+                + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
+    assertEquals(mockTable("person", "text", "person table", properties), table);
   }
 
   @Test(expected = SqlParseException.class)
@@ -70,8 +65,7 @@ public class BeamDDLTest {
             + "name varchar COMMENT 'name') \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n"
-            + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
-    );
+            + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
   }
 
   @Test
@@ -82,47 +76,41 @@ public class BeamDDLTest {
     hello.add("bond");
     properties.put("hello", hello);
 
-    Table table = parseTable(
-        "create table person (\n"
-            + "id int COMMENT 'id', \n"
-            + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
-            + "LOCATION '/home/admin/person'\n"
-            + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
-    );
+    Table table =
+        parseTable(
+            "create table person (\n"
+                + "id int COMMENT 'id', \n"
+                + "name varchar COMMENT 'name') \n"
+                + "TYPE 'text' \n"
+                + "LOCATION '/home/admin/person'\n"
+                + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
     assertEquals(mockTable("person", "text", null, properties), table);
   }
 
   @Test
   public void testParseCreateTable_withoutTblProperties() throws Exception {
-    Table table = parseTable(
-        "create table person (\n"
-            + "id int COMMENT 'id', \n"
-            + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
-            + "COMMENT 'person table' \n"
-            + "LOCATION '/home/admin/person'\n"
-    );
-    assertEquals(
-        mockTable("person", "text", "person table", new JSONObject()),
-        table
-    );
+    Table table =
+        parseTable(
+            "create table person (\n"
+                + "id int COMMENT 'id', \n"
+                + "name varchar COMMENT 'name') \n"
+                + "TYPE 'text' \n"
+                + "COMMENT 'person table' \n"
+                + "LOCATION '/home/admin/person'\n");
+    assertEquals(mockTable("person", "text", "person table", new JSONObject()), table);
   }
 
   @Test
   public void testParseCreateTable_withoutLocation() throws Exception {
-    Table table = parseTable(
-        "create table person (\n"
-            + "id int COMMENT 'id', \n"
-            + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
-            + "COMMENT 'person table' \n"
-    );
+    Table table =
+        parseTable(
+            "create table person (\n"
+                + "id int COMMENT 'id', \n"
+                + "name varchar COMMENT 'name') \n"
+                + "TYPE 'text' \n"
+                + "COMMENT 'person table' \n");
 
-    assertEquals(
-        mockTable("person", "text", "person table", new JSONObject(), null),
-        table
-    );
+    assertEquals(mockTable("person", "text", "person table", new JSONObject(), null), table);
   }
 
   @Test
@@ -149,26 +137,23 @@ public class BeamDDLTest {
     return mockTable(name, type, comment, properties, "/home/admin/" + name);
   }
 
-  private static Table mockTable(String name, String type, String comment, JSONObject properties,
-      String location) {
+  private static Table mockTable(
+      String name, String type, String comment, JSONObject properties, String location) {
 
-    return Table
-        .builder()
+    return Table.builder()
         .name(name)
         .type(type)
         .comment(comment)
         .location(location)
         .schema(
             Stream.of(
-                Schema.Field
-                    .of("id", TypeName.INT32.type())
-                    .withNullable(true)
-                    .withDescription("id"),
-                Schema.Field
-                    .of("name", RowSqlTypes.VARCHAR)
-                    .withNullable(true)
-                    .withDescription("name"))
-                  .collect(toSchema()))
+                    Schema.Field.of("id", TypeName.INT32.type())
+                        .withNullable(true)
+                        .withDescription("id"),
+                    Schema.Field.of("name", RowSqlTypes.VARCHAR)
+                        .withNullable(true)
+                        .withDescription("name"))
+                .collect(toSchema()))
         .properties(properties)
         .build();
   }

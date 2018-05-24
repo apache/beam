@@ -33,12 +33,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.junit.Test;
 
-/**
- * UnitTest for {@link KafkaTableProvider}.
- */
+/** UnitTest for {@link KafkaTableProvider}. */
 public class KafkaTableProviderTest {
   private KafkaTableProvider provider = new KafkaTableProvider();
-  @Test public void testBuildBeamSqlTable() throws Exception {
+
+  @Test
+  public void testBuildBeamSqlTable() throws Exception {
     Table table = mockTable("hello");
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
@@ -63,16 +63,15 @@ public class KafkaTableProviderTest {
     topics.add("topic2");
     properties.put("topics", topics);
 
-    return Table
-        .builder()
+    return Table.builder()
         .name(name)
         .comment(name + " table")
         .location("kafka://localhost:2181/brokers?topic=test")
         .schema(
             Stream.of(
-                Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
-                Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
-                  .collect(toSchema()))
+                    Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
+                    Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
+                .collect(toSchema()))
         .type("kafka")
         .properties(properties)
         .build();

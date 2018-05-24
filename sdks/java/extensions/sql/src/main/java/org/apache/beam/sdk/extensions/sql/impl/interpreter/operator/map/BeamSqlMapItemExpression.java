@@ -25,14 +25,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Implements map key access expression.
- */
+/** Implements map key access expression. */
 public class BeamSqlMapItemExpression extends BeamSqlExpression {
 
-  public BeamSqlMapItemExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlMapItemExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
 
     super(operands, sqlTypeName);
   }

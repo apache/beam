@@ -38,43 +38,49 @@ import org.mockito.internal.util.collections.Sets;
  * limitations under the License.
  */
 
-/**
- * Unit tests for {@link Reinterpreter}.
- */
+/** Unit tests for {@link Reinterpreter}. */
 public class ReinterpreterTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Test public void testBuilderCreatesInstance() {
+  @Test
+  public void testBuilderCreatesInstance() {
     Reinterpreter reinterpreter = newReinterpreter();
     assertNotNull(reinterpreter);
   }
 
-  @Test public void testBuilderThrowsWithoutConverters() {
+  @Test
+  public void testBuilderThrowsWithoutConverters() {
     thrown.expect(IllegalArgumentException.class);
     Reinterpreter.builder().build();
   }
 
-  @Test public void testCanConvertBetweenSupportedTypes() {
-    Reinterpreter reinterpreter = Reinterpreter.builder()
-        .withConversion(mockConversion(SqlTypeName.SYMBOL, SqlTypeName.SMALLINT, SqlTypeName.DATE))
-        .withConversion(mockConversion(SqlTypeName.INTEGER, SqlTypeName.FLOAT))
-        .build();
+  @Test
+  public void testCanConvertBetweenSupportedTypes() {
+    Reinterpreter reinterpreter =
+        Reinterpreter.builder()
+            .withConversion(
+                mockConversion(SqlTypeName.SYMBOL, SqlTypeName.SMALLINT, SqlTypeName.DATE))
+            .withConversion(mockConversion(SqlTypeName.INTEGER, SqlTypeName.FLOAT))
+            .build();
 
     assertTrue(reinterpreter.canConvert(SqlTypeName.SMALLINT, SqlTypeName.SYMBOL));
     assertTrue(reinterpreter.canConvert(SqlTypeName.DATE, SqlTypeName.SYMBOL));
     assertTrue(reinterpreter.canConvert(SqlTypeName.FLOAT, SqlTypeName.INTEGER));
   }
 
-  @Test public void testCannotConvertFromUnsupportedTypes() {
-    Reinterpreter reinterpreter = Reinterpreter.builder()
-        .withConversion(mockConversion(SqlTypeName.SYMBOL, SqlTypeName.SMALLINT, SqlTypeName.DATE))
-        .withConversion(mockConversion(SqlTypeName.INTEGER, SqlTypeName.FLOAT))
-        .build();
+  @Test
+  public void testCannotConvertFromUnsupportedTypes() {
+    Reinterpreter reinterpreter =
+        Reinterpreter.builder()
+            .withConversion(
+                mockConversion(SqlTypeName.SYMBOL, SqlTypeName.SMALLINT, SqlTypeName.DATE))
+            .withConversion(mockConversion(SqlTypeName.INTEGER, SqlTypeName.FLOAT))
+            .build();
 
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.removeAll(
-          Sets.newSet(SqlTypeName.DATE, SqlTypeName.SMALLINT, SqlTypeName.FLOAT));
+        Sets.newSet(SqlTypeName.DATE, SqlTypeName.SMALLINT, SqlTypeName.FLOAT));
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
       assertFalse(reinterpreter.canConvert(unsupportedType, SqlTypeName.DATE));
@@ -82,11 +88,14 @@ public class ReinterpreterTest {
     }
   }
 
-  @Test public void testCannotConvertToUnsupportedTypes() {
-    Reinterpreter reinterpreter = Reinterpreter.builder()
-        .withConversion(mockConversion(SqlTypeName.SYMBOL, SqlTypeName.SMALLINT, SqlTypeName.DATE))
-        .withConversion(mockConversion(SqlTypeName.INTEGER, SqlTypeName.FLOAT))
-        .build();
+  @Test
+  public void testCannotConvertToUnsupportedTypes() {
+    Reinterpreter reinterpreter =
+        Reinterpreter.builder()
+            .withConversion(
+                mockConversion(SqlTypeName.SYMBOL, SqlTypeName.SMALLINT, SqlTypeName.DATE))
+            .withConversion(mockConversion(SqlTypeName.INTEGER, SqlTypeName.FLOAT))
+            .build();
 
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.removeAll(Sets.newSet(SqlTypeName.SYMBOL, SqlTypeName.INTEGER));
@@ -98,7 +107,8 @@ public class ReinterpreterTest {
     }
   }
 
-  @Test public void testConvert() {
+  @Test
+  public void testConvert() {
     DateTime date = new DateTime(12345L);
     BeamSqlPrimitive stringPrimitive = BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello");
     BeamSqlPrimitive datePrimitive = BeamSqlPrimitive.of(SqlTypeName.DATE, date);
@@ -115,17 +125,19 @@ public class ReinterpreterTest {
     verify(mockConversion).convert(same(stringPrimitive));
   }
 
-  @Test public void testConvertThrowsForUnsupportedFromType() {
+  @Test
+  public void testConvertThrowsForUnsupportedFromType() {
     thrown.expect(UnsupportedOperationException.class);
 
-    BeamSqlPrimitive intervalPrimitive = BeamSqlPrimitive
-        .of(SqlTypeName.INTERVAL_DAY, new BigDecimal(2));
+    BeamSqlPrimitive intervalPrimitive =
+        BeamSqlPrimitive.of(SqlTypeName.INTERVAL_DAY, new BigDecimal(2));
 
     Reinterpreter reinterpreter = newReinterpreter();
     reinterpreter.convert(SqlTypeName.DATE, intervalPrimitive);
   }
 
-  @Test public void testConvertThrowsForUnsupportedToType() {
+  @Test
+  public void testConvertThrowsForUnsupportedToType() {
     thrown.expect(UnsupportedOperationException.class);
 
     BeamSqlPrimitive stringPrimitive = BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello");
@@ -136,14 +148,11 @@ public class ReinterpreterTest {
 
   private Reinterpreter newReinterpreter() {
     return Reinterpreter.builder()
-        .withConversion(
-            mockConversion(
-                SqlTypeName.DATE,
-                SqlTypeName.SMALLINT, SqlTypeName.VARCHAR))
+        .withConversion(mockConversion(SqlTypeName.DATE, SqlTypeName.SMALLINT, SqlTypeName.VARCHAR))
         .build();
   }
 
-  private ReinterpretConversion mockConversion(SqlTypeName convertTo, SqlTypeName ... convertFrom) {
+  private ReinterpretConversion mockConversion(SqlTypeName convertTo, SqlTypeName... convertFrom) {
     ReinterpretConversion conversion = mock(ReinterpretConversion.class);
 
     doReturn(Sets.newSet(convertFrom)).when(conversion).from();

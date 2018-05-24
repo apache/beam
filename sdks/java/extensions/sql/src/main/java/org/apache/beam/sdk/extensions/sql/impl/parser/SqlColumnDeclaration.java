@@ -28,9 +28,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * Parse tree for column.
- */
+/** Parse tree for column. */
 public class SqlColumnDeclaration extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL);
@@ -40,23 +38,26 @@ public class SqlColumnDeclaration extends SqlCall {
   final SqlNode comment;
 
   /** Creates a SqlColumnDeclaration; use {@link SqlDdlNodes#column}. */
-  SqlColumnDeclaration(SqlParserPos pos, SqlIdentifier name,
-      SqlDataTypeSpec dataType, SqlNode comment) {
+  SqlColumnDeclaration(
+      SqlParserPos pos, SqlIdentifier name, SqlDataTypeSpec dataType, SqlNode comment) {
     super(pos);
     this.name = name;
     this.dataType = dataType;
     this.comment = comment;
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return ImmutableList.of(name, dataType);
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     name.unparse(writer, 0, 0);
     dataType.unparse(writer, 0, 0);
     if (dataType.getNullable() != null && !dataType.getNullable()) {

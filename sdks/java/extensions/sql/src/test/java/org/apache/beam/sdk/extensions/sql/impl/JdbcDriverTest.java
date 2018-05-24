@@ -34,9 +34,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.junit.Test;
 
-/**
- * Test for {@link JdbcDriver}.
- */
+/** Test for {@link JdbcDriver}. */
 public class JdbcDriverTest {
 
   @Test
@@ -71,8 +69,7 @@ public class JdbcDriverTest {
 
     // Create tables
     Statement statement = connection.createStatement();
-    assertEquals(0, statement.executeUpdate(
-        "CREATE TABLE test (id INTEGER) TYPE 'text'"));
+    assertEquals(0, statement.executeUpdate("CREATE TABLE test (id INTEGER) TYPE 'text'"));
 
     // Ensure table test
     resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
@@ -81,8 +78,7 @@ public class JdbcDriverTest {
     assertFalse(resultSet.next());
 
     // Create tables
-    assertEquals(0, statement.executeUpdate(
-        "DROP TABLE test"));
+    assertEquals(0, statement.executeUpdate("DROP TABLE test"));
 
     // Ensure no tables
     resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
@@ -91,13 +87,15 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_boundedTable() throws Exception {
-    BeamSqlTableProvider tableProvider = new BeamSqlTableProvider("test", ImmutableMap.of(
-        "test",
-        MockedBoundedTable
-          .of(TypeName.INT32, "id",
-              TypeName.STRING, "name")
-          .addRows(
-              1, "first")));
+    BeamSqlTableProvider tableProvider =
+        new BeamSqlTableProvider(
+            "test",
+            ImmutableMap.of(
+                "test",
+                MockedBoundedTable.of(
+                        TypeName.INT32, "id",
+                        TypeName.STRING, "name")
+                    .addRows(1, "first")));
     CalciteConnection connection = JdbcDriver.connect(tableProvider);
     Statement statement = connection.createStatement();
     ResultSet resultSet = statement.executeQuery("SELECT * FROM test");

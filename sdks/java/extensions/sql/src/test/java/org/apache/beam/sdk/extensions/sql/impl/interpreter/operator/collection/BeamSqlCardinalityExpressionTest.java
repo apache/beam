@@ -31,11 +31,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlCardinalityExpression}.
- */
+/** Unit tests for {@link BeamSqlCardinalityExpression}. */
 public class BeamSqlCardinalityExpressionTest {
-
 
   private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
@@ -43,8 +40,7 @@ public class BeamSqlCardinalityExpressionTest {
   @Test
   public void testReturnsCardinalityForTwoElements() {
     List<BeamSqlExpression> inputWith2Elements =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
 
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(inputWith2Elements, SqlTypeName.INTEGER);
@@ -55,8 +51,7 @@ public class BeamSqlCardinalityExpressionTest {
   @Test
   public void testReturnsCardinalityForZeroElements() {
     List<BeamSqlExpression> emptyInput =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
 
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(emptyInput, SqlTypeName.INTEGER);
@@ -67,8 +62,7 @@ public class BeamSqlCardinalityExpressionTest {
   @Test
   public void testAcceptsOneOperand() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
 
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(input, SqlTypeName.INTEGER);

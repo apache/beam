@@ -43,12 +43,9 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Unbounded + Unbounded Test for {@code BeamJoinRel}.
- */
+/** Unbounded + Unbounded Test for {@code BeamJoinRel}. */
 public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
   public static final DateTime FIRST_DATE = new DateTime(1);
   public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
   public static final DateTime THIRD_DATE = new DateTime(1 + 3600 * 1000 + 3600 * 1000 + 1);
@@ -56,41 +53,50 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
   @BeforeClass
   public static void prepare() {
-    registerTable("ORDER_DETAILS", MockedUnboundedTable
-        .of(
-            TypeName.INT32, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.INT32, "price",
-            TypeName.DATETIME, "order_time"
-        )
-        .timestampColumnIndex(3)
-        .addRows(
-            Duration.ZERO,
-            1, 1, 1, FIRST_DATE,
-            1, 2, 2, FIRST_DATE
-        )
-        .addRows(
-            WINDOW_SIZE.plus(Duration.standardSeconds(1)),
-            2, 2, 3, SECOND_DATE,
-            2, 3, 3, SECOND_DATE,
-            // this late data is omitted
-            1, 2, 3, FIRST_DATE
-        )
-        .addRows(
-            WINDOW_SIZE.plus(WINDOW_SIZE).plus(Duration.standardSeconds(1)),
-            3, 3, 3, THIRD_DATE,
-            // this late data is omitted
-            2, 2, 3, SECOND_DATE
-        )
-    );
+    registerTable(
+        "ORDER_DETAILS",
+        MockedUnboundedTable.of(
+                TypeName.INT32, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.INT32, "price",
+                TypeName.DATETIME, "order_time")
+            .timestampColumnIndex(3)
+            .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 2, FIRST_DATE)
+            .addRows(
+                WINDOW_SIZE.plus(Duration.standardSeconds(1)),
+                2,
+                2,
+                3,
+                SECOND_DATE,
+                2,
+                3,
+                3,
+                SECOND_DATE,
+                // this late data is omitted
+                1,
+                2,
+                3,
+                FIRST_DATE)
+            .addRows(
+                WINDOW_SIZE.plus(WINDOW_SIZE).plus(Duration.standardSeconds(1)),
+                3,
+                3,
+                3,
+                THIRD_DATE,
+                // this late data is omitted
+                2,
+                2,
+                3,
+                SECOND_DATE));
 
-    registerTable("ORDER_DETAILS1", MockedBoundedTable
-        .of(TypeName.INT32, "order_id",
-            TypeName.STRING, "buyer"
-        ).addRows(
-            1, "james",
-            2, "bond"
-        ));
+    registerTable(
+        "ORDER_DETAILS1",
+        MockedBoundedTable.of(
+                TypeName.INT32, "order_id",
+                TypeName.STRING, "buyer")
+            .addRows(
+                1, "james",
+                2, "bond"));
 
     registerTable(
         "SITE_LKP",
@@ -100,11 +106,8 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
                 TypeName.STRING, "site_name")));
   }
 
-  /**
-   * Test table for JOIN-AS-LOOKUP.
-   *
-   */
-  public static class SiteLookupTable extends BaseBeamTable implements BeamSqlSeekableTable{
+  /** Test table for JOIN-AS-LOOKUP. */
+  public static class SiteLookupTable extends BaseBeamTable implements BeamSqlSeekableTable {
 
     public SiteLookupTable(Schema schema) {
       super(schema);
@@ -133,94 +136,84 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
   @Test
   public void testInnerJoin_unboundedTableOnTheLeftSide() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " JOIN "
-        + " ORDER_DETAILS1 o2 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " JOIN "
+            + " ORDER_DETAILS1 o2 "
+            + " on "
+            + " o1.order_id=o2.order_id";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                TypeName.INT32, "order_id",
-                TypeName.INT32, "sum_site_id",
-                TypeName.STRING, "buyer"
-            ).addRows(
-                1, 3, "james",
-                2, 5, "bond"
-            ).getStringRows()
-        );
+                    TypeName.INT32, "order_id",
+                    TypeName.INT32, "sum_site_id",
+                    TypeName.STRING, "buyer")
+                .addRows(1, 3, "james", 2, 5, "bond")
+                .getStringRows());
     pipeline.run();
   }
 
   @Test
   public void testInnerJoin_boundedTableOnTheLeftSide() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + " ORDER_DETAILS1 o2 "
-        + " JOIN "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + " ORDER_DETAILS1 o2 "
+            + " JOIN "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " on "
+            + " o1.order_id=o2.order_id";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                TypeName.INT32, "order_id",
-                TypeName.INT32, "sum_site_id",
-                TypeName.STRING, "buyer"
-            ).addRows(
-                1, 3, "james",
-                2, 5, "bond"
-            ).getStringRows()
-        );
+                    TypeName.INT32, "order_id",
+                    TypeName.INT32, "sum_site_id",
+                    TypeName.STRING, "buyer")
+                .addRows(1, 3, "james", 2, 5, "bond")
+                .getStringRows());
     pipeline.run();
   }
 
   @Test
   public void testLeftOuterJoin() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " LEFT OUTER JOIN "
-        + " ORDER_DETAILS1 o2 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " LEFT OUTER JOIN "
+            + " ORDER_DETAILS1 o2 "
+            + " on "
+            + " o1.order_id=o2.order_id";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("helloworld")));
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                TypeName.INT32, "order_id",
-                TypeName.INT32, "sum_site_id",
-                TypeName.STRING, "buyer"
-            ).addRows(
-                1, 3, "james",
-                2, 5, "bond",
-                3, 3, null
-            ).getStringRows()
-        );
+                    TypeName.INT32, "order_id",
+                    TypeName.INT32, "sum_site_id",
+                    TypeName.STRING, "buyer")
+                .addRows(1, 3, "james", 2, 5, "bond", 3, 3, null)
+                .getStringRows());
     pipeline.run();
   }
 
   @Test(expected = UnsupportedOperationException.class)
   public void testLeftOuterJoinError() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + " ORDER_DETAILS1 o2 "
-        + " LEFT OUTER JOIN "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + " ORDER_DETAILS1 o2 "
+            + " LEFT OUTER JOIN "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " on "
+            + " o1.order_id=o2.order_id";
     pipeline.enableAbandonedNodeEnforcement(false);
     compilePipeline(sql, pipeline);
     pipeline.run();
@@ -228,40 +221,36 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
   @Test
   public void testRightOuterJoin() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + " ORDER_DETAILS1 o2 "
-        + " RIGHT OUTER JOIN "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + " ORDER_DETAILS1 o2 "
+            + " RIGHT OUTER JOIN "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " on "
+            + " o1.order_id=o2.order_id";
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                TypeName.INT32, "order_id",
-                TypeName.INT32, "sum_site_id",
-                TypeName.STRING, "buyer"
-            ).addRows(
-                1, 3, "james",
-                2, 5, "bond",
-                3, 3, null
-            ).getStringRows()
-        );
+                    TypeName.INT32, "order_id",
+                    TypeName.INT32, "sum_site_id",
+                    TypeName.STRING, "buyer")
+                .addRows(1, 3, "james", 2, 5, "bond", 3, 3, null)
+                .getStringRows());
     pipeline.run();
   }
 
   @Test(expected = UnsupportedOperationException.class)
   public void testRightOuterJoinError() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " RIGHT OUTER JOIN "
-        + " ORDER_DETAILS1 o2 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " RIGHT OUTER JOIN "
+            + " ORDER_DETAILS1 o2 "
+            + " on "
+            + " o1.order_id=o2.order_id";
 
     pipeline.enableAbandonedNodeEnforcement(false);
     compilePipeline(sql, pipeline);
@@ -270,14 +259,14 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
   @Test(expected = UnsupportedOperationException.class)
   public void testFullOuterJoinError() throws Exception {
-    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
-        + " ORDER_DETAILS1 o2 "
-        + " FULL OUTER JOIN "
-        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " on "
-        + " o1.order_id=o2.order_id"
-        ;
+    String sql =
+        "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+            + " ORDER_DETAILS1 o2 "
+            + " FULL OUTER JOIN "
+            + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+            + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+            + " on "
+            + " o1.order_id=o2.order_id";
     pipeline.enableAbandonedNodeEnforcement(false);
     compilePipeline(sql, pipeline);
     pipeline.run();
@@ -285,23 +274,21 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
   @Test
   public void testJoinAsLookup() throws Exception {
-    String sql = "SELECT o1.order_id, o2.site_name FROM "
-        + " ORDER_DETAILS o1 "
-        + " JOIN SITE_LKP o2 "
-        + " on "
-        + " o1.site_id=o2.site_id "
-        + " WHERE o1.site_id=1"
-        ;
+    String sql =
+        "SELECT o1.order_id, o2.site_name FROM "
+            + " ORDER_DETAILS o1 "
+            + " JOIN SITE_LKP o2 "
+            + " on "
+            + " o1.site_id=o2.site_id "
+            + " WHERE o1.site_id=1";
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                TypeName.INT32, "order_id",
-                TypeName.STRING, "site_name"
-            ).addRows(
-                1, "SITE1"
-            ).getStringRows()
-        );
+                    TypeName.INT32, "order_id",
+                    TypeName.STRING, "site_name")
+                .addRows(1, "SITE1")
+                .getStringRows());
     pipeline.run();
   }
 }

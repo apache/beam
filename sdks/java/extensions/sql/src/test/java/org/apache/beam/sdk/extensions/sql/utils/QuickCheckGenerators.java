@@ -32,9 +32,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 
-/**
- * Field type generators invoked by {@link JUnitQuickcheck}.
- */
+/** Field type generators invoked by {@link JUnitQuickcheck}. */
 public class QuickCheckGenerators {
 
   private static final FieldTypeGenerator PRIMITIVE_TYPES = new PrimitiveTypes();
@@ -43,15 +41,13 @@ public class QuickCheckGenerators {
   private static final FieldTypeGenerator ROWS = new Rows();
   private static final FieldTypeGenerator ANY_TYPE = new AnyFieldType();
 
-  /**
-   * Generates a primitive {@link TypeName SQL type} randomly.
-   */
+  /** Generates a primitive {@link TypeName SQL type} randomly. */
   public static class PrimitiveTypes extends FieldTypeGenerator {
     private static final List<FieldType> PRIMITIVE_TYPES =
         java.util.Arrays.stream(TypeName.values())
-                        .filter(TypeName::isPrimitiveType)
-                        .map(TypeName::type)
-                        .collect(toList());
+            .filter(TypeName::isPrimitiveType)
+            .map(TypeName::type)
+            .collect(toList());
 
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
@@ -59,14 +55,11 @@ public class QuickCheckGenerators {
     }
   }
 
-  /**
-   * Generates {@link TypeName#ARRAY SQL arrays} with random element type.
-   */
+  /** Generates {@link TypeName#ARRAY SQL arrays} with random element type. */
   public static class Arrays extends FieldTypeGenerator {
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
-      return TypeName.ARRAY.type().withCollectionElementType(
-          ANY_TYPE.generate(random, status));
+      return TypeName.ARRAY.type().withCollectionElementType(ANY_TYPE.generate(random, status));
     }
   }
 
@@ -76,51 +69,44 @@ public class QuickCheckGenerators {
   public static class Maps extends FieldTypeGenerator {
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
-      return TypeName.MAP.type().withMapType(
-          PRIMITIVE_TYPES.generate(random, status),
-          ANY_TYPE.generate(random, status));
+      return TypeName.MAP
+          .type()
+          .withMapType(PRIMITIVE_TYPES.generate(random, status), ANY_TYPE.generate(random, status));
     }
   }
 
-  /**
-   * Generates {@link TypeName#ROW SQL rows} with random field types.
-   */
+  /** Generates {@link TypeName#ROW SQL rows} with random field types. */
   public static class Rows extends FieldTypeGenerator {
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
       // stop at 10 levels of nesting to avoid stack overflows
       FieldTypeGenerator rowFieldTypesGenerator =
-          (nestingLevel(status) >= 10)
-              ? PRIMITIVE_TYPES
-              : ANY_TYPE;
+          (nestingLevel(status) >= 10) ? PRIMITIVE_TYPES : ANY_TYPE;
 
-      return TypeName.ROW.type().withRowSchema(
-          generateSchema(rowFieldTypesGenerator, random, status));
+      return TypeName.ROW
+          .type()
+          .withRowSchema(generateSchema(rowFieldTypesGenerator, random, status));
     }
 
     private Schema generateSchema(
-        FieldTypeGenerator fieldTypeGenerator,
-        SourceOfRandomness random,
-        GenerationStatus status) {
+        FieldTypeGenerator fieldTypeGenerator, SourceOfRandomness random, GenerationStatus status) {
 
-      return
-          IntStream
-              .range(0, status.size() + 1)
-              .mapToObj(i -> Field.of(
-                  "field_" + i,
-                  fieldTypeGenerator.generate(random, status)).withNullable(true))
-              .collect(toSchema());
+      return IntStream.range(0, status.size() + 1)
+          .mapToObj(
+              i ->
+                  Field.of("field_" + i, fieldTypeGenerator.generate(random, status))
+                      .withNullable(true))
+          .collect(toSchema());
     }
   }
 
-  /**
-   * Generates a {@link FieldType}, randomly delegating to specific type generators.
-   */
+  /** Generates a {@link FieldType}, randomly delegating to specific type generators. */
   public static class AnyFieldType extends FieldTypeGenerator {
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
-      return random.choose(asList(PRIMITIVE_TYPES, ARRAYS_OF_ANY, MAPS_OF_ANY, ROWS))
-                   .generate(random, status);
+      return random
+          .choose(asList(PRIMITIVE_TYPES, ARRAYS_OF_ANY, MAPS_OF_ANY, ROWS))
+          .generate(random, status);
     }
   }
 
@@ -139,8 +125,7 @@ public class QuickCheckGenerators {
     }
 
     protected abstract FieldType generateFieldType(
-        SourceOfRandomness random,
-        GenerationStatus status);
+        SourceOfRandomness random, GenerationStatus status);
 
     int nestingLevel(GenerationStatus status) {
       return status.valueOf(NESTING_KEY).orElse(-1);
@@ -151,21 +136,3 @@ public class QuickCheckGenerators {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

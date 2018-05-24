@@ -30,12 +30,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlConcatExpression.
- */
+/** Test for BeamSqlConcatExpression. */
 public class BeamSqlConcatExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void accept() throws Exception {
+  @Test
+  public void accept() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -54,13 +53,13 @@ public class BeamSqlConcatExpressionTest extends BeamSqlFnExecutorTestBase {
     assertFalse(new BeamSqlConcatExpression(operands).accept());
   }
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " world"));
-    Assert.assertEquals("hello world",
-        new BeamSqlConcatExpression(operands).evaluate(row, null).getValue());
+    Assert.assertEquals(
+        "hello world", new BeamSqlConcatExpression(operands).evaluate(row, null).getValue());
   }
-
 }

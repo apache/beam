@@ -38,22 +38,24 @@ import org.apache.beam.sdk.values.reflect.InferredRowCoder;
  * This example uses Beam SQL DSL to query a data pipeline with Java objects in it.
  *
  * <p>Run the example from the Beam source root with
+ *
  * <pre>
  *   ./gradlew :beam-sdks-java-extensions-sql:runPojoExample
  * </pre>
  *
- * <p>The above command executes the example locally using direct runner.
- * Running the pipeline in other runners require additional setup and are out of scope
- * of the SQL examples. Please consult Beam documentation on how to run pipelines.
+ * <p>The above command executes the example locally using direct runner. Running the pipeline in
+ * other runners require additional setup and are out of scope of the SQL examples. Please consult
+ * Beam documentation on how to run pipelines.
  *
  * <p>This example models a scenario of customers buying goods.
+ *
  * <ul>
- *   <li>{@link Customer} represents a customer</li>
- *   <li>{@link Order} represents an order by a customer</li>
+ *   <li>{@link Customer} represents a customer
+ *   <li>{@link Order} represents an order by a customer
  * </ul>
  *
- * <p>{@link InferredRowCoder} is used to adapt Java objects to {@link Row Rows}
- * that are understood by Beam SQL.
+ * <p>{@link InferredRowCoder} is used to adapt Java objects to {@link Row Rows} that are understood
+ * by Beam SQL.
  */
 class BeamSqlPojoExample {
   public static void main(String[] args) {
@@ -70,32 +72,33 @@ class BeamSqlPojoExample {
     PCollection<Order> orders = loadOrders(pipeline);
 
     // Example 1. Run a simple query over java objects:
-    PCollection<Row> customersFromWonderland = customers.apply(
-        BeamSql.query(
-            "SELECT id, name "
-            + " FROM PCOLLECTION "
-            + " WHERE countryOfResidence = 'Wonderland'"));
+    PCollection<Row> customersFromWonderland =
+        customers.apply(
+            BeamSql.query(
+                "SELECT id, name "
+                    + " FROM PCOLLECTION "
+                    + " WHERE countryOfResidence = 'Wonderland'"));
 
     // Output the results of the query:
     customersFromWonderland.apply(logRecords(": is from Wonderland"));
 
     // Example 2. Query the results of the first query:
-    PCollection<Row> totalInWonderland = customersFromWonderland.apply(
-        BeamSql.query("SELECT COUNT(id) FROM PCOLLECTION"));
+    PCollection<Row> totalInWonderland =
+        customersFromWonderland.apply(BeamSql.query("SELECT COUNT(id) FROM PCOLLECTION"));
 
     // Output the results of the query:
     totalInWonderland.apply(logRecords(": total customers in Wonderland"));
 
     // Example 3. Query multiple PCollections of Java objects:
-    PCollection<Row> ordersByGrault = PCollectionTuple
-        .of(new TupleTag<>("customers"), customers)
-        .and(new TupleTag<>("orders"), orders)
-        .apply(
-            BeamSql.query(
-                "SELECT customers.name, ('order id:' || CAST(orders.id AS VARCHAR))"
-                + " FROM orders "
-                + "   JOIN customers ON orders.customerId = customers.id"
-                + " WHERE customers.name = 'Grault'"));
+    PCollection<Row> ordersByGrault =
+        PCollectionTuple.of(new TupleTag<>("customers"), customers)
+            .and(new TupleTag<>("orders"), orders)
+            .apply(
+                BeamSql.query(
+                    "SELECT customers.name, ('order id:' || CAST(orders.id AS VARCHAR))"
+                        + " FROM orders "
+                        + "   JOIN customers ON orders.customerId = customers.id"
+                        + " WHERE customers.name = 'Grault'"));
 
     // Output the results of the query:
     ordersByGrault.apply(logRecords(": ordered by 'Grault'"));
@@ -106,8 +109,7 @@ class BeamSqlPojoExample {
   private static MapElements<Row, Void> logRecords(String suffix) {
     return MapElements.via(
         new SimpleFunction<Row, Void>() {
-          public @Nullable
-          Void apply(Row input) {
+          public @Nullable Void apply(Row input) {
             System.out.println(input.getValues() + suffix);
             return null;
           }
@@ -120,25 +122,21 @@ class BeamSqlPojoExample {
   }
 
   private static PCollection<Customer> loadCustomers(Pipeline pipeline) {
-    return
-        PBegin
-            .in(pipeline)
-            .apply(
-                Create.of(
+    return PBegin.in(pipeline)
+        .apply(
+            Create.of(
                     new Customer(1, "Foo", "Wonderland"),
                     new Customer(2, "Bar", "Super Kingdom"),
                     new Customer(3, "Baz", "Wonderland"),
                     new Customer(4, "Grault", "Wonderland"),
                     new Customer(5, "Qux", "Super Kingdom"))
-                      .withCoder(InferredRowCoder.ofSerializable(Customer.class)));
+                .withCoder(InferredRowCoder.ofSerializable(Customer.class)));
   }
 
   private static PCollection<Order> loadOrders(Pipeline pipeline) {
-    return
-        PBegin
-            .in(pipeline)
-            .apply(
-                Create.of(
+    return PBegin.in(pipeline)
+        .apply(
+            Create.of(
                     new Order(1, 5),
                     new Order(2, 2),
                     new Order(3, 1),
@@ -148,6 +146,6 @@ class BeamSqlPojoExample {
                     new Order(7, 4),
                     new Order(8, 4),
                     new Order(9, 1))
-                      .withCoder(InferredRowCoder.ofSerializable(Order.class)));
+                .withCoder(InferredRowCoder.ofSerializable(Order.class)));
   }
 }

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.Row;
 @AutoValue
 public abstract class AggregateWindowField {
   public abstract int fieldIndex();
+
   public abstract WindowFn<Row, ? extends BoundedWindow> windowFn();
 
   static Builder builder() {
@@ -42,7 +43,9 @@ public abstract class AggregateWindowField {
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setFieldIndex(int fieldIndex);
+
     abstract Builder setWindowFn(WindowFn<Row, ? extends BoundedWindow> window);
+
     abstract AggregateWindowField build();
   }
 }

@@ -29,61 +29,49 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamIntersectRel}.
- */
+/** Test for {@code BeamIntersectRel}. */
 public class BeamIntersectRelTest extends BaseRelTest {
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() {
-    registerTable("ORDER_DETAILS1",
+    registerTable(
+        "ORDER_DETAILS1",
         MockedBoundedTable.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            1L, 1, 1.0,
-            2L, 2, 2.0,
-            4L, 4, 4.0
-        )
-    );
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price")
+            .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 4L, 4, 4.0));
 
-    registerTable("ORDER_DETAILS2",
+    registerTable(
+        "ORDER_DETAILS2",
         MockedBoundedTable.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            2L, 2, 2.0,
-            3L, 3, 3.0
-        )
-    );
+                TypeName.INT64, "order_id",
+                TypeName.INT32, "site_id",
+                TypeName.DOUBLE, "price")
+            .addRows(1L, 1, 1.0, 2L, 2, 2.0, 3L, 3, 3.0));
   }
 
   @Test
   public void testIntersect() throws Exception {
     String sql = "";
-    sql += "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS1 "
-        + " INTERSECT "
-        + "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS2 ";
+    sql +=
+        "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS1 "
+            + " INTERSECT "
+            + "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS2 ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            2L, 2, 2.0
-        ).getRows());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, 1, 1.0, 2L, 2, 2.0)
+                .getRows());
 
     pipeline.run().waitUntilFinish();
   }
@@ -91,25 +79,24 @@ public class BeamIntersectRelTest extends BaseRelTest {
   @Test
   public void testIntersectAll() throws Exception {
     String sql = "";
-    sql += "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS1 "
-        + " INTERSECT ALL "
-        + "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS2 ";
+    sql +=
+        "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS1 "
+            + " INTERSECT ALL "
+            + "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS2 ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows).satisfies(new CheckSize(3));
 
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT64, "order_id",
-            TypeName.INT32, "site_id",
-            TypeName.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            1L, 1, 1.0,
-            2L, 2, 2.0
-        ).getRows());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT64, "order_id",
+                    TypeName.INT32, "site_id",
+                    TypeName.DOUBLE, "price")
+                .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0)
+                .getRows());
 
     pipeline.run();
   }

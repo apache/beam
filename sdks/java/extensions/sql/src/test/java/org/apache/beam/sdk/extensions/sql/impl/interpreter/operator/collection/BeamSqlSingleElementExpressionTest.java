@@ -32,9 +32,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlSingleElementExpression}.
- */
+/** Unit tests for {@link BeamSqlSingleElementExpression}. */
 public class BeamSqlSingleElementExpressionTest {
 
   private static final Row NULL_ROW = null;
@@ -43,22 +41,18 @@ public class BeamSqlSingleElementExpressionTest {
   @Test
   public void testReturnsSingleElement() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
 
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals(
-        "aaa",
-        expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals("aaa", expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
   }
 
   @Test
   public void testReturnsNullForEmptyInput() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
 
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
@@ -69,8 +63,7 @@ public class BeamSqlSingleElementExpressionTest {
   @Test
   public void testAcceptsOneOperand() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa")));
 
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);

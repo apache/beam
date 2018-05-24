@@ -33,14 +33,13 @@ import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * A mocked unbounded table.
- */
+/** A mocked unbounded table. */
 public class MockedUnboundedTable extends MockedTable {
   /** rows flow out from this table with the specified watermark instant. */
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
+
   private MockedUnboundedTable(Schema beamSchema) {
     super(beamSchema);
   }
@@ -88,23 +87,30 @@ public class MockedUnboundedTable extends MockedTable {
     return this;
   }
 
-  @Override public BeamIOType getSourceType() {
+  @Override
+  public BeamIOType getSourceType() {
     return BeamIOType.UNBOUNDED;
   }
 
-  @Override public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  @Override
+  public PCollection<Row> buildIOReader(Pipeline pipeline) {
     TestStream.Builder<Row> values = TestStream.create(schema.getRowCoder());
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
       for (int i = 0; i < pair.getValue().size(); i++) {
-        values = values.addElements(TimestampedValue.of(pair.getValue().get(i),
-            new Instant(pair.getValue().get(i).getDateTime(timestampField))));
+        values =
+            values.addElements(
+                TimestampedValue.of(
+                    pair.getValue().get(i),
+                    new Instant(pair.getValue().get(i).getDateTime(timestampField))));
       }
     }
 
-    return pipeline.begin().apply(
-        "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
-        values.advanceWatermarkToInfinity());
+    return pipeline
+        .begin()
+        .apply(
+            "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
+            values.advanceWatermarkToInfinity());
   }
 }

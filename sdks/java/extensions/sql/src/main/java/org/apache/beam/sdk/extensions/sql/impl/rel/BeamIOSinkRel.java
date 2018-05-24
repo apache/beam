@@ -67,16 +67,17 @@ public class BeamIOSinkRel extends TableModify
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     boolean flattened = isFlattened() || isFlattening;
-    BeamIOSinkRel newRel = new BeamIOSinkRel(
-        getCluster(),
-        getTable(),
-        getCatalogReader(),
-        sole(inputs),
-        getOperation(),
-        getUpdateColumnList(),
-        getSourceExpressionList(),
-        flattened,
-        sqlTable);
+    BeamIOSinkRel newRel =
+        new BeamIOSinkRel(
+            getCluster(),
+            getTable(),
+            getCatalogReader(),
+            sole(inputs),
+            getOperation(),
+            getUpdateColumnList(),
+            getSourceExpressionList(),
+            flattened,
+            sqlTable);
     newRel.traitSet = traitSet;
     return newRel;
   }

@@ -24,22 +24,21 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'FLOOR' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'FLOOR' function. */
 public class BeamSqlFloorExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlFloorExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DOUBLE);
   }
 
-  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+  @Override
+  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
     switch (getOutputType()) {
       case DECIMAL:
         return BeamSqlPrimitive.of(SqlTypeName.DECIMAL, SqlFunctions.floor(op.getDecimal()));
       default:
-        return BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.floor(SqlFunctions.toDouble(op.getValue())));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.DOUBLE, SqlFunctions.floor(SqlFunctions.toDouble(op.getValue())));
     }
   }
 }

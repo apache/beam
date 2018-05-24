@@ -24,9 +24,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Implements DOT operator to access fields of dynamic ROWs.
- */
+/** Implements DOT operator to access fields of dynamic ROWs. */
 public class BeamSqlDotExpression extends BeamSqlExpression {
 
   public BeamSqlDotExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
@@ -35,8 +33,7 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return
-        operands.size() == 2
+    return operands.size() == 2
         && SqlTypeName.ROW.equals(operands.get(0).getOutputType())
         && (SqlTypeName.VARCHAR.equals(operands.get(1).getOutputType())
             || SqlTypeName.CHAR.equals(operands.get(1).getOutputType()));
