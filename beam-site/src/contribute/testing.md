@@ -44,21 +44,6 @@ details on those testing types.
    <td><strong>Runs In</strong>
    </td>
   </tr>
-  <tr>
-   <td>DoFn
-   </td>
-   <td>Correctness on one/few bundles
-   </td>
-   <td>DoFnTester
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIOTest.java#L1325">BigQueryIOTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit, Postcommit
-   </td>
-  </tr>
-  <tr>
    <td>BoundedSource
    </td>
    <td>Correctly Reads Input
