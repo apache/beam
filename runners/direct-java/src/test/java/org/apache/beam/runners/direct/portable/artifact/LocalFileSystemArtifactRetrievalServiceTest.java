@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.artifact.local;
+package org.apache.beam.runners.direct.portable.artifact;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -79,7 +79,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
     root = tmp.newFolder();
     stagerServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            LocalFileSystemArtifactStagerService.withRootDirectory(root), serverFactory);
+            LocalFileSystemArtifactStagerService.forRootDirectory(root), serverFactory);
   }
 
   @After

@@ -20,4 +20,4 @@
  * An execution engine for Beam Pipelines that uses the Java Runner harness and the Fn API to
  * execute.
  */
-package org.apache.beam.runners.reference.job;
+package org.apache.beam.runners.direct.portable.job;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.artifact.local;
+package org.apache.beam.runners.direct.portable.artifact;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -58,7 +58,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
   @Before
   public void setup() throws Exception {
-    stager = LocalFileSystemArtifactStagerService.withRootDirectory(temporaryFolder.newFolder());
+    stager = LocalFileSystemArtifactStagerService.forRootDirectory(temporaryFolder.newFolder());
 
     server =
         InProcessServerBuilder.forName("fs_stager")

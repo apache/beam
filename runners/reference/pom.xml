@@ -35,6 +35,5 @@
   <packaging>pom</packaging>
   <modules>
     <module>java</module>
-    <module>job-server</module>
   </modules>
 </project>

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.artifact.local;
+package org.apache.beam.runners.direct.portable.artifact;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
