@@ -19,9 +19,7 @@ package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
 
-/**
- * Describes an order.
- */
+/** Describes an order. */
 public class Order implements Serializable {
   private int id;
   private int customerId;

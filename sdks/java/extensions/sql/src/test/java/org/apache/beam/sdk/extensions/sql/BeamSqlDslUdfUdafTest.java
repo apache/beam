@@ -28,60 +28,45 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.linq4j.function.Parameter;
 import org.junit.Test;
 
-/**
- * Tests for UDF/UDAF.
- */
+/** Tests for UDF/UDAF. */
 public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
-  /**
-   * GROUP-BY with UDAF.
-   */
+  /** GROUP-BY with UDAF. */
   @Test
   public void testUdaf() throws Exception {
-    Schema resultType = RowSqlTypes.builder()
-        .withIntegerField("f_int2")
-        .withIntegerField("squaresum")
-        .build();
+    Schema resultType =
+        RowSqlTypes.builder().withIntegerField("f_int2").withIntegerField("squaresum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 30).build();
 
-    String sql1 = "SELECT f_int2, squaresum1(f_int) AS `squaresum`"
-        + " FROM PCOLLECTION GROUP BY f_int2";
+    String sql1 =
+        "SELECT f_int2, squaresum1(f_int) AS `squaresum`" + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result1 =
         boundedInput1.apply(
-            "testUdaf1",
-            BeamSql.query(sql1).registerUdaf("squaresum1", new SquareSum()));
+            "testUdaf1", BeamSql.query(sql1).registerUdaf("squaresum1", new SquareSum()));
     PAssert.that(result1).containsInAnyOrder(row);
 
-    String sql2 = "SELECT f_int2, squaresum2(f_int) AS `squaresum`"
-        + " FROM PCOLLECTION GROUP BY f_int2";
+    String sql2 =
+        "SELECT f_int2, squaresum2(f_int) AS `squaresum`" + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result2 =
-        PCollectionTuple
-            .of(new TupleTag<>("PCOLLECTION"), boundedInput1)
-            .apply("testUdaf2",
-                   BeamSql
-                       .query(sql2)
-                       .registerUdaf("squaresum2", new SquareSum()));
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
+            .apply("testUdaf2", BeamSql.query(sql2).registerUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * Test that an indirect subclass of a {@link CombineFn} works as a UDAF.
-   * BEAM-3777
-   */
+  /** Test that an indirect subclass of a {@link CombineFn} works as a UDAF. BEAM-3777 */
   @Test
   public void testUdafMultiLevelDescendent() {
-    Schema resultType = RowSqlTypes.builder()
-        .withIntegerField("f_int2")
-        .withIntegerField("squaresum")
-        .build();
+    Schema resultType =
+        RowSqlTypes.builder().withIntegerField("f_int2").withIntegerField("squaresum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 354).build();
 
-    String sql1 = "SELECT f_int2, double_square_sum(f_int) AS `squaresum`"
-        + " FROM PCOLLECTION GROUP BY f_int2";
+    String sql1 =
+        "SELECT f_int2, double_square_sum(f_int) AS `squaresum`"
+            + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result1 =
         boundedInput1.apply(
             "testUdaf",
@@ -102,64 +87,51 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     exceptions.expectMessage("CombineFn");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    Schema resultType = RowSqlTypes.builder()
-        .withIntegerField("f_int2")
-        .withIntegerField("squaresum")
-        .build();
+    Schema resultType =
+        RowSqlTypes.builder().withIntegerField("f_int2").withIntegerField("squaresum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 354).build();
 
-    String sql1 = "SELECT f_int2, squaresum(f_int) AS `squaresum`"
-        + " FROM PCOLLECTION GROUP BY f_int2";
+    String sql1 =
+        "SELECT f_int2, squaresum(f_int) AS `squaresum`" + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result1 =
         boundedInput1.apply(
-            "testUdaf",
-            BeamSql.query(sql1).registerUdaf("squaresum", new RawCombineFn()));
+            "testUdaf", BeamSql.query(sql1).registerUdaf("squaresum", new RawCombineFn()));
   }
 
-  /**
-   * test UDF.
-   */
+  /** test UDF. */
   @Test
-  public void testUdf() throws Exception{
-    Schema resultType = RowSqlTypes.builder()
-        .withIntegerField("f_int")
-        .withIntegerField("cubicvalue")
-        .build();
+  public void testUdf() throws Exception {
+    Schema resultType =
+        RowSqlTypes.builder().withIntegerField("f_int").withIntegerField("cubicvalue").build();
     Row row = Row.withSchema(resultType).addValues(2, 8).build();
 
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result1 =
-        boundedInput1.apply("testUdf1",
-            BeamSql.query(sql1).registerUdf("cubic1", CubicInteger.class));
+        boundedInput1.apply(
+            "testUdf1", BeamSql.query(sql1).registerUdf("cubic1", CubicInteger.class));
     PAssert.that(result1).containsInAnyOrder(row);
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result2 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
-            .apply("testUdf2",
-                   BeamSql.query(sql2).registerUdf("cubic2", new CubicIntegerFn()));
+            .apply("testUdf2", BeamSql.query(sql2).registerUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(row);
 
     String sql3 = "SELECT f_int, substr(f_string) as sub_string FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result3 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
-            .apply("testUdf3",
-                   BeamSql.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
+            .apply("testUdf3", BeamSql.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
 
-    Schema subStrSchema = RowSqlTypes.builder()
-        .withIntegerField("f_int")
-        .withVarcharField("sub_string")
-        .build();
+    Schema subStrSchema =
+        RowSqlTypes.builder().withIntegerField("f_int").withVarcharField("sub_string").build();
     Row subStrRow = Row.withSchema(subStrSchema).addValues(2, "s").build();
     PAssert.that(result3).containsInAnyOrder(subStrRow);
 
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * UDAF(CombineFn) for test, which returns the sum of square.
-   */
+  /** UDAF(CombineFn) for test, which returns the sum of square. */
   public static class SquareSum extends CombineFn<Integer, Integer, Integer> {
     @Override
     public Integer createAccumulator() {
@@ -184,12 +156,11 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     public Integer extractOutput(Integer accumulator) {
       return accumulator;
     }
-
   }
 
   /**
-   * Non-parameterized CombineFn. Intended to test that non-parameterized CombineFns
-   * are correctly rejected. The methods just return null, as they should never be called.
+   * Non-parameterized CombineFn. Intended to test that non-parameterized CombineFns are correctly
+   * rejected. The methods just return null, as they should never be called.
    */
   public static class RawCombineFn extends CombineFn {
 
@@ -214,9 +185,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     }
   }
 
-  /**
-   * An example UDAF with two levels of descendancy from CombineFn.
-   */
+  /** An example UDAF with two levels of descendancy from CombineFn. */
   public static class SquareSquareSum extends SquareSum {
     @Override
     public Integer addInput(Integer accumulator, Integer input) {
@@ -224,18 +193,14 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     }
   }
 
-  /**
-   * An example UDF for test.
-   */
+  /** An example UDF for test. */
   public static class CubicInteger implements BeamSqlUdf {
     public static Integer eval(Integer input) {
       return input * input * input;
     }
   }
 
-  /**
-   * An example UDF with {@link SerializableFunction}.
-   */
+  /** An example UDF with {@link SerializableFunction}. */
   public static class CubicIntegerFn implements SerializableFunction<Integer, Integer> {
     @Override
     public Integer apply(Integer input) {
@@ -243,13 +208,10 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     }
   }
 
-  /**
-   * A UDF with default parameters.
-   *
-   */
+  /** A UDF with default parameters. */
   public static final class UdfFnWithDefault implements BeamSqlUdf {
-    public static String eval(@Parameter(name = "s") String s,
-        @Parameter(name = "n", optional = true) Integer n) {
+    public static String eval(
+        @Parameter(name = "s") String s, @Parameter(name = "n", optional = true) Integer n) {
       return s.substring(0, n == null ? 1 : n);
     }
   }

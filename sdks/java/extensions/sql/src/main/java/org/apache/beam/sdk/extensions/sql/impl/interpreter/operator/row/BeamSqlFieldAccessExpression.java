@@ -26,18 +26,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Represents a field access expression.
- */
+/** Represents a field access expression. */
 public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
 
   private BeamSqlExpression referenceExpression;
   private int nestedFieldIndex;
 
   public BeamSqlFieldAccessExpression(
-      BeamSqlExpression referenceExpression,
-      int nestedFieldIndex,
-      SqlTypeName nestedFieldType) {
+      BeamSqlExpression referenceExpression, int nestedFieldIndex, SqlTypeName nestedFieldType) {
 
     super(Collections.emptyList(), nestedFieldType);
     this.referenceExpression = referenceExpression;
@@ -63,8 +59,8 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
     } else {
       throw new IllegalArgumentException(
           "Attempt to access field of unsupported type "
-          + targetFieldType.getClass().getSimpleName()
-          + ". Field access operator is only supported for arrays or rows");
+              + targetFieldType.getClass().getSimpleName()
+              + ". Field access operator is only supported for arrays or rows");
     }
 
     return BeamSqlPrimitive.of(outputType, targetFieldValue);

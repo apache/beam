@@ -36,30 +36,25 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.calcite.tools.ValidationException;
 import org.junit.Test;
 
-/**
- * UnitTest for {@link BeamSqlCli}.
- */
+/** UnitTest for {@link BeamSqlCli}. */
 public class BeamSqlCliTest {
   @Test
   public void testExecute_createTextTable() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
         "create table person (\n"
-        + "id int COMMENT 'id', \n"
-        + "name varchar COMMENT 'name', \n"
-        + "age int COMMENT 'age') \n"
-        + "TYPE 'text' \n"
-        + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
-        Stream
-            .of(
+        Stream.of(
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true))
@@ -72,32 +67,33 @@ public class BeamSqlCliTest {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
         "create table person (\n"
-        + "id int COMMENT 'id', \n"
-        + "name varchar COMMENT 'name', \n"
-        + "age int COMMENT 'age', \n"
-        + "tags ARRAY<VARCHAR>, \n"
-        + "matrix ARRAY<ARRAY<INTEGER>> \n"
-        + ") \n"
-        + "TYPE 'text' \n"
-        + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age', \n"
+            + "tags ARRAY<VARCHAR>, \n"
+            + "matrix ARRAY<ARRAY<INTEGER>> \n"
+            + ") \n"
+            + "TYPE 'text' \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
-        Stream
-            .of(
+        Stream.of(
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("tags",
-                         ARRAY.type().withCollectionElementType(VARCHAR)).withNullable(true),
-                Field.of("matrix",
-                         ARRAY.type().withCollectionElementType(
-                             ARRAY.type().withCollectionElementType(INTEGER))).withNullable(true))
+                Field.of("tags", ARRAY.type().withCollectionElementType(VARCHAR))
+                    .withNullable(true),
+                Field.of(
+                        "matrix",
+                        ARRAY
+                            .type()
+                            .withCollectionElementType(
+                                ARRAY.type().withCollectionElementType(INTEGER)))
+                    .withNullable(true))
             .collect(toSchema()),
         table.getSchema());
   }
@@ -107,33 +103,29 @@ public class BeamSqlCliTest {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
         "create table person (\n"
-        + "id int COMMENT 'id', \n"
-        + "name varchar COMMENT 'name', \n"
-        + "age int COMMENT 'age', \n"
-        + "tags MAP<VARCHAR, VARCHAR>, \n"
-        + "nestedMap MAP<INTEGER, MAP<VARCHAR, INTEGER>> \n"
-        + ") \n"
-        + "TYPE 'text' \n"
-        + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age', \n"
+            + "tags MAP<VARCHAR, VARCHAR>, \n"
+            + "nestedMap MAP<INTEGER, MAP<VARCHAR, INTEGER>> \n"
+            + ") \n"
+            + "TYPE 'text' \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
-        Stream
-            .of(
+        Stream.of(
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("tags",
-                         MAP.type().withMapType(VARCHAR, VARCHAR)).withNullable(true),
-                Field.of("nestedmap",
-                         MAP.type().withMapType(
-                             INTEGER,
-                             MAP.type().withMapType(VARCHAR, INTEGER))).withNullable(true))
+                Field.of("tags", MAP.type().withMapType(VARCHAR, VARCHAR)).withNullable(true),
+                Field.of(
+                        "nestedmap",
+                        MAP.type().withMapType(INTEGER, MAP.type().withMapType(VARCHAR, INTEGER)))
+                    .withNullable(true))
             .collect(toSchema()),
         table.getSchema());
   }
@@ -143,48 +135,49 @@ public class BeamSqlCliTest {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
         "create table person (\n"
-        + "id int COMMENT 'id', \n"
-        + "name varchar COMMENT 'name', \n"
-        + "age int COMMENT 'age', \n"
-        + "address ROW ( \n"
-        + "  street VARCHAR, \n"
-        + "  country VARCHAR \n"
-        + "  ), \n"
-        + "addressAngular ROW< \n"
-        + "  street VARCHAR, \n"
-        + "  country VARCHAR \n"
-        + "  >, \n"
-        + "isRobot BOOLEAN"
-        + ") \n"
-        + "TYPE 'text' \n"
-        + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age', \n"
+            + "address ROW ( \n"
+            + "  street VARCHAR, \n"
+            + "  country VARCHAR \n"
+            + "  ), \n"
+            + "addressAngular ROW< \n"
+            + "  street VARCHAR, \n"
+            + "  country VARCHAR \n"
+            + "  >, \n"
+            + "isRobot BOOLEAN"
+            + ") \n"
+            + "TYPE 'text' \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
     assertEquals(
-        Stream
-            .of(
+        Stream.of(
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("address",
-                         ROW.type().withRowSchema(
-                             RowSqlTypes
-                                 .builder()
-                                 .withVarcharField("street")
-                                 .withVarcharField("country")
-                                 .build())).withNullable(true),
-                Field.of("addressangular",
-                         ROW.type().withRowSchema(
-                             RowSqlTypes
-                                 .builder()
-                                 .withVarcharField("street")
-                                 .withVarcharField("country")
-                                 .build())).withNullable(true),
+                Field.of(
+                        "address",
+                        ROW.type()
+                            .withRowSchema(
+                                RowSqlTypes.builder()
+                                    .withVarcharField("street")
+                                    .withVarcharField("country")
+                                    .build()))
+                    .withNullable(true),
+                Field.of(
+                        "addressangular",
+                        ROW.type()
+                            .withRowSchema(
+                                RowSqlTypes.builder()
+                                    .withVarcharField("street")
+                                    .withVarcharField("country")
+                                    .build()))
+                    .withNullable(true),
                 Field.of("isrobot", BOOLEAN).withNullable(true))
             .collect(toSchema()),
         table.getSchema());
@@ -195,16 +188,14 @@ public class BeamSqlCliTest {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
 
@@ -218,16 +209,14 @@ public class BeamSqlCliTest {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "COMMENT '' LOCATION '/home/admin/orders'");
     cli.execute("drop table person");
     cli.explainQuery("select * from person");
   }
@@ -237,8 +226,7 @@ public class BeamSqlCliTest {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
 
-    BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore);
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
 
     cli.execute(
         "create table person (\n"
@@ -246,14 +234,12 @@ public class BeamSqlCliTest {
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
             + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION '/home/admin/orders'"
-    );
+            + "COMMENT '' LOCATION '/home/admin/orders'");
 
     String plan = cli.explainQuery("select * from person");
     assertEquals(
         "BeamProjectRel(id=[$0], name=[$1], age=[$2])\n"
-        + "  BeamIOSourceRel(table=[[beam, person]])\n",
-        plan
-    );
+            + "  BeamIOSourceRel(table=[[beam, person]])\n",
+        plan);
   }
 }

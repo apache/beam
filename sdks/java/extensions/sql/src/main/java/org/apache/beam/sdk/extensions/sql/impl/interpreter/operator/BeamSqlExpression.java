@@ -27,15 +27,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamSqlExpression} is an equivalent expression in BeamSQL, of {@link RexNode} in Calcite.
  *
- * <p>An implementation of {@link BeamSqlExpression} takes one or more {@code BeamSqlExpression}
- * as its operands, and return a value with type {@link SqlTypeName}.
- *
+ * <p>An implementation of {@link BeamSqlExpression} takes one or more {@code BeamSqlExpression} as
+ * its operands, and return a value with type {@link SqlTypeName}.
  */
 public abstract class BeamSqlExpression implements Serializable {
   protected List<BeamSqlExpression> operands;
   protected SqlTypeName outputType;
 
-  protected BeamSqlExpression(){}
+  protected BeamSqlExpression() {}
 
   public BeamSqlExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     this.operands = operands;
@@ -54,14 +53,12 @@ public abstract class BeamSqlExpression implements Serializable {
     return (T) op(idx).evaluate(row, window).getValue();
   }
 
-  /**
-   * assertion to make sure the input and output are supported in this expression.
-   */
+  /** assertion to make sure the input and output are supported in this expression. */
   public abstract boolean accept();
 
   /**
-   * Apply input record {@link Row} with {@link BoundedWindow} to this expression,
-   * the output value is wrapped with {@link BeamSqlPrimitive}.
+   * Apply input record {@link Row} with {@link BoundedWindow} to this expression, the output value
+   * is wrapped with {@link BeamSqlPrimitive}.
    */
   public abstract BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window);
 

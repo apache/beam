@@ -38,12 +38,11 @@ public class BeamSqlWindowEndExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive<DateTime> evaluate(Row inputRow, BoundedWindow window) {
     if (window instanceof IntervalWindow) {
-      return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-          new DateTime(((IntervalWindow) window).end()));
+      return BeamSqlPrimitive.of(
+          SqlTypeName.TIMESTAMP, new DateTime(((IntervalWindow) window).end()));
     } else {
       throw new UnsupportedOperationException(
           "Cannot run HOP_END|TUMBLE_END|SESSION_END on GlobalWindow.");
     }
   }
-
 }

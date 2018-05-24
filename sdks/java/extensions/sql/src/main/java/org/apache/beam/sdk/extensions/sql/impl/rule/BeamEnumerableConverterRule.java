@@ -25,16 +25,16 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
-/**
- * A {@code ConverterRule} to Convert {@link BeamRelNode} to {@link EnumerableConvention}.
- *
- */
+/** A {@code ConverterRule} to Convert {@link BeamRelNode} to {@link EnumerableConvention}. */
 public class BeamEnumerableConverterRule extends ConverterRule {
   public static final BeamEnumerableConverterRule INSTANCE = new BeamEnumerableConverterRule();
 
   private BeamEnumerableConverterRule() {
-    super(RelNode.class, BeamLogicalConvention.INSTANCE,
-        EnumerableConvention.INSTANCE, "BeamEnumerableConverterRule");
+    super(
+        RelNode.class,
+        BeamLogicalConvention.INSTANCE,
+        EnumerableConvention.INSTANCE,
+        "BeamEnumerableConverterRule");
   }
 
   @Override

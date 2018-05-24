@@ -30,75 +30,80 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamSqlExtractExpression}.
- */
+/** Test for {@code BeamSqlExtractExpression}. */
 public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase {
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
     DateTime time = str2DateTime("2017-05-22 16:17:18");
 
     // YEAR
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(2017L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        2017L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
 
     // MONTH
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(5L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        5L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
 
     // DAY
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.DAY));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(22L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        22L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
 
     // DAY_OF_WEEK
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.DOW));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(2L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        2L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
 
     // DAY_OF_YEAR
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.DOY));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(142L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        142L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
 
     // WEEK
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.WEEK));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(21L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        21L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
 
     // QUARTER
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.QUARTER));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        time));
-    assertEquals(2L,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, time));
+    assertEquals(
+        2L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
-
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getValue());
   }
 }

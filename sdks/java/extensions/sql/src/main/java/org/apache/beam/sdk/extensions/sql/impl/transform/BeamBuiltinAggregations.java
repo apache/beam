@@ -43,11 +43,7 @@ import org.joda.time.ReadableInstant;
 class BeamBuiltinAggregations {
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
 
-
-
-  /**
-   * {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}.
-   */
+  /** {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createMax(SqlTypeName fieldType) {
     switch (fieldType) {
       case INTEGER:
@@ -72,9 +68,7 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /**
-   * {@link CombineFn} for MAX based on {@link Min} and {@link Combine.BinaryCombineFn}.
-   */
+  /** {@link CombineFn} for MAX based on {@link Min} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createMin(SqlTypeName fieldType) {
     switch (fieldType) {
       case INTEGER:
@@ -99,9 +93,7 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /**
-   * {@link CombineFn} for MAX based on {@link Sum} and {@link Combine.BinaryCombineFn}.
-   */
+  /** {@link CombineFn} for MAX based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createSum(SqlTypeName fieldType) {
     switch (fieldType) {
       case INTEGER:
@@ -124,9 +116,7 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /**
-   * {@link CombineFn} for AVG.
-   */
+  /** {@link CombineFn} for AVG. */
   public static CombineFn createAvg(SqlTypeName fieldType) {
     switch (fieldType) {
       case INTEGER:
@@ -185,11 +175,8 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /**
-   * {@link CombineFn} for <em>AVG</em> on {@link Number} types.
-   */
-  abstract static class Avg<T extends Number>
-      extends CombineFn<T, KV<Integer, BigDecimal>, T> {
+  /** {@link CombineFn} for <em>AVG</em> on {@link Number} types. */
+  abstract static class Avg<T extends Number> extends CombineFn<T, KV<Integer, BigDecimal>, T> {
     @Override
     public KV<Integer, BigDecimal> createAccumulator() {
       return KV.of(0, BigDecimal.ZERO);
@@ -213,8 +200,8 @@ class BeamBuiltinAggregations {
     }
 
     @Override
-    public Coder<KV<Integer, BigDecimal>> getAccumulatorCoder(CoderRegistry registry,
-                                                              Coder<T> inputCoder) {
+    public Coder<KV<Integer, BigDecimal>> getAccumulatorCoder(
+        CoderRegistry registry, Coder<T> inputCoder) {
       return KvCoder.of(BigEndianIntegerCoder.of(), BigDecimalCoder.of());
     }
 

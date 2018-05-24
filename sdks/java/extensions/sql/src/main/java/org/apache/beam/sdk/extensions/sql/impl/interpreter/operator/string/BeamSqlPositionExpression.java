@@ -28,18 +28,20 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * String position operator.
  *
- * <p>
- *   example:
- *     POSITION(string1 IN string2)
- *     POSITION(string1 IN string2 FROM integer)
- * </p>
+ * <p>example:
+ *
+ * <ul>
+ *   <li>{@code POSITION(string1 IN string2)}
+ *   <li>{@code POSITION(string1 IN string2 FROM integer)}
+ * </ul>
  */
 public class BeamSqlPositionExpression extends BeamSqlExpression {
   public BeamSqlPositionExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.INTEGER);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() < 2 || operands.size() > 3) {
       return false;
     }
@@ -49,15 +51,15 @@ public class BeamSqlPositionExpression extends BeamSqlExpression {
       return false;
     }
 
-    if (operands.size() == 3
-        && !SqlTypeName.INT_TYPES.contains(opType(2))) {
+    if (operands.size() == 3 && !SqlTypeName.INT_TYPES.contains(opType(2))) {
       return false;
     }
 
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     String targetStr = opValueEvaluated(0, inputRow, window);
     String containingStr = opValueEvaluated(1, inputRow, window);
     int from = -1;

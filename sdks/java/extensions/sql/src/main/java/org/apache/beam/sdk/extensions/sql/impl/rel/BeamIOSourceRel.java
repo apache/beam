@@ -26,16 +26,12 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.core.TableScan;
 
-/**
- * BeamRelNode to replace a {@code TableScan} node.
- *
- */
+/** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   private BeamSqlTable sqlTable;
 
-  public BeamIOSourceRel(
-      RelOptCluster cluster, RelOptTable table, BeamSqlTable sqlTable) {
+  public BeamIOSourceRel(RelOptCluster cluster, RelOptTable table, BeamSqlTable sqlTable) {
     super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
     this.sqlTable = sqlTable;
   }
@@ -49,8 +45,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      return sqlTable
-          .buildIOReader(inputPCollections.getPipeline());
+      return sqlTable.buildIOReader(inputPCollections.getPipeline());
     }
   }
 

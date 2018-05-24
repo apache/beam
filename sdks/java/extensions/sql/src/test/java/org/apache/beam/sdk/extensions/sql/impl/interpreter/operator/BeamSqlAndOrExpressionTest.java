@@ -26,9 +26,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test cases for {@link BeamSqlAndExpression}, {@link BeamSqlOrExpression}.
- */
+/** Test cases for {@link BeamSqlAndExpression}, {@link BeamSqlOrExpression}. */
 public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
@@ -55,7 +53,5 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
 
     Assert.assertTrue(new BeamSqlOrExpression(operands).evaluate(row, null).getValue());
-
   }
-
 }

@@ -24,9 +24,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for 'AND' operation.
- */
+/** {@code BeamSqlExpression} for 'AND' operation. */
 public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
   public BeamSqlAndExpression(List<BeamSqlExpression> operands) {
     super(operands);
@@ -44,5 +42,4 @@ public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
     }
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
-
 }

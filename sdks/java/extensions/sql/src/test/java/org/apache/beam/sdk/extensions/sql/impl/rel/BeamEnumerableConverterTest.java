@@ -51,9 +51,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamEnumerableConverter}.
- */
+/** Test for {@code BeamEnumerableConverter}. */
 public class BeamEnumerableConverterTest {
   static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   static RexBuilder rexBuilder = new RexBuilder(TYPE_FACTORY);

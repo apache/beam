@@ -22,15 +22,14 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 
-/**
- * '%' operator.
- */
+/** '%' operator. */
 public class BeamSqlModExpression extends BeamSqlArithmeticExpression {
   public BeamSqlModExpression(List<BeamSqlExpression> operands) {
     super(operands, operands.get(1).getOutputType());
   }
 
-  @Override protected BigDecimal calc(BigDecimal left, BigDecimal right) {
+  @Override
+  protected BigDecimal calc(BigDecimal left, BigDecimal right) {
     return BigDecimal.valueOf(left.doubleValue() % right.doubleValue());
   }
 }

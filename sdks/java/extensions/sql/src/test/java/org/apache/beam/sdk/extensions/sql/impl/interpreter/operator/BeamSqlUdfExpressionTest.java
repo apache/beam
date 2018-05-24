@@ -24,9 +24,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlUdfExpression.
- */
+/** Test for BeamSqlUdfExpression. */
 public class BeamSqlUdfExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
@@ -34,15 +32,14 @@ public class BeamSqlUdfExpressionTest extends BeamSqlFnExecutorTestBase {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 10));
 
-    BeamSqlUdfExpression exp = new BeamSqlUdfExpression(
-        UdfFn.class.getMethod("negative", Integer.class), operands, SqlTypeName.INTEGER);
+    BeamSqlUdfExpression exp =
+        new BeamSqlUdfExpression(
+            UdfFn.class.getMethod("negative", Integer.class), operands, SqlTypeName.INTEGER);
 
     Assert.assertEquals(-10, exp.evaluate(row, null).getValue());
   }
 
-  /**
-   * UDF example.
-   */
+  /** UDF example. */
   public static final class UdfFn {
     public static int negative(Integer number) {
       return number == null ? 0 : 0 - number;

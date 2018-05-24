@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Table schema for text files.
- */
+/** Table schema for text files. */
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;

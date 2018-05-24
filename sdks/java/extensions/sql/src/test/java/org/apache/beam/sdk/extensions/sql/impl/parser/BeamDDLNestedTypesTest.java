@@ -71,9 +71,11 @@ public class BeamDDLNestedTypesTest {
   private Table executeCreateTableWith(String fieldType) {
     String createTable =
         "create table tablename ( "
-        + "fieldName " + fieldType + " ) "
-        + "TYPE 'text' "
-        + "LOCATION '/home/admin/person'\n";
+            + "fieldName "
+            + fieldType
+            + " ) "
+            + "TYPE 'text' "
+            + "LOCATION '/home/admin/person'\n";
     System.out.println(createTable);
 
     SqlNode sqlNode;
@@ -90,16 +92,13 @@ public class BeamDDLNestedTypesTest {
   }
 
   private Schema newSimpleSchemaWith(FieldType fieldType) {
-    return Schema
-        .builder()
-        .addField(Field.of("fieldname", fieldType).withNullable(true))
-        .build();
+    return Schema.builder().addField(Field.of("fieldname", fieldType).withNullable(true)).build();
   }
 
   private String unparse(FieldType fieldType) {
     if (fieldType.getTypeName().isMapType()) {
       return unparseMap(fieldType);
-    } else if (fieldType.getTypeName().isCollectionType()){
+    } else if (fieldType.getTypeName().isCollectionType()) {
       return unparseArray(fieldType);
     } else if (fieldType.getTypeName().isCompositeType()) {
       return unparseRow(fieldType);
@@ -118,14 +117,14 @@ public class BeamDDLNestedTypesTest {
 
   private String unparseMap(FieldType fieldType) {
     return "MAP<"
-           + unparse(fieldType.getMapKeyType())
-           + ", "
-           + unparse(fieldType.getMapValueType()) + ">";
+        + unparse(fieldType.getMapKeyType())
+        + ", "
+        + unparse(fieldType.getMapValueType())
+        + ">";
   }
 
   private String unparseRow(FieldType fieldType) {
-    return
-        "ROW<"
+    return "ROW<"
         + fieldType
             .getRowSchema()
             .getFields()

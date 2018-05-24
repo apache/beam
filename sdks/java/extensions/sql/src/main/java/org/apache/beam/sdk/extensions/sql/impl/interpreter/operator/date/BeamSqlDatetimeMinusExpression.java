@@ -31,18 +31,18 @@ import org.joda.time.DurationFieldType;
 /**
  * Infix '-' operation for timestamps.
  *
- * <p>Implements 2 SQL subtraction operations at the moment:
- * 'timestampdiff(timeunit, timestamp, timestamp)', and 'timestamp - interval'
+ * <p>Implements 2 SQL subtraction operations at the moment: 'timestampdiff(timeunit, timestamp,
+ * timestamp)', and 'timestamp - interval'
  *
  * <p>Calcite converts both of the above into infix '-' expression, with different operands and
  * return types.
  *
- * <p>This class delegates evaluation to specific implementation of one of the above operations,
- * see {@link BeamSqlTimestampMinusTimestampExpression}
- * and {@link BeamSqlTimestampMinusIntervalExpression}
+ * <p>This class delegates evaluation to specific implementation of one of the above operations, see
+ * {@link BeamSqlTimestampMinusTimestampExpression} and {@link
+ * BeamSqlTimestampMinusIntervalExpression}
  *
- * <p>Calcite supports one more subtraction kind: 'interval - interval',
- * but it is not implemented yet.
+ * <p>Calcite supports one more subtraction kind: 'interval - interval', but it is not implemented
+ * yet.
  */
 public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
 
@@ -102,4 +102,3 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
     return delegateExpression.evaluate(inputRow, window);
   }
 }
-

@@ -25,14 +25,10 @@ import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * Contain helpers to assert {@link Row}s.
- */
+/** Contain helpers to assert {@link Row}s. */
 public class RowAsserts {
 
-  /**
-   * Asserts result contains single row with an int field.
-   */
+  /** Asserts result contains single row with an int field. */
   public static SerializableFunction<Iterable<Row>, Void> matchesScalar(int expected) {
     return records -> {
       Row row = Iterables.getOnlyElement(records);
@@ -42,9 +38,7 @@ public class RowAsserts {
     };
   }
 
-  /**
-   * Asserts result contains single row with a double field.
-   */
+  /** Asserts result contains single row with a double field. */
   public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
       double expected, double delta) {
 

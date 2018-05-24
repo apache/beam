@@ -22,9 +22,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test cases for {@link BeamSqlInputRefExpression}.
- */
+/** Test cases for {@link BeamSqlInputRefExpression}. */
 public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
@@ -41,7 +39,6 @@ public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
     BeamSqlInputRefExpression ref3 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3);
     Assert.assertEquals(row.getInt64(3), ref3.evaluate(row, null).getValue());
   }
-
 
   @Test(expected = IndexOutOfBoundsException.class)
   public void testRefOutOfRange() {

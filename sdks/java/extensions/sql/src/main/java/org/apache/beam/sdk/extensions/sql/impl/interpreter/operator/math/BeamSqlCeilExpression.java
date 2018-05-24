@@ -24,22 +24,21 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'CEIL' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'CEIL' function. */
 public class BeamSqlCeilExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlCeilExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DOUBLE);
   }
 
-  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+  @Override
+  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
     switch (getOutputType()) {
       case DECIMAL:
         return BeamSqlPrimitive.of(SqlTypeName.DECIMAL, SqlFunctions.ceil(op.getDecimal()));
       default:
-        return BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.ceil(SqlFunctions.toDouble(op.getValue())));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.DOUBLE, SqlFunctions.ceil(SqlFunctions.toDouble(op.getValue())));
     }
   }
 }

@@ -23,13 +23,11 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Utils to help with SqlTypes.
- */
+/** Utils to help with SqlTypes. */
 public class SqlTypeUtils {
   /**
-   * Finds an operand with provided type.
-   * Returns Optional.absent() if no operand found with matching type
+   * Finds an operand with provided type. Returns Optional.absent() if no operand found with
+   * matching type
    */
   public static Optional<BeamSqlExpression> findExpressionOfType(
       List<BeamSqlExpression> operands, SqlTypeName type) {
@@ -44,8 +42,8 @@ public class SqlTypeUtils {
   }
 
   /**
-   * Finds an operand with the type in typesToFind.
-   * Returns Optional.absent() if no operand found with matching type
+   * Finds an operand with the type in typesToFind. Returns Optional.absent() if no operand found
+   * with matching type
    */
   public static Optional<BeamSqlExpression> findExpressionOfType(
       List<BeamSqlExpression> operands, Collection<SqlTypeName> typesToFind) {

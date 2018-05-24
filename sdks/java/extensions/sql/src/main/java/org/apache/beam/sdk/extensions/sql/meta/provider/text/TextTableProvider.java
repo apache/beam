@@ -29,6 +29,7 @@ import org.apache.commons.csv.CSVFormat;
  * Text table provider.
  *
  * <p>A sample of text table is:
+ *
  * <pre>{@code
  * CREATE TABLE ORDERS(
  *   ID INT COMMENT 'this is the primary key',
@@ -42,11 +43,13 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class TextTableProvider extends InMemoryMetaTableProvider {
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "text";
   }
 
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
 
     String filePattern = table.getLocation();

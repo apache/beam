@@ -24,10 +24,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * {@code BeamSqlFilterFn} is the executor for a {@link BeamFilterRel} step.
- *
- */
+/** {@code BeamSqlFilterFn} is the executor for a {@link BeamFilterRel} step. */
 public class BeamSqlFilterFn extends DoFn<Row, Row> {
 
   private String stepName;
@@ -59,5 +56,4 @@ public class BeamSqlFilterFn extends DoFn<Row, Row> {
   public void close() {
     executor.close();
   }
-
 }

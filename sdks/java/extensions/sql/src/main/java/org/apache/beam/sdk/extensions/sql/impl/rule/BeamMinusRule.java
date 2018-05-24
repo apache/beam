@@ -27,24 +27,22 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Minus;
 import org.apache.calcite.rel.logical.LogicalMinus;
 
-/**
- * {@code ConverterRule} to replace {@code Minus} with {@code BeamMinusRel}.
- */
+/** {@code ConverterRule} to replace {@code Minus} with {@code BeamMinusRel}. */
 public class BeamMinusRule extends ConverterRule {
   public static final BeamMinusRule INSTANCE = new BeamMinusRule();
+
   private BeamMinusRule() {
-    super(LogicalMinus.class, Convention.NONE,
-        BeamLogicalConvention.INSTANCE, "BeamMinusRule");
+    super(LogicalMinus.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamMinusRule");
   }
 
-  @Override public RelNode convert(RelNode rel) {
+  @Override
+  public RelNode convert(RelNode rel) {
     Minus minus = (Minus) rel;
     final List<RelNode> inputs = minus.getInputs();
     return new BeamMinusRel(
         minus.getCluster(),
         minus.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convertList(inputs, BeamLogicalConvention.INSTANCE),
-        minus.all
-    );
+        minus.all);
   }
 }

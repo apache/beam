@@ -24,9 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathBinaryExpression} for 'ROUND' function.
- */
+/** {@code BeamSqlMathBinaryExpression} for 'ROUND' function. */
 public class BeamSqlRoundExpression extends BeamSqlMathBinaryExpression {
 
   private final BeamSqlPrimitive zero = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 0);
@@ -42,37 +40,49 @@ public class BeamSqlRoundExpression extends BeamSqlMathBinaryExpression {
     }
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
-      BeamSqlPrimitive rightOp) {
+  @Override
+  public BeamSqlPrimitive<? extends Number> calculate(
+      BeamSqlPrimitive leftOp, BeamSqlPrimitive rightOp) {
     BeamSqlPrimitive result = null;
     switch (leftOp.getOutputType()) {
       case SMALLINT:
-        result = BeamSqlPrimitive.of(SqlTypeName.SMALLINT,
-            (short) roundInt(toInt(leftOp.getValue()), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.SMALLINT,
+                (short) roundInt(toInt(leftOp.getValue()), toInt(rightOp.getValue())));
         break;
       case TINYINT:
-        result = BeamSqlPrimitive.of(SqlTypeName.TINYINT,
-            (byte) roundInt(toInt(leftOp.getValue()), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.TINYINT,
+                (byte) roundInt(toInt(leftOp.getValue()), toInt(rightOp.getValue())));
         break;
       case INTEGER:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.INTEGER, roundInt(leftOp.getInteger(), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.INTEGER, roundInt(leftOp.getInteger(), toInt(rightOp.getValue())));
         break;
       case BIGINT:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.BIGINT, roundLong(leftOp.getLong(), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.BIGINT, roundLong(leftOp.getLong(), toInt(rightOp.getValue())));
         break;
       case DOUBLE:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, roundDouble(leftOp.getDouble(), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.DOUBLE, roundDouble(leftOp.getDouble(), toInt(rightOp.getValue())));
         break;
       case FLOAT:
-        result = BeamSqlPrimitive.of(SqlTypeName.FLOAT,
-            (float) roundDouble(leftOp.getFloat(), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.FLOAT,
+                (float) roundDouble(leftOp.getFloat(), toInt(rightOp.getValue())));
         break;
       case DECIMAL:
-        result = BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
-            roundBigDecimal(toBigDecimal(leftOp.getValue()), toInt(rightOp.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.DECIMAL,
+                roundBigDecimal(toBigDecimal(leftOp.getValue()), toInt(rightOp.getValue())));
         break;
       default:
         break;
@@ -103,5 +113,4 @@ public class BeamSqlRoundExpression extends BeamSqlMathBinaryExpression {
   private BigDecimal toBigDecimal(Object value) {
     return SqlFunctions.toBigDecimal(value);
   }
-
 }

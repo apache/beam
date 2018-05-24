@@ -32,9 +32,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class BeamSqlSingleElementExpression extends BeamSqlExpression {
 
-  public BeamSqlSingleElementExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlSingleElementExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
 
     super(operands, sqlTypeName);
   }
@@ -56,9 +54,9 @@ public class BeamSqlSingleElementExpression extends BeamSqlExpression {
 
     throw new IllegalArgumentException(
         "ELEMENT expression accepts either empty collections "
-        + "or collections with a single element. "
-        + "Received collection with "
-        + collection.size()
-        + " elements");
+            + "or collections with a single element. "
+            + "Received collection with "
+            + collection.size()
+            + " elements");
   }
 }

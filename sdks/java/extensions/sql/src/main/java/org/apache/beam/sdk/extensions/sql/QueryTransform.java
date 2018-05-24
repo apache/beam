@@ -44,15 +44,16 @@ import org.apache.calcite.tools.ValidationException;
 /**
  * A {@link PTransform} representing an execution plan for a SQL query.
  *
- * <p>The table names in the input {@code PCollectionTuple} are only valid during the current
- * query.
+ * <p>The table names in the input {@code PCollectionTuple} are only valid during the current query.
  */
 @AutoValue
 public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
   abstract String queryString();
+
   abstract List<UdfDefinition> udfDefinitions();
+
   abstract List<UdafDefinition> udafDefinitions();
 
   @Override
@@ -62,9 +63,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     registerFunctions(sqlEnv);
 
     try {
-      return sqlEnv.getPlanner().compileBeamPipeline(
-          queryString(),
-          input.getPipeline());
+      return sqlEnv.getPlanner().compileBeamPipeline(queryString(), input.getPipeline());
     } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new IllegalStateException(e);
     }
@@ -76,20 +75,16 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
   private Map<String, BeamSqlTable> toTableMap(PInput inputs) {
     /**
-     * A single PCollection is transformed to a table named PCOLLECTION, other
-     * input types are expanded and converted to tables using the tags as names.
+     * A single PCollection is transformed to a table named PCOLLECTION, other input types are
+     * expanded and converted to tables using the tags as names.
      */
     if (inputs instanceof PCollection) {
-      return
-          ImmutableMap.of(
-              PCOLLECTION_NAME,
-              new BeamPCollectionTable(toRows(inputs)));
+      return ImmutableMap.of(PCOLLECTION_NAME, new BeamPCollectionTable(toRows(inputs)));
     }
 
     ImmutableMap.Builder<String, BeamSqlTable> tables = ImmutableMap.builder();
     for (Map.Entry<TupleTag<?>, PValue> input : inputs.expand().entrySet()) {
-      tables.put(input.getKey().getId(),
-          new BeamPCollectionTable(toRows(input.getValue())));
+      tables.put(input.getKey().getId(), new BeamPCollectionTable(toRows(input.getValue())));
     }
     return tables.build();
   }
@@ -98,20 +93,16 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     udfDefinitions()
         .forEach(udf -> sqlEnv.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
 
-    udafDefinitions()
-        .forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
+    udafDefinitions().forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
-  /**
-   * Creates a {@link QueryTransform} with SQL {@code queryString}.
-   */
+  /** Creates a {@link QueryTransform} with SQL {@code queryString}. */
   public static QueryTransform withQueryString(String queryString) {
-    return
-        builder()
-            .setQueryString(queryString)
-            .setUdafDefinitions(Collections.emptyList())
-            .setUdfDefinitions(Collections.emptyList())
-            .build();
+    return builder()
+        .setQueryString(queryString)
+        .setUdafDefinitions(Collections.emptyList())
+        .setUdfDefinitions(Collections.emptyList())
+        .build();
   }
 
   /**
@@ -124,8 +115,8 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   }
 
   /**
-   * Register {@link SerializableFunction} as a UDF function used in this query.
-   * Note, {@link SerializableFunction} must have a constructor without arguments.
+   * Register {@link SerializableFunction} as a UDF function used in this query. Note, {@link
+   * SerializableFunction} must have a constructor without arguments.
    */
   public QueryTransform registerUdf(String functionName, SerializableFunction sfn) {
     return registerUdf(functionName, sfn.getClass(), "apply");
@@ -133,8 +124,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
   private QueryTransform registerUdf(String functionName, Class<?> clazz, String method) {
     ImmutableList<UdfDefinition> newUdfDefinitions =
-        ImmutableList
-            .<UdfDefinition>builder()
+        ImmutableList.<UdfDefinition>builder()
             .addAll(udfDefinitions())
             .add(UdfDefinition.of(functionName, clazz, method))
             .build();
@@ -142,13 +132,10 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     return toBuilder().setUdfDefinitions(newUdfDefinitions).build();
   }
 
-  /**
-   * register a {@link Combine.CombineFn} as UDAF function used in this query.
-   */
+  /** register a {@link Combine.CombineFn} as UDAF function used in this query. */
   public QueryTransform registerUdaf(String functionName, Combine.CombineFn combineFn) {
     ImmutableList<UdafDefinition> newUdafs =
-        ImmutableList
-            .<UdafDefinition>builder()
+        ImmutableList.<UdafDefinition>builder()
             .addAll(udafDefinitions())
             .add(UdafDefinition.of(functionName, combineFn))
             .build();
@@ -165,7 +152,9 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setQueryString(String queryString);
+
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
+
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
 
     abstract QueryTransform build();
@@ -174,7 +163,9 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   @AutoValue
   abstract static class UdfDefinition {
     abstract String udfName();
+
     abstract Class<?> clazz();
+
     abstract String methodName();
 
     static UdfDefinition of(String udfName, Class<?> clazz, String methodName) {
@@ -185,6 +176,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   @AutoValue
   abstract static class UdafDefinition {
     abstract String udafName();
+
     abstract Combine.CombineFn combineFn();
 
     static UdafDefinition of(String udafName, Combine.CombineFn combineFn) {

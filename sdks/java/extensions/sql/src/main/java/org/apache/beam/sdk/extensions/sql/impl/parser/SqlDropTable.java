@@ -22,9 +22,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * Parse tree for {@code DROP TABLE} statement.
- */
+/** Parse tree for {@code DROP TABLE} statement. */
 public class SqlDropTable extends SqlDropObject {
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("DROP TABLE", SqlKind.DROP_TABLE);

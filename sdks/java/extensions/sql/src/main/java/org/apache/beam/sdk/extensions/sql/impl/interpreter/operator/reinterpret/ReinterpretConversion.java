@@ -27,15 +27,11 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Defines conversion between 2 SQL types.
- */
+/** Defines conversion between 2 SQL types. */
 public class ReinterpretConversion {
 
-  /**
-   * Builder for {@link ReinterpretConversion}.
-   */
-  public static class Builder  {
+  /** Builder for {@link ReinterpretConversion}. */
+  public static class Builder {
 
     private Set<SqlTypeName> from = new HashSet<>();
     private SqlTypeName to;
@@ -51,7 +47,7 @@ public class ReinterpretConversion {
       return this;
     }
 
-    public Builder from(SqlTypeName ... from) {
+    public Builder from(SqlTypeName... from) {
       return from(Arrays.asList(from));
     }
 
@@ -67,8 +63,8 @@ public class ReinterpretConversion {
 
     public ReinterpretConversion build() {
       if (from.isEmpty() || to == null || convert == null) {
-        throw new IllegalArgumentException("All arguments to ReinterpretConversion.Builder"
-            + " are mandatory.");
+        throw new IllegalArgumentException(
+            "All arguments to ReinterpretConversion.Builder" + " are mandatory.");
       }
       return new ReinterpretConversion(this);
     }
@@ -90,8 +86,13 @@ public class ReinterpretConversion {
 
   public BeamSqlPrimitive convert(BeamSqlPrimitive input) {
     if (!from.contains(input.getOutputType())) {
-      throw new IllegalArgumentException("Unable to convert from " + input.getOutputType().name()
-          + " to " + to.name() + ". This conversion only supports " + toString());
+      throw new IllegalArgumentException(
+          "Unable to convert from "
+              + input.getOutputType().name()
+              + " to "
+              + to.name()
+              + ". This conversion only supports "
+              + toString());
     }
 
     return convertFunction.apply(input);

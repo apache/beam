@@ -29,14 +29,10 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
  * handle MySQL based tables, a provider to handle Casandra based tables etc.
  */
 public interface TableProvider {
-  /**
-   * Gets the table type this provider handles.
-   */
+  /** Gets the table type this provider handles. */
   String getTableType();
 
-  /**
-   * Creates a table.
-   */
+  /** Creates a table. */
   void createTable(Table table);
 
   /**
@@ -46,13 +42,9 @@ public interface TableProvider {
    */
   void dropTable(String tableName);
 
-  /**
-   * Get all tables from this provider.
-   */
+  /** Get all tables from this provider. */
   Map<String, Table> getTables();
 
-  /**
-   * Build a {@link BeamSqlTable} using the given table meta info.
-   */
+  /** Build a {@link BeamSqlTable} using the given table meta info. */
   BeamSqlTable buildBeamSqlTable(Table table);
 }

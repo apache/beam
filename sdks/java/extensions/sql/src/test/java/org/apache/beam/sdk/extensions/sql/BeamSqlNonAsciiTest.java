@@ -24,34 +24,32 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
-/**
- * Tests for non ascii char in sql.
- */
+/** Tests for non ascii char in sql. */
 public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
 
-    @Test
-    public void testDefaultCharsetLiteral() {
-        String sql = "SELECT * FROM TABLE_A WHERE f_string = '第四行'";
+  @Test
+  public void testDefaultCharsetLiteral() {
+    String sql = "SELECT * FROM TABLE_A WHERE f_string = '第四行'";
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
             .apply("testCompositeFilter", BeamSql.query(sql));
 
-        PAssert.that(result).containsInAnyOrder(rowsInTableA.get(3));
+    PAssert.that(result).containsInAnyOrder(rowsInTableA.get(3));
 
-        pipeline.run().waitUntilFinish();
-    }
+    pipeline.run().waitUntilFinish();
+  }
 
-    @Test
-    public void testNationalCharsetLiteral() {
-        String sql = "SELECT * FROM TABLE_A WHERE f_string = N'第四行'";
+  @Test
+  public void testNationalCharsetLiteral() {
+    String sql = "SELECT * FROM TABLE_A WHERE f_string = N'第四行'";
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
             .apply("testCompositeFilter", BeamSql.query(sql));
 
-        PAssert.that(result).containsInAnyOrder(rowsInTableA.get(3));
+    PAssert.that(result).containsInAnyOrder(rowsInTableA.get(3));
 
-        pipeline.run().waitUntilFinish();
-    }
+    pipeline.run().waitUntilFinish();
+  }
 }

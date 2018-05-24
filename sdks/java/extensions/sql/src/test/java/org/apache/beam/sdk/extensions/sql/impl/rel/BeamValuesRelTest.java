@@ -29,43 +29,39 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamValuesRel}.
- */
+/** Test for {@code BeamValuesRel}. */
 public class BeamValuesRelTest extends BaseRelTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() {
-    registerTable("string_table",
+    registerTable(
+        "string_table",
         MockedBoundedTable.of(
             TypeName.STRING, "name",
-            TypeName.STRING, "description"
-        )
-    );
-    registerTable("int_table",
+            TypeName.STRING, "description"));
+    registerTable(
+        "int_table",
         MockedBoundedTable.of(
             TypeName.INT32, "c0",
-            TypeName.INT32, "c1"
-        )
-    );
+            TypeName.INT32, "c1"));
   }
 
   @Test
   public void testValues() throws Exception {
-    String sql = "insert into string_table(name, description) values "
-        + "('hello', 'world'), ('james', 'bond')";
+    String sql =
+        "insert into string_table(name, description) values "
+            + "('hello', 'world'), ('james', 'bond')";
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.STRING, "name",
-            TypeName.STRING, "description"
-        ).addRows(
-            "hello", "world",
-            "james", "bond"
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.STRING, "name",
+                    TypeName.STRING, "description")
+                .addRows(
+                    "hello", "world",
+                    "james", "bond")
+                .getRows());
     pipeline.run();
   }
 
@@ -73,14 +69,13 @@ public class BeamValuesRelTest extends BaseRelTest {
   public void testValues_castInt() throws Exception {
     String sql = "insert into int_table (c0, c1) values(cast(1 as int), cast(2 as int))";
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT32, "c0",
-            TypeName.INT32, "c1"
-        ).addRows(
-            1, 2
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT32, "c0",
+                    TypeName.INT32, "c1")
+                .addRows(1, 2)
+                .getRows());
     pipeline.run();
   }
 
@@ -88,14 +83,13 @@ public class BeamValuesRelTest extends BaseRelTest {
   public void testValues_onlySelect() throws Exception {
     String sql = "select 1, '1'";
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            TypeName.INT32, "EXPR$0",
-            TypeName.STRING, "EXPR$1"
-        ).addRows(
-            1, "1"
-        ).getRows()
-    );
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    TypeName.INT32, "EXPR$0",
+                    TypeName.STRING, "EXPR$1")
+                .addRows(1, "1")
+                .getRows());
     pipeline.run();
   }
 }

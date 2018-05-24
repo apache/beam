@@ -23,16 +23,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlCurrentDateExpression.
- */
+/** Test for BeamSqlCurrentDateExpression. */
 public class BeamSqlCurrentDateExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test
   public void test() {
     Assert.assertEquals(
         SqlTypeName.DATE,
         new BeamSqlCurrentDateExpression()
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getOutputType()
-    );
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getOutputType());
   }
 }

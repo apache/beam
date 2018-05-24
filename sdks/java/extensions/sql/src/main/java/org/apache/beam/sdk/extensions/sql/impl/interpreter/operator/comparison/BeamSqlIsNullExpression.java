@@ -25,9 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for 'IS NULL' operation.
- */
+/** {@code BeamSqlExpression} for 'IS NULL' operation. */
 public class BeamSqlIsNullExpression extends BeamSqlExpression {
 
   private BeamSqlIsNullExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
@@ -38,9 +36,7 @@ public class BeamSqlIsNullExpression extends BeamSqlExpression {
     this(Arrays.asList(operand), SqlTypeName.BOOLEAN);
   }
 
-  /**
-   * only one operand is required.
-   */
+  /** only one operand is required. */
   @Override
   public boolean accept() {
     return operands.size() == 1;

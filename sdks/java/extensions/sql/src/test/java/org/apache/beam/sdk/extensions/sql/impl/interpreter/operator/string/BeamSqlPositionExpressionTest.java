@@ -30,12 +30,11 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlPositionExpression.
- */
+/** Test for BeamSqlPositionExpression. */
 public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void accept() throws Exception {
+  @Test
+  public void accept() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -61,7 +60,8 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
     assertFalse(new BeamSqlPositionExpression(operands).accept());
   }
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -80,5 +80,4 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     assertEquals(-1, new BeamSqlPositionExpression(operands).evaluate(row, null).getValue());
   }
-
 }

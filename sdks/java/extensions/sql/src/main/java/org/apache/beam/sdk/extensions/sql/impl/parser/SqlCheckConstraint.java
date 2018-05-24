@@ -33,29 +33,30 @@ import org.apache.calcite.util.ImmutableNullableList;
  * <p>And {@code FOREIGN KEY}, when we support it.
  */
 public class SqlCheckConstraint extends SqlCall {
-  private static final SqlSpecialOperator OPERATOR =
-      new SqlSpecialOperator("CHECK", SqlKind.CHECK);
+  private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CHECK", SqlKind.CHECK);
 
   private final SqlIdentifier name;
   private final SqlNode expression;
 
   /** Creates a SqlCheckConstraint; use {@link SqlDdlNodes#check}. */
-  SqlCheckConstraint(SqlParserPos pos, SqlIdentifier name,
-      SqlNode expression) {
+  SqlCheckConstraint(SqlParserPos pos, SqlIdentifier name, SqlNode expression) {
     super(pos);
     this.name = name; // may be null
     this.expression = expression;
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return ImmutableNullableList.of(name, expression);
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     if (name != null) {
       writer.keyword("CONSTRAINT");
       name.unparse(writer, 0, 0);

@@ -28,23 +28,25 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamSqlDateCeilExpression}.
- */
+/** Test for {@code BeamSqlDateCeilExpression}. */
 public class BeamSqlDateCeilExpressionTest extends BeamSqlDateExpressionTestBase {
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE,
-        str2DateTime("2017-05-22 09:10:11")));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE, str2DateTime("2017-05-22 09:10:11")));
     // YEAR
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));
-    Assert.assertEquals(str2DateTime("2018-01-01 00:00:00"),
+    Assert.assertEquals(
+        str2DateTime("2018-01-01 00:00:00"),
         new BeamSqlDateCeilExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getDate());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getDate());
 
     operands.set(1, BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
-    Assert.assertEquals(str2DateTime("2017-06-01 00:00:00"),
+    Assert.assertEquals(
+        str2DateTime("2017-06-01 00:00:00"),
         new BeamSqlDateCeilExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getDate());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .getDate());
   }
 }

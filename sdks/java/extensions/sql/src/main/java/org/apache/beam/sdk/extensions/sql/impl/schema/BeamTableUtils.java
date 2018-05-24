@@ -40,27 +40,21 @@ import org.apache.commons.csv.CSVRecord;
  * <p>TODO: Does not yet support nested types.
  */
 public final class BeamTableUtils {
-  public static Row csvLine2BeamRow(
-      CSVFormat csvFormat,
-      String line,
-      Schema schema) {
+  public static Row csvLine2BeamRow(CSVFormat csvFormat, String line, Schema schema) {
 
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
       if (rawRecord.size() != schema.getFieldCount()) {
-        throw new IllegalArgumentException(String.format(
-            "Expect %d fields, but actually %d",
-            schema.getFieldCount(), rawRecord.size()
-        ));
+        throw new IllegalArgumentException(
+            String.format(
+                "Expect %d fields, but actually %d", schema.getFieldCount(), rawRecord.size()));
       }
 
-      return
-          IntStream
-              .range(0, schema.getFieldCount())
-              .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
-              .collect(toRow(schema));
+      return IntStream.range(0, schema.getFieldCount())
+          .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
+          .collect(toRow(schema));
 
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);
@@ -95,8 +89,9 @@ public final class BeamTableUtils {
       } else {
         return rawObj;
       }
-    } else if (type.isNumericType() && ((rawObj instanceof String)
-          || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
+    } else if (type.isNumericType()
+        && ((rawObj instanceof String)
+            || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
       String raw = rawObj.toString();
       switch (type) {
         case BYTE:

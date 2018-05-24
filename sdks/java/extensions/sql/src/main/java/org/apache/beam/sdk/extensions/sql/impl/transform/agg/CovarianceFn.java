@@ -34,85 +34,79 @@ import org.apache.calcite.runtime.SqlFunctions;
 /**
  * {@link Combine.CombineFn} for <em>Covariance</em> on {@link Number} types.
  *
- * <p>Calculates Population Covariance and Sample Covariance using incremental
- * formulas described in http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance,
- * presumably by  Pébay, Philippe (2008), in "Formulas for Robust,
- * One-Pass Parallel Computation of Covariances and Arbitrary-Order
+ * <p>Calculates Population Covariance and Sample Covariance using incremental formulas described in
+ * http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, presumably by Pébay, Philippe
+ * (2008), in "Formulas for Robust, One-Pass Parallel Computation of Covariances and Arbitrary-Order
  * Statistical Moments".
- * </p>
- *
  */
 @Internal
 public class CovarianceFn<T extends Number>
-        extends Combine.CombineFn<KV<T, T>, CovarianceAccumulator, T> {
+    extends Combine.CombineFn<KV<T, T>, CovarianceAccumulator, T> {
 
-    static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
+  static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
 
-    private static final boolean SAMPLE = true;
-    private static final boolean POP = false;
+  private static final boolean SAMPLE = true;
+  private static final boolean POP = false;
 
-    private boolean isSample; // flag to determine return value should be Covariance Pop or Sample
-    private SerializableFunction<BigDecimal, T> decimalConverter;
+  private boolean isSample; // flag to determine return value should be Covariance Pop or Sample
+  private SerializableFunction<BigDecimal, T> decimalConverter;
 
-    public static <V extends Number> CovarianceFn newPopulation(
-            SerializableFunction<BigDecimal, V> decimalConverter) {
+  public static <V extends Number> CovarianceFn newPopulation(
+      SerializableFunction<BigDecimal, V> decimalConverter) {
 
-        return new CovarianceFn<>(POP, decimalConverter);
+    return new CovarianceFn<>(POP, decimalConverter);
+  }
+
+  public static <V extends Number> CovarianceFn newSample(
+      SerializableFunction<BigDecimal, V> decimalConverter) {
+
+    return new CovarianceFn<>(SAMPLE, decimalConverter);
+  }
+
+  private CovarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter) {
+    this.isSample = isSample;
+    this.decimalConverter = decimalConverter;
+  }
+
+  @Override
+  public CovarianceAccumulator createAccumulator() {
+    return CovarianceAccumulator.ofZeroElements();
+  }
+
+  @Override
+  public CovarianceAccumulator addInput(CovarianceAccumulator currentVariance, KV<T, T> rawInput) {
+    if (rawInput == null) {
+      return currentVariance;
     }
 
-    public static <V extends Number> CovarianceFn newSample(
-            SerializableFunction<BigDecimal, V> decimalConverter) {
+    return currentVariance.combineWith(
+        CovarianceAccumulator.ofSingleElement(
+            SqlFunctions.toBigDecimal(rawInput.getKey()),
+            SqlFunctions.toBigDecimal(rawInput.getValue())));
+  }
 
-        return new CovarianceFn<>(SAMPLE, decimalConverter);
-    }
+  @Override
+  public CovarianceAccumulator mergeAccumulators(Iterable<CovarianceAccumulator> covariances) {
+    return StreamSupport.stream(covariances.spliterator(), false)
+        .reduce(CovarianceAccumulator.ofZeroElements(), CovarianceAccumulator::combineWith);
+  }
 
-    private CovarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter) {
-        this.isSample = isSample;
-        this.decimalConverter = decimalConverter;
-    }
+  @Override
+  public Coder<CovarianceAccumulator> getAccumulatorCoder(
+      CoderRegistry registry, Coder<KV<T, T>> inputCoder) {
+    return SerializableCoder.of(CovarianceAccumulator.class);
+  }
 
-    @Override
-    public CovarianceAccumulator createAccumulator() {
-        return CovarianceAccumulator.ofZeroElements();
-    }
+  @Override
+  public T extractOutput(CovarianceAccumulator accumulator) {
+    return decimalConverter.apply(getCovariance(accumulator));
+  }
 
-    @Override
-    public CovarianceAccumulator addInput(
-            CovarianceAccumulator currentVariance, KV<T, T> rawInput) {
-        if (rawInput == null) {
-            return currentVariance;
-        }
+  private BigDecimal getCovariance(CovarianceAccumulator covariance) {
 
-        return currentVariance.combineWith(CovarianceAccumulator.ofSingleElement(
-                SqlFunctions.toBigDecimal(rawInput.getKey()),
-                SqlFunctions.toBigDecimal(rawInput.getValue())));
-    }
+    BigDecimal adjustedCount =
+        this.isSample ? covariance.count().subtract(BigDecimal.ONE) : covariance.count();
 
-    @Override
-    public CovarianceAccumulator mergeAccumulators(Iterable<CovarianceAccumulator> covariances) {
-        return StreamSupport
-                .stream(covariances.spliterator(), false)
-                .reduce(CovarianceAccumulator.ofZeroElements(),
-                        CovarianceAccumulator::combineWith);
-    }
-
-    @Override
-    public Coder<CovarianceAccumulator> getAccumulatorCoder(CoderRegistry registry,
-                                                          Coder<KV<T, T>> inputCoder) {
-        return SerializableCoder.of(CovarianceAccumulator.class);
-    }
-
-    @Override
-    public T extractOutput(CovarianceAccumulator accumulator) {
-        return decimalConverter.apply(getCovariance(accumulator));
-    }
-
-    private BigDecimal getCovariance(CovarianceAccumulator covariance) {
-
-        BigDecimal adjustedCount = this.isSample
-                ? covariance.count().subtract(BigDecimal.ONE)
-                : covariance.count();
-
-        return covariance.covariance().divide(adjustedCount, MATH_CTX);
-    }
+    return covariance.covariance().divide(adjustedCount, MATH_CTX);
+  }
 }

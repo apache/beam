@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Implementation for Reinterpret type conversions.
- */
+/** Implementation for Reinterpret type conversions. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;

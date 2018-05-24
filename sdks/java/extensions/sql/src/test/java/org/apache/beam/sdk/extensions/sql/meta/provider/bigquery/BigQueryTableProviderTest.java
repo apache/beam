@@ -30,9 +30,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.junit.Test;
 
-/**
- * UnitTest for {@link BigQueryTableProvider}.
- */
+/** UnitTest for {@link BigQueryTableProvider}. */
 public class BigQueryTableProviderTest {
   private BigQueryTableProvider provider = new BigQueryTableProvider();
 
@@ -60,9 +58,9 @@ public class BigQueryTableProviderTest {
         .location("project:dataset.table")
         .schema(
             Stream.of(
-                Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
-                Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
-                  .collect(toSchema()))
+                    Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
+                    Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
+                .collect(toSchema()))
         .type("bigquery")
         .build();
   }

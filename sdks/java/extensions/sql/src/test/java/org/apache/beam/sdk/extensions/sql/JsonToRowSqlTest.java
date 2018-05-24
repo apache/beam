@@ -27,20 +27,16 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * JsonToRowSqlTest.
- */
+/** JsonToRowSqlTest. */
 public class JsonToRowSqlTest {
   private static final boolean NOT_NULLABLE = false;
 
-  @Rule
-  public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testParsesRows() throws Exception {
     Schema personSchema =
-        Schema
-            .builder()
+        Schema.builder()
             .addStringField("name", NOT_NULLABLE)
             .addInt32Field("height", NOT_NULLABLE)
             .addBooleanField("knowsJavascript", NOT_NULLABLE)
@@ -48,39 +44,36 @@ public class JsonToRowSqlTest {
 
     PCollection<String> jsonPersons =
         pipeline.apply(
-            Create
-                .of(
-                    jsonPerson("person1", "80", "true"),
-                    jsonPerson("person2", "70", "false"),
-                    jsonPerson("person3", "60", "true"),
-                    jsonPerson("person4", "50", "false"),
-                    jsonPerson("person5", "40", "true")));
+            Create.of(
+                jsonPerson("person1", "80", "true"),
+                jsonPerson("person2", "70", "false"),
+                jsonPerson("person3", "60", "true"),
+                jsonPerson("person4", "50", "false"),
+                jsonPerson("person5", "40", "true")));
 
-    Schema resultSchema =
-        Schema
-            .builder()
-            .addInt32Field("avg_height", NOT_NULLABLE)
-            .build();
+    Schema resultSchema = Schema.builder().addInt32Field("avg_height", NOT_NULLABLE).build();
 
     PCollection<Row> sqlResult =
         jsonPersons
             .apply(JsonToRow.withSchema(personSchema))
             .apply(BeamSql.query("SELECT AVG(height) as avg_height FROM PCOLLECTION"));
 
-    PAssert
-        .that(sqlResult)
-        .containsInAnyOrder(
-            row(resultSchema, 60));
+    PAssert.that(sqlResult).containsInAnyOrder(row(resultSchema, 60));
 
     pipeline.run();
   }
 
   private String jsonPerson(String name, String height, String knowsJs) {
-    return
-        "{\n"
-        + "  \"name\": \"" + name + "\",\n"
-        + "  \"height\": " + height + ",\n"
-        + "  \"knowsJavascript\": " + knowsJs + "\n"
+    return "{\n"
+        + "  \"name\": \""
+        + name
+        + "\",\n"
+        + "  \"height\": "
+        + height
+        + ",\n"
+        + "  \"knowsJavascript\": "
+        + knowsJs
+        + "\n"
         + "}";
   }
 
