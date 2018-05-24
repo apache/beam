@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -61,7 +62,8 @@ public class ReferenceRunnerTest implements Serializable {
                           public void process(ProcessContext ctxt) {
                             for (int i = 0; i < ctxt.element(); i++) {
                               ctxt.outputWithTimestamp(
-                                  KV.of("foo", i), new Instant(0).plus(Duration.standardHours(i)));
+                                  KV.of("foo", ctxt.element()),
+                                  new Instant(0).plus(Duration.standardHours(i)));
                             }
                             ctxt.output(originals, ctxt.element());
                           }
@@ -84,6 +86,12 @@ public class ReferenceRunnerTest implements Serializable {
                                 ImmutableSet.copyOf(ctxt.element().getValue())));
                       }
                     }));
+
+    PAssert.that(grouped)
+        .containsInAnyOrder(
+            KV.of("foo", ImmutableSet.of(1, 2, 3)),
+            KV.of("foo", ImmutableSet.of(2, 3)),
+            KV.of("foo", ImmutableSet.of(3)));
 
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
