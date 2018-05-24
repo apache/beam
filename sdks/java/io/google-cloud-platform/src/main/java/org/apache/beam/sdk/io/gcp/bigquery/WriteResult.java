@@ -73,6 +73,13 @@ public final class WriteResult implements POutput {
     this.failedInsertsWithErr = failedInsertsWithErr;
   }
 
+  /**
+   * Returns a {@link PCollection} containing the {@link TableRow}s that didn't made it to BQ.
+   *
+   * <p>Only use this method if you haven't enabled
+   * {@link BigQueryIO.Write#withExtendedErrorInfo()}. Otherwise use
+   * {@link WriteResult#getFailedInsertsWithErr()}
+   */
   public PCollection<TableRow> getFailedInserts() {
     checkArgument(failedInsertsTag != null,
         "Cannot use getFailedInserts as this WriteResult uses extended errors"
@@ -80,6 +87,13 @@ public final class WriteResult implements POutput {
     return failedInserts;
   }
 
+  /**
+   * Returns a {@link PCollection} containing the {@link BigQueryInsertError}s with detailed error
+   * information.
+   *
+   * <p>Only use this method if you have enabled {@link BigQueryIO.Write#withExtendedErrorInfo()}. *
+   * Otherwise use {@link WriteResult#getFailedInserts()}
+   */
   public PCollection<BigQueryInsertError> getFailedInsertsWithErr() {
     checkArgument(failedInsertsWithErrTag != null,
         "Cannot use getFailedInsertsWithErr as this WriteResult does not use"
