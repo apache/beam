@@ -24,7 +24,10 @@ import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 
 /**
- * Execution Context for the {@code DirectRunner}.
+ * State and Timer access for the {@link ReferenceRunner}.
+ *
+ * <p>This provides per-key, per-stage access to {@link CopyOnAccessInMemoryStateInternals} and
+ * {@link DirectTimerInternals} for transforms that require access to state or timers.
  *
  * <p>This implementation is not thread safe. A new {@link DirectStateAndTimers} must be created for
  * each thread that requires it.
