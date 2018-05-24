@@ -57,10 +57,10 @@ import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
-import org.apache.beam.runners.fnexecution.control.DirectJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
+import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
@@ -75,7 +75,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** The "ReferenceRunner" engine implementation. */
-class ReferenceRunner {
+public class ReferenceRunner {
   private final RunnerApi.Pipeline pipeline;
   private final Struct options;
   private final File artifactsDir;
@@ -90,13 +90,13 @@ class ReferenceRunner {
     this.environmentType = environmentType;
   }
 
-  static ReferenceRunner forPipeline(RunnerApi.Pipeline p, Struct options, File artifactsDir) {
+  public static ReferenceRunner forPipeline(
+      RunnerApi.Pipeline p, Struct options, File artifactsDir) {
     return new ReferenceRunner(p, options, artifactsDir, EnvironmentType.DOCKER);
   }
 
-  static ReferenceRunner forInProcessPipeline(
-      RunnerApi.Pipeline p, Struct options, File artifactsDir) {
-    return new ReferenceRunner(p, options, artifactsDir, EnvironmentType.IN_PROCESS);
+  static ReferenceRunner forInProcessPipeline(RunnerApi.Pipeline p, Struct options) {
+    return new ReferenceRunner(p, options, null, EnvironmentType.IN_PROCESS);
   }
 
   private RunnerApi.Pipeline executable(RunnerApi.Pipeline original) {
@@ -123,16 +123,18 @@ class ReferenceRunner {
             .setJobId("id")
             .setJobName("reference")
             .setPipelineOptions(options)
-            .setWorkerId("")
+            .setWorkerId("foo")
             .setResourceLimits(Resources.getDefaultInstance())
             .build();
     try (GrpcFnServer<GrpcLoggingService> logging =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
         GrpcFnServer<ArtifactRetrievalService> artifact =
-            GrpcFnServer.allocatePortAndCreateFor(
-                LocalFileSystemArtifactRetrievalService.forRootDirectory(artifactsDir),
-                serverFactory);
+            artifactsDir == null
+                ? null
+                : GrpcFnServer.allocatePortAndCreateFor(
+                    LocalFileSystemArtifactRetrievalService.forRootDirectory(artifactsDir),
+                    serverFactory);
         GrpcFnServer<StaticGrpcProvisionService> provisioning =
             GrpcFnServer.allocatePortAndCreateFor(
                 StaticGrpcProvisionService.create(provisionInfo), serverFactory);
@@ -152,7 +154,7 @@ class ReferenceRunner {
           createEnvironmentFactory(
               control, logging, artifact, provisioning, controlClientPool.getSource());
       JobBundleFactory jobBundleFactory =
-          DirectJobBundleFactory.create(environmentFactory, data, state);
+          SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
 
       TransformEvaluatorRegistry transformRegistry =
           TransformEvaluatorRegistry.portableRegistry(
