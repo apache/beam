@@ -560,6 +560,10 @@ ext.applyJavaNature = {
   shadowJar ({
     classifier = "shaded"
     mergeServiceFiles()
+    into("META-INF/") {
+      from "${rootProject.projectDir}/LICENSE"
+      from "${rootProject.projectDir}/NOTICE"
+    }
   } << configuration.shadowClosure)
 
   // Always configure the shadowTestJar classifier and merge service files.
