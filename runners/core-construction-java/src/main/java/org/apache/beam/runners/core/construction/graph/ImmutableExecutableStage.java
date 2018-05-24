@@ -29,7 +29,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 
 /** An {@link ExecutableStage} which is constructed with all of its initial state. */
 @AutoValue
-abstract class ImmutableExecutableStage implements ExecutableStage {
+public abstract class ImmutableExecutableStage implements ExecutableStage {
   static ImmutableExecutableStage ofFullComponents(
       Components components,
       Environment environment,
