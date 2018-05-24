@@ -128,7 +128,7 @@ public class ApexYarnLauncherTest {
     Assert.assertTrue("exists: " + jarFile, jarFile.exists());
     URI uri = URI.create("jar:" + jarFile.toURI());
     final Map<String, ?> env = Collections.singletonMap("create", "true");
-    try (final FileSystem zipfs = FileSystems.newFileSystem(uri, env);) {
+    try (final FileSystem zipfs = FileSystems.newFileSystem(uri, env)) {
       Assert.assertTrue("manifest", Files.isRegularFile(zipfs.getPath(JarFile.MANIFEST_NAME)));
       Assert.assertTrue("file1", Files.isRegularFile(zipfs.getPath(file1)));
     }
