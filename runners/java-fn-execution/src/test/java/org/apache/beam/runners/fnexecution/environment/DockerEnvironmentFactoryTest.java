@@ -63,6 +63,7 @@ public class DockerEnvironmentFactoryTest {
   @Mock private GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
   @Mock private InstructionRequestHandler client;
+  private DockerEnvironmentFactory factory;
 
   @Before
   public void initMocks() {
@@ -72,12 +73,21 @@ public class DockerEnvironmentFactoryTest {
     when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(retrievalServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(provisioningServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
+    factory =
+        DockerEnvironmentFactory.forServicesWithDocker(
+            docker,
+            controlServiceServer,
+            loggingServiceServer,
+            retrievalServiceServer,
+            provisioningServiceServer,
+            (workerId, timeout) -> client,
+            ID_GENERATOR);
   }
 
   @Test
   public void createsCorrectEnvironment() throws Exception {
-    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any())).thenReturn(CONTAINER_ID);
-    DockerEnvironmentFactory factory = getFactory();
+    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+        .thenReturn(CONTAINER_ID);
 
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     assertThat(handle.getInstructionRequestHandler(), is(client));
@@ -86,8 +96,8 @@ public class DockerEnvironmentFactoryTest {
 
   @Test
   public void destroysCorrectContainer() throws Exception {
-    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any())).thenReturn(CONTAINER_ID);
-    DockerEnvironmentFactory factory = getFactory();
+    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+        .thenReturn(CONTAINER_ID);
 
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     handle.close();
@@ -96,8 +106,6 @@ public class DockerEnvironmentFactoryTest {
 
   @Test
   public void createsMultipleEnvironments() throws Exception {
-    DockerEnvironmentFactory factory = getFactory();
-
     Environment fooEnv = Environment.newBuilder().setUrl("foo").build();
     RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
     assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
@@ -105,16 +113,5 @@ public class DockerEnvironmentFactoryTest {
     Environment barEnv = Environment.newBuilder().setUrl("bar").build();
     RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
     assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
-  }
-
-  private DockerEnvironmentFactory getFactory() {
-    return DockerEnvironmentFactory.forServicesWithDocker(
-        docker,
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        (workerId, timeout) -> client,
-        ID_GENERATOR);
   }
 }

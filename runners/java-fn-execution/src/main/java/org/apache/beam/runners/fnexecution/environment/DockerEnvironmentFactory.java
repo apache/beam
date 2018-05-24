@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -123,14 +123,16 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
-    List<String> args =
-        Arrays.asList(
+    List<String> volArg =
+        ImmutableList.of(
             "-v",
             // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
             String.format("%s:%s", workerPersistentDirectory, semiPersistentDirectory),
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
-            "--network=host",
-            containerImage,
+            "--network=host");
+
+    List<String> args =
+        ImmutableList.of(
             String.format("--id=%s", workerId),
             String.format("--logging_endpoint=%s", loggingEndpoint),
             String.format("--artifact_endpoint=%s", artifactEndpoint),
@@ -138,11 +140,13 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             String.format("--control_endpoint=%s", controlEndpoint),
             String.format("--semi_persist_dir=%s", semiPersistentDirectory));
 
+    LOG.debug("Creating Docker Container with ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     String containerId = null;
     InstructionRequestHandler instructionHandler = null;
     try {
-      containerId = docker.runImage(containerImage, args);
+      containerId = docker.runImage(containerImage, volArg, args);
+      LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
