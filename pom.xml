@@ -136,7 +136,7 @@
     -->
     <hadoop.version>2.7.3</hadoop.version>
     <hamcrest.version>1.3</hamcrest.version>
-    <jackson.version>2.8.9</jackson.version>
+    <jackson.version>2.9.5</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
     <findbugs.annotations.version>1.3.9-1</findbugs.annotations.version>
     <joda.version>2.4</joda.version>
@@ -185,7 +185,6 @@
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
     <jaxb-api.version>2.2.12</jaxb-api.version>
-    <jackson-datatype-joda-version>2.4.0</jackson-datatype-joda-version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -1489,7 +1488,7 @@
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-joda</artifactId>
-        <version>${jackson-datatype-joda-version}</version>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
