@@ -37,7 +37,6 @@
     <module>core-java</module>
     <module>java-fn-execution</module>
     <module>local-java</module>
-    <module>local-artifact-service-java</module>
     <module>reference</module>
     <module>direct-java</module>
     <module>flink</module>
