@@ -197,6 +197,7 @@
   <li><a href="#elasticsearch---esinputformat">Elasticsearch - EsInputFormat</a></li>
   <li><a href="#hcatalog---hcatinputformat">HCatalog - HCatInputFormat</a></li>
   <li><a href="#amazon-dynamodb---dynamodbinputformat">Amazon DynamoDB - DynamoDBInputFormat</a></li>
+  <li><a href="#apache-hbase---tablesnapshotinputformat">Apache HBase - TableSnapshotInputFormat</a></li>
 </ul>
 
 
@@ -463,6 +464,73 @@ The below example uses one such available wrapper API - <a href="https://github.
   <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"read"</span><span class="o">,</span>
   <span class="n">HadoopInputFormatIO</span><span class="o">.&lt;</span><span class="n">Text</span><span class="o">,</span> <span class="n">DynamoDBItemWritable</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()</span>
   <span class="o">.</span><span class="na">withConfiguration</span><span class="o">(</span><span class="n">dynamoDBConf</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support Hadoop InputFormat IO.</span>
+</code></pre>
+</div>
+
+<h3 id="apache-hbase---tablesnapshotinputformat">Apache HBase - TableSnapshotInputFormat</h3>
+
+<p>To read data from an HBase table snapshot, use <code class="highlighter-rouge">org.apache.hadoop.hbase.mapreduce.TableSnapshotInputFormat</code>.
+Reading from a table snapshot bypasses the HBase region servers, instead reading HBase data files directly from the filesystem.
+This is useful for cases such as reading historical data or offloading of work from the HBase cluster. 
+There are scenarios when this may prove faster than accessing content through the region servers using the <code class="highlighter-rouge">HBaseIO</code>.</p>
+
+<p>A table snapshot can be taken using the HBase shell or programmatically:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span>
+    <span class="n">Connection</span> <span class="n">connection</span> <span class="o">=</span> <span class="n">ConnectionFactory</span><span class="o">.</span><span class="na">createConnection</span><span class="o">(</span><span class="n">hbaseConf</span><span class="o">);</span>
+    <span class="n">Admin</span> <span class="n">admin</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">getAdmin</span><span class="o">()</span>
+  <span class="o">)</span> <span class="o">{</span>
+  <span class="n">admin</span><span class="o">.</span><span class="na">snapshot</span><span class="o">(</span>
+    <span class="s">"my_snaphshot"</span><span class="o">,</span>
+    <span class="n">TableName</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="s">"my_table"</span><span class="o">),</span>
+    <span class="n">HBaseProtos</span><span class="o">.</span><span class="na">SnapshotDescription</span><span class="o">.</span><span class="na">Type</span><span class="o">.</span><span class="na">FLUSH</span><span class="o">);</span>
+<span class="o">}</span>  
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support Hadoop InputFormat IO.</span>
+</code></pre>
+</div>
+
+<p>A <code class="highlighter-rouge">TableSnapshotInputFormat</code> is configured as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Construct a typical HBase scan</span>
+<span class="n">Scan</span> <span class="n">scan</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Scan</span><span class="o">();</span>
+<span class="n">scan</span><span class="o">.</span><span class="na">setCaching</span><span class="o">(</span><span class="mi">1000</span><span class="o">);</span>
+<span class="n">scan</span><span class="o">.</span><span class="na">setBatch</span><span class="o">(</span><span class="mi">1000</span><span class="o">);</span>
+<span class="n">scan</span><span class="o">.</span><span class="na">addColumn</span><span class="o">(</span><span class="n">Bytes</span><span class="o">.</span><span class="na">toBytes</span><span class="o">(</span><span class="s">"CF"</span><span class="o">),</span> <span class="n">Bytes</span><span class="o">.</span><span class="na">toBytes</span><span class="o">(</span><span class="s">"col_1"</span><span class="o">));</span>
+<span class="n">scan</span><span class="o">.</span><span class="na">addColumn</span><span class="o">(</span><span class="n">Bytes</span><span class="o">.</span><span class="na">toBytes</span><span class="o">(</span><span class="s">"CF"</span><span class="o">),</span> <span class="n">Bytes</span><span class="o">.</span><span class="na">toBytes</span><span class="o">(</span><span class="s">"col_2"</span><span class="o">));</span>
+
+<span class="n">Configuration</span> <span class="n">hbaseConf</span> <span class="o">=</span> <span class="n">HBaseConfiguration</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+<span class="n">hbaseConf</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">HConstants</span><span class="o">.</span><span class="na">ZOOKEEPER_QUORUM</span><span class="o">,</span> <span class="s">"zk1:2181"</span><span class="o">);</span>
+<span class="n">hbaseConf</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"hbase.rootdir"</span><span class="o">,</span> <span class="s">"/hbase"</span><span class="o">);</span>
+<span class="n">hbaseConf</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span>
+    <span class="s">"mapreduce.job.inputformat.class"</span><span class="o">,</span> <span class="n">TableSnapshotInputFormat</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">InputFormat</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">hbaseConf</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"key.class"</span><span class="o">,</span> <span class="n">ImmutableBytesWritable</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Writable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">hbaseConf</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"value.class"</span><span class="o">,</span> <span class="n">Result</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Writable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">ClientProtos</span><span class="o">.</span><span class="na">Scan</span> <span class="n">proto</span> <span class="o">=</span> <span class="n">ProtobufUtil</span><span class="o">.</span><span class="na">toScan</span><span class="o">(</span><span class="n">scan</span><span class="o">);</span>
+<span class="n">hbaseConf</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">TableInputFormat</span><span class="o">.</span><span class="na">SCAN</span><span class="o">,</span> <span class="n">Base64</span><span class="o">.</span><span class="na">encodeBytes</span><span class="o">(</span><span class="n">proto</span><span class="o">.</span><span class="na">toByteArray</span><span class="o">()));</span>
+
+<span class="c1">// Make use of existing utility methods</span>
+<span class="n">Job</span> <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="o">.</span><span class="na">getInstance</span><span class="o">(</span><span class="n">hbaseConf</span><span class="o">);</span> <span class="c1">// creates internal clone of hbaseConf</span>
+<span class="n">TableSnapshotInputFormat</span><span class="o">.</span><span class="na">setInput</span><span class="o">(</span><span class="n">job</span><span class="o">,</span> <span class="s">"my_snapshot"</span><span class="o">,</span> <span class="k">new</span> <span class="n">Path</span><span class="o">(</span><span class="s">"/tmp/snapshot_restore"</span><span class="o">));</span>
+<span class="n">hbaseConf</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="na">getConfiguration</span><span class="o">();</span> <span class="c1">// extract the modified clone</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support Hadoop InputFormat IO.</span>
+</code></pre>
+</div>
+
+<p>Call Read transform as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">ImmutableBytesWritable</span><span class="o">,</span> <span class="n">Result</span><span class="o">&gt;</span> <span class="n">hbaseSnapshotData</span> <span class="o">=</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"read"</span><span class="o">,</span>
+  <span class="n">HadoopInputFormatIO</span><span class="o">.&lt;</span><span class="n">ImmutableBytesWritable</span><span class="o">,</span> <span class="n">Result</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()</span>
+  <span class="o">.</span><span class="na">withConfiguration</span><span class="o">(</span><span class="n">hbaseConf</span><span class="o">);</span>
 </code></pre>
 </div>
 
