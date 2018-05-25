@@ -270,3 +270,70 @@ PCollection<Text, DynamoDBItemWritable> dynamoDBData =
 ```py
   # The Beam SDK for Python does not support Hadoop InputFormat IO.
 ```
+
+### Apache HBase - TableSnapshotInputFormat
+
+To read data from an HBase table snapshot, use `org.apache.hadoop.hbase.mapreduce.TableSnapshotInputFormat`.
+Reading from a table snapshot bypasses the HBase region servers, instead reading HBase data files directly from the filesystem.
+This is useful for cases such as reading historical data or offloading of work from the HBase cluster. 
+There are scenarios when this may prove faster than accessing content through the region servers using the `HBaseIO`.
+
+A table snapshot can be taken using the HBase shell or programmatically:
+```java
+try (
+    Connection connection = ConnectionFactory.createConnection(hbaseConf);
+    Admin admin = connection.getAdmin()
+  ) {
+  admin.snapshot(
+    "my_snaphshot",
+    TableName.valueOf("my_table"),
+    HBaseProtos.SnapshotDescription.Type.FLUSH);
+}  
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+```
+
+A `TableSnapshotInputFormat` is configured as follows:
+
+```java
+// Construct a typical HBase scan
+Scan scan = new Scan();
+scan.setCaching(1000);
+scan.setBatch(1000);
+scan.addColumn(Bytes.toBytes("CF"), Bytes.toBytes("col_1"));
+scan.addColumn(Bytes.toBytes("CF"), Bytes.toBytes("col_2"));
+
+Configuration hbaseConf = HBaseConfiguration.create();
+hbaseConf.set(HConstants.ZOOKEEPER_QUORUM, "zk1:2181");
+hbaseConf.set("hbase.rootdir", "/hbase");
+hbaseConf.setClass(
+    "mapreduce.job.inputformat.class", TableSnapshotInputFormat.class, InputFormat.class);
+hbaseConf.setClass("key.class", ImmutableBytesWritable.class, Writable.class);
+hbaseConf.setClass("value.class", Result.class, Writable.class);
+ClientProtos.Scan proto = ProtobufUtil.toScan(scan);
+hbaseConf.set(TableInputFormat.SCAN, Base64.encodeBytes(proto.toByteArray()));
+
+// Make use of existing utility methods
+Job job = Job.getInstance(hbaseConf); // creates internal clone of hbaseConf
+TableSnapshotInputFormat.setInput(job, "my_snapshot", new Path("/tmp/snapshot_restore"));
+hbaseConf = job.getConfiguration(); // extract the modified clone
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+```
+
+Call Read transform as follows:
+
+```java
+PCollection<ImmutableBytesWritable, Result> hbaseSnapshotData =
+  p.apply("read",
+  HadoopInputFormatIO.<ImmutableBytesWritable, Result>read()
+  .withConfiguration(hbaseConf);
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+```
