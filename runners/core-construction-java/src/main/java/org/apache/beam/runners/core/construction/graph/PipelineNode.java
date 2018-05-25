@@ -41,7 +41,7 @@ public interface PipelineNode {
    */
   @AutoValue
   abstract class PCollectionNode implements PipelineNode {
-    public abstract String getId();
+    @Override public abstract String getId();
     public abstract PCollection getPCollection();
   }
 
@@ -50,7 +50,7 @@ public interface PipelineNode {
    */
   @AutoValue
   abstract class PTransformNode implements PipelineNode {
-    public abstract String getId();
+    @Override public abstract String getId();
     public abstract PTransform getTransform();
   }
 }
