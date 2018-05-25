@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static java.util.stream.Collectors.toList;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
@@ -51,7 +52,7 @@ public class BeamSqlProjectFn extends DoFn<Row, Row> {
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
     Row inputRow = c.element();
-    List<Object> rawResultValues = executor.execute(inputRow, window);
+    List<Object> rawResultValues = executor.execute(inputRow, window, ImmutableMap.of());
 
     List<Object> castResultValues =
         IntStream.range(0, outputSchema.getFieldCount())

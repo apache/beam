@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
@@ -43,9 +44,10 @@ public class BeamSqlWindowExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<ReadableInstant> evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<ReadableInstant> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     return BeamSqlPrimitive.of(
         SqlTypeName.TIMESTAMP,
-        (ReadableInstant) operands.get(0).evaluate(inputRow, window).getValue());
+        (ReadableInstant) operands.get(0).evaluate(inputRow, window, correlateEnv).getValue());
   }
 }

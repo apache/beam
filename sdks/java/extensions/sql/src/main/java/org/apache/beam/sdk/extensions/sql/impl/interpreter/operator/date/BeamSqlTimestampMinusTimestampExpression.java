@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -67,9 +68,12 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
    * Calcite deals with all intervals this way. Whenever there is an interval, its value is always
    * multiplied by the corresponding TimeUnit.multiplier
    */
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    DateTime timestampStart = new DateTime((Object) opValueEvaluated(1, inputRow, window));
-    DateTime timestampEnd = new DateTime((Object) opValueEvaluated(0, inputRow, window));
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    DateTime timestampStart =
+        new DateTime((Object) opValueEvaluated(1, inputRow, window, correlateEnv));
+    DateTime timestampEnd =
+        new DateTime((Object) opValueEvaluated(0, inputRow, window, correlateEnv));
 
     long numberOfIntervals = numberOfIntervalsBetweenDates(timestampStart, timestampEnd);
     long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalType).longValue();

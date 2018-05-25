@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -28,12 +29,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * String position operator.
  *
- * <p>example:
- *
- * <ul>
- *   <li>{@code POSITION(string1 IN string2)}
- *   <li>{@code POSITION(string1 IN string2 FROM integer)}
- * </ul>
+ * <p>example: POSITION(string1 IN string2) POSITION(string1 IN string2 FROM integer)
  */
 public class BeamSqlPositionExpression extends BeamSqlExpression {
   public BeamSqlPositionExpression(List<BeamSqlExpression> operands) {
@@ -59,12 +55,13 @@ public class BeamSqlPositionExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String targetStr = opValueEvaluated(0, inputRow, window);
-    String containingStr = opValueEvaluated(1, inputRow, window);
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String targetStr = opValueEvaluated(0, inputRow, window, correlateEnv);
+    String containingStr = opValueEvaluated(1, inputRow, window, correlateEnv);
     int from = -1;
     if (operands.size() == 3) {
-      Number tmp = opValueEvaluated(2, inputRow, window);
+      Number tmp = opValueEvaluated(2, inputRow, window, correlateEnv);
       from = tmp.intValue();
     }
 

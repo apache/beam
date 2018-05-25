@@ -24,14 +24,16 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for SQL arrays. */
-public class BeamSqlArrayTest {
+public class BeamSqlDslArrayTest {
 
   private static final Schema INPUT_ROW_TYPE =
       RowSqlTypes.builder()
@@ -137,6 +139,94 @@ public class BeamSqlArrayTest {
         .containsInAnyOrder(
             Row.withSchema(resultType).addValues(2).build(),
             Row.withSchema(resultType).addValues(3).build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testUnnestLiteral() {
+    PCollection<Row> input =
+        PBegin.in(pipeline).apply("boundedInput1", Create.empty(INPUT_ROW_TYPE.getRowCoder()));
+
+    // Because we have a multi-part FROM the DSL considers it multi-input
+    TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
+    PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
+
+    Schema resultType = RowSqlTypes.builder().withVarcharField("f_string").build();
+
+    PCollection<Row> result =
+        inputTuple.apply("sqlQuery", BeamSql.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c'])"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues("a").build(),
+            Row.withSchema(resultType).addValues("b").build(),
+            Row.withSchema(resultType).addValues("c").build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testUnnestNamedLiteral() {
+    PCollection<Row> input =
+        PBegin.in(pipeline).apply("boundedInput1", Create.empty(INPUT_ROW_TYPE.getRowCoder()));
+
+    // Because we have a multi-part FROM the DSL considers it multi-input
+    TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
+    PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
+
+    Schema resultType = RowSqlTypes.builder().withVarcharField("f_string").build();
+
+    PCollection<Row> result =
+        inputTuple.apply(
+            "sqlQuery",
+            BeamSql.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c']) AS t(f_string)"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues("a").build(),
+            Row.withSchema(resultType).addValues("b").build(),
+            Row.withSchema(resultType).addValues("c").build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testUnnestCrossJoin() {
+    Row row1 =
+        Row.withSchema(INPUT_ROW_TYPE)
+            .addValues(42)
+            .addArray(Arrays.asList("111", "222", "333"))
+            .build();
+
+    Row row2 =
+        Row.withSchema(INPUT_ROW_TYPE).addValues(13).addArray(Arrays.asList("444", "555")).build();
+
+    PCollection<Row> input =
+        PBegin.in(pipeline)
+            .apply("boundedInput1", Create.of(row1, row2).withCoder(INPUT_ROW_TYPE.getRowCoder()));
+
+    // Because we have a multi-part FROM the DSL considers it multi-input
+    TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
+    PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
+
+    Schema resultType =
+        RowSqlTypes.builder().withIntegerField("f_int").withVarcharField("f_string").build();
+
+    PCollection<Row> result =
+        inputTuple.apply(
+            "sqlQuery",
+            BeamSql.query(
+                "SELECT f_int, arrElems.f_string FROM main "
+                    + " CROSS JOIN UNNEST (main.f_stringArr) AS arrElems(f_string)"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues(42, "111").build(),
+            Row.withSchema(resultType).addValues(42, "222").build(),
+            Row.withSchema(resultType).addValues(42, "333").build(),
+            Row.withSchema(resultType).addValues(13, "444").build(),
+            Row.withSchema(resultType).addValues(13, "555").build());
 
     pipeline.run();
   }
