@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import java.util.List;
+import static org.apache.beam.sdk.extensions.euphoria.beam.common.OperatorTranslatorUtil.getKVInputCollection;
+
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.euphoria.beam.common.InputToKvDoFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.FullJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.InnerJoinFn;
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.extensions.euphoria.beam.join.RightOuterJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -60,13 +58,16 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
 
     // get input data-sets transformed to Pcollections<KV<K,LeftT/RightT>>
-    List<PCollection<Object>> inputs = context.getInputs(operator);
+    @SuppressWarnings("unchecked") final PCollection<LeftT> left = (PCollection<LeftT>) context
+        .getInputs(operator).get(0);
+    @SuppressWarnings("unchecked") final PCollection<RightT> right = (PCollection<RightT>) context
+        .getInputs(operator).get(1);
 
-    PCollection<KV<K, LeftT>> leftKvInput = getKVInputCollection(inputs.get(0),
+    PCollection<KV<K, LeftT>> leftKvInput = getKVInputCollection(left,
         operator.getLeftKeyExtractor(),
         keyCoder, new KryoCoder<>(), "::extract-keys-left");
 
-    PCollection<KV<K, RightT>> rightKvInput = getKVInputCollection(inputs.get(1),
+    PCollection<KV<K, RightT>> rightKvInput = getKVInputCollection(right,
         operator.getRightKeyExtractor(),
         keyCoder, new KryoCoder<>(), "::extract-keys-right");
 
@@ -91,22 +92,6 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);
 
     return coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
-  }
-
-  private <K, ValueT> PCollection<KV<K, ValueT>> getKVInputCollection(
-      PCollection<Object> inputPCollection,
-      UnaryFunction<ValueT, K> keyExtractor,
-      Coder<K> keyCoder, Coder<ValueT> valueCoder, String transformName) {
-
-    @SuppressWarnings("unchecked")
-    PCollection<ValueT> typedInput = (PCollection<ValueT>) inputPCollection;
-    typedInput.setCoder(valueCoder);
-
-    PCollection<KV<K, ValueT>> kvInput =
-        typedInput.apply(transformName, ParDo.of(new InputToKvDoFn<>(keyExtractor)));
-    kvInput.setCoder(KvCoder.of(keyCoder, valueCoder));
-
-    return kvInput;
   }
 
   private <K, LeftT, RightT, OutputT, W extends Window<W>> JoinFn<LeftT, RightT, K, OutputT>
