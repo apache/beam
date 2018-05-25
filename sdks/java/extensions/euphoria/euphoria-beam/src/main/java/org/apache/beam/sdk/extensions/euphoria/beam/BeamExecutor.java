@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -26,11 +27,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.AbstractExecutor;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Executor implementation using Apache Beam as a runtime.
  */
 public class BeamExecutor extends AbstractExecutor {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamExecutor.class);
 
   private final PipelineOptions options;
   private final Settings settings;
@@ -57,8 +61,9 @@ public class BeamExecutor extends AbstractExecutor {
           FlowTranslator.toPipeline(flow, accumulatorFactory, options, settings, allowedLateness);
     }
     final PipelineResult result = pipeline.run();
-    // @todo handle result
-    result.waitUntilFinish();
+    // TODO handle result
+    State state = result.waitUntilFinish();
+    LOG.info("Pipeline result state: {}.", state);
     return new Result();
   }
 

@@ -33,6 +33,7 @@ dependencies {
     shadow 'com.google.code.findbugs:annotations:3.0.1'
     testCompile project(':beam-sdks-java-extensions-euphoria-testing')
     testCompile project(':beam-runners-direct-java')
+    testCompile 'org.slf4j:slf4j-simple:1.7.25'
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
 }

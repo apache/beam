@@ -21,13 +21,11 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
@@ -38,12 +36,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * @param <T> the type of elements this source provides
  */
 @Audience({Audience.Type.CLIENT, Audience.Type.TESTS})
-@SuppressWarnings("unchecked")
 public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSource<T, Integer> {
 
-  // global storage for all existing ListDataSources
-  private static final Map<ListDataSource<?>, List<List<?>>> storage =
-      Collections.synchronizedMap(new WeakHashMap<>());
+  private final List<List<?>> storage;
   private final boolean bounded;
   private final int id = System.identityHashCode(this);
   private final int partition;
@@ -56,15 +51,16 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
     this.bounded = bounded;
     this.parent = null;
     this.partition = -1;
+    Objects.requireNonNull(partitions);
 
-    // save partitions to static storage
-    storage.put(this, (List) partitions);
+    storage = (List) partitions;
   }
 
   private ListDataSource(ListDataSource<T> parent, int partition) {
     this.bounded = parent.bounded;
     this.parent = parent;
     this.partition = partition;
+    storage = null;
   }
 
   @SafeVarargs
@@ -101,22 +97,24 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<UnboundedPartition<T, Integer>> getPartitions() {
-    final int n = storage.get(this).size();
+    final int n = storage.size();
     List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
     for (int i = 0; i < n; i++) {
       final int partition = i;
       partitions.add(
-          () -> new UnboundedListReader((List<T>) storage.get(ListDataSource.this).get(partition)));
+          () -> new UnboundedListReader((List<T>) storage.get(partition)));
     }
     return partitions;
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
     int partition = 0;
     List<BoundedDataSource<T>> ret = new ArrayList<>();
-    for (List l : storage.get(this)) {
+    for (List l : storage) {
       ret.add(new ListDataSource(this, partition++));
     }
     return ret;
@@ -127,27 +125,29 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
     return Collections.singleton("localhost");
   }
 
-  @SuppressWarnings("unchecked")
   @Override
+  @SuppressWarnings("unchecked")
   public BoundedReader<T> openReader() throws IOException {
     final List<Integer> partitions;
-    final ListDataSource<T> ref;
+    final List<List<?>> storedData;
+
     if (partition == -1) {
       partitions =
-          IntStream.range(0, storage.get(this).size())
-              .mapToObj(Integer::valueOf)
+          IntStream.range(0, storage.size())
+              .boxed()
               .collect(Collectors.toList());
-      ref = this;
+      storedData = storage;
     } else {
-      partitions = Arrays.asList(partition);
-      ref = parent;
+      partitions = Collections.singletonList(partition);
+      storedData = parent.storage;
     }
-    return new BoundedListReader(
-        (List)
-            partitions
-                .stream()
-                .flatMap(i -> storage.get(ref).get(i).stream())
-                .collect(Collectors.toList()));
+
+    List collectedData = partitions
+        .stream()
+        .flatMap(i -> storedData.get(i).stream())
+        .collect(Collectors.toList());
+
+    return new BoundedListReader(collectedData);
   }
 
   @Override
@@ -242,7 +242,7 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
         throw pos >= data.size()
             ? new NoSuchElementException()
             : new IllegalStateException(
-                "Don't call `next` multiple times withou call to `hasNext`");
+                "Don't call `next` multiple times without call to `hasNext`");
       }
       next = null;
       pos++;
