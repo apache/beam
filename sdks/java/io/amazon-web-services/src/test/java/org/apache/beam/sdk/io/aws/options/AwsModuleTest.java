@@ -32,6 +32,8 @@ import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
+import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
@@ -42,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link AwsModule}.
- */
+/** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
 public class AwsModuleTest {
 
@@ -58,7 +58,6 @@ public class AwsModuleTest {
 
   @Test
   public void testAWSStaticCredentialsProviderSerializationDeserialization() throws Exception {
-
     String awsKeyId = "key-id";
     String awsSecretKey = "secret-key";
 
@@ -70,15 +69,16 @@ public class AwsModuleTest {
         objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
 
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
-    assertEquals(credentialsProvider.getCredentials().getAWSAccessKeyId(),
+    assertEquals(
+        credentialsProvider.getCredentials().getAWSAccessKeyId(),
         deserializedCredentialsProvider.getCredentials().getAWSAccessKeyId());
-    assertEquals(credentialsProvider.getCredentials().getAWSSecretKey(),
+    assertEquals(
+        credentialsProvider.getCredentials().getAWSSecretKey(),
         deserializedCredentialsProvider.getCredentials().getAWSSecretKey());
   }
 
   @Test
   public void testPropertiesFileCredentialsProviderSerializationDeserialization() throws Exception {
-
     String credentialsFilePath = "/path/to/file";
 
     PropertiesFileCredentialsProvider credentialsProvider =
@@ -90,8 +90,7 @@ public class AwsModuleTest {
 
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
 
-    Field field =
-        PropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
+    Field field = PropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
     field.setAccessible(true);
     String deserializedCredentialsFilePath = ((String) field.get(deserializedCredentialsProvider));
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
@@ -100,7 +99,6 @@ public class AwsModuleTest {
   @Test
   public void testClasspathPropertiesFileCredentialsProviderSerializationDeserialization()
       throws Exception {
-
     String credentialsFilePath = "/path/to/file";
 
     ClasspathPropertiesFileCredentialsProvider credentialsProvider =
@@ -154,5 +152,34 @@ public class AwsModuleTest {
     deserializedCredentialsProvider =
         objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+  }
+
+  @Test
+  public void testSSECustomerKeySerializationDeserialization() throws Exception {
+    final String key = "86glyTlCNZgccSxW8JxMa6ZdjdK3N141glAysPUZ3AA=";
+    final String md5 = null;
+    final String algorithm = "AES256";
+
+    SSECustomerKey value = new SSECustomerKey(key);
+
+    String valueAsJson = objectMapper.writeValueAsString(value);
+    SSECustomerKey valueDes = objectMapper.readValue(valueAsJson, SSECustomerKey.class);
+    assertEquals(key, valueDes.getKey());
+    assertEquals(algorithm, valueDes.getAlgorithm());
+    assertEquals(md5, valueDes.getMd5());
+  }
+
+  @Test
+  public void testSSEAwsKeyManagementParamsSerializationDeserialization() throws Exception {
+    final String awsKmsKeyId =
+        "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
+    final String encryption = "aws:kms";
+    SSEAwsKeyManagementParams value = new SSEAwsKeyManagementParams(awsKmsKeyId);
+
+    String valueAsJson = objectMapper.writeValueAsString(value);
+    SSEAwsKeyManagementParams valueDes =
+        objectMapper.readValue(valueAsJson, SSEAwsKeyManagementParams.class);
+    assertEquals(awsKmsKeyId, valueDes.getAwsKmsKeyId());
+    assertEquals(encryption, valueDes.getEncryption());
   }
 }
