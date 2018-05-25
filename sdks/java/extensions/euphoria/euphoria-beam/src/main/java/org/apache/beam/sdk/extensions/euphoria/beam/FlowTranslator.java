@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Collection;
@@ -59,6 +60,7 @@ class FlowTranslator {
     // extended operators
     translators.put(ReduceByKey.class, new ReduceByKeyTranslator());
     translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
+    translators.put(Join.class, new BrodcastHashJoinTranslator());
     translators.put(Join.class, new JoinTranslator());
   }
 
@@ -78,9 +80,10 @@ class FlowTranslator {
     return false;
   }
 
+  @VisibleForTesting
   @Nullable
   @SuppressWarnings("unchecked")
-  private static OperatorTranslator getTranslatorIfAvailable(Operator operator){
+  static OperatorTranslator getTranslatorIfAvailable(Operator operator) {
     Collection<OperatorTranslator> availableTranslators = translators.get(operator.getClass());
     if (availableTranslators.isEmpty()){
       return null;
