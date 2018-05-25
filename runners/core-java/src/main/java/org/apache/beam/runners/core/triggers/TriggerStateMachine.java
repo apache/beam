@@ -180,7 +180,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * <p>Used directly in {@link TriggerStateMachine#shouldFire} and {@link
    * TriggerStateMachine#clear}, and extended with additional information in other methods.
    */
-  public abstract class TriggerContext {
+  public abstract static class TriggerContext {
 
     /** Returns the interface for accessing trigger info. */
     public abstract TriggerInfo trigger();
@@ -216,7 +216,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * Extended {@link TriggerContext} containing information accessible to the {@link #onElement}
    * operational hook.
    */
-  public abstract class OnElementContext extends TriggerContext {
+  public abstract static class OnElementContext extends TriggerContext {
     /** The event timestamp of the element currently being processed. */
     public abstract Instant eventTimestamp();
 
@@ -242,7 +242,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * Extended {@link TriggerContext} containing information accessible to the {@link #onMerge}
    * operational hook.
    */
-  public abstract class OnMergeContext extends TriggerContext {
+  public abstract static class OnMergeContext extends TriggerContext {
     /**
      * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
      * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
