@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -123,7 +122,7 @@ public class CalciteUtils {
                     + "so it cannot be converted to a %s",
                 sqlTypeName, Schema.FieldType.class.getSimpleName()));
       default:
-        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).getTypeName().type();
+        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).withMetadata((byte[]) null);
     }
   }
 
@@ -141,26 +140,6 @@ public class CalciteUtils {
       default:
         return toFieldType(calciteType.getSqlTypeName());
     }
-  }
-
-  public static FieldType toArrayType(SqlTypeName collectionElementType) {
-    return TypeName.ARRAY.type().withCollectionElementType(toFieldType(collectionElementType));
-  }
-
-  public static FieldType toArrayType(RelDataType collectionElementType) {
-    return TypeName.ARRAY.type().withCollectionElementType(toFieldType(collectionElementType));
-  }
-
-  public static FieldType toMapType(SqlTypeName componentKeyType, SqlTypeName componentValueType) {
-    return TypeName.MAP
-        .type()
-        .withMapType(toFieldType(componentKeyType), toFieldType(componentValueType));
-  }
-
-  public static FieldType toMapType(RelDataType componentKeyType, RelDataType componentValueType) {
-    return TypeName.MAP
-        .type()
-        .withMapType(toFieldType(componentKeyType), toFieldType(componentValueType));
   }
 
   public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
