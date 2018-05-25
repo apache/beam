@@ -34,6 +34,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
@@ -82,7 +83,7 @@ public class ArtifactServiceStagerTest {
   @Test
   public void testStage() throws Exception {
     File file = temp.newFile();
-    byte[] content = "foo-bar-baz".getBytes();
+    byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     byte[] contentMd5 = MessageDigest.getInstance("MD5").digest(content);
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(content));
@@ -106,19 +107,19 @@ public class ArtifactServiceStagerTest {
   @Test
   public void testStagingMultipleFiles() throws Exception {
     File file = temp.newFile();
-    byte[] content = "foo-bar-baz".getBytes();
+    byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
     File otherFile = temp.newFile();
-    byte[] otherContent = "spam-ham-eggs".getBytes();
+    byte[] otherContent = "spam-ham-eggs".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(otherFile).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(otherContent));
     }
 
     File thirdFile = temp.newFile();
-    byte[] thirdContent = "up, down, charm, top, bottom, strange".getBytes();
+    byte[] thirdContent = "up, down, charm, top, bottom, strange".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(thirdFile).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(thirdContent));
     }

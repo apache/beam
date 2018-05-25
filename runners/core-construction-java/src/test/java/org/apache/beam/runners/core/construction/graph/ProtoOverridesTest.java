@@ -26,6 +26,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -79,7 +80,8 @@ public class ProtoOverridesTest {
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn("beam:second:replacement")
-                    .setPayload(ByteString.copyFrom("foo-bar-baz".getBytes())))
+                    .setPayload(
+                        ByteString.copyFrom("foo-bar-baz".getBytes(StandardCharsets.UTF_8))))
             .build();
     WindowingStrategy introducedWS =
         WindowingStrategy.newBuilder().setAccumulationMode(Enum.ACCUMULATING).build();
@@ -150,7 +152,7 @@ public class ProtoOverridesTest {
                         Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build()))
             .build();
 
-    ByteString newPayload = ByteString.copyFrom("foo-bar-baz".getBytes());
+    ByteString newPayload = ByteString.copyFrom("foo-bar-baz".getBytes(StandardCharsets.UTF_8));
     Pipeline updated =
         ProtoOverrides.updateTransform(
             "beam:repeated",
