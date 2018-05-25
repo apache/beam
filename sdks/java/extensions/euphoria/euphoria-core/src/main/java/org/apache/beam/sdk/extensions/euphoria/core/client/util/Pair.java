@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
+import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * @param <V> the type of the second element of the pair
  */
 @Audience(Audience.Type.CLIENT)
-public final class Pair<K, V> {
+public final class Pair<K, V> implements Serializable {
 
   private static final Comparator<Pair> CMP_BY_FIRST =
       (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());

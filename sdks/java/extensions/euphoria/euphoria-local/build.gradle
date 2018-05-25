@@ -24,5 +24,8 @@ dependencies {
     compileOnly library.java.findbugs_jsr305
     testCompile project(':beam-sdks-java-extensions-euphoria-testing')
     testCompile project(':beam-sdks-java-extensions-euphoria-beam')
-//  testCompile project(path: ':beam-sdks-java-extensions-euphoria-core', configuration: 'testArtifact')
+    shadow 'com.google.code.findbugs:annotations:3.0.1'
+    testCompile 'org.slf4j:slf4j-simple:1.7.25'
+    compileOnly library.java.junit
+    testCompile library.java.slf4j_api
 }

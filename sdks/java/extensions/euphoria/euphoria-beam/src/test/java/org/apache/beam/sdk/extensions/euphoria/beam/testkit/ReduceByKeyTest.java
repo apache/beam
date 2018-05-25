@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1112,7 +1113,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   /**
    * String with invalid hash code implementation returning constant.
    */
-  public static class Word {
+  public static class Word implements Serializable {
 
     private final String str;
 
