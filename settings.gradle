@@ -54,8 +54,6 @@ include "beam-runners-local-java-core"
 project(":beam-runners-local-java-core").dir = file("runners/local-java")
 include "beam-runners-reference-java"
 project(":beam-runners-reference-java").dir = file("runners/reference/java")
-include "beam-runners-reference-job-server"
-project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
 include "beam-sdks-go"

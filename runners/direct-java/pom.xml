@@ -248,6 +248,11 @@
     </dependency>
 
     <dependency>
+      <groupId>args4j</groupId>
+      <artifactId>args4j</artifactId>
+    </dependency>
+
+    <dependency>
       <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
      excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
