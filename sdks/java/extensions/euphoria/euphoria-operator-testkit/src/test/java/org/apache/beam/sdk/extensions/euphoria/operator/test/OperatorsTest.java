@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import org.apache.beam.sdk.extensions.euphoria.operator.test.suite.OperatorsTestSuite;
+
 /**
  * Test which runs whole {@link OperatorsTestSuite}.
  */
