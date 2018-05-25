@@ -19,6 +19,10 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(failOnWarning: true, enableSpotless: true, testShadowJar: true, shadowClosure: {})
 
+configurations {
+  integrationTest
+}
+
 dependencies {
   compile project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
   compile "jline:jline:2.14.6"
@@ -26,6 +30,11 @@ dependencies {
   compile library.java.slf4j_jdk14
   compileOnly library.java.findbugs_annotations
   testCompileOnly library.java.findbugs_annotations
+  // Depending on outputs so integrationTest can run with only test dependencies.
+  // This enables us to test the JDBC jar being loaded on a custom classloader.
+  integrationTest sourceSets.test.output
+  integrationTest sourceSets.main.output
+  integrationTest library.java.junit
 }
 
 shadowJar {
@@ -39,4 +48,14 @@ test {
     // Assert everything is in the output or test jar
     assert classpath.size() == 2
   }
+}
+
+task integrationTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
+  group = "Verification"
+
+  systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
+
+  include '**/*IT.class'
+  classpath = configurations.integrationTest
+  useJUnit { }
 }
