@@ -61,14 +61,17 @@ public class CounterCell implements Counter, MetricCell<Long> {
     dirty.afterModification();
   }
 
+  @Override
   public void inc() {
     inc(1);
   }
 
+  @Override
   public void dec() {
     inc(-1);
   }
 
+  @Override
   public void dec(long n) {
     inc(-1 * n);
   }

@@ -301,7 +301,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
         Timers timers,
         ExecutableTriggerStateMachine trigger,
         FinishedTriggers finishedSet) {
-      trigger.getSpec().super();
       this.window = window;
       this.state = new StateAccessorImpl(window, trigger);
       this.timers = new TriggerTimers(window, timers);
@@ -365,7 +364,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
         ExecutableTriggerStateMachine trigger,
         FinishedTriggers finishedSet,
         Instant eventTimestamp) {
-      trigger.getSpec().super();
       this.window = window;
       this.state = new StateAccessorImpl(window, trigger);
       this.timers = new TriggerTimers(window, timers);
@@ -442,7 +440,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
         ExecutableTriggerStateMachine trigger,
         FinishedTriggers finishedSet,
         Map<W, FinishedTriggers> finishedSets) {
-      trigger.getSpec().super();
       this.mergingWindows = finishedSets.keySet();
       this.window = window;
       this.state = new MergingStateAccessorImpl(trigger, mergingWindows, window);

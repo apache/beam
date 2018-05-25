@@ -39,8 +39,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.google.common.collect.Iterables;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -142,7 +142,7 @@ public class ReduceFnRunnerTest {
       ReduceFnTester<Integer, ?, IntervalWindow> tester, Iterable<Integer> values)
       throws Exception {
     doNothing().when(mockTriggerStateMachine).onElement(anyElementContext());
-    List<TimestampedValue<Integer>> timestampedValues = new LinkedList<>();
+    List<TimestampedValue<Integer>> timestampedValues = new ArrayList<>();
     for (int value : values) {
       timestampedValues.add(TimestampedValue.of(value, new Instant(value)));
     }
@@ -403,7 +403,6 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementCombiningDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -513,7 +512,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testFixedWindowEndOfTimeGarbageCollection() throws Exception {
-
     Duration allowedLateness = Duration.standardDays(365);
     Duration windowSize = Duration.millis(10);
     WindowFn<Object, IntervalWindow> windowFn = FixedWindows.of(windowSize);
@@ -639,7 +637,6 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementCombiningAccumulating() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and accumulating mode.
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -1035,7 +1032,7 @@ public class ReduceFnRunnerTest {
     assertEquals(null, tester.getOutputWatermark());
 
     // All on time data, verify watermark hold.
-    List<Integer> times = new LinkedList<>();
+    List<Integer> times = new ArrayList<>();
 
     int numTs = 3 + r.nextInt(100);
     int maxTs = 1 + r.nextInt(400);
@@ -1457,7 +1454,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)),
             mockTriggerStateMachine,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(0),
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.ZERO,
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // All on time data, verify watermark hold.
@@ -1863,7 +1860,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeFromOrFinally() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -1916,7 +1912,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeWithOnTimeBehaviorFireIfNonEmpty() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -1977,14 +1972,13 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeWithOnTimeBehaviorBackwardCompatibility() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(AfterWatermark.pastEndOfWindow()
                 .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
-            .withAllowedLateness(Duration.millis(0))
+            .withAllowedLateness(Duration.ZERO)
             .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
@@ -2016,7 +2010,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeWithOnTimeBehaviorFireIfNonEmptyAndLateData() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -2078,7 +2071,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testProcessingTime() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
