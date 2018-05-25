@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -57,14 +58,16 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     if (operands.size() == 1) {
       return BeamSqlPrimitive.of(
-          SqlTypeName.VARCHAR, opValueEvaluated(0, inputRow, window).toString().trim());
+          SqlTypeName.VARCHAR,
+          opValueEvaluated(0, inputRow, window, correlateEnv).toString().trim());
     } else {
-      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window);
-      String targetStr = opValueEvaluated(1, inputRow, window);
-      String containingStr = opValueEvaluated(2, inputRow, window);
+      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window, correlateEnv);
+      String targetStr = opValueEvaluated(1, inputRow, window, correlateEnv);
+      String containingStr = opValueEvaluated(2, inputRow, window, correlateEnv);
 
       switch (type) {
         case LEADING:

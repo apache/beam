@@ -17,41 +17,40 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.ImmutableMap;
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/** Implements DOT operator to access fields of dynamic ROWs. */
-public class BeamSqlDotExpression extends BeamSqlExpression {
+/** A primitive operation for dereferencing a correlation variable. */
+public class BeamSqlCorrelVariableExpression extends BeamSqlExpression {
 
-  public BeamSqlDotExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
-    super(operands, sqlTypeName);
+  private final int correlationId;
+
+  public BeamSqlCorrelVariableExpression(SqlTypeName sqlTypeName, int correlationId) {
+    super(null, sqlTypeName);
+    this.correlationId = correlationId;
   }
 
   @Override
   public boolean accept() {
-    return operands.size() == 2
-        && SqlTypeName.ROW.equals(operands.get(0).getOutputType())
-        && (SqlTypeName.VARCHAR.equals(operands.get(1).getOutputType())
-            || SqlTypeName.CHAR.equals(operands.get(1).getOutputType()));
+    return true;
   }
 
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Row dynamicRow = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String fieldName = opValueEvaluated(1, inputRow, window, correlateEnv);
-    SqlTypeName fieldType = getFieldType(dynamicRow, fieldName);
 
-    return BeamSqlPrimitive.of(fieldType, dynamicRow.getValue(fieldName));
-  }
+    Object correlateValue = correlateEnv.get(correlationId);
 
-  private SqlTypeName getFieldType(Row row, String fieldName) {
-    Schema.Field field = row.getSchema().getField(fieldName);
-    return CalciteUtils.toSqlTypeName(field.getType());
+    checkState(
+        correlateValue != null,
+        "Correlation variables %s not found in environment %s",
+        correlationId,
+        correlateEnv);
+
+    return BeamSqlPrimitive.of(getOutputType(), correlateValue);
   }
 }

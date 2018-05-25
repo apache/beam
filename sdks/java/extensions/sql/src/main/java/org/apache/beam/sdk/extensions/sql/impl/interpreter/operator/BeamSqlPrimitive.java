@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,8 @@ import org.joda.time.ReadableInstant;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}. It holds the
- * value, and return it directly during {@link #evaluate(Row, BoundedWindow)}.
+ * value, and return it directly during {@link BeamSqlExpression#evaluate(Row, BoundedWindow,
+ * ImmutableMap)}.
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   private T value;
@@ -148,6 +150,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
         return value instanceof Map;
       case ROW:
         return value instanceof Row;
+      case MULTISET:
+        return value instanceof Iterable;
       default:
         throw new UnsupportedOperationException(
             "Unsupported Beam SQL type in expression: " + outputType.name());
@@ -155,7 +159,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<T> evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<T> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     return this;
   }
 }

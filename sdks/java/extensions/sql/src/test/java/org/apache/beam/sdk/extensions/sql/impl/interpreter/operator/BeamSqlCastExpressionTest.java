@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -50,14 +51,20 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   public void testForIntegerToBigintTypeCasting() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
     Assert.assertEquals(
-        5L, new BeamSqlCastExpression(operands, SqlTypeName.BIGINT).evaluate(row, null).getLong());
+        5L,
+        new BeamSqlCastExpression(operands, SqlTypeName.BIGINT)
+            .evaluate(row, null, ImmutableMap.of())
+            .getLong());
   }
 
   @Test
   public void testForDoubleToBigIntCasting() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 5.45));
     Assert.assertEquals(
-        5L, new BeamSqlCastExpression(operands, SqlTypeName.BIGINT).evaluate(row, null).getLong());
+        5L,
+        new BeamSqlCastExpression(operands, SqlTypeName.BIGINT)
+            .evaluate(row, null, ImmutableMap.of())
+            .getLong());
   }
 
   @Test
@@ -66,7 +73,9 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 20170521));
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
-        new BeamSqlCastExpression(operands, SqlTypeName.DATE).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.DATE)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -75,7 +84,9 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21"));
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
-        new BeamSqlCastExpression(operands, SqlTypeName.DATE).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.DATE)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -84,7 +95,9 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "17.05.21"));
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
-        new BeamSqlCastExpression(operands, SqlTypeName.DATE).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.DATE)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -93,7 +106,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         SqlTypeName.TIMESTAMP,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null)
+            .evaluate(row, null, ImmutableMap.of())
             .getOutputType());
   }
 
@@ -102,7 +115,9 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59.989"));
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 22).withTime(0, 0, 0, 0),
-        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -115,7 +130,9 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
             .withTime(0, 0, 0, 0);
     Assert.assertEquals(
         expected,
-        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -123,7 +140,9 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59"));
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTime(23, 59, 59, 0),
-        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 
   @Test(expected = RuntimeException.class)
@@ -131,6 +150,8 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, DateTime.now()));
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 22).withTime(0, 0, 0, 0),
-        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(row, null).getValue());
+        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
+            .evaluate(row, null, ImmutableMap.of())
+            .getValue());
   }
 }
