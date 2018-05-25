@@ -31,6 +31,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TFRecordIO.java">TFRecordIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -96,10 +97,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td>Apache Kudu</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-2661">BEAM-2661</a></td>
   </tr>  
-  <tr>
-    <td>Apache Parquet</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-214">BEAM-214</a></td>
-  </tr>
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>
