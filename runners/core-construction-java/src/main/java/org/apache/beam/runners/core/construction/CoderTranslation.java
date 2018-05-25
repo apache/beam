@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -135,7 +134,7 @@ public class CoderTranslation {
   private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, RehydratedComponents components)
       throws IOException {
     String coderUrn = coder.getSpec().getSpec().getUrn();
-    List<Coder<?>> coderComponents = new LinkedList<>();
+    List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
       Coder<?> innerCoder = components.getCoder(componentId);
       coderComponents.add(innerCoder);
