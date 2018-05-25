@@ -92,6 +92,10 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
   </tr>
   <tr>
+    <td>Apache Kudu</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-2661">BEAM-2661</a></td>
+  </tr>  
+  <tr>
     <td>Apache Parquet</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-214">BEAM-214</a></td>
   </tr>
