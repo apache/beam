@@ -15,8 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.operator.test;
+package org.apache.beam.sdk.extensions.euphoria.operator.test.suite;
 
+import org.apache.beam.sdk.extensions.euphoria.operator.test.FlatMapTest;
+import org.apache.beam.sdk.extensions.euphoria.operator.test.JoinTest;
+import org.apache.beam.sdk.extensions.euphoria.operator.test.ReduceByKeyTest;
+import org.apache.beam.sdk.extensions.euphoria.operator.test.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProvider;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProviderRunner;
 import org.junit.runner.RunWith;
