@@ -56,8 +56,7 @@ import org.joda.time.Duration;
  * PCollection<String> words = ...;
  * PCollection<String> uniqueWords =
  *     words.apply(Distinct.<String>create());
- * }
- * </pre>
+ * }</pre>
  *
  * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
@@ -90,7 +89,7 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
             || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not support non-merging windowing strategies, except when using the default "
+              "%s does not support merging windowing strategies, except when using the default "
                   + "trigger and zero allowed lateness.",
               Distinct.class.getSimpleName()));
     }
