@@ -204,8 +204,6 @@ public class Schema implements Serializable {
     MAP,
     ROW;    // The field is itself a nested row.
 
-    private final FieldType fieldType = FieldType.of(this);
-
     public static final Set<TypeName> NUMERIC_TYPES = ImmutableSet.of(
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
@@ -236,9 +234,14 @@ public class Schema implements Serializable {
       return COMPOSITE_TYPES.contains(this);
     }
 
-    /** Returns a {@link FieldType} representing this primitive type. */
+    /**
+     * Returns a {@link FieldType} representing this primitive type.
+     *
+     * @deprecated a {@link TypeName} is not a type, so this conversion is not sound.
+     */
+    @Deprecated
     public FieldType type() {
-      return fieldType;
+      return FieldType.of(this);
     }
   }
 
@@ -282,6 +285,36 @@ public class Schema implements Serializable {
     public static FieldType of(TypeName typeName) {
       return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).build();
     }
+
+    /** The type of string fields. */
+    public static final FieldType STRING = FieldType.of(TypeName.STRING);
+
+    /** The type of byte fields. */
+    public static final FieldType BYTE = FieldType.of(TypeName.BYTE);
+
+    /** The type of int16 fields. */
+    public static final FieldType INT16 = FieldType.of(TypeName.INT16);
+
+    /** The type of int32 fields. */
+    public static final FieldType INT32 = FieldType.of(TypeName.INT32);
+
+    /** The type of int64 fields. */
+    public static final FieldType INT64 = FieldType.of(TypeName.INT64);
+
+    /** The type of float fields. */
+    public static final FieldType FLOAT = FieldType.of(TypeName.FLOAT);
+
+    /** The type of double fields. */
+    public static final FieldType DOUBLE = FieldType.of(TypeName.DOUBLE);
+
+    /** The type of decimal fields. */
+    public static final FieldType DECIMAL = FieldType.of(TypeName.DECIMAL);
+
+    /** The type of boolean fields. */
+    public static final FieldType BOOLEAN = FieldType.of(TypeName.BOOLEAN);
+
+    /** The type of datetime fields. */
+    public static final FieldType DATETIME = FieldType.of(TypeName.DATETIME);
 
     /**
      * For container types, adds the type of the component element.
