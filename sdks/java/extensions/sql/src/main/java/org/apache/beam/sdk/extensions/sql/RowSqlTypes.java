@@ -153,7 +153,7 @@ public class RowSqlTypes {
       return this;
     }
 
-    /** Adds an ARRAY field with elements of {@code rowType}. */
+    /** Adds an ARRAY field with elements of {@code schema}. */
     public Builder withArrayField(String fieldName, Schema schema) {
       FieldType collectionElementType = FieldType.of(TypeName.ROW).withRowSchema(schema);
       builder.addField(

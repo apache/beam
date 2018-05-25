@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.reflect.DefaultRowTypeFactory;
+import org.apache.beam.sdk.values.reflect.DefaultSchemaFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.RowTypeFactory;
+import org.apache.beam.sdk.values.reflect.SchemaFactory;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,9 +56,9 @@ public class SqlSchemaFactoryTest {
 
   @Test
   public void testContainsCorrectFields() throws Exception {
-    RowTypeFactory factory = new DefaultRowTypeFactory();
+    SchemaFactory factory = new DefaultSchemaFactory();
 
-    Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
+    Schema schema = factory.createSchema(GETTERS_FOR_KNOWN_TYPES);
 
     assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), schema.getFieldCount());
     assertEquals(
@@ -81,9 +81,9 @@ public class SqlSchemaFactoryTest {
   public void testThrowsForUnsupportedTypes() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
 
-    RowTypeFactory factory = new DefaultRowTypeFactory();
+    SchemaFactory factory = new DefaultSchemaFactory();
 
-    factory.createRowType(
+    factory.createSchema(
         Arrays.<FieldValueGetter>asList(getter("arrayListGetter", ArrayList.class)));
   }
 

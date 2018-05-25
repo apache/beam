@@ -29,7 +29,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 
 /**
- * A default implementation of the {@link RowTypeFactory} interface. The purpose of
+ * A default implementation of the {@link SchemaFactory} interface. The purpose of
  * the factory is to create a row types given a list of getters.
  *
  * <p>Row type is represented by {@link Schema} which essentially is a
@@ -42,10 +42,10 @@ import org.joda.time.DateTime;
  * <p>This is the default factory implementation used in {@link RowFactory}.
  *
  * <p>In other cases, when mapping requires extra logic, another implentation of the
- * {@link RowTypeFactory} should be used instead of this class.
+ * {@link SchemaFactory} should be used instead of this class.
  *
  */
-public class DefaultRowTypeFactory implements RowTypeFactory {
+public class DefaultSchemaFactory implements SchemaFactory {
   private static final ImmutableMap<Class, TypeName> SUPPORTED_TYPES =
       ImmutableMap.<Class, TypeName>builder()
           .put(Boolean.class, TypeName.BOOLEAN)
@@ -74,7 +74,7 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
    * Uses {@link CoderRegistry#createDefault()} to get coders for {@link FieldValueGetter#type()}.
    */
   @Override
-  public Schema createRowType(Iterable<FieldValueGetter> fieldValueGetters) {
+  public Schema createSchema(Iterable<FieldValueGetter> fieldValueGetters) {
     List<Schema.Field> fields = Lists.newArrayList();
     for (FieldValueGetter getter : fieldValueGetters) {
       fields.add(Schema.Field.of(getter.name(), getTypeDescriptor(getter.type())));
