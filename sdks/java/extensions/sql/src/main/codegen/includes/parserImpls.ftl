@@ -218,8 +218,7 @@ Schema.FieldType Array() :
 {
     <ARRAY> <LT> arrayElementType = FieldType() <GT>
     {
-        return Schema.TypeName.ARRAY.type()
-            .withCollectionElementType(arrayElementType);
+        return Schema.FieldType.array(arrayElementType);
     }
 
 }
@@ -237,8 +236,7 @@ Schema.FieldType Map() :
             mapValueType = FieldType()
         <GT>
     {
-        return Schema.TypeName.MAP.type()
-            .withMapType(mapKeyType, mapValueType);
+        return Schema.FieldType.map(mapKeyType, mapValueType);
     }
 }
 
@@ -250,8 +248,7 @@ Schema.FieldType Row() :
     <ROW> fields = RowFields()
     {
         Schema rowSchema = Schema.builder().addFields(fields).build();
-        return Schema.TypeName.ROW.type()
-            .withRowSchema(rowSchema);
+        return Schema.FieldType.row(rowSchema);
     }
 }
 

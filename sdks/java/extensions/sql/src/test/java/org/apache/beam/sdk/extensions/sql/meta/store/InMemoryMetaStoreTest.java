@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -122,7 +121,7 @@ public class InMemoryMetaStoreTest {
         .location("/home/admin/" + name)
         .schema(
             Stream.of(
-                    Schema.Field.nullable("id", TypeName.INT32.type()),
+                    Schema.Field.nullable("id", Schema.FieldType.INT32),
                     Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type(type)

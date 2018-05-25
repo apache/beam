@@ -20,9 +20,6 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.ARRAY;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -86,14 +83,8 @@ public class BeamSqlCliTest {
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("tags", ARRAY.type().withCollectionElementType(VARCHAR))
-                    .withNullable(true),
-                Field.of(
-                        "matrix",
-                        ARRAY
-                            .type()
-                            .withCollectionElementType(
-                                ARRAY.type().withCollectionElementType(INTEGER)))
+                Field.of("tags", Schema.FieldType.array(VARCHAR)).withNullable(true),
+                Field.of("matrix", Schema.FieldType.array(Schema.FieldType.array(INTEGER)))
                     .withNullable(true))
             .collect(toSchema()),
         table.getSchema());
@@ -122,10 +113,10 @@ public class BeamSqlCliTest {
                 Field.of("id", INTEGER).withDescription("id").withNullable(true),
                 Field.of("name", VARCHAR).withDescription("name").withNullable(true),
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
-                Field.of("tags", MAP.type().withMapType(VARCHAR, VARCHAR)).withNullable(true),
+                Field.of("tags", Schema.FieldType.map(VARCHAR, VARCHAR)).withNullable(true),
                 Field.of(
                         "nestedmap",
-                        MAP.type().withMapType(INTEGER, MAP.type().withMapType(VARCHAR, INTEGER)))
+                        Schema.FieldType.map(INTEGER, Schema.FieldType.map(VARCHAR, INTEGER)))
                     .withNullable(true))
             .collect(toSchema()),
         table.getSchema());
@@ -163,21 +154,19 @@ public class BeamSqlCliTest {
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
                 Field.of(
                         "address",
-                        ROW.type()
-                            .withRowSchema(
-                                Schema.builder()
-                                    .addNullableField("street", Schema.FieldType.STRING)
-                                    .addNullableField("country", Schema.FieldType.STRING)
-                                    .build()))
+                        Schema.FieldType.row(
+                            Schema.builder()
+                                .addNullableField("street", Schema.FieldType.STRING)
+                                .addNullableField("country", Schema.FieldType.STRING)
+                                .build()))
                     .withNullable(true),
                 Field.of(
                         "addressangular",
-                        ROW.type()
-                            .withRowSchema(
-                                Schema.builder()
-                                    .addNullableField("street", Schema.FieldType.STRING)
-                                    .addNullableField("country", Schema.FieldType.STRING)
-                                    .build()))
+                        Schema.FieldType.row(
+                            Schema.builder()
+                                .addNullableField("street", Schema.FieldType.STRING)
+                                .addNullableField("country", Schema.FieldType.STRING)
+                                .build()))
                     .withNullable(true),
                 Field.of("isrobot", BOOLEAN).withNullable(true))
             .collect(toSchema()),

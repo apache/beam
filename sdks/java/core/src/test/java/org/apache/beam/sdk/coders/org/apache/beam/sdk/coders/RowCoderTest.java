@@ -28,7 +28,6 @@ import java.math.BigDecimal;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -87,7 +86,7 @@ public class RowCoderTest {
   @Test
   public void testArrays() throws Exception {
     Schema schema = Schema.builder()
-        .addArrayField("f_array", TypeName.STRING.type())
+        .addArrayField("f_array", FieldType.STRING)
         .build();
     Row row = Row.withSchema(schema).addArray("one", "two", "three", "four").build();
     checkEncodeDecode(row);
@@ -98,7 +97,7 @@ public class RowCoderTest {
     Schema nestedSchema = Schema.builder()
         .addInt32Field("f1_int")
         .addStringField("f1_str").build();
-    FieldType collectionElementType = TypeName.ROW.type().withRowSchema(nestedSchema);
+    FieldType collectionElementType = FieldType.row(nestedSchema);
     Schema schema = Schema.builder().addArrayField("f_array", collectionElementType).build();
     Row row = Row.withSchema(schema).addArray(
         Row.withSchema(nestedSchema).addValues(1, "one").build(),
@@ -110,9 +109,7 @@ public class RowCoderTest {
 
   @Test
   public void testArrayOfArray() throws Exception {
-    FieldType arrayType = TypeName.ARRAY.type()
-        .withCollectionElementType(TypeName.ARRAY.type()
-            .withCollectionElementType(TypeName.INT32.type()));
+    FieldType arrayType = FieldType.array(FieldType.array(FieldType.INT32));
     Schema schema = Schema.builder().addField("f_array", arrayType).build();
     Row row = Row.withSchema(schema).addArray(
         Lists.newArrayList(1, 2, 3, 4),

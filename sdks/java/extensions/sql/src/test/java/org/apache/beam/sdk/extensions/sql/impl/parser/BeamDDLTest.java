@@ -29,7 +29,6 @@ import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.Test;
@@ -147,7 +146,7 @@ public class BeamDDLTest {
         .location(location)
         .schema(
             Stream.of(
-                    Schema.Field.of("id", TypeName.INT32.type())
+                    Schema.Field.of("id", CalciteUtils.INTEGER)
                         .withNullable(true)
                         .withDescription("id"),
                     Schema.Field.of("name", CalciteUtils.VARCHAR)

@@ -46,7 +46,7 @@ public class QuickCheckGenerators {
     private static final List<FieldType> PRIMITIVE_TYPES =
         java.util.Arrays.stream(TypeName.values())
             .filter(TypeName::isPrimitiveType)
-            .map(TypeName::type)
+            .map(FieldType::of)
             .collect(toList());
 
     @Override
@@ -59,7 +59,7 @@ public class QuickCheckGenerators {
   public static class Arrays extends FieldTypeGenerator {
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
-      return TypeName.ARRAY.type().withCollectionElementType(ANY_TYPE.generate(random, status));
+      return FieldType.array(ANY_TYPE.generate(random, status));
     }
   }
 
@@ -69,9 +69,8 @@ public class QuickCheckGenerators {
   public static class Maps extends FieldTypeGenerator {
     @Override
     public FieldType generateFieldType(SourceOfRandomness random, GenerationStatus status) {
-      return TypeName.MAP
-          .type()
-          .withMapType(PRIMITIVE_TYPES.generate(random, status), ANY_TYPE.generate(random, status));
+      return FieldType.map(
+          PRIMITIVE_TYPES.generate(random, status), ANY_TYPE.generate(random, status));
     }
   }
 
@@ -83,9 +82,7 @@ public class QuickCheckGenerators {
       FieldTypeGenerator rowFieldTypesGenerator =
           (nestingLevel(status) >= 10) ? PRIMITIVE_TYPES : ANY_TYPE;
 
-      return TypeName.ROW
-          .type()
-          .withRowSchema(generateSchema(rowFieldTypesGenerator, random, status));
+      return FieldType.row(generateSchema(rowFieldTypesGenerator, random, status));
     }
 
     private Schema generateSchema(
