@@ -103,7 +103,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      Schema beamSQLSchema = buildBeamSqlRowType(args);
+      Schema beamSQLSchema = buildBeamSqlSchema(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLSchema;
 
@@ -120,8 +120,6 @@ public class TestUtils {
      *   schema
      * )
      * }</pre>
-     *
-     * @beamSQLRowType the row type.
      */
     public static RowsBuilder of(final Schema schema) {
       RowsBuilder builder = new RowsBuilder();
@@ -159,7 +157,7 @@ public class TestUtils {
     }
 
     public PCollectionBuilder getPCollectionBuilder() {
-      return pCollectionBuilder().withRowType(type).withRows(rows);
+      return pCollectionBuilder().withSchema(type).withRows(rows);
     }
   }
 
@@ -173,7 +171,7 @@ public class TestUtils {
     private String timestampField;
     private Pipeline pipeline;
 
-    public PCollectionBuilder withRowType(Schema type) {
+    public PCollectionBuilder withSchema(Schema type) {
       this.type = type;
       return this;
     }
@@ -224,12 +222,12 @@ public class TestUtils {
   }
 
   /**
-   * Convenient way to build a {@code BeamSqlRowType}.
+   * Convenient way to build a {@link Schema}.
    *
    * <p>e.g.
    *
    * <pre>{@code
-   * buildBeamSqlRowType(
+   * buildBeamSqlSchema(
    *     SqlCoders.BIGINT, "order_id",
    *     SqlCoders.INTEGER, "site_id",
    *     SqlCoders.DOUBLE, "price",
@@ -237,7 +235,7 @@ public class TestUtils {
    * )
    * }</pre>
    */
-  public static Schema buildBeamSqlRowType(Object... args) {
+  public static Schema buildBeamSqlSchema(Object... args) {
     return Stream.iterate(0, i -> i + 2)
         .limit(args.length / 2)
         .map(i -> toRecordField(args, i))

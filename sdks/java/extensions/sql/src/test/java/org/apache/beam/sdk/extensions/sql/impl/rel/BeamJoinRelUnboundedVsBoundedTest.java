@@ -101,7 +101,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     registerTable(
         "SITE_LKP",
         new SiteLookupTable(
-            TestUtils.buildBeamSqlRowType(
+            TestUtils.buildBeamSqlSchema(
                 TypeName.INT32, "site_id",
                 TypeName.STRING, "site_name")));
   }

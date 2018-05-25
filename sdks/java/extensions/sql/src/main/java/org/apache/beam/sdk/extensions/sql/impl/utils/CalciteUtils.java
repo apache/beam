@@ -76,7 +76,7 @@ public class CalciteUtils {
           TypeName.DATETIME.type(), SqlTypeName.TIMESTAMP,
           TypeName.STRING.type(), SqlTypeName.VARCHAR);
 
-  /** Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table. */
+  /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
   public static Schema toBeamSchema(RelDataType tableInfo) {
     return tableInfo
         .getFieldList()
