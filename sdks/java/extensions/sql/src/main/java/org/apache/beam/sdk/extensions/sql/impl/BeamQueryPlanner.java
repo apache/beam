@@ -50,6 +50,7 @@ import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.tools.RuleSets;
 import org.apache.calcite.tools.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,9 +120,9 @@ class BeamQueryPlanner {
   }
 
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
-  BeamRelNode convertToBeamRel(String sqlStatement)
-      throws ValidationException, RelConversionException, SqlParseException {
-    BeamRelNode beamRelNode;
+  public BeamRelNode convertToBeamRel(String sqlStatement)
+      throws ValidationException, RelConversionException, SqlParseException, CannotPlanException {
+    RelNode beamRelNode;
     RelNode optRelNode;
     Planner planner = getPlanner();
     try {
@@ -129,6 +130,7 @@ class BeamQueryPlanner {
       SqlNode validated = planner.validate(parsed);
       LOG.info("SQL:\n" + validated);
 
+      // root of original logical plan
       RelRoot root = planner.rel(validated);
       LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
 
@@ -143,12 +145,12 @@ class BeamQueryPlanner {
       RelNode originalRelNode = planner.transform(0, desiredTraits, root.rel);
 
       // optimized logical plan
-      optRelNode = optimizeLogicPlan(originalRelNode);
-      LOG.debug("OptimizedPlan>\n" + RelOptUtil.toString(optRelNode));
+      beamRelNode = optimizeLogicPlan(root.rel, desiredTraits);
+      System.out.println("OptimizedPlan>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
     }
-    return (BeamRelNode) optRelNode;
+    return (BeamRelNode) beamRelNode;
   }
 
   /** execute volcano planner. */
@@ -156,28 +158,24 @@ class BeamQueryPlanner {
       RuleSet logicalOptRuleSet, RelNode relNode, RelTraitSet logicalOptTraitSet)
       throws CannotPlanException {
     Program optProgram = Programs.ofRules(logicalOptRuleSet);
-    RelNode output;
 
     try {
-      output =
-          optProgram.run(
-              relNode.getCluster().getPlanner(),
-              relNode,
-              logicalOptTraitSet,
-              Collections.EMPTY_LIST,
-              Collections.EMPTY_LIST);
+      return optProgram.run(
+          relNode.getCluster().getPlanner(),
+          relNode,
+          logicalOptTraitSet,
+          Collections.EMPTY_LIST,
+          Collections.EMPTY_LIST);
     } catch (CannotPlanException e) {
       throw e;
     }
-
-    return output;
   }
 
-  private RelNode optimizeLogicPlan(RelNode relNode) throws CannotPlanException {
-    RelTraitSet desiredTraits =
-        relNode.getTraitSet().replace(BeamLogicalConvention.INSTANCE).simplify();
+  private RelNode optimizeLogicPlan(RelNode relNode, RelTraitSet desiredTraits)
+      throws CannotPlanException {
+    RuleSet logicalOptRuleSet = RuleSets.ofList(BeamRuleSets.LOGICAL_OPT_RULES);
 
-    return runVolcanoPlanner(BeamRuleSets.LOGICAL_OPT_RULES, relNode, desiredTraits);
+    return runVolcanoPlanner(logicalOptRuleSet, relNode, desiredTraits);
   }
 
   private Planner getPlanner() {
