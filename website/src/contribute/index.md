@@ -184,6 +184,13 @@ Work is in progress to add Python 3 support to Beam.  Current goal is to make Be
 Contributions are welcome! If you are interested to help, you can select a subpackage to port and assign yourself the corresponding issue. Comment on the issue if you cannot assign it yourself.
 When submitting a new PR, please tag [@RobbeSneyders](https://github.com/robbesneyders), [@aaltay](https://github.com/aaltay), and [@tvalentyn](https://github.com/tvalentyn).
 
+### Next Java LTS version support (Java 11 / 18.9)
+
+Work to support the next LTS release of Java is in progress. For more details about the scope and info on the various tasks please see the JIRA ticket.
+
+- JIRA: [BEAM-2530](https://issues.apache.org/jira/issues/BEAM-2530)
+- Contact: [Ismaël Mejía](mailto:iemejia@gmail.com)
+
 ## Stale pull requests
 
 The community will close stale pull requests in order to keep the project
