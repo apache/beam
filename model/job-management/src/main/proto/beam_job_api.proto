@@ -75,6 +75,11 @@ message PrepareJobResponse {
   // An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
   // staged to this endpoint, and will be available during job execution.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_staging_endpoint = 2;
+
+  // (required) Id for the artifact staging. The content of the Id can contain
+  // parsable information which can then be utilized by artifact staging service.
+  // This Id also represent an artifact staging session with the artifact staging service.
+  string artifact_staging_id = 3;
 }
 
 

@@ -30,9 +30,6 @@ option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "ArtifactApi";
 
 // A service to stage artifacts for use in a Job.
-//
-// RPCs made to an ArtifactStagingService endpoint should include some form of identification for
-// the job as a header.
 service ArtifactStagingService {
   // Stage an artifact to be available during job execution. The first request must contain the
   // name of the artifact. All future requests must contain sequential chunks of the content of
@@ -102,17 +99,24 @@ message ArtifactChunk {
   bytes data = 1;
 }
 
+message PutArtifactMetadata {
+  // (Required) An identifier for artifact staging session.
+  string artifact_staging_id = 1;
+  // (Required) The Artifact metadata.
+  ArtifactMetadata metadata = 2;
+}
+
 // A request to stage an artifact.
 message PutArtifactRequest {
   // (Required)
   oneof content {
-    // The Artifact metadata. The first message in a PutArtifact call must contain the name
-    // of the artifact.
-    ArtifactMetadata metadata = 1;
+    // The first message in a PutArtifact call must contain this field.
+    PutArtifactMetadata metadata = 1;
 
     // A chunk of the artifact. All messages after the first in a PutArtifact call must contain a
     // chunk.
     ArtifactChunk data = 2;
+
   }
 }
 
@@ -124,6 +128,8 @@ message PutArtifactResponse {
 message CommitManifestRequest {
   // (Required) The manifest to commit.
   Manifest manifest = 1;
+  // (Required) An identifier for artifact staging session.
+  string artifact_staging_id = 2;
 }
 
 // The result of committing a manifest.
