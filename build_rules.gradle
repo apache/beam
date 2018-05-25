@@ -179,7 +179,7 @@ def netty_version = "4.1.8.Final"
 def grpc_google_common_protos = "0.1.9"
 def hamcrest_version = "1.3"
 def hadoop_version = "2.7.3"
-def jackson_version = "2.8.9"
+def jackson_version = "2.9.5"
 def spark_version = "2.3.0"
 def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.7.0"
@@ -187,7 +187,6 @@ def apex_malhar_version = "3.4.0"
 def postgres_version = "9.4.1212.jre7"
 def jaxb_api_version = "2.2.12"
 def kafka_version = "1.0.0"
-def jackson_datatype_joda_version = "2.4.0"
 def quickcheck_version = "0.8"
 
 // A map of maps containing common libraries used per language. To use:
@@ -268,7 +267,7 @@ ext.library = [
     jackson_databind: "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
     jackson_dataformat_cbor: "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
     jackson_dataformat_yaml: "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
-    jackson_datatype_joda: "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_datatype_joda_version",
+    jackson_datatype_joda: "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
     jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
     jaxb_api: "javax.xml.bind:jaxb-api:$jaxb_api_version",
     joda_time: "joda-time:joda-time:2.4",
