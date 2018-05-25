@@ -177,7 +177,7 @@ public class TranslatorUtils {
 
       RawUnionValue that = (RawUnionValue) o;
 
-      if (unionTag != that.unionTag) {
+      if (!unionTag.equals(that.unionTag)) {
         return false;
       }
       return value != null ? value.equals(that.value) : that.value == null;
