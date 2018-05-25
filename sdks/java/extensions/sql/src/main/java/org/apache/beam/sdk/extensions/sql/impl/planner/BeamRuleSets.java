@@ -45,7 +45,6 @@ import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
-import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.rules.ProjectSetOpTransposeRule;
 import org.apache.calcite.rel.rules.ProjectSortTransposeRule;
 import org.apache.calcite.rel.rules.PruneEmptyRules;
@@ -99,8 +98,6 @@ public class BeamRuleSets {
               PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
           // merge projections
           ProjectMergeRule.INSTANCE,
-          // remove identity project
-          ProjectRemoveRule.INSTANCE,
           // reorder sort and projection
           SortProjectTransposeRule.INSTANCE,
           ProjectSortTransposeRule.INSTANCE,
