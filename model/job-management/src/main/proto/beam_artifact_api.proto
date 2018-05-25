@@ -116,7 +116,6 @@ message PutArtifactRequest {
     // A chunk of the artifact. All messages after the first in a PutArtifact call must contain a
     // chunk.
     ArtifactChunk data = 2;
-
   }
 }
 
