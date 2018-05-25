@@ -62,8 +62,8 @@ public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
       this.sink = sink;
     }
 
-    @Setup
-    public void setup() {
+    @StartBundle
+    public void setupBundle(){
       writer = sink.openWriter(partitionId);
     }
 
@@ -76,12 +76,12 @@ public class BeamWriteSink<T> extends PTransform<PCollection<T>, PDone> {
     @FinishBundle
     public void finishBundle() throws Exception {
       writer.flush();
+      writer.commit();
+      writer.close();
     }
 
     @Teardown
     public void tearDown() throws IOException {
-      writer.commit();
-      writer.close();
     }
   }
 }
