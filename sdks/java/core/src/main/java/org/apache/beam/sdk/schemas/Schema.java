@@ -135,6 +135,14 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addMapField(
+        String name, FieldType keyType, FieldType valueType, boolean nullable) {
+      fields.add(
+          Field.of(name, TypeName.MAP.type().withMapType(keyType, valueType))
+              .withNullable(nullable));
+      return this;
+    }
+
     public Schema build() {
       return new Schema(fields);
     }
