@@ -52,7 +52,7 @@ import org.apache.commons.lang3.tuple.Pair;
 /**
  * Maintains context data for {@link TransformTranslator}s.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({"rawtypes", "unchecked", "TypeParameterUnusedInFormals"})
 class TranslationContext {
 
   private final ApexPipelineOptions pipelineOptions;
@@ -112,7 +112,7 @@ class TranslationContext {
   }
 
   public void addOperator(Operator operator, OutputPort port) {
-    addOperator(operator, port, (PCollection<?>) getOutput());
+    addOperator(operator, port, getOutput());
   }
 
   /**
