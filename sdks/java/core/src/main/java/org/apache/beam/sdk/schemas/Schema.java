@@ -276,6 +276,11 @@ public class Schema implements Serializable {
     @SuppressWarnings("mutable")
     @Nullable public abstract byte[] getMetadata();
     abstract FieldType.Builder toBuilder();
+
+    public static Builder forTypeName(TypeName typeName) {
+      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName);
+    }
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
@@ -291,7 +296,7 @@ public class Schema implements Serializable {
      * Create a {@link FieldType} for the given type.
      */
     public static FieldType of(TypeName typeName) {
-      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).build();
+      return forTypeName(typeName).build();
     }
 
     /** The type of string fields. */
@@ -323,6 +328,24 @@ public class Schema implements Serializable {
 
     /** The type of datetime fields. */
     public static final FieldType DATETIME = FieldType.of(TypeName.DATETIME);
+
+    /** Create an array type for the given field type. */
+    public static final FieldType array(FieldType elementType) {
+      return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
+    }
+
+    /** Create a map type for the given key and value types. */
+    public static final FieldType map(FieldType keyType, FieldType valueType) {
+      return FieldType.forTypeName(TypeName.MAP)
+          .setMapKeyType(keyType)
+          .setMapValueType(valueType)
+          .build();
+    }
+
+    /** Create a map type for the given key and value types. */
+    public static final FieldType row(Schema schema) {
+      return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
+    }
 
     /**
      * For container types, adds the type of the component element.
