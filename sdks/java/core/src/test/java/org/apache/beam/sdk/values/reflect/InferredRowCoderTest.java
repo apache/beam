@@ -31,13 +31,11 @@ import org.junit.Test;
  * Unit tests for {@link InferredRowCoder}.
  */
 public class InferredRowCoderTest {
-  private static final boolean NOT_NULLABLE = false;
-
   private static final Schema PERSON_ROW_TYPE =
       Schema
           .builder()
-          .addInt32Field("ageYears", NOT_NULLABLE)
-          .addStringField("name", NOT_NULLABLE)
+          .addInt32Field("ageYears")
+          .addStringField("name")
           .build();
 
   private static final PersonPojo PERSON_FOO = new PersonPojo("Foo", 13);

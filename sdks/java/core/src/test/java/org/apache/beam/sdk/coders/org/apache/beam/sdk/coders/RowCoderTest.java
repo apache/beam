@@ -35,9 +35,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link RowCoder}.
- */
+/** Unit tests for {@link RowCoder}. */
 public class RowCoderTest {
 
   void checkEncodeDecode(Row row) throws IOException {
@@ -50,16 +48,16 @@ public class RowCoderTest {
   @Test
   public void testPrimitiveTypes() throws Exception {
     Schema schema = Schema.builder()
-        .addByteField("f_byte", false)
-        .addInt16Field("f_int16", false)
-        .addInt32Field("f_int32", false)
-        .addInt64Field("f_int64", false)
-        .addDecimalField("f_decimal", false)
-        .addFloatField("f_float", false)
-        .addDoubleField("f_double", false)
-        .addStringField("f_string", false)
-        .addDateTimeField("f_datetime", false)
-        .addBooleanField("f_boolean", false).build();
+        .addByteField("f_byte")
+        .addInt16Field("f_int16")
+        .addInt32Field("f_int32")
+        .addInt64Field("f_int64")
+        .addDecimalField("f_decimal")
+        .addFloatField("f_float")
+        .addDoubleField("f_double")
+        .addStringField("f_string")
+        .addDateTimeField("f_datetime")
+        .addBooleanField("f_boolean").build();
 
     DateTime dateTime = new DateTime().withDate(1979, 03, 14)
         .withTime(1, 2, 3, 4)
@@ -76,11 +74,11 @@ public class RowCoderTest {
   @Test
   public void testNestedTypes() throws Exception {
     Schema nestedSchema = Schema.builder()
-        .addInt32Field("f1_int", false)
-        .addStringField("f1_str", false).build();
+        .addInt32Field("f1_int")
+        .addStringField("f1_str").build();
     Schema schema = Schema.builder()
-        .addInt32Field("f_int", false)
-        .addRowField("nested", nestedSchema, false).build();
+        .addInt32Field("f_int")
+        .addRowField("nested", nestedSchema).build();
 
     Row nestedRow = Row.withSchema(nestedSchema).addValues(18, "foobar").build();
     Row row = Row.withSchema(schema).addValues(42, nestedRow).build();
@@ -99,8 +97,8 @@ public class RowCoderTest {
   @Test
   public void testArrayOfRow() throws Exception {
     Schema nestedSchema = Schema.builder()
-        .addInt32Field("f1_int", false)
-        .addStringField("f1_str", false).build();
+        .addInt32Field("f1_int")
+        .addStringField("f1_str").build();
     FieldType collectionElementType = TypeName.ROW.type().withRowSchema(nestedSchema);
     Schema schema = Schema.builder().addArrayField("f_array", collectionElementType).build();
     Row row = Row.withSchema(schema).addArray(
