@@ -34,8 +34,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   /** GROUP-BY with UDAF. */
   @Test
   public void testUdaf() throws Exception {
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int2").withIntegerField("squaresum").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int2").addInt32Field("squaresum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 30).build();
 
@@ -59,8 +58,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   /** Test that an indirect subclass of a {@link CombineFn} works as a UDAF. BEAM-3777 */
   @Test
   public void testUdafMultiLevelDescendent() {
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int2").withIntegerField("squaresum").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int2").addInt32Field("squaresum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 354).build();
 
@@ -87,8 +85,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     exceptions.expectMessage("CombineFn");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int2").withIntegerField("squaresum").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int2").addInt32Field("squaresum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 354).build();
 
@@ -102,8 +99,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   /** test UDF. */
   @Test
   public void testUdf() throws Exception {
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int").withIntegerField("cubicvalue").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int").addInt32Field("cubicvalue").build();
     Row row = Row.withSchema(resultType).addValues(2, 8).build();
 
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
@@ -124,7 +120,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
             .apply("testUdf3", BeamSql.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
 
     Schema subStrSchema =
-        RowSqlTypes.builder().withIntegerField("f_int").withVarcharField("sub_string").build();
+        Schema.builder().addInt32Field("f_int").addStringField("sub_string").build();
     Row subStrRow = Row.withSchema(subStrSchema).addValues(2, "s").build();
     PAssert.that(result3).containsInAnyOrder(subStrRow);
 

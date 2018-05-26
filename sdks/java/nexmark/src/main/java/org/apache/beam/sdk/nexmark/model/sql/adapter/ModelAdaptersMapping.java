@@ -23,13 +23,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 
@@ -50,15 +51,15 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Person> personAdapter() {
     return new ModelFieldsAdapter<Person>(
-        RowSqlTypes.builder()
-            .withBigIntField("id")
-            .withVarcharField("name")
-            .withVarcharField("emailAddress")
-            .withVarcharField("creditCard")
-            .withVarcharField("city")
-            .withVarcharField("state")
-            .withTimestampField("dateTime")
-            .withVarcharField("extra")
+        Schema.builder()
+            .addInt64Field("id")
+            .addStringField("name")
+            .addStringField("emailAddress")
+            .addStringField("creditCard")
+            .addStringField("city")
+            .addStringField("state")
+            .addField("dateTime", CalciteUtils.TIME)
+            .addStringField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Person p) {
@@ -90,12 +91,12 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Bid> bidAdapter() {
     return new ModelFieldsAdapter<Bid>(
-        RowSqlTypes.builder()
-            .withBigIntField("auction")
-            .withBigIntField("bidder")
-            .withBigIntField("price")
-            .withTimestampField("dateTime")
-            .withVarcharField("extra")
+        Schema.builder()
+            .addInt64Field("auction")
+            .addInt64Field("bidder")
+            .addInt64Field("price")
+            .addField("dateTime", CalciteUtils.TIME)
+            .addStringField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Bid b) {
@@ -121,17 +122,17 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Auction> auctionAdapter() {
     return new ModelFieldsAdapter<Auction>(
-        RowSqlTypes.builder()
-            .withBigIntField("id")
-            .withVarcharField("itemName")
-            .withVarcharField("description")
-            .withBigIntField("initialBid")
-            .withBigIntField("reserve")
-            .withTimestampField("dateTime")
-            .withTimestampField("expires")
-            .withBigIntField("seller")
-            .withBigIntField("category")
-            .withVarcharField("extra")
+        Schema.builder()
+            .addInt64Field("id")
+            .addStringField("itemName")
+            .addStringField("description")
+            .addInt64Field("initialBid")
+            .addInt64Field("reserve")
+            .addField("dateTime", CalciteUtils.TIMESTAMP)
+            .addField("expires", CalciteUtils.TIMESTAMP)
+            .addInt64Field("seller")
+            .addInt64Field("category")
+            .addStringField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Auction a) {
@@ -148,6 +149,7 @@ public class ModelAdaptersMapping {
                 a.category,
                 a.extra));
       }
+
       @Override
       public Auction getRowModel(Row row) {
         return new Auction(
@@ -167,9 +169,9 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<AuctionCount> auctionCountAdapter() {
     return new ModelFieldsAdapter<AuctionCount>(
-        RowSqlTypes.builder()
-            .withBigIntField("auction")
-            .withBigIntField("num")
+        Schema.builder()
+            .addInt64Field("auction")
+            .addInt64Field("num")
             .build()) {
       @Override
       public List<Object> getFieldsValues(AuctionCount a) {
@@ -189,9 +191,9 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<AuctionPrice> auctionPriceAdapter() {
     return new ModelFieldsAdapter<AuctionPrice>(
-        RowSqlTypes.builder()
-            .withBigIntField("auction")
-            .withBigIntField("price")
+        Schema.builder()
+            .addInt64Field("auction")
+            .addInt64Field("price")
             .build()) {
       @Override
       public List<Object> getFieldsValues(AuctionPrice a) {
@@ -211,11 +213,11 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<NameCityStateId> nameCityStateIdAdapter() {
     return new ModelFieldsAdapter<NameCityStateId>(
-        RowSqlTypes.builder()
-            .withVarcharField("name")
-            .withVarcharField("city")
-            .withVarcharField("state")
-            .withBigIntField("id")
+        Schema.builder()
+            .addStringField("name")
+            .addStringField("city")
+            .addStringField("state")
+            .addInt64Field("id")
             .build()) {
       @Override
       public List<Object> getFieldsValues(NameCityStateId a) {

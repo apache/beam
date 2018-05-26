@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
@@ -41,8 +40,7 @@ public class BeamSqlDotExpressionTest {
 
   @Test
   public void testReturnsFieldValue() {
-    Schema schema =
-        RowSqlTypes.builder().withVarcharField("f_string").withIntegerField("f_int").build();
+    Schema schema = Schema.builder().addStringField("f_string").addInt32Field("f_int").build();
 
     List<BeamSqlExpression> elements =
         ImmutableList.of(
@@ -58,8 +56,7 @@ public class BeamSqlDotExpressionTest {
 
   @Test
   public void testThrowsForNonExistentField() {
-    Schema schema =
-        RowSqlTypes.builder().withVarcharField("f_string").withIntegerField("f_int").build();
+    Schema schema = Schema.builder().addStringField("f_string").addInt32Field("f_int").build();
 
     List<BeamSqlExpression> elements =
         ImmutableList.of(

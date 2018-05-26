@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,9 +35,9 @@ import org.junit.rules.ExpectedException;
 public class BeamSqlDslArrayTest {
 
   private static final Schema INPUT_SCHEMA =
-      RowSqlTypes.builder()
-          .withIntegerField("f_int")
-          .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
+      Schema.builder()
+          .addInt32Field("f_int")
+          .addArrayField("f_stringArr", Schema.FieldType.STRING)
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -49,9 +48,9 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arr", SqlTypeName.VARCHAR)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arr", Schema.FieldType.STRING)
             .build();
 
     PCollection<Row> result =
@@ -71,9 +70,9 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_stringArr", Schema.FieldType.STRING)
             .build();
 
     PCollection<Row> result =
@@ -94,7 +93,7 @@ public class BeamSqlDslArrayTest {
   public void testAccessArrayElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_arrElem").build();
+    Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
@@ -115,7 +114,7 @@ public class BeamSqlDslArrayTest {
         PBegin.in(pipeline)
             .apply("boundedInput1", Create.of(inputRow).withCoder(INPUT_SCHEMA.getRowCoder()));
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_arrElem").build();
+    Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT ELEMENT(f_stringArr) FROM PCOLLECTION"));
@@ -129,7 +128,7 @@ public class BeamSqlDslArrayTest {
   public void testCardinality() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_size").build();
+    Schema resultType = Schema.builder().addInt32Field("f_size").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
@@ -151,7 +150,7 @@ public class BeamSqlDslArrayTest {
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
     PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_string").build();
+    Schema resultType = Schema.builder().addStringField("f_string").build();
 
     PCollection<Row> result =
         inputTuple.apply("sqlQuery", BeamSql.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c'])"));
@@ -174,7 +173,7 @@ public class BeamSqlDslArrayTest {
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
     PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_string").build();
+    Schema resultType = Schema.builder().addStringField("f_string").build();
 
     PCollection<Row> result =
         inputTuple.apply(
@@ -209,8 +208,7 @@ public class BeamSqlDslArrayTest {
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
     PCollectionTuple inputTuple = PCollectionTuple.of(mainTag, input);
 
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int").withVarcharField("f_string").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int").addStringField("f_string").build();
 
     PCollection<Row> result =
         inputTuple.apply(
@@ -233,15 +231,17 @@ public class BeamSqlDslArrayTest {
   @Test
   public void testSelectRowsFromArrayOfRows() {
     Schema elementSchema =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
     Schema resultSchema =
-        RowSqlTypes.builder().withArrayField("f_resultArray", elementSchema).build();
+        Schema.builder()
+            .addArrayField("f_resultArray", Schema.FieldType.row(elementSchema))
+            .build();
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementSchema)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementSchema))
             .build();
 
     PCollection<Row> input =
@@ -290,14 +290,14 @@ public class BeamSqlDslArrayTest {
   @Test
   public void testSelectSingleRowFromArrayOfRows() {
     Schema elementSchema =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
     Schema resultSchema = elementSchema;
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementSchema)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementSchema))
             .build();
 
     PCollection<Row> input =
@@ -336,14 +336,14 @@ public class BeamSqlDslArrayTest {
   @Test
   public void testSelectRowFieldFromArrayOfRows() {
     Schema elementSchema =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultSchema = RowSqlTypes.builder().withVarcharField("f_stringField").build();
+    Schema resultSchema = Schema.builder().addStringField("f_stringField").build();
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementSchema)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementSchema))
             .build();
 
     PCollection<Row> input =

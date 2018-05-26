@@ -25,8 +25,8 @@ import static org.junit.Assert.assertTrue;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -150,7 +150,7 @@ public class BeamDDLTest {
                     Schema.Field.of("id", TypeName.INT32.type())
                         .withNullable(true)
                         .withDescription("id"),
-                    Schema.Field.of("name", RowSqlTypes.VARCHAR)
+                    Schema.Field.of("name", CalciteUtils.VARCHAR)
                         .withNullable(true)
                         .withDescription("name"))
                 .collect(toSchema()))

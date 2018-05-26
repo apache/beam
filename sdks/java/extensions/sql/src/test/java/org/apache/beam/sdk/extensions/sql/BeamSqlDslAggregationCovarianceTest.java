@@ -43,13 +43,13 @@ public class BeamSqlDslAggregationCovarianceTest {
   @Before
   public void setUp() {
     Schema schema =
-        RowSqlTypes.builder()
-            .withDoubleField("f_double1")
-            .withDoubleField("f_double2")
-            .withDoubleField("f_double3")
-            .withIntegerField("f_int1")
-            .withIntegerField("f_int2")
-            .withIntegerField("f_int3")
+        Schema.builder()
+            .addDoubleField("f_double1")
+            .addDoubleField("f_double2")
+            .addDoubleField("f_double3")
+            .addInt32Field("f_int1")
+            .addInt32Field("f_int2")
+            .addInt32Field("f_int3")
             .build();
 
     List<Row> rowsInTableB =
