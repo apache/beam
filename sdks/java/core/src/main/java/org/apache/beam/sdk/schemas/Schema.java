@@ -73,53 +73,53 @@ public class Schema implements Serializable {
       return this;
     }
 
-    public Builder addByteField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.BYTE.type()).withNullable(nullable));
+    public Builder addByteField(String name) {
+      fields.add(Field.of(name, TypeName.BYTE.type()));
       return this;
     }
 
-    public Builder addInt16Field(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.INT16.type()).withNullable(nullable));
+    public Builder addInt16Field(String name) {
+      fields.add(Field.of(name, TypeName.INT16.type()));
       return this;
     }
 
-    public Builder addInt32Field(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.INT32.type()).withNullable(nullable));
+    public Builder addInt32Field(String name) {
+      fields.add(Field.of(name, TypeName.INT32.type()));
       return this;
     }
 
-    public Builder addInt64Field(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.INT64.type()).withNullable(nullable));
+    public Builder addInt64Field(String name) {
+      fields.add(Field.of(name, TypeName.INT64.type()));
       return this;
     }
 
-    public Builder addDecimalField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.DECIMAL.type()).withNullable(nullable));
+    public Builder addDecimalField(String name) {
+      fields.add(Field.of(name, TypeName.DECIMAL.type()));
       return this;
     }
 
-    public Builder addFloatField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.FLOAT.type()).withNullable(nullable));
+    public Builder addFloatField(String name) {
+      fields.add(Field.of(name, TypeName.FLOAT.type()));
       return this;
     }
 
-    public Builder addDoubleField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.DOUBLE.type()).withNullable(nullable));
+    public Builder addDoubleField(String name) {
+      fields.add(Field.of(name, TypeName.DOUBLE.type()));
       return this;
     }
 
-    public Builder addStringField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.STRING.type()).withNullable(nullable));
+    public Builder addStringField(String name) {
+      fields.add(Field.of(name, TypeName.STRING.type()));
       return this;
     }
 
-    public Builder addDateTimeField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.DATETIME.type()).withNullable(nullable));
+    public Builder addDateTimeField(String name) {
+      fields.add(Field.of(name, TypeName.DATETIME.type()));
       return this;
     }
 
-    public Builder addBooleanField(String name, boolean nullable) {
-      fields.add(Field.of(name, TypeName.BOOLEAN.type()).withNullable(nullable));
+    public Builder addBooleanField(String name) {
+      fields.add(Field.of(name, TypeName.BOOLEAN.type()));
       return this;
     }
 
@@ -129,17 +129,14 @@ public class Schema implements Serializable {
       return this;
     }
 
-    public Builder addRowField(String name, Schema fieldSchema, boolean nullable) {
-      fields.add(Field.of(name, TypeName.ROW.type().withRowSchema(fieldSchema))
-          .withNullable(nullable));
+    public Builder addRowField(String name, Schema fieldSchema) {
+      fields.add(Field.of(name, TypeName.ROW.type().withRowSchema(fieldSchema)));
       return this;
     }
 
     public Builder addMapField(
-        String name, FieldType keyType, FieldType valueType, boolean nullable) {
-      fields.add(
-          Field.of(name, TypeName.MAP.type().withMapType(keyType, valueType))
-              .withNullable(nullable));
+        String name, FieldType keyType, FieldType valueType) {
+      fields.add(Field.of(name, TypeName.MAP.type().withMapType(keyType, valueType)));
       return this;
     }
 
@@ -457,7 +454,7 @@ public class Schema implements Serializable {
     }
 
     /**
-     * Return's a field with the give name.
+     * Return's a field with the give name and type.
      */
     public static Field of(String name, FieldType fieldType) {
       return new AutoValue_Schema_Field.Builder()
@@ -465,6 +462,18 @@ public class Schema implements Serializable {
           .setDescription("")
           .setType(fieldType)
           .setNullable(false)  // By default fields are not nullable.
+          .build();
+    }
+
+    /**
+     * Return's a nullable field with the give name and type.
+     */
+    public static Field nullable(String name, FieldType fieldType) {
+      return new AutoValue_Schema_Field.Builder()
+          .setName(name)
+          .setDescription("")
+          .setType(fieldType)
+          .setNullable(true)
           .build();
     }
 
