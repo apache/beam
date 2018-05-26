@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.pubsub.Pubsub;
@@ -109,6 +110,33 @@ public class PubsubJsonClientTest {
     assertEquals(RECORD_ID, actualMessage.recordId);
     assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
     assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
+  }
+
+  @Test
+  public void pullOneMessageWithNoData() throws IOException {
+    String expectedSubscription = SUBSCRIPTION.getPath();
+    PullRequest expectedRequest =
+            new PullRequest().setReturnImmediately(true).setMaxMessages(10);
+    PubsubMessage expectedPubsubMessage = new PubsubMessage()
+            .setMessageId(MESSAGE_ID)
+            .setPublishTime(String.valueOf(PUB_TIME))
+            .setAttributes(
+                    ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
+                            ID_ATTRIBUTE, RECORD_ID));
+    ReceivedMessage expectedReceivedMessage =
+            new ReceivedMessage().setMessage(expectedPubsubMessage)
+                    .setAckId(ACK_ID);
+    PullResponse expectedResponse =
+            new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
+    Mockito.when((Object) (mockPubsub.projects()
+            .subscriptions()
+            .pull(expectedSubscription, expectedRequest)
+            .execute()))
+            .thenReturn(expectedResponse);
+    List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
+    assertEquals(1, acutalMessages.size());
+    IncomingMessage actualMessage = acutalMessages.get(0);
+    assertArrayEquals(new byte[0], actualMessage.elementBytes);
   }
 
   @Test
