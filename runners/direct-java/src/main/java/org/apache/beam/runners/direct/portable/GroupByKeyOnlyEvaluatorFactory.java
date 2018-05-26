@@ -56,9 +56,9 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
   private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
 
   GroupByKeyOnlyEvaluatorFactory(
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
       Components components,
-      BundleFactory bundleFactory,
-      ExecutableGraph<PTransformNode, PCollectionNode> graph) {
+      BundleFactory bundleFactory) {
     this.components = components;
     this.bundleFactory = bundleFactory;
     this.graph = graph;
