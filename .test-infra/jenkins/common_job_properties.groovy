@@ -291,8 +291,9 @@ class common_job_properties {
     }
   }
 
+  // Namespace must contain lower case alphanumeric characters or '-'
   static String getKubernetesNamespace(def testName) {
-    return "${testName}-${new Date().getTime()}"
+    return "${testName}-\${BUILD_ID}"
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {
