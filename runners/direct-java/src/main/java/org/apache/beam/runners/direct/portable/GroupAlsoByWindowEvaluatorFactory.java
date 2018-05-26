@@ -71,9 +71,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final StateAndTimerProvider stp;
 
   GroupAlsoByWindowEvaluatorFactory(
-      BundleFactory bundleFactory,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
       Components components,
+      BundleFactory bundleFactory,
       StateAndTimerProvider stp) {
     this.bundleFactory = bundleFactory;
     this.graph = graph;

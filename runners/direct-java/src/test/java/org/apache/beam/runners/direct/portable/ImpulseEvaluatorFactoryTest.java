@@ -83,7 +83,7 @@ public class ImpulseEvaluatorFactoryTest {
   @Test
   public void testImpulse() throws Exception {
 
-    ImpulseEvaluatorFactory factory = new ImpulseEvaluatorFactory(bundleFactory, graph);
+    ImpulseEvaluatorFactory factory = new ImpulseEvaluatorFactory(graph, bundleFactory);
 
     WindowedValue<ImpulseShard> inputShard = WindowedValue.valueInGlobalWindow(new ImpulseShard());
     CommittedBundle<ImpulseShard> inputShardBundle =

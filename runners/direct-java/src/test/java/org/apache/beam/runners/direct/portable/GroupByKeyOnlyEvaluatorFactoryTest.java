@@ -133,7 +133,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
         bundleFactory.<KV<String, Integer>>createBundle(values).commit(Instant.now());
 
     TransformEvaluator<KV<?, ?>> evaluator =
-        new GroupByKeyOnlyEvaluatorFactory(pipeline.getComponents(), bundleFactory, graph)
+        new GroupByKeyOnlyEvaluatorFactory(graph, pipeline.getComponents(), bundleFactory)
             .forApplication(groupByKeyOnly, inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow(firstFoo));
