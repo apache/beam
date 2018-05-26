@@ -43,11 +43,11 @@ import org.junit.Test;
 public class BigQueryUtilsTest {
   private static final Schema FLAT_TYPE = Schema
       .builder()
-      .addField(Schema.Field.nullable("id", Schema.FieldType.INT64))
-      .addField(Schema.Field.nullable("value", Schema.FieldType.DOUBLE))
-      .addField(Schema.Field.nullable("name", Schema.FieldType.STRING))
-      .addField(Schema.Field.nullable("timestamp", Schema.FieldType.DATETIME))
-      .addField(Schema.Field.nullable("valid", Schema.FieldType.BOOLEAN))
+      .addNullableField("id", Schema.FieldType.INT64)
+      .addNullableField("value", Schema.FieldType.DOUBLE)
+      .addNullableField("name", Schema.FieldType.STRING)
+      .addNullableField("timestamp", Schema.FieldType.DATETIME)
+      .addNullableField("valid", Schema.FieldType.BOOLEAN)
       .build();
 
   private static final Schema ARRAY_TYPE = Schema
@@ -57,7 +57,7 @@ public class BigQueryUtilsTest {
 
   private static final Schema ROW_TYPE = Schema
       .builder()
-      .addField(Schema.Field.nullable("row", Schema.FieldType.row(FLAT_TYPE)))
+      .addNullableField("row", Schema.FieldType.row(FLAT_TYPE))
       .build();
 
   private static final Schema ARRAY_ROW_TYPE =

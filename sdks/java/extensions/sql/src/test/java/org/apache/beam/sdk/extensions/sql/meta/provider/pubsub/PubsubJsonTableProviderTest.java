@@ -18,12 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static junit.framework.TestCase.assertNotNull;
-import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.junit.Assert.assertEquals;
 
 import com.alibaba.fastjson.JSON;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Rule;
@@ -45,10 +44,10 @@ public class PubsubJsonTableProviderTest {
   public void testCreatesTable() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withTimestampField("event_timestamp")
-            .withMapField("attributes", VARCHAR, VARCHAR)
-            .withRowField("payload", Schema.builder().build())
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addRowField("payload", Schema.builder().build())
             .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
@@ -63,9 +62,9 @@ public class PubsubJsonTableProviderTest {
   public void testThrowsIfTimestampFieldNotProvided() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withMapField("attributes", VARCHAR, VARCHAR)
-            .withRowField("payload", Schema.builder().build())
+        Schema.builder()
+            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addRowField("payload", Schema.builder().build())
             .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
@@ -79,9 +78,9 @@ public class PubsubJsonTableProviderTest {
   public void testThrowsIfAttributesFieldNotProvided() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withTimestampField("event_timestamp")
-            .withRowField("payload", Schema.builder().build())
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addRowField("payload", Schema.builder().build())
             .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
@@ -95,9 +94,9 @@ public class PubsubJsonTableProviderTest {
   public void testThrowsIfPayloadFieldNotProvided() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withTimestampField("event_timestamp")
-            .withMapField("attributes", VARCHAR, VARCHAR)
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addMapField("attributes", VARCHAR, VARCHAR)
             .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
@@ -111,11 +110,11 @@ public class PubsubJsonTableProviderTest {
   public void testThrowsIfExtraFieldsExist() {
     PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withTimestampField("event_timestamp")
-            .withMapField("attributes", VARCHAR, VARCHAR)
-            .withVarcharField("someField")
-            .withRowField("payload", Schema.builder().build())
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addStringField("someField")
+            .addRowField("payload", Schema.builder().build())
             .build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();

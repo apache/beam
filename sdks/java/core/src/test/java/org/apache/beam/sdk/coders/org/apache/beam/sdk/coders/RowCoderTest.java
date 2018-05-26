@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
@@ -114,7 +113,7 @@ public class RowCoderTest {
     FieldType arrayType = TypeName.ARRAY.type()
         .withCollectionElementType(TypeName.ARRAY.type()
             .withCollectionElementType(TypeName.INT32.type()));
-    Schema schema = Schema.builder().addField(Field.of("f_array", arrayType)).build();
+    Schema schema = Schema.builder().addField("f_array", arrayType).build();
     Row row = Row.withSchema(schema).addArray(
         Lists.newArrayList(1, 2, 3, 4),
         Lists.newArrayList(5, 6, 7, 8),

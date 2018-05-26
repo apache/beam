@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -60,19 +59,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .build();
 
   private static final Schema ROW_TYPE =
-      RowSqlTypes.builder()
-          .withDateField("ts")
-          .withTinyIntField("c_tinyint")
-          .withSmallIntField("c_smallint")
-          .withIntegerField("c_integer")
-          .withBigIntField("c_bigint")
-          .withFloatField("c_float")
-          .withDoubleField("c_double")
-          .withDecimalField("c_decimal")
-          .withTinyIntField("c_tinyint_max")
-          .withSmallIntField("c_smallint_max")
-          .withIntegerField("c_integer_max")
-          .withBigIntField("c_bigint_max")
+      Schema.builder()
+          .addDateTimeField("ts")
+          .addByteField("c_tinyint")
+          .addInt16Field("c_smallint")
+          .addInt32Field("c_integer")
+          .addInt64Field("c_bigint")
+          .addFloatField("c_float")
+          .addDoubleField("c_double")
+          .addDecimalField("c_decimal")
+          .addByteField("c_tinyint_max")
+          .addInt16Field("c_smallint_max")
+          .addInt32Field("c_integer_max")
+          .addInt64Field("c_bigint_max")
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();

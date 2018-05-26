@@ -356,7 +356,7 @@ public class RowJsonDeserializerTest {
         Schema
             .builder()
             .addByteField("f_byte")
-            .addField(Schema.Field.nullable("f_string", FieldType.STRING))
+            .addNullableField("f_string", FieldType.STRING)
             .build();
 
     String rowString = "{\n"
@@ -562,7 +562,7 @@ public class RowJsonDeserializerTest {
     return
         Schema
             .builder()
-            .addField(Schema.Field.of(fieldName, fieldType.type()))
+            .addField(fieldName, fieldType.type())
             .build();
   }
 

@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -55,10 +54,10 @@ public class BeamSqlFieldAccessExpressionTest {
   @Test
   public void testAccessesFieldOfRow() {
     Schema schema =
-        RowSqlTypes.builder()
-            .withVarcharField("f_string1")
-            .withVarcharField("f_string2")
-            .withVarcharField("f_string3")
+        Schema.builder()
+            .addStringField("f_string1")
+            .addStringField("f_string2")
+            .addStringField("f_string3")
             .build();
 
     BeamSqlPrimitive<Row> targetRow =

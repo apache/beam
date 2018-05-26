@@ -23,7 +23,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
@@ -39,42 +38,42 @@ public class ModelAdaptersMappingTest {
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
 
-  private static final Schema PERSON_ROW_TYPE = RowSqlTypes.builder()
-      .withBigIntField("id")
-      .withVarcharField("name")
-      .withVarcharField("emailAddress")
-      .withVarcharField("creditCard")
-      .withVarcharField("city")
-      .withVarcharField("state")
-      .withTimestampField("dateTime")
-      .withVarcharField("extra")
+  private static final Schema PERSON_ROW_TYPE = Schema.builder()
+      .addInt64Field("id")
+      .addStringField("name")
+      .addStringField("emailAddress")
+      .addStringField("creditCard")
+      .addStringField("city")
+      .addStringField("state")
+      .addDateTimeField("dateTime")
+      .addStringField("extra")
       .build();
 
   private static final Bid BID =
       new Bid(5L, 3L, 123123L, 43234234L, "extra2");
 
-  private static final Schema BID_ROW_TYPE = RowSqlTypes.builder()
-      .withBigIntField("auction")
-      .withBigIntField("bidder")
-      .withBigIntField("price")
-      .withTimestampField("dateTime")
-      .withVarcharField("extra")
+  private static final Schema BID_ROW_TYPE = Schema.builder()
+      .addInt64Field("auction")
+      .addInt64Field("bidder")
+      .addInt64Field("price")
+      .addDateTimeField("dateTime")
+      .addStringField("extra")
       .build();
 
   private static final Auction AUCTION =
       new Auction(5L, "item", "desc", 342L, 321L, 3423342L, 2349234L, 3L, 1L, "extra3");
 
-  private static final Schema AUCTION_ROW_TYPE = RowSqlTypes.builder()
-      .withBigIntField("id")
-      .withVarcharField("itemName")
-      .withVarcharField("description")
-      .withBigIntField("initialBid")
-      .withBigIntField("reserve")
-      .withTimestampField("dateTime")
-      .withTimestampField("expires")
-      .withBigIntField("seller")
-      .withBigIntField("category")
-      .withVarcharField("extra")
+  private static final Schema AUCTION_ROW_TYPE = Schema.builder()
+      .addInt64Field("id")
+      .addStringField("itemName")
+      .addStringField("description")
+      .addInt64Field("initialBid")
+      .addInt64Field("reserve")
+      .addDateTimeField("dateTime")
+      .addDateTimeField("expires")
+      .addInt64Field("seller")
+      .addInt64Field("category")
+      .addStringField("extra")
       .build();
 
   @Test
