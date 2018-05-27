@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,10 +46,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     registerTable(
         "ORDER_DETAILS",
         MockedUnboundedTable.of(
-                TypeName.INT32, "order_id",
-                TypeName.INT32, "site_id",
-                TypeName.INT32, "price",
-                TypeName.DATETIME, "order_time")
+                Schema.FieldType.INT32, "order_id",
+                Schema.FieldType.INT32, "site_id",
+                Schema.FieldType.INT32, "price",
+                Schema.FieldType.DATETIME, "order_time")
             .timestampColumnIndex(3)
             .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 6, FIRST_DATE)
             .addRows(
@@ -92,10 +92,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "sum_site_id",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "sum_site_id0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "sum_site_id",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "sum_site_id0")
                 .addRows(1, 3, 1, 3, 2, 5, 2, 5)
                 .getStringRows());
     pipeline.run();
@@ -123,10 +123,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "sum_site_id",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "sum_site_id0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "sum_site_id",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "sum_site_id0")
                 .addRows(1, 1, 1, 3, 2, 2, null, null, 2, 2, 2, 5, 3, 3, null, null)
                 .getStringRows());
     pipeline.run();
@@ -148,10 +148,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "sum_site_id",
-                    TypeName.INT32, "order_id0",
-                    TypeName.INT32, "sum_site_id0")
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "sum_site_id",
+                    Schema.FieldType.INT32, "order_id0",
+                    Schema.FieldType.INT32, "sum_site_id0")
                 .addRows(1, 3, 1, 1, null, null, 2, 2, 2, 5, 2, 2, null, null, 3, 3)
                 .getStringRows());
     pipeline.run();
@@ -174,10 +174,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "order_id1",
-                    TypeName.INT32, "sum_site_id",
-                    TypeName.INT32, "order_id",
-                    TypeName.INT32, "sum_site_id0")
+                    Schema.FieldType.INT32, "order_id1",
+                    Schema.FieldType.INT32, "sum_site_id",
+                    Schema.FieldType.INT32, "order_id",
+                    Schema.FieldType.INT32, "sum_site_id0")
                 .addRows(
                     1, 1, 1, 3, 6, 2, null, null, 7, 2, null, null, 8, 3, null, null, null, null, 2,
                     5)

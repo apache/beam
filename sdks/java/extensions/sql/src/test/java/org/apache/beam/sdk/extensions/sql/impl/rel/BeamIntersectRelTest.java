@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,17 +39,17 @@ public class BeamIntersectRelTest extends BaseRelTest {
     registerTable(
         "ORDER_DETAILS1",
         MockedBoundedTable.of(
-                TypeName.INT64, "order_id",
-                TypeName.INT32, "site_id",
-                TypeName.DOUBLE, "price")
+                Schema.FieldType.INT64, "order_id",
+                Schema.FieldType.INT32, "site_id",
+                Schema.FieldType.DOUBLE, "price")
             .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 4L, 4, 4.0));
 
     registerTable(
         "ORDER_DETAILS2",
         MockedBoundedTable.of(
-                TypeName.INT64, "order_id",
-                TypeName.INT32, "site_id",
-                TypeName.DOUBLE, "price")
+                Schema.FieldType.INT64, "order_id",
+                Schema.FieldType.INT32, "site_id",
+                Schema.FieldType.DOUBLE, "price")
             .addRows(1L, 1, 1.0, 2L, 2, 2.0, 3L, 3, 3.0));
   }
 
@@ -67,9 +67,9 @@ public class BeamIntersectRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT64, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.DOUBLE, "price")
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DOUBLE, "price")
                 .addRows(1L, 1, 1.0, 2L, 2, 2.0)
                 .getRows());
 
@@ -92,9 +92,9 @@ public class BeamIntersectRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT64, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.DOUBLE, "price")
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DOUBLE, "price")
                 .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0)
                 .getRows());
 
