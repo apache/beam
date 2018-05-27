@@ -43,29 +43,27 @@ public class CalciteUtils {
   // Same story with CHAR and VARCHAR - they both map to STRING.
   private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
       ImmutableBiMap.<FieldType, SqlTypeName>builder()
-          .put(TypeName.BYTE.type(), SqlTypeName.TINYINT)
-          .put(TypeName.INT16.type(), SqlTypeName.SMALLINT)
-          .put(TypeName.INT32.type(), SqlTypeName.INTEGER)
-          .put(TypeName.INT64.type(), SqlTypeName.BIGINT)
-          .put(TypeName.FLOAT.type(), SqlTypeName.FLOAT)
-          .put(TypeName.DOUBLE.type(), SqlTypeName.DOUBLE)
-          .put(TypeName.DECIMAL.type(), SqlTypeName.DECIMAL)
-          .put(TypeName.BOOLEAN.type(), SqlTypeName.BOOLEAN)
-          .put(TypeName.MAP.type(), SqlTypeName.MAP)
-          .put(TypeName.ARRAY.type(), SqlTypeName.ARRAY)
-          .put(TypeName.ROW.type(), SqlTypeName.ROW)
-          .put(TypeName.DATETIME.type().withMetadata("DATE"), SqlTypeName.DATE)
-          .put(TypeName.DATETIME.type().withMetadata("TIME"), SqlTypeName.TIME)
+          .put(FieldType.BYTE, SqlTypeName.TINYINT)
+          .put(FieldType.INT16, SqlTypeName.SMALLINT)
+          .put(FieldType.INT32, SqlTypeName.INTEGER)
+          .put(FieldType.INT64, SqlTypeName.BIGINT)
+          .put(FieldType.FLOAT, SqlTypeName.FLOAT)
+          .put(FieldType.DOUBLE, SqlTypeName.DOUBLE)
+          .put(FieldType.DECIMAL, SqlTypeName.DECIMAL)
+          .put(FieldType.BOOLEAN, SqlTypeName.BOOLEAN)
+          .put(FieldType.DATETIME.withMetadata("DATE"), SqlTypeName.DATE)
+          .put(FieldType.DATETIME.withMetadata("TIME"), SqlTypeName.TIME)
           .put(
-              TypeName.DATETIME.type().withMetadata("TIME_WITH_LOCAL_TZ"),
+              FieldType.DATETIME.withMetadata("TIME_WITH_LOCAL_TZ"),
               SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(TypeName.DATETIME.type().withMetadata("TS"), SqlTypeName.TIMESTAMP)
+          .put(FieldType.DATETIME.withMetadata("TS"), SqlTypeName.TIMESTAMP)
           .put(
-              TypeName.DATETIME.type().withMetadata("TS_WITH_LOCAL_TZ"),
+              FieldType.DATETIME.withMetadata("TS_WITH_LOCAL_TZ"),
               SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          .put(TypeName.STRING.type().withMetadata("CHAR"), SqlTypeName.CHAR)
-          .put(TypeName.STRING.type().withMetadata("VARCHAR"), SqlTypeName.VARCHAR)
+          .put(FieldType.STRING.withMetadata("CHAR"), SqlTypeName.CHAR)
+          .put(FieldType.STRING.withMetadata("VARCHAR"), SqlTypeName.VARCHAR)
           .build();
+
   private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
       BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
 
@@ -73,8 +71,8 @@ public class CalciteUtils {
   // default mapping.
   private static final Map<FieldType, SqlTypeName> BEAM_TO_CALCITE_DEFAULT_MAPPING =
       ImmutableMap.of(
-          TypeName.DATETIME.type(), SqlTypeName.TIMESTAMP,
-          TypeName.STRING.type(), SqlTypeName.VARCHAR);
+          FieldType.DATETIME, SqlTypeName.TIMESTAMP,
+          FieldType.STRING, SqlTypeName.VARCHAR);
 
   /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
   public static Schema toBeamSchema(RelDataType tableInfo) {
@@ -103,19 +101,19 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(RelDataType calciteType) {
-    FieldType type = toFieldType((calciteType.getSqlTypeName()));
-    if (calciteType.getComponentType() != null) {
-      type = type.withCollectionElementType(toFieldType(calciteType.getComponentType()));
+    switch (calciteType.getSqlTypeName()) {
+      case ARRAY:
+      case MULTISET:
+        return FieldType.array(toFieldType(calciteType.getComponentType()));
+      case MAP:
+        return FieldType.map(
+            toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
+      case ROW:
+        return FieldType.row(toBeamSchema(calciteType));
+
+      default:
+        return toFieldType(calciteType.getSqlTypeName());
     }
-    if (calciteType.isStruct()) {
-      type = type.withRowSchema(toBeamSchema(calciteType));
-    }
-    if (calciteType.getKeyType() != null && calciteType.getValueType() != null) {
-      type =
-          type.withMapType(
-              toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
-    }
-    return type;
   }
 
   public static FieldType toArrayType(SqlTypeName collectionElementType) {
@@ -158,19 +156,20 @@ public class CalciteUtils {
 
   private static RelDataType toRelDataType(
       RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
-    SqlTypeName typeName = toSqlTypeName(fieldType);
-    if (SqlTypeName.ARRAY.equals(typeName)) {
-      RelDataType collectionElementType =
-          toRelDataType(dataTypeFactory, fieldType.getCollectionElementType());
-      return dataTypeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
-    } else if (SqlTypeName.MAP.equals(typeName)) {
-      RelDataType componentKeyType = toRelDataType(dataTypeFactory, fieldType.getMapKeyType());
-      RelDataType componentValueType = toRelDataType(dataTypeFactory, fieldType.getMapValueType());
-      return dataTypeFactory.createMapType(componentKeyType, componentValueType);
-    } else if (SqlTypeName.ROW.equals(typeName)) {
-      return toCalciteRowType(fieldType.getRowSchema(), dataTypeFactory);
-    } else {
-      return dataTypeFactory.createSqlType(typeName);
+    switch (fieldType.getTypeName()) {
+      case ARRAY:
+        return dataTypeFactory.createArrayType(
+            toRelDataType(dataTypeFactory, fieldType.getCollectionElementType()),
+            UNLIMITED_ARRAY_SIZE);
+      case MAP:
+        RelDataType componentKeyType = toRelDataType(dataTypeFactory, fieldType.getMapKeyType());
+        RelDataType componentValueType =
+            toRelDataType(dataTypeFactory, fieldType.getMapValueType());
+        return dataTypeFactory.createMapType(componentKeyType, componentValueType);
+      case ROW:
+        return toCalciteRowType(fieldType.getRowSchema(), dataTypeFactory);
+      default:
+        return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
     }
   }
 
