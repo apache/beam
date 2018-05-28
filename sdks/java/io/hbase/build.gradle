@@ -18,6 +18,9 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(failOnWarning: true)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
 ext.summary = "Library to read and write from/to HBase"
@@ -41,6 +44,7 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow "org.apache.hbase:hbase-shaded-client:$hbase_version"
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.commons_lang3
