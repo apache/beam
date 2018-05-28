@@ -98,15 +98,22 @@ public class CalciteUtils {
   }
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
-    SqlTypeName typeName =
-        BEAM_TO_CALCITE_TYPE_MAPPING.get(
-            type.withCollectionElementType(null).withRowSchema(null).withMapType(null, null));
-    if (typeName != null) {
-      return typeName;
-    } else {
-      // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
-      // type of SQL string we want. In this case, use the default mapping.
-      return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+    switch (type.getTypeName()) {
+      case ROW:
+        return SqlTypeName.ROW;
+      case ARRAY:
+        return SqlTypeName.ARRAY;
+      case MAP:
+        return SqlTypeName.MAP;
+      default:
+        SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type);
+        if (typeName != null) {
+          return typeName;
+        } else {
+          // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
+          // type of SQL string we want. In this case, use the default mapping.
+          return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+        }
     }
   }
 

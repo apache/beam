@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -353,41 +351,6 @@ public class Schema implements Serializable {
     /** Create a map type for the given key and value types. */
     public static final FieldType row(Schema schema) {
       return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
-    }
-
-    /**
-     * For container types, adds the type of the component element.
-     */
-    public FieldType withCollectionElementType(@Nullable FieldType collectionElementType) {
-      if (collectionElementType != null) {
-        checkArgument(getTypeName().isCollectionType());
-      }
-      return toBuilder().setCollectionElementType(collectionElementType).build();
-    }
-
-    /**
-     * For MAP type, adds the type of the component key/value element.
-     */
-    public FieldType withMapType(
-        @Nullable FieldType mapKeyType,
-        @Nullable FieldType mapValueType) {
-      if (mapKeyType != null && mapValueType != null) {
-        checkArgument(getTypeName().isMapType());
-        checkArgument(mapKeyType.getTypeName().isPrimitiveType());
-      }
-      return toBuilder()
-          .setMapKeyType(mapKeyType)
-          .setMapValueType(mapValueType).build();
-    }
-
-    /**
-     * For ROW types, sets the schema of the row.
-     */
-    public FieldType withRowSchema(@Nullable Schema rowSchema) {
-      if (rowSchema != null) {
-        checkArgument(getTypeName().isCompositeType());
-      }
-      return toBuilder().setRowSchema(rowSchema).build();
     }
 
     /**
