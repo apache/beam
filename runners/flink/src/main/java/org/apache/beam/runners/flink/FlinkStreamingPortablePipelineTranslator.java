@@ -439,17 +439,6 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
     RunnerApi.Components components = pipeline.getComponents();
     RunnerApi.PTransform transform = components.getTransformsOrThrow(id);
     Map<String, String> outputs = transform.getOutputsMap();
-    RehydratedComponents rehydratedComponents =
-            RehydratedComponents.forComponents(components);
-
-    BiMap<String, Integer> outputMap =
-            FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
-    Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
-    for (String localOutputName : new TreeMap<>(outputMap.inverse()).values()) {
-      String collectionId = outputs.get(localOutputName);
-      Coder<WindowedValue<?>> windowCoder = (Coder) instantiateCoder(collectionId, components);
-      outputCoders.put(localOutputName, windowCoder);
-    }
 
     final RunnerApi.ExecutableStagePayload stagePayload;
     try {
@@ -461,61 +450,40 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
     String inputPCollectionId =
             Iterables.getOnlyElement(transform.getInputsMap().values());
 
-    // TODO: is this still relevant?
-    // we assume that the transformation does not change the windowing strategy.
-    RunnerApi.WindowingStrategy windowingStrategyProto =
-            pipeline.getComponents().getWindowingStrategiesOrThrow(
-                    pipeline.getComponents().getPcollectionsOrThrow(
-                            inputPCollectionId).getWindowingStrategyId());
-    final WindowingStrategy<?, ?> windowingStrategy;
-    try {
-      windowingStrategy = WindowingStrategyTranslation.fromProto(
-              windowingStrategyProto,
-              rehydratedComponents);
-    } catch (InvalidProtocolBufferException e) {
-      throw new IllegalStateException(
-              String.format("Unable to hydrate ExecutableStage windowing strategy %s.",
-                      windowingStrategyProto),
-              e);
-    }
-
-    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newHashMap();
-    Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newHashMap();
+    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newLinkedHashMap();
+    Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newLinkedHashMap();
     // TODO: does it matter which output we designate as "main"
-    final TupleTag<OutputT> mainOutputTag;
+    TupleTag<OutputT> mainOutputTag;
     if (!outputs.isEmpty()) {
       mainOutputTag = new TupleTag(outputs.keySet().iterator().next());
     } else {
       mainOutputTag = null;
     }
 
-    // We associate output tags with ids, the Integer is easier to serialize than TupleTag.
-    // The return map of AppliedPTransform.getOutputs() is an ImmutableMap, its implementation is
-    // RegularImmutableMap, its entrySet order is the same with the order of insertion.
-    // So we can use the original AppliedPTransform.getOutputs() to produce deterministic ids.
+    // associate output tags with ids, output manager uses these Integer ids to serialize state
+    BiMap<String, Integer> outputIndexMap =
+            FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
+    Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
-    int idCount = 0;
-    for (Map.Entry<String, String> entry : outputs.entrySet()) {
-      TupleTag<?> tupleTag = new TupleTag<>(entry.getKey());
+    // order output names for deterministic mapping
+    for (String localOutputName : new TreeMap<>(outputIndexMap).keySet()) {
+      String collectionId = outputs.get(localOutputName);
+      Coder<WindowedValue<?>> windowCoder = (Coder) instantiateCoder(collectionId, components);
+      outputCoders.put(localOutputName, windowCoder);
+      TupleTag<?> tupleTag = new TupleTag<>(localOutputName);
       CoderTypeInformation<WindowedValue<?>> typeInformation =
-              new CoderTypeInformation(
-                      outputCoders.get(entry.getKey()));
-      tagsToOutputTags.put(
-              tupleTag,
-              new OutputTag<>(entry.getKey(), typeInformation)
-      );
-      tagsToCoders.put(tupleTag, outputCoders.get(entry.getKey()));
-      tagsToIds.put(tupleTag, idCount++);
+              new CoderTypeInformation(windowCoder);
+      tagsToOutputTags.put(tupleTag, new OutputTag<>(localOutputName, typeInformation));
+      tagsToCoders.put(tupleTag, windowCoder);
+      tagsToIds.put(tupleTag, outputIndexMap.get(localOutputName));
     }
 
-    SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
-
+    final SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
     DataStream<WindowedValue<InputT>> inputDataStream = context.getDataStreamOrThrow(
             inputPCollectionId);
 
     // TODO: coder for side input push back
     final Coder<WindowedValue<InputT>> inputCoder = null;
-    Coder keyCoder = null;
     CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation = (!outputs.isEmpty())
             ? new CoderTypeInformation(outputCoders.get(mainOutputTag.getId())) : null;
 
@@ -538,11 +506,9 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
                     mainOutputTag,
                     additionalOutputTags,
                     outputManagerFactory,
-                    windowingStrategy,
                     Collections.emptyMap() /* sideInputTagMapping */,
                     Collections.emptyList() /* sideInputs */,
                     context.getPipelineOptions(),
-                    keyCoder,
                     stagePayload,
                     context.getJobInfo(),
                     FlinkExecutableStageContext.batchFactory()

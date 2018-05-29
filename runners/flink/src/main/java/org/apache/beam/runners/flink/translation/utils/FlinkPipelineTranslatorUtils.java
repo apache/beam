@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.utils;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.Sets;
 
 /**
  * Utilities for pipeline translation.
@@ -30,7 +31,8 @@ public final class FlinkPipelineTranslatorUtils {
   public static BiMap<String, Integer> createOutputMap(Iterable<String> localOutputs) {
     ImmutableBiMap.Builder<String, Integer> builder = ImmutableBiMap.builder();
     int outputIndex = 0;
-    for (String tag : localOutputs) {
+    // sort localOutputs for stable indexing
+    for (String tag : Sets.newTreeSet(localOutputs)) {
       builder.put(tag, outputIndex);
       outputIndex++;
     }

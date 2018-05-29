@@ -83,19 +83,17 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                                      TupleTag<OutputT> mainOutputTag,
                                      List<TupleTag<?>> additionalOutputTags,
                                      OutputManagerFactory<OutputT> outputManagerFactory,
-                                     WindowingStrategy<?, ?> windowingStrategy,
                                      Map<Integer, PCollectionView<?>> sideInputTagMapping,
                                      Collection<PCollectionView<?>> sideInputs,
                                      PipelineOptions options,
-                                     Coder<?> keyCoder,
                                      RunnerApi.ExecutableStagePayload payload,
                                      JobInfo jobInfo,
                                      FlinkExecutableStageContext.Factory contextFactory
                                      ) {
     super(new NoOpDoFn(),
             stepName, inputCoder, mainOutputTag, additionalOutputTags,
-            outputManagerFactory, windowingStrategy,
-            sideInputTagMapping, sideInputs, options, keyCoder);
+            outputManagerFactory, WindowingStrategy.globalDefault() /* unused */,
+            sideInputTagMapping, sideInputs, options, null /*keyCoder*/);
       this.payload = payload;
       this.jobInfo = jobInfo;
       this.contextFactory = contextFactory;
