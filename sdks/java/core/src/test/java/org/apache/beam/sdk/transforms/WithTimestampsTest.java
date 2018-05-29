@@ -173,4 +173,34 @@ public class WithTimestampsTest implements Serializable {
 
     p.run();
   }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void withTimestampsLambdaShouldApplyTimestamps() {
+
+    final String yearTwoThousand = "946684800000";
+    PCollection<String> timestamped =
+        p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
+            .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(input))));
+
+    PCollection<KV<String, Instant>> timestampedVals =
+        timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c)
+              throws Exception {
+            c.output(KV.of(c.element(), c.timestamp()));
+          }
+        }));
+
+    PAssert.that(timestamped)
+        .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
+    PAssert.that(timestampedVals)
+        .containsInAnyOrder(
+            KV.of("0", new Instant(0)),
+            KV.of("1234", new Instant(Long.valueOf("1234"))),
+            KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
+            KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
+
+    p.run();
+  }
 }

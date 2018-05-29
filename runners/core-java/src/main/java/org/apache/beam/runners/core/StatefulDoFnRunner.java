@@ -77,6 +77,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return doFnRunner.getFn();
+  }
+
+  @Override
   public void startBundle() {
     doFnRunner.startBundle();
   }

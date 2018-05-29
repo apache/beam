@@ -22,6 +22,7 @@ cdef class MetricsContainer(object):
   cdef object step_name
   cdef public object counters
   cdef public object distributions
+  cdef public object gauges
 
 
 cdef class ScopedMetricsContainer(object):

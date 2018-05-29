@@ -19,18 +19,14 @@ package org.apache.beam.runners.gearpump;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.runners.gearpump.translators.GearpumpPipelineTranslator;
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-
 import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.cluster.client.ClientContext;

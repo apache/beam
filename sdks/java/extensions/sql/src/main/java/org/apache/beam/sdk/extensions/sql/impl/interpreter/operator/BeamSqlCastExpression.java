@@ -18,49 +18,50 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import java.sql.Date;
-import java.sql.Timestamp;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.ReadableInstant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 import org.joda.time.format.DateTimeParser;
 
-/**
- * Base class to support 'CAST' operations for all {@link SqlTypeName}.
- */
+/** Base class to support 'CAST' operations for all {@link SqlTypeName}. */
 public class BeamSqlCastExpression extends BeamSqlExpression {
 
   private static final int index = 0;
-  private static final String outputTimestampFormat = "yyyy-MM-dd HH:mm:ss";
-  private static final String outputDateFormat = "yyyy-MM-dd";
   /**
-   * Date and Timestamp formats used to parse
-   * {@link SqlTypeName#DATE}, {@link SqlTypeName#TIMESTAMP}.
+   * Date and Timestamp formats used to parse {@link SqlTypeName#DATE}, {@link
+   * SqlTypeName#TIMESTAMP}.
    */
-  private static final DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
-      .append(null/*printer*/, new DateTimeParser[] {
-          // date formats
-          DateTimeFormat.forPattern("yy-MM-dd").getParser(),
-          DateTimeFormat.forPattern("yy/MM/dd").getParser(),
-          DateTimeFormat.forPattern("yy.MM.dd").getParser(),
-          DateTimeFormat.forPattern("yyMMdd").getParser(),
-          DateTimeFormat.forPattern("yyyyMMdd").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd").getParser(),
-          DateTimeFormat.forPattern("yyyy/MM/dd").getParser(),
-          DateTimeFormat.forPattern("yyyy.MM.dd").getParser(),
-          // datetime formats
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ssz").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss z").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSSz").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS z").getParser() }).toFormatter()
-      .withPivotYear(2020);
+  private static final DateTimeFormatter dateTimeFormatter =
+      new DateTimeFormatterBuilder()
+          .append(
+              null /*printer*/,
+              new DateTimeParser[] {
+                // date formats
+                DateTimeFormat.forPattern("yy-MM-dd").getParser(),
+                DateTimeFormat.forPattern("yy/MM/dd").getParser(),
+                DateTimeFormat.forPattern("yy.MM.dd").getParser(),
+                DateTimeFormat.forPattern("yyMMdd").getParser(),
+                DateTimeFormat.forPattern("yyyyMMdd").getParser(),
+                DateTimeFormat.forPattern("yyyy-MM-dd").getParser(),
+                DateTimeFormat.forPattern("yyyy/MM/dd").getParser(),
+                DateTimeFormat.forPattern("yyyy.MM.dd").getParser(),
+                // datetime formats
+                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").getParser(),
+                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ssz").getParser(),
+                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss z").getParser(),
+                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS").getParser(),
+                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSSz").getParser(),
+                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS z").getParser()
+              })
+          .toFormatter()
+          .withPivotYear(2020);
 
   public BeamSqlCastExpression(List<BeamSqlExpression> operands, SqlTypeName castType) {
     super(operands, castType);
@@ -72,63 +73,65 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     SqlTypeName castOutputType = getOutputType();
     switch (castOutputType) {
       case INTEGER:
-        return BeamSqlPrimitive
-            .of(SqlTypeName.INTEGER,
-                    SqlFunctions.toInt((Object) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.INTEGER,
+            SqlFunctions.toInt((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case DOUBLE:
-        return BeamSqlPrimitive.of(SqlTypeName.DOUBLE,
-            SqlFunctions.toDouble((Object) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.DOUBLE,
+            SqlFunctions.toDouble(
+                (Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case SMALLINT:
-        return BeamSqlPrimitive.of(SqlTypeName.SMALLINT,
-            SqlFunctions.toShort((Object) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.SMALLINT,
+            SqlFunctions.toShort((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case TINYINT:
-        return BeamSqlPrimitive.of(SqlTypeName.TINYINT,
-            SqlFunctions.toByte(opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.TINYINT,
+            SqlFunctions.toByte(opValueEvaluated(index, inputRow, window, correlateEnv)));
       case BIGINT:
-        return BeamSqlPrimitive
-            .of(SqlTypeName.BIGINT,
-                    SqlFunctions.toLong((Object) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BIGINT,
+            SqlFunctions.toLong((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case DECIMAL:
-        return BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
-            SqlFunctions.toBigDecimal((Object) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.DECIMAL,
+            SqlFunctions.toBigDecimal(
+                (Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case FLOAT:
-        return BeamSqlPrimitive.of(SqlTypeName.FLOAT,
-                SqlFunctions.toFloat((Object) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.FLOAT,
+            SqlFunctions.toFloat((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case CHAR:
       case VARCHAR:
-        return BeamSqlPrimitive
-            .of(SqlTypeName.VARCHAR, opValueEvaluated(index, inputRow, window).toString());
+        return BeamSqlPrimitive.of(
+            SqlTypeName.VARCHAR,
+            opValueEvaluated(index, inputRow, window, correlateEnv).toString());
       case DATE:
-        return BeamSqlPrimitive.of(SqlTypeName.DATE,
-            toDate(opValueEvaluated(index, inputRow, window), outputDateFormat));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRow, window, correlateEnv)));
       case TIMESTAMP:
-        return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-            toTimeStamp(opValueEvaluated(index, inputRow, window), outputTimestampFormat));
+        return BeamSqlPrimitive.of(
+            SqlTypeName.TIMESTAMP,
+            toTimeStamp(opValueEvaluated(index, inputRow, window, correlateEnv)));
     }
     throw new UnsupportedOperationException(
         String.format("Cast to type %s not supported", castOutputType));
   }
 
-  private Date toDate(Object inputDate, String outputFormat) {
-    try {
-      return Date
-          .valueOf(dateTimeFormatter.parseLocalDate(inputDate.toString()).toString(outputFormat));
-    } catch (IllegalArgumentException | UnsupportedOperationException e) {
-      throw new UnsupportedOperationException("Can't be cast to type 'Date'");
-    }
+  private ReadableInstant toDate(Object inputDate) {
+    return dateTimeFormatter.parseLocalDate(inputDate.toString()).toDateTimeAtStartOfDay();
   }
 
-  private Timestamp toTimeStamp(Object inputTimestamp, String outputFormat) {
-    try {
-      return Timestamp.valueOf(
-          dateTimeFormatter.parseDateTime(inputTimestamp.toString()).secondOfMinute()
-              .roundCeilingCopy().toString(outputFormat));
-    } catch (IllegalArgumentException | UnsupportedOperationException e) {
-      throw new UnsupportedOperationException("Can't be cast to type 'Timestamp'");
-    }
+  private ReadableInstant toTimeStamp(Object inputTimestamp) {
+    return dateTimeFormatter
+        .parseDateTime(inputTimestamp.toString())
+        .secondOfMinute()
+        .roundCeilingCopy();
   }
 }

@@ -142,7 +142,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
      */
     public Builder<T> advanceWatermarkTo(Instant newWatermark) {
       checkArgument(
-          newWatermark.isAfter(currentWatermark), "The watermark must monotonically advance");
+          !newWatermark.isBefore(currentWatermark), "The watermark must monotonically advance");
       checkArgument(
           newWatermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
           "The Watermark cannot progress beyond the maximum. Got: %s. Maximum: %s",

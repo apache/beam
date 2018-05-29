@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -30,12 +31,11 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlPositionExpression.
- */
+/** Test for BeamSqlPositionExpression. */
 public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void accept() throws Exception {
+  @Test
+  public void accept() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -61,24 +61,30 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
     assertFalse(new BeamSqlPositionExpression(operands).accept());
   }
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "worldhello"));
-    assertEquals(5, new BeamSqlPositionExpression(operands).evaluate(record, null).getValue());
+    assertEquals(
+        5,
+        new BeamSqlPositionExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "worldhello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(5, new BeamSqlPositionExpression(operands).evaluate(record, null).getValue());
+    assertEquals(
+        5,
+        new BeamSqlPositionExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(-1, new BeamSqlPositionExpression(operands).evaluate(record, null).getValue());
+    assertEquals(
+        -1,
+        new BeamSqlPositionExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
-
 }

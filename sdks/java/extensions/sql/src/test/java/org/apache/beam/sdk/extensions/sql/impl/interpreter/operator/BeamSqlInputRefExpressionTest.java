@@ -17,41 +17,39 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test cases for {@link BeamSqlInputRefExpression}.
- */
+/** Test cases for {@link BeamSqlInputRefExpression}. */
 public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testRefInRange() {
     BeamSqlInputRefExpression ref0 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0);
-    Assert.assertEquals(record.getLong(0), ref0.evaluate(record, null).getValue());
+    Assert.assertEquals(row.getInt64(0), ref0.evaluate(row, null, ImmutableMap.of()).getValue());
 
     BeamSqlInputRefExpression ref1 = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1);
-    Assert.assertEquals(record.getInteger(1), ref1.evaluate(record, null).getValue());
+    Assert.assertEquals(row.getInt32(1), ref1.evaluate(row, null, ImmutableMap.of()).getValue());
 
     BeamSqlInputRefExpression ref2 = new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2);
-    Assert.assertEquals(record.getDouble(2), ref2.evaluate(record, null).getValue());
+    Assert.assertEquals(row.getDouble(2), ref2.evaluate(row, null, ImmutableMap.of()).getValue());
 
     BeamSqlInputRefExpression ref3 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3);
-    Assert.assertEquals(record.getLong(3), ref3.evaluate(record, null).getValue());
+    Assert.assertEquals(row.getInt64(3), ref3.evaluate(row, null, ImmutableMap.of()).getValue());
   }
 
-
   @Test(expected = IndexOutOfBoundsException.class)
-  public void testRefOutOfRange(){
+  public void testRefOutOfRange() {
     BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 4);
-    ref.evaluate(record, null).getValue();
+    ref.evaluate(row, null, ImmutableMap.of()).getValue();
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testTypeUnMatch(){
+  public void testTypeUnMatch() {
     BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 0);
-    ref.evaluate(record, null).getValue();
+    ref.evaluate(row, null, ImmutableMap.of()).getValue();
   }
 }

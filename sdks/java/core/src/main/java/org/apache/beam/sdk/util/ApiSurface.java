@@ -120,7 +120,7 @@ public class ApiSurface {
   public static Matcher<ApiSurface> containsOnlyPackages(final Set<String> packageNames) {
 
     final Function<String, Matcher<Class<?>>> packageNameToClassMatcher =
-        packageName -> classesInPackage(packageName);
+        ApiSurface::classesInPackage;
 
     final ImmutableSet<Matcher<Class<?>>> classesInPackages =
         FluentIterable.from(packageNames).transform(packageNameToClassMatcher).toSet();
@@ -183,7 +183,7 @@ public class ApiSurface {
         final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
             classMatcher ->
                 FluentIterable.from(checkedApiSurface.getExposedClasses())
-                    .anyMatch(aClass -> classMatcher.matches(aClass));
+                    .anyMatch(classMatcher::matches);
 
         // </helper_lambdas>
 
@@ -215,8 +215,7 @@ public class ApiSurface {
 
         /* <helper_lambdas> */
 
-        final Function<Class<?>, List<Class<?>>> toExposure =
-            aClass -> checkedApiSurface.getAnyExposurePath(aClass);
+        final Function<Class<?>, List<Class<?>>> toExposure = checkedApiSurface::getAnyExposurePath;
 
         final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
             (aClass, exposure) ->
@@ -261,7 +260,7 @@ public class ApiSurface {
         final boolean noAbandoned =
             verifyNoAbandoned(apiSurface, classMatchers, mismatchDescription);
 
-        return noDisallowed & noAbandoned;
+        return noDisallowed && noAbandoned;
       }
 
       @Override
@@ -481,7 +480,7 @@ public class ApiSurface {
     visited = Sets.newHashSet();
     exposedToExposers =
         Multimaps.newSetMultimap(
-            Maps.<Class<?>, Collection<Class<?>>>newHashMap(), () -> Sets.newHashSet());
+            Maps.<Class<?>, Collection<Class<?>>>newHashMap(), Sets::newHashSet);
 
     for (Class<?> clazz : rootClasses) {
       addExposedTypes(clazz, null);
@@ -775,18 +774,4 @@ public class ApiSurface {
 
   ////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * All classes transitively reachable via only public method signatures of the SDK.
-   *
-   * <p>Note that our idea of "public" does not include various internal-only APIs.
-   */
-  public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
-    return ApiSurface.ofPackage("org.apache.beam", classLoader)
-        .pruningPattern("org[.]apache[.]beam[.].*Test")
-        // Exposes Guava, but not intended for users
-        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-         // test only
-        .pruningClassName("org.apache.beam.sdk.testing.InterceptingUrlClassLoader")
-        .pruningPrefix("java");
-  }
 }

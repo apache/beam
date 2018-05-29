@@ -47,7 +47,7 @@ public class WindowIntoTranslation {
 
     @Override
     public String getUrn(Assign<?> transform) {
-      return PTransformTranslation.WINDOW_TRANSFORM_URN;
+      return PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
     }
 
     @Override
@@ -78,14 +78,14 @@ public class WindowIntoTranslation {
     }
 
     checkArgument(
-        PTransformTranslation.WINDOW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
+        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN.equals(
+            transformProto.getSpec().getUrn()),
         "Illegal attempt to extract %s from transform %s with name \"%s\" and URN \"%s\"",
         Window.Assign.class.getSimpleName(),
         application.getTransform(),
         application.getFullName(),
         transformProto.getSpec().getUrn());
 
-    WindowIntoPayload windowIntoPayload;
     try {
       return WindowIntoPayload.parseFrom(transformProto.getSpec().getPayload());
     } catch (InvalidProtocolBufferException exc) {
@@ -94,7 +94,7 @@ public class WindowIntoTranslation {
               "%s translated %s with URN '%s' but payload was not a %s",
               PTransformTranslation.class.getSimpleName(),
               application,
-              PTransformTranslation.WINDOW_TRANSFORM_URN,
+              PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
               WindowIntoPayload.class.getSimpleName()),
           exc);
     }
@@ -117,7 +117,7 @@ public class WindowIntoTranslation {
 
     @Override
     public String getUrn(Window.Assign<?> transform) {
-      return PTransformTranslation.WINDOW_TRANSFORM_URN;
+      return PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
     }
 
     @Override

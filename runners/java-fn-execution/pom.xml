@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -35,16 +35,49 @@
   <build>
     <plugins>
       <plugin>
-        <!--  Override Beam parent to allow Java8 -->
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
+        <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <!-- Do not run Docker tests with unit tests. -->
+              <excludedGroups>
+                org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker
+              </excludedGroups>
+            </configuration>
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>docker-tests</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>docker-tests</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>
+                    org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker
+                  </groups>
+                  <!-- TODO: Enable this when we figure out how to run the tests
+                  <failIfNoTests>true</failIfNoTests>
+                   -->
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
   <dependencies>
     <dependency>
@@ -59,7 +92,23 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-job-management</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-fn-execution</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-harness</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -70,6 +119,11 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-context</artifactId>
     </dependency>
 
     <dependency>
@@ -112,26 +166,19 @@
 
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-core-construction-java</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-fn-execution</artifactId>
-      <type>test-jar</type>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
 

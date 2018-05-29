@@ -53,7 +53,7 @@ import org.apache.beam.sdk.util.Transport;
 /**
  * A Pubsub client using JSON transport.
  */
-class PubsubJsonClient extends PubsubClient {
+public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
     private static HttpRequestInitializer chainHttpRequestInitializer(
@@ -175,7 +175,7 @@ class PubsubJsonClient extends PubsubClient {
                                   .subscriptions()
                                   .pull(subscription.getPath(), request)
                                   .execute();
-    if (response.getReceivedMessages() == null || response.getReceivedMessages().size() == 0) {
+    if (response.getReceivedMessages() == null || response.getReceivedMessages().isEmpty()) {
       return ImmutableList.of();
     }
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessages().size());

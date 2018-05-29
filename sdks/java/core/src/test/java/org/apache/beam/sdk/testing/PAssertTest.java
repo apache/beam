@@ -90,6 +90,7 @@ public class PAssertTest implements Serializable {
 
   private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
     private NotSerializableObjectCoder() { }
+
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
     @JsonCreator
@@ -249,7 +250,8 @@ public class PAssertTest implements Serializable {
    * Test that we throw an error at pipeline construction time when the user mistakenly uses
    * {@code PAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({"deprecation", // test of deprecated function
+      "EqualsIncompatibleType"})
   @Test
   public void testPAssertEqualsSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -263,7 +265,8 @@ public class PAssertTest implements Serializable {
    * Test that we throw an error at pipeline construction time when the user mistakenly uses
    * {@code PAssert.that().equals()} instead of the test method {@code .containsInAnyOrder}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({"deprecation", // test of deprecated function
+      "EqualsIncompatibleType"})
   @Test
   public void testPAssertEqualsIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -509,11 +512,11 @@ public class PAssertTest implements Serializable {
     // This check should return a failure.
     SuccessOrFailure res = PAssert.doChecks(
         PAssert.PAssertionSite.capture("Captured assertion message."),
-        new Integer(10),
-        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+            10,
+        new MatcherCheckerFn(SerializableMatchers.contains(11)));
 
     String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
-    assertEquals(res.isSuccess(), false);
+    assertEquals(false, res.isSuccess());
     assertThat(stacktrace, containsString("PAssertionSite.capture"));
   }
 

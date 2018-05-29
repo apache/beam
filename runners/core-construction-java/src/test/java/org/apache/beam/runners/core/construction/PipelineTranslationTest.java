@@ -187,7 +187,7 @@ public class PipelineTranslationTest {
     }
 
     private void addCoders(Coder<?> coder) {
-      coders.add(Equivalence.<Coder<?>>identity().wrap(coder));
+      coders.add(Equivalence.identity().wrap(coder));
       if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);

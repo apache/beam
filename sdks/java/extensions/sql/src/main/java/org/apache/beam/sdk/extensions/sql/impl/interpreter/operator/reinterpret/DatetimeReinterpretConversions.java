@@ -18,14 +18,11 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
-import java.util.Date;
-import java.util.GregorianCalendar;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.ReadableInstant;
 
-/**
- * Utility class to contain implementations of datetime SQL type conversions.
- */
+/** Utility class to contain implementations of datetime SQL type conversions. */
 public abstract class DatetimeReinterpretConversions {
 
   public static final ReinterpretConversion TIME_TO_BIGINT =
@@ -34,8 +31,8 @@ public abstract class DatetimeReinterpretConversions {
           .to(SqlTypeName.BIGINT)
           .convert(
               beamSqlPrimitive -> {
-                GregorianCalendar date = (GregorianCalendar) beamSqlPrimitive.getValue();
-                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTimeInMillis());
+                ReadableInstant date = (ReadableInstant) beamSqlPrimitive.getValue();
+                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getMillis());
               })
           .build();
 
@@ -45,8 +42,8 @@ public abstract class DatetimeReinterpretConversions {
           .to(SqlTypeName.BIGINT)
           .convert(
               beamSqlPrimitive -> {
-                Date date = (Date) beamSqlPrimitive.getValue();
-                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTime());
+                ReadableInstant date = (ReadableInstant) beamSqlPrimitive.getValue();
+                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getMillis());
               })
           .build();
 }

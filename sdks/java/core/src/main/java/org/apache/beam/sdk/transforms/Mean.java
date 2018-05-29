@@ -156,10 +156,6 @@ public class Mean {
     }
 
     @Override
-    @edu.umd.cs.findbugs.annotations.SuppressWarnings(
-        value = "FE_FLOATING_POINT_EQUALITY",
-        justification = "Comparing doubles directly since equals method is only used in coder test."
-    )
     public boolean equals(Object other) {
       if (!(other instanceof CountSum)) {
         return false;

@@ -27,8 +27,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Collection;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,26 +43,38 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
-  private static class SomeFn extends DoFn<Integer, String> {
+  @Rule
+  public transient ExpectedException e = ExpectedException.none();
+
+  private static class SomeFn extends DoFn<Void, String> {
+    private final Duration sleepBeforeFirstClaim;
     private final int numOutputsPerProcessCall;
     private final Duration sleepBeforeEachOutput;
 
-    private SomeFn(int numOutputsPerProcessCall, Duration sleepBeforeEachOutput) {
+    private SomeFn(
+        Duration sleepBeforeFirstClaim,
+        int numOutputsPerProcessCall,
+        Duration sleepBeforeEachOutput) {
+      this.sleepBeforeFirstClaim = sleepBeforeFirstClaim;
       this.numOutputsPerProcessCall = numOutputsPerProcessCall;
       this.sleepBeforeEachOutput = sleepBeforeEachOutput;
     }
 
     @ProcessElement
-    public ProcessContinuation process(ProcessContext context, OffsetRangeTracker tracker)
-        throws Exception {
+    public ProcessContinuation process(ProcessContext context, OffsetRangeTracker tracker) {
+      Uninterruptibles.sleepUninterruptibly(
+          sleepBeforeFirstClaim.getMillis(), TimeUnit.MILLISECONDS);
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 1;
           tracker.tryClaim(i);
           ++i, ++numIterations) {
-        Thread.sleep(sleepBeforeEachOutput.getMillis());
+        Uninterruptibles.sleepUninterruptibly(
+            sleepBeforeEachOutput.getMillis(), TimeUnit.MILLISECONDS);
         context.output("" + i);
         if (numIterations == numOutputsPerProcessCall) {
           return resume();
@@ -70,15 +84,25 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Integer element) {
+    public OffsetRange getInitialRestriction(Void element) {
       throw new UnsupportedOperationException("Should not be called in this test");
     }
   }
 
-  private SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result
-      runTest(int totalNumOutputs, int numOutputsPerProcessCall, Duration sleepPerElement) {
-    SomeFn fn = new SomeFn(numOutputsPerProcessCall, sleepPerElement);
-    SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker> invoker =
+  private SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result
+      runTest(
+          int totalNumOutputs,
+          Duration sleepBeforeFirstClaim,
+          int numOutputsPerProcessCall,
+          Duration sleepBeforeEachOutput) {
+    SomeFn fn = new SomeFn(sleepBeforeFirstClaim, numOutputsPerProcessCall, sleepBeforeEachOutput);
+    OffsetRange initialRestriction = new OffsetRange(0, totalNumOutputs);
+    return runTest(fn, initialRestriction);
+  }
+
+  private SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result
+      runTest(DoFn<Void, String> fn, OffsetRange initialRestriction) {
+    SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker> invoker =
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             fn,
             PipelineOptionsFactory.create(),
@@ -105,14 +129,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
 
     return invoker.invokeProcessElement(
         DoFnInvokers.invokerFor(fn),
-        WindowedValue.of(totalNumOutputs, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-        new OffsetRangeTracker(new OffsetRange(0, totalNumOutputs)));
+        WindowedValue.of(null, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+        new OffsetRangeTracker(initialRestriction));
   }
 
   @Test
   public void testInvokeProcessElementOutputBounded() throws Exception {
-    SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(10000, Integer.MAX_VALUE, Duration.ZERO);
+    SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result res =
+        runTest(10000, Duration.ZERO, Integer.MAX_VALUE, Duration.ZERO);
     assertFalse(res.getContinuation().shouldResume());
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process the first 100 elements.
@@ -122,8 +146,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
 
   @Test
   public void testInvokeProcessElementTimeBounded() throws Exception {
-    SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(10000, Integer.MAX_VALUE, Duration.millis(100));
+    SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result res =
+        runTest(10000, Duration.ZERO, Integer.MAX_VALUE, Duration.millis(100));
     assertFalse(res.getContinuation().shouldResume());
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process ideally around 30 elements - but due to timing flakiness, we can't enforce
@@ -134,18 +158,65 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   }
 
   @Test
+  public void testInvokeProcessElementTimeBoundedWithStartupDelay() throws Exception {
+    SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result res =
+        runTest(10000, Duration.standardSeconds(3), Integer.MAX_VALUE, Duration.millis(100));
+    assertFalse(res.getContinuation().shouldResume());
+    OffsetRange residualRange = res.getResidualRestriction();
+    // Same as above, but this time it counts from the time of the first tryClaim() call
+    assertThat(residualRange.getFrom(), greaterThan(10L));
+    assertThat(residualRange.getFrom(), lessThan(100L));
+    assertEquals(10000, residualRange.getTo());
+  }
+
+  @Test
   public void testInvokeProcessElementVoluntaryReturnStop() throws Exception {
-    SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(5, Integer.MAX_VALUE, Duration.millis(100));
+    SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result res =
+        runTest(5, Duration.ZERO, Integer.MAX_VALUE, Duration.millis(100));
     assertFalse(res.getContinuation().shouldResume());
     assertNull(res.getResidualRestriction());
   }
 
   @Test
   public void testInvokeProcessElementVoluntaryReturnResume() throws Exception {
-    SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(10, 5, Duration.millis(100));
+    SplittableProcessElementInvoker<Void, String, OffsetRange, OffsetRangeTracker>.Result res =
+        runTest(10, Duration.ZERO, 5, Duration.millis(100));
     assertTrue(res.getContinuation().shouldResume());
     assertEquals(new OffsetRange(5, 10), res.getResidualRestriction());
+  }
+
+  @Test
+  public void testInvokeProcessElementOutputDisallowedBeforeTryClaim() throws Exception {
+    DoFn<Void, String> brokenFn = new DoFn<Void, String>() {
+      @ProcessElement
+      public void process(ProcessContext c, OffsetRangeTracker tracker) {
+        c.output("foo");
+      }
+
+      @GetInitialRestriction
+      public OffsetRange getInitialRestriction(Void element) {
+        throw new UnsupportedOperationException("Should not be called in this test");
+      }
+    };
+    e.expectMessage("Output is not allowed before tryClaim()");
+    runTest(brokenFn, new OffsetRange(0, 5));
+  }
+
+  @Test
+  public void testInvokeProcessElementOutputDisallowedAfterFailedTryClaim() throws Exception {
+    DoFn<Void, String> brokenFn = new DoFn<Void, String>() {
+      @ProcessElement
+      public void process(ProcessContext c, OffsetRangeTracker tracker) {
+        assertFalse(tracker.tryClaim(6L));
+        c.output("foo");
+      }
+
+      @GetInitialRestriction
+      public OffsetRange getInitialRestriction(Void element) {
+        throw new UnsupportedOperationException("Should not be called in this test");
+      }
+    };
+    e.expectMessage("Output is not allowed after a failed tryClaim()");
+    runTest(brokenFn, new OffsetRange(0, 5));
   }
 }

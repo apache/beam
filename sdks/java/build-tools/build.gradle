@@ -20,10 +20,3 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Build Tools"
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

@@ -34,7 +34,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,14 +68,8 @@ public class BigtableConfigTest {
 
   static final ValueProvider<String> TABLE_ID =  ValueProvider.StaticValueProvider.of("table");
 
-  static final
-  SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> CONFIGURATOR =
-    new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
-      @Override
-      public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
-        return input;
-      }
-    };
+  static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> CONFIGURATOR =
+      (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>) input -> input;
 
   static final BigtableService SERVICE = Mockito.mock(BigtableService.class);
 
@@ -173,15 +166,10 @@ public class BigtableConfigTest {
 
   @Test
   public void testPopulateDisplayData() {
-    DisplayData displayData = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        config.withProjectId(PROJECT_ID)
-          .withInstanceId(INSTANCE_ID)
-          .withTableId(TABLE_ID)
-          .populateDisplayData(builder);
-      }
-    });
+    DisplayData displayData =
+        DisplayData.from(
+            config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).withTableId(TABLE_ID)
+                ::populateDisplayData);
 
     assertThat(displayData, hasDisplayItem(allOf(
       hasKey("projectId"),
@@ -207,15 +195,12 @@ public class BigtableConfigTest {
   @Test
   public void testGetBigtableServiceWithConfigurator() {
     SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
-      new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
-        @Override
-        public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
-          return input
-            .setInstanceId(INSTANCE_ID.get() + INSTANCE_ID.get())
-            .setProjectId(PROJECT_ID.get() + PROJECT_ID.get())
-            .setBulkOptions(new BulkOptions.Builder().setUseBulkApi(true).build());
-        }
-      };
+        (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>)
+            input ->
+                input
+                    .setInstanceId(INSTANCE_ID.get() + INSTANCE_ID.get())
+                    .setProjectId(PROJECT_ID.get() + PROJECT_ID.get())
+                    .setBulkOptions(new BulkOptions.Builder().setUseBulkApi(true).build());
 
     BigtableService service = config
       .withProjectId(PROJECT_ID)

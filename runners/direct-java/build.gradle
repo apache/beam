@@ -16,8 +16,23 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  dependencies {
+    include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
+    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
+    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
+  }
+  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
+})
 
 description = "Apache Beam :: Runners :: Direct Java"
 
@@ -25,54 +40,106 @@ description = "Apache Beam :: Runners :: Direct Java"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
-evaluationDependsOn(":runners:core-java")
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-runners-core-construction-java")
+evaluationDependsOn(":beam-runners-core-java")
+evaluationDependsOn(":beam-sdks-java-core")
+
+configurations {
+  needsRunner
+  validatesRunner
+}
 
 dependencies {
   compile library.java.guava
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":runners:core-construction-java", configuration: "shadow")
-  compile project(path: ":runners:core-java", configuration: "shadow")
-  compile project(path: ":runners:local-java", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  compile project(path: ":beam-runners-core-java", configuration: "shadow")
+  compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
+  compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.hamcrest_core
   shadow library.java.junit
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":runners:core-java").sourceSets.test.output
-  testCompile project(":model:fn-execution").sourceSets.test.output
-  testCompile library.java.guava_testlib
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.mockito_core
-  testCompile library.java.stax2_api
-  testCompile library.java.woodstox_core_asl
-  testCompile library.java.google_cloud_dataflow_java_proto_library_all
-  testCompile library.java.jackson_dataformat_yaml
+  shadow library.java.args4j
+  testRuntime project(path: ":beam-sdks-java-harness")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  shadowTest library.java.guava_testlib
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.mockito_core
+  shadowTest library.java.stax2_api
+  shadowTest library.java.woodstox_core_asl
+  shadowTest library.java.google_cloud_dataflow_java_proto_library_all
+  shadowTest library.java.jackson_dataformat_yaml
+  needsRunner project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  needsRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  needsRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  needsRunner project(path: project.path, configuration: "shadow")
+  needsRunner project(path: project.path, configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(path: project.path, configuration: "shadowTest")
 }
 
-shadowJar {
-  dependencies {
-    include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
-    include(project(path: ":model:pipeline", configuration: "shadow"))
-    include(project(path: ":runners:core-construction-java", configuration: "shadow"))
-    include(project(path: ":runners:core-java", configuration: "shadow"))
-    include(project(path: ":runners:local-java", configuration: "shadow"))
+task needsRunnerTests(type: Test) {
+  group = "Verification"
+  description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
+
+  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false", "--protoTranslation"])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  classpath = configurations.needsRunner
+  // NOTE: We only add to the test class dirs to ensure that the direct runner
+  // tests (i.e., those from this subproject) get scanned.
+  testClassesDirs += files(project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+    excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
   }
-  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
-  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
 }
 
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
+// NOTE: This will also run 'NeedsRunner' tests, which are run in the :needsRunnerTests task as well.
+// The intention of this task is to mirror the :validatesRunner configuration for other runners,
+// such that the test suite can be validated on the in-process DirectRunner.
+task validatesRunner(type: Test) {
+  group = "Verification"
+  description "Validates Direct runner"
+
+  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false", "--protoTranslation"])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  classpath = configurations.validatesRunner
+  // NOTE: We only add to the test class dirs to ensure that the direct runner
+  // tests (i.e., those from this subproject) get scanned.
+  testClassesDirs += files(project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
+    excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+  }
 }
 
-artifacts.archives packageTests
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
+def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
+def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+
+// Generates :beam-runners-direct-java:runQuickstartJavaDirect
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
+
+// Generates :beam-runners-direct-java:runMobileGamingJavaDirect
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+  runner: 'Direct',
+  gcpProject: gcpProject,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)

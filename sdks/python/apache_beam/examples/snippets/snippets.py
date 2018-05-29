@@ -30,6 +30,10 @@ prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
 
+import argparse
+
+import six
+
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -626,6 +630,63 @@ def examples_wordcount_debugging(renames):
     p.visit(SnippetUtils.RenameFiles(renames))
 
 
+def examples_wordcount_streaming(argv):
+  import apache_beam as beam
+  from apache_beam import window
+  from apache_beam.io import ReadFromPubSub
+  from apache_beam.io import WriteStringsToPubSub
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import StandardOptions
+
+  # Parse out arguments.
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--output_topic', required=True,
+      help=('Output PubSub topic of the form '
+            '"projects/<PROJECT>/topic/<TOPIC>".'))
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument(
+      '--input_topic',
+      help=('Input PubSub topic of the form '
+            '"projects/<PROJECT>/topics/<TOPIC>".'))
+  group.add_argument(
+      '--input_subscription',
+      help=('Input PubSub subscription of the form '
+            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(StandardOptions).streaming = True
+
+  with TestPipeline(options=pipeline_options) as p:
+    # [START example_wordcount_streaming_read]
+    # Read from Pub/Sub into a PCollection.
+    if known_args.input_subscription:
+      lines = p | beam.io.ReadFromPubSub(
+          subscription=known_args.input_subscription)
+    else:
+      lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+    # [END example_wordcount_streaming_read]
+
+    output = (
+        lines
+        | 'DecodeUnicode' >> beam.FlatMap(
+            lambda encoded: encoded.decode('utf-8'))
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: __import__('re').findall(r'[A-Za-z\']+', x))
+        | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(15, 0))
+        | 'Group' >> beam.GroupByKey()
+        | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+        | 'Format' >> beam.Map(
+            lambda word_and_count: '%s: %d' % word_and_count))
+
+    # [START example_wordcount_streaming_write]
+    # Write to Pub/Sub
+    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    # [END example_wordcount_streaming_write]
+
+
 def examples_ptransforms_templated(renames):
   # [START examples_ptransforms_templated]
   import apache_beam as beam
@@ -711,6 +772,26 @@ class CountingSource(iobase.BoundedSource):
 # [END model_custom_source_new_source]
 
 
+# We recommend users to start Source classes with an underscore to discourage
+# using the Source class directly when a PTransform for the source is
+# available. We simulate that here by simply extending the previous Source
+# class.
+class _CountingSource(CountingSource):
+  pass
+
+
+# [START model_custom_source_new_ptransform]
+class ReadFromCountingSource(PTransform):
+
+  def __init__(self, count):
+    super(ReadFromCountingSource, self).__init__()
+    self._count = count
+
+  def expand(self, pcoll):
+    return pcoll | iobase.Read(_CountingSource(self._count))
+# [END model_custom_source_new_ptransform]
+
+
 def model_custom_source(count):
   """Demonstrates creating a new custom source and using it in a pipeline.
 
@@ -747,24 +828,6 @@ def model_custom_source(count):
         lines, equal_to(
             ['line ' + str(number) for number in range(0, count)]))
 
-  # We recommend users to start Source classes with an underscore to discourage
-  # using the Source class directly when a PTransform for the source is
-  # available. We simulate that here by simply extending the previous Source
-  # class.
-  class _CountingSource(CountingSource):
-    pass
-
-  # [START model_custom_source_new_ptransform]
-  class ReadFromCountingSource(PTransform):
-
-    def __init__(self, count, **kwargs):
-      super(ReadFromCountingSource, self).__init__(**kwargs)
-      self._count = count
-
-    def expand(self, pcoll):
-      return pcoll | iobase.Read(_CountingSource(count))
-  # [END model_custom_source_new_ptransform]
-
   # [START model_custom_source_use_ptransform]
   p = beam.Pipeline(options=PipelineOptions())
   numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
@@ -775,26 +838,97 @@ def model_custom_source(count):
       lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  # Don't test runner api due to pickling errors.
-  p.run(test_runner_api=False).wait_until_finish()
+  p.run().wait_until_finish()
+
+
+# Defining the new sink.
+#
+# Defines a new sink ``SimpleKVSink`` that demonstrates writing to a simple
+# key-value based storage system which has following API.
+#
+#   simplekv.connect(url) -
+#       connects to the storage system and returns an access token which can be
+#       used to perform further operations
+#   simplekv.open_table(access_token, table_name) -
+#       creates a table named 'table_name'. Returns a table object.
+#   simplekv.write_to_table(access_token, table, key, value) -
+#       writes a key-value pair to the given table.
+#   simplekv.rename_table(access_token, old_name, new_name) -
+#       renames the table named 'old_name' to 'new_name'.
+#
+# [START model_custom_sink_new_sink]
+class SimpleKVSink(iobase.Sink):
+
+  def __init__(self, simplekv, url, final_table_name):
+    self._simplekv = simplekv
+    self._url = url
+    self._final_table_name = final_table_name
+
+  def initialize_write(self):
+    access_token = self._simplekv.connect(self._url)
+    return access_token
+
+  def open_writer(self, access_token, uid):
+    table_name = 'table' + uid
+    return SimpleKVWriter(self._simplekv, access_token, table_name)
+
+  def pre_finalize(self, init_result, writer_results):
+    pass
+
+  def finalize_write(self, access_token, table_names, pre_finalize_result):
+    for i, table_name in enumerate(table_names):
+      self._simplekv.rename_table(
+          access_token, table_name, self._final_table_name + str(i))
+# [END model_custom_sink_new_sink]
+
+
+# Defining a writer for the new sink.
+# [START model_custom_sink_new_writer]
+class SimpleKVWriter(iobase.Writer):
+
+  def __init__(self, simplekv, access_token, table_name):
+    self._simplekv = simplekv
+    self._access_token = access_token
+    self._table_name = table_name
+    self._table = self._simplekv.open_table(access_token, table_name)
+
+  def write(self, record):
+    key, value = record
+
+    self._simplekv.write_to_table(self._access_token, self._table, key, value)
+
+  def close(self):
+    return self._table_name
+# [END model_custom_sink_new_writer]
+
+
+# [START model_custom_sink_new_ptransform]
+class WriteToKVSink(PTransform):
+
+  def __init__(self, simplekv, url, final_table_name, **kwargs):
+    self._simplekv = simplekv
+    super(WriteToKVSink, self).__init__(**kwargs)
+    self._url = url
+    self._final_table_name = final_table_name
+
+  def expand(self, pcoll):
+    return pcoll | iobase.Write(_SimpleKVSink(self._simplekv,
+                                              self._url,
+                                              self._final_table_name))
+# [END model_custom_sink_new_ptransform]
+
+
+# We recommend users to start Sink class names with an underscore to
+# discourage using the Sink class directly when a PTransform for the sink is
+# available. We simulate that here by simply extending the previous Sink
+# class.
+class _SimpleKVSink(SimpleKVSink):
+  pass
 
 
 def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                       final_table_name_with_ptransform):
   """Demonstrates creating a new custom sink and using it in a pipeline.
-
-  Defines a new sink ``SimpleKVSink`` that demonstrates writing to a simple
-  key-value based storage system which has following API.
-
-    simplekv.connect(url) -
-        connects to the storage system and returns an access token which can be
-        used to perform further operations
-    simplekv.open_table(access_token, table_name) -
-        creates a table named 'table_name'. Returns a table object.
-    simplekv.write_to_table(access_token, table, key, value) -
-        writes a key-value pair to the given table.
-    simplekv.rename_table(access_token, old_name, new_name) -
-        renames the table named 'old_name' to 'new_name'.
 
   Uses the new sink in an example pipeline.
 
@@ -824,51 +958,6 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                                       ``SimpleKVSink``.
   """
 
-  import apache_beam as beam
-  from apache_beam.io import iobase
-  from apache_beam.transforms.core import PTransform
-  from apache_beam.options.pipeline_options import PipelineOptions
-
-  # Defining the new sink.
-  # [START model_custom_sink_new_sink]
-  class SimpleKVSink(iobase.Sink):
-
-    def __init__(self, url, final_table_name):
-      self._url = url
-      self._final_table_name = final_table_name
-
-    def initialize_write(self):
-      access_token = simplekv.connect(self._url)
-      return access_token
-
-    def open_writer(self, access_token, uid):
-      table_name = 'table' + uid
-      return SimpleKVWriter(access_token, table_name)
-
-    def finalize_write(self, access_token, table_names):
-      for i, table_name in enumerate(table_names):
-        simplekv.rename_table(
-            access_token, table_name, self._final_table_name + str(i))
-  # [END model_custom_sink_new_sink]
-
-  # Defining a writer for the new sink.
-  # [START model_custom_sink_new_writer]
-  class SimpleKVWriter(iobase.Writer):
-
-    def __init__(self, access_token, table_name):
-      self._access_token = access_token
-      self._table_name = table_name
-      self._table = simplekv.open_table(access_token, table_name)
-
-    def write(self, record):
-      key, value = record
-
-      simplekv.write_to_table(self._access_token, self._table, key, value)
-
-    def close(self):
-      return self._table_name
-  # [END model_custom_sink_new_writer]
-
   final_table_name = final_table_name_no_ptransform
 
   # Using the new sink in an example pipeline.
@@ -877,28 +966,8 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
     kvs = p | 'CreateKVs' >> beam.Create(KVs)
 
     kvs | 'WriteToSimpleKV' >> beam.io.Write(
-        SimpleKVSink('http://url_to_simple_kv/', final_table_name))
+        SimpleKVSink(simplekv, 'http://url_to_simple_kv/', final_table_name))
     # [END model_custom_sink_use_new_sink]
-
-  # We recommend users to start Sink class names with an underscore to
-  # discourage using the Sink class directly when a PTransform for the sink is
-  # available. We simulate that here by simply extending the previous Sink
-  # class.
-  class _SimpleKVSink(SimpleKVSink):
-    pass
-
-  # [START model_custom_sink_new_ptransform]
-  class WriteToKVSink(PTransform):
-
-    def __init__(self, url, final_table_name, **kwargs):
-      super(WriteToKVSink, self).__init__(**kwargs)
-      self._url = url
-      self._final_table_name = final_table_name
-
-    def expand(self, pcoll):
-      return pcoll | iobase.Write(_SimpleKVSink(self._url,
-                                                self._final_table_name))
-  # [END model_custom_sink_new_ptransform]
 
   final_table_name = final_table_name_with_ptransform
 
@@ -906,7 +975,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   with beam.Pipeline(options=PipelineOptions()) as p:
     kvs = p | 'CreateKVs' >> beam.core.Create(KVs)
     kvs | 'WriteToSimpleKV' >> WriteToKVSink(
-        'http://url_to_simple_kv/', final_table_name)
+        simplekv, 'http://url_to_simple_kv/', final_table_name)
     # [END model_custom_sink_use_ptransform]
 
 
@@ -915,9 +984,6 @@ def model_textio(renames):
   def filter_words(x):
     import re
     return re.findall(r'[A-Za-z\']+', x)
-
-  import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START model_textio_read]
   with beam.Pipeline(options=PipelineOptions()) as p:
@@ -981,7 +1047,8 @@ def model_datastoreio():
   def to_entity(content):
     entity = entity_pb2.Entity()
     googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
-    googledatastore.helper.add_properties(entity, {'content': unicode(content)})
+    googledatastore.helper.add_properties(entity,
+                                          {'content': six.text_type(content)})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)
@@ -989,46 +1056,96 @@ def model_datastoreio():
   # [END model_datastoreio_write]
 
 
-def model_bigqueryio():
-  """Using a Read and Write transform to read/write to BigQuery."""
-  import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
+def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
+  """Using a Read and Write transform to read/write from/to BigQuery."""
 
-  # [START model_bigqueryio_read]
-  p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | 'ReadWeatherStations' >> beam.io.Read(
-      beam.io.BigQuerySource(
-          'clouddataflow-readonly:samples.weather_stations'))
-  # [END model_bigqueryio_read]
+  # [START model_bigqueryio_table_spec]
+  # project-id:dataset_id.table_id
+  table_spec = 'clouddataflow-readonly:samples.weather_stations'
+  # [END model_bigqueryio_table_spec]
 
-  # [START model_bigqueryio_query]
-  p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | 'ReadYearAndTemp' >> beam.io.Read(
-      beam.io.BigQuerySource(
-          query='SELECT year, mean_temp FROM samples.weather_stations'))
-  # [END model_bigqueryio_query]
+  # [START model_bigqueryio_table_spec_without_project]
+  # dataset_id.table_id
+  table_spec = 'samples.weather_stations'
+  # [END model_bigqueryio_table_spec_without_project]
 
-  # [START model_bigqueryio_query_standard_sql]
-  p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | 'ReadYearAndTemp' >> beam.io.Read(
-      beam.io.BigQuerySource(
-          query='SELECT year, mean_temp FROM `samples.weather_stations`',
+  # [START model_bigqueryio_table_spec_object]
+  from apache_beam.io.gcp.internal.clients import bigquery
+
+  table_spec = bigquery.TableReference(
+      projectId='clouddataflow-readonly',
+      datasetId='samples',
+      tableId='weather_stations')
+  # [END model_bigqueryio_table_spec_object]
+
+  # [START model_bigqueryio_read_table]
+  max_temperatures = (
+      p
+      | 'ReadTable' >> beam.io.Read(beam.io.BigQuerySource(table_spec))
+      # Each row is a dictionary where the keys are the BigQuery columns
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_table]
+
+  # [START model_bigqueryio_read_query]
+  max_temperatures = (
+      p
+      | 'QueryTable' >> beam.io.Read(beam.io.BigQuerySource(
+          query='SELECT max_temperature FROM '\
+                '[clouddataflow-readonly:samples.weather_stations]'))
+      # Each row is a dictionary where the keys are the BigQuery columns
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_query]
+
+  # [START model_bigqueryio_read_query_std_sql]
+  max_temperatures = (
+      p
+      | 'QueryTableStdSQL' >> beam.io.Read(beam.io.BigQuerySource(
+          query='SELECT max_temperature FROM '\
+                '`clouddataflow-readonly.samples.weather_stations`',
           use_standard_sql=True))
-  # [END model_bigqueryio_query_standard_sql]
+      # Each row is a dictionary where the keys are the BigQuery columns
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_query_std_sql]
 
   # [START model_bigqueryio_schema]
-  schema = 'source:STRING, quote:STRING'
+  # column_name:BIGQUERY_TYPE, ...
+  table_schema = 'source:STRING, quote:STRING'
   # [END model_bigqueryio_schema]
 
+  # [START model_bigqueryio_schema_object]
+  from apache_beam.io.gcp.internal.clients import bigquery
+
+  table_schema = bigquery.TableSchema()
+
+  source_field = bigquery.TableFieldSchema()
+  source_field.name = 'source'
+  source_field.type = 'STRING'
+  source_field.mode = 'NULLABLE'
+  table_schema.fields.append(source_field)
+
+  quote_field = bigquery.TableFieldSchema()
+  quote_field.name = 'quote'
+  quote_field.type = 'STRING'
+  quote_field.mode = 'REQUIRED'
+  table_schema.fields.append(quote_field)
+  # [END model_bigqueryio_schema_object]
+
+  if write_project and write_dataset and write_table:
+    table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
+
+  # [START model_bigqueryio_write_input]
+  quotes = p | beam.Create([
+      {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'},
+      {'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."},
+  ])
+  # [END model_bigqueryio_write_input]
+
   # [START model_bigqueryio_write]
-  quotes = p | beam.Create(
-      [{'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'}])
-  quotes | 'Write' >> beam.io.Write(
-      beam.io.BigQuerySink(
-          'my-project:output.output_table',
-          schema=schema,
-          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED))
+  quotes | beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
 
@@ -1116,7 +1233,7 @@ def model_multiple_pcollections_partition(contents, output_path):
     fortieth_percentile = by_decile[4]
     # [END model_multiple_pcollections_partition_40th]
 
-    ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
+    ([by_decile[d] for d in range(10) if d != 4] + [fortieth_percentile]
      | beam.Flatten()
      | beam.io.WriteToText(output_path))
 

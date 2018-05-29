@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -36,10 +35,9 @@ import org.junit.Test;
  * This test Outer Full Join functionality.
  */
 public class OuterFullJoinTest {
-
-  List<KV<String, Long>> leftListOfKv;
-  List<KV<String, String>> listRightOfKv;
-  List<KV<String, KV<Long, String>>> expectedResult;
+  private List<KV<String, Long>> leftListOfKv;
+  private List<KV<String, String>> listRightOfKv;
+  private List<KV<String, KV<Long, String>>> expectedResult;
 
   @Rule
   public final transient TestPipeline p = TestPipeline.create();

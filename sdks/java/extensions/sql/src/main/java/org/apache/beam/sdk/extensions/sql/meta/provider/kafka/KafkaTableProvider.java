@@ -18,17 +18,14 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getBeamSqlRecordTypeFromTable;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Kafka table provider.
@@ -37,7 +34,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  *
  * <pre>{@code
  * CREATE TABLE ORDERS(
- *   ID INT PRIMARY KEY COMMENT 'this is the primary key',
+ *   ID INT COMMENT 'this is the primary key',
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
  * COMMENT 'this is the table orders'
@@ -45,9 +42,10 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
  * }</pre>
  */
-public class KafkaTableProvider implements TableProvider {
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamRecordSqlType recordType = getBeamSqlRecordTypeFromTable(table);
+public class KafkaTableProvider extends InMemoryMetaTableProvider {
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    Schema schema = table.getSchema();
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");
@@ -56,27 +54,12 @@ public class KafkaTableProvider implements TableProvider {
     for (Object topic : topicsArr) {
       topics.add(topic.toString());
     }
-    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(recordType, bootstrapServers, topics);
+    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(schema, bootstrapServers, topics);
     return txtTable;
   }
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "kafka";
-  }
-
-  @Override public void createTable(Table table) {
-    // empty
-  }
-
-  @Override public List<Table> listTables() {
-    return Collections.emptyList();
-  }
-
-  @Override public void init() {
-    // empty
-  }
-
-  @Override public void close() {
-    // empty
   }
 }

@@ -61,6 +61,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -162,6 +163,7 @@ public class ParDoTranslatorTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3272")
   public void testAssertionFailure() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);

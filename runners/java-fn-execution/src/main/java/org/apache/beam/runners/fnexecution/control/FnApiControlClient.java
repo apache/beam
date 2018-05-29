@@ -17,15 +17,21 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,42 +46,46 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This low-level client is responsible only for correlating requests with responses.
  */
-class FnApiControlClient implements Closeable {
+public class FnApiControlClient implements Closeable, InstructionRequestHandler {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);
 
   // All writes to this StreamObserver need to be synchronized.
   private final StreamObserver<BeamFnApi.InstructionRequest> requestReceiver;
   private final ResponseStreamObserver responseObserver = new ResponseStreamObserver();
-  private final Map<String, SettableFuture<BeamFnApi.InstructionResponse>> outstandingRequests;
-  private volatile boolean isClosed;
+  private final ConcurrentMap<String, CompletableFuture<BeamFnApi.InstructionResponse>>
+      outstandingRequests;
+  private final Set<Consumer<FnApiControlClient>> onCloseListeners = ConcurrentHashMap.newKeySet();
+  private final String workerId;
+  private AtomicBoolean isClosed = new AtomicBoolean(false);
 
-  private FnApiControlClient(StreamObserver<BeamFnApi.InstructionRequest> requestReceiver) {
-    this.requestReceiver = requestReceiver;
+  private FnApiControlClient(String workerId, StreamObserver<InstructionRequest> requestReceiver) {
+    this.workerId = workerId;
+    this.requestReceiver = SynchronizedStreamObserver.wrapping(requestReceiver);
     this.outstandingRequests = new ConcurrentHashMap<>();
   }
 
   /**
-   * Returns a {@link FnApiControlClient} which will submit its requests to the provided
-   * observer.
+   * Returns a {@link FnApiControlClient} which will submit its requests to the provided observer.
    *
    * <p>It is the responsibility of the caller to register this object as an observer of incoming
    * responses (this will generally be done as part of fulfilling the contract of a gRPC service).
    */
   public static FnApiControlClient forRequestObserver(
-      StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
-    return new FnApiControlClient(requestObserver);
+      String workerId, StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
+    return new FnApiControlClient(workerId, requestObserver);
   }
 
-  public synchronized ListenableFuture<BeamFnApi.InstructionResponse> handle(
+  @Override
+  public CompletionStage<BeamFnApi.InstructionResponse> handle(
       BeamFnApi.InstructionRequest request) {
     LOG.debug("Sending InstructionRequest {}", request);
-    SettableFuture<BeamFnApi.InstructionResponse> resultFuture = SettableFuture.create();
+    CompletableFuture<BeamFnApi.InstructionResponse> resultFuture = new CompletableFuture<>();
     outstandingRequests.put(request.getInstructionId(), resultFuture);
     requestReceiver.onNext(request);
     return resultFuture;
   }
 
-  StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
+  public StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
     return responseObserver;
   }
 
@@ -84,33 +94,46 @@ class FnApiControlClient implements Closeable {
     closeAndTerminateOutstandingRequests(new IllegalStateException("Runner closed connection"));
   }
 
+  public String getWorkerId() {
+    return workerId;
+  }
+
   /** Closes this client and terminates any outstanding requests exceptionally. */
-  private synchronized void closeAndTerminateOutstandingRequests(Throwable cause) {
-    if (isClosed) {
+  private void closeAndTerminateOutstandingRequests(Throwable cause) {
+    if (isClosed.getAndSet(true)) {
       return;
     }
 
-    // Make a copy of the map to make the view of the outstanding requests consistent.
-    Map<String, SettableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
-        new ConcurrentHashMap<>(outstandingRequests);
-    outstandingRequests.clear();
-    isClosed = true;
+    try {
+      // Make a copy of the map to make the view of the outstanding requests consistent.
+      Map<String, CompletableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
+          new ConcurrentHashMap<>(outstandingRequests);
+      outstandingRequests.clear();
 
-    if (outstandingRequestsCopy.isEmpty()) {
-      requestReceiver.onCompleted();
-      return;
-    }
-    requestReceiver.onError(
-        new StatusRuntimeException(Status.CANCELLED.withDescription(cause.getMessage())));
+      if (outstandingRequestsCopy.isEmpty()) {
+        requestReceiver.onCompleted();
+        return;
+      }
+      requestReceiver.onError(
+          new StatusRuntimeException(Status.CANCELLED.withDescription(cause.getMessage())));
 
-    LOG.error(
-        "{} closed, clearing outstanding requests {}",
-        FnApiControlClient.class.getSimpleName(),
-        outstandingRequestsCopy);
-    for (SettableFuture<BeamFnApi.InstructionResponse> outstandingRequest :
-        outstandingRequestsCopy.values()) {
-      outstandingRequest.setException(cause);
+      LOG.error(
+          "{} closed, clearing outstanding requests {}",
+          FnApiControlClient.class.getSimpleName(),
+          outstandingRequestsCopy);
+      for (CompletableFuture<BeamFnApi.InstructionResponse> outstandingRequest :
+          outstandingRequestsCopy.values()) {
+        outstandingRequest.completeExceptionally(cause);
+      }
+    } finally {
+      for (Consumer<FnApiControlClient> onCloseListener : onCloseListeners) {
+        onCloseListener.accept(this);
+      }
     }
+  }
+
+  public void onClose(Consumer<FnApiControlClient> onCloseListener) {
+    onCloseListeners.add(onCloseListener);
   }
 
   /**
@@ -125,13 +148,17 @@ class FnApiControlClient implements Closeable {
     @Override
     public void onNext(BeamFnApi.InstructionResponse response) {
       LOG.debug("Received InstructionResponse {}", response);
-      SettableFuture<BeamFnApi.InstructionResponse> completableFuture =
+      CompletableFuture<BeamFnApi.InstructionResponse> responseFuture =
           outstandingRequests.remove(response.getInstructionId());
-      if (completableFuture != null) {
+      if (responseFuture != null) {
         if (response.getError().isEmpty()) {
-          completableFuture.set(response);
+          responseFuture.complete(response);
         } else {
-          completableFuture.setException(new RuntimeException(response.getError()));
+          responseFuture.completeExceptionally(
+              new RuntimeException(String.format(
+                  "Error received from SDK harness for instruction %s: %s",
+                  response.getInstructionId(),
+                  response.getError())));
         }
       }
     }

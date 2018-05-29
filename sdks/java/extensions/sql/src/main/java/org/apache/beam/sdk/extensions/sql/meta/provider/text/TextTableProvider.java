@@ -18,42 +18,41 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getBeamSqlRecordTypeFromTable;
-
 import com.alibaba.fastjson.JSONObject;
-import java.util.Collections;
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.commons.csv.CSVFormat;
 
 /**
  * Text table provider.
  *
  * <p>A sample of text table is:
+ *
  * <pre>{@code
  * CREATE TABLE ORDERS(
- *   ID INT PRIMARY KEY COMMENT 'this is the primary key',
+ *   ID INT COMMENT 'this is the primary key',
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
  * TYPE 'text'
  * COMMENT 'this is the table orders'
- * LOCATION 'text://home/admin/orders'
+ * LOCATION '/home/admin/orders'
  * TBLPROPERTIES '{"format": "Excel"}' -- format of each text line(csv format)
  * }</pre>
  */
-public class TextTableProvider implements TableProvider {
+public class TextTableProvider extends InMemoryMetaTableProvider {
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "text";
   }
 
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamRecordSqlType recordType = getBeamSqlRecordTypeFromTable(table);
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    Schema schema = table.getSchema();
 
-    String filePattern = table.getLocationAsString();
+    String filePattern = table.getLocation();
     CSVFormat format = CSVFormat.DEFAULT;
     JSONObject properties = table.getProperties();
     String csvFormatStr = properties.getString("format");
@@ -61,23 +60,7 @@ public class TextTableProvider implements TableProvider {
       format = CSVFormat.valueOf(csvFormatStr);
     }
 
-    BeamTextCSVTable txtTable = new BeamTextCSVTable(recordType, filePattern, format);
+    BeamTextCSVTable txtTable = new BeamTextCSVTable(schema, filePattern, format);
     return txtTable;
-  }
-
-  @Override public void createTable(Table table) {
-    // empty
-  }
-
-  @Override public List<Table> listTables() {
-    return Collections.emptyList();
-  }
-
-  @Override public void init() {
-    // empty
-  }
-
-  @Override public void close() {
-    // empty
   }
 }

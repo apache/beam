@@ -16,6 +16,7 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
+import logging
 import unittest
 
 from apache_beam import Create
@@ -120,3 +121,8 @@ class CreateTest(unittest.TestCase):
 
     self.assertEqual(
         expected_split_points_report, split_points_report)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

@@ -361,7 +361,7 @@ public class OrderedCodeTest {
     orderedCode.writeNumIncreasing(UnsignedInteger.fromIntBits(Integer.MAX_VALUE));
     assertEquals(0, orderedCode.readNumIncreasing());
     assertEquals(1, orderedCode.readNumIncreasing());
-    assertEquals(Long.valueOf(Integer.MAX_VALUE) + 1L, orderedCode.readNumIncreasing());
+    assertEquals((long) Integer.MAX_VALUE + 1L, orderedCode.readNumIncreasing());
     assertEquals(Integer.MAX_VALUE, orderedCode.readNumIncreasing());
   }
 
@@ -387,7 +387,7 @@ public class OrderedCodeTest {
     orderedCode.writeNumDecreasing(UnsignedInteger.fromIntBits(Integer.MAX_VALUE));
     assertEquals(0, orderedCode.readNumDecreasing());
     assertEquals(1, orderedCode.readNumDecreasing());
-    assertEquals(Long.valueOf(Integer.MAX_VALUE) + 1L, orderedCode.readNumDecreasing());
+    assertEquals((long) Integer.MAX_VALUE + 1L, orderedCode.readNumDecreasing());
     assertEquals(Integer.MAX_VALUE, orderedCode.readNumDecreasing());
   }
 

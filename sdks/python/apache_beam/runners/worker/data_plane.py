@@ -29,10 +29,12 @@ import sys
 import threading
 
 import grpc
+import six
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -182,7 +184,8 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            raise exc_info[0], exc_info[1], exc_info[2]
+            t, v, tb = self._exc_info
+            six.reraise(t, v, tb)
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)
@@ -292,9 +295,13 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   Caches the created channels by ``data descriptor url``.
   """
 
-  def __init__(self):
+  def __init__(self, credentials=None):
     self._data_channel_cache = {}
     self._lock = threading.Lock()
+    self._credentials = None
+    if credentials is not None:
+      logging.info('Using secure channel creds.')
+      self._credentials = credentials
 
   def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
@@ -302,15 +309,23 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       with self._lock:
         if url not in self._data_channel_cache:
           logging.info('Creating channel for %s', url)
-          grpc_channel = grpc.insecure_channel(
-              url,
-              # Options to have no limits (-1) on the size of the messages
-              # received or sent over the data plane. The actual buffer size is
-              # controlled in a layer above.
-              options=[("grpc.max_receive_message_length", -1),
-                       ("grpc.max_send_message_length", -1)])
+          # Options to have no limits (-1) on the size of the messages
+          # received or sent over the data plane. The actual buffer size
+          # is controlled in a layer above.
+          channel_options = [("grpc.max_receive_message_length", -1),
+                             ("grpc.max_send_message_length", -1)]
+          grpc_channel = None
+          if self._credentials is None:
+            grpc_channel = grpc.insecure_channel(url, options=channel_options)
+          else:
+            grpc_channel = grpc.secure_channel(
+                url, self._credentials, options=channel_options)
+          # Add workerId to the grpc channel
+          grpc_channel = grpc.intercept_channel(grpc_channel,
+                                                WorkerIdInterceptor())
           self._data_channel_cache[url] = GrpcClientDataChannel(
               beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
+
     return self._data_channel_cache[url]
 
   def close(self):

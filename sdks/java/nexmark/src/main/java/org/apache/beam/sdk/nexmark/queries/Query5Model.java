@@ -127,11 +127,7 @@ public class Query5Model extends NexmarkQueryModel implements Serializable {
      * Add bid to state.
      */
     private void captureBid(Bid bid, Instant timestamp) {
-      List<Instant> existing = bids.get(bid.auction);
-      if (existing == null) {
-        existing = new ArrayList<>();
-        bids.put(bid.auction, existing);
-      }
+      List<Instant> existing = bids.computeIfAbsent(bid.auction, k -> new ArrayList<>());
       existing.add(timestamp);
     }
 

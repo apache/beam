@@ -20,12 +20,14 @@ from __future__ import absolute_import
 
 import logging
 import struct
+from functools import partial
 
 import crcmod
 
 from apache_beam import coders
 from apache_beam.io import filebasedsink
-from apache_beam.io import filebasedsource
+from apache_beam.io.filebasedsource import FileBasedSource
+from apache_beam.io.filebasedsource import ReadAllFiles
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -140,7 +142,7 @@ class _TFRecordUtil(object):
     return data
 
 
-class _TFRecordSource(filebasedsource.FileBasedSource):
+class _TFRecordSource(FileBasedSource):
   """A File source for reading files of TFRecords.
 
   For detailed TFRecords format description see:
@@ -176,6 +178,47 @@ class _TFRecordSource(filebasedsource.FileBasedSource):
         else:
           current_offset += _TFRecordUtil.encoded_num_bytes(record)
           yield self._coder.decode(record)
+
+
+def _create_tfrcordio_source(
+    file_pattern=None, coder=None, compression_type=None):
+  # We intentionally disable validation for ReadAll pattern so that reading does
+  # not fail for globs (elements) that are empty.
+  return _TFRecordSource(file_pattern, coder, compression_type,
+                         validate=False)
+
+
+class ReadAllFromTFRecord(PTransform):
+  """A ``PTransform`` for reading a ``PCollection`` of TFRecord files."""
+
+  def __init__(
+      self,
+      coder=coders.BytesCoder(),
+      compression_type=CompressionTypes.AUTO,
+      **kwargs):
+    """Initialize the ``ReadAllFromTFRecord`` transform.
+
+    Args:
+      coder: Coder used to decode each record.
+      compression_type: Used to handle compressed input files. Default value
+          is CompressionTypes.AUTO, in which case the file_path's extension will
+          be used to detect the compression.
+      **kwargs: optional args dictionary. These are passed through to parent
+        constructor.
+    """
+    super(ReadAllFromTFRecord, self).__init__(**kwargs)
+    source_from_file = partial(
+        _create_tfrcordio_source, compression_type=compression_type,
+        coder=coder)
+    # Desired and min bundle sizes do not matter since TFRecord files are
+    # unsplittable.
+    self._read_all_files = ReadAllFiles(
+        splittable=False, compression_type=compression_type,
+        desired_bundle_size=0, min_bundle_size=0,
+        source_from_file=source_from_file)
+
+  def expand(self, pvalue):
+    return pvalue | 'ReadAllFiles' >> self._read_all_files
 
 
 class ReadFromTFRecord(PTransform):

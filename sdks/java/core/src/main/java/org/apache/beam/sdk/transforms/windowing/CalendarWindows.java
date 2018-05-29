@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.DateTime;
@@ -140,8 +141,8 @@ public class CalendarWindows {
       }
       DaysWindows that = (DaysWindows) other;
       return number == that.number
-          && startDate == that.startDate
-          && timeZone == that.timeZone;
+          && Objects.equals(startDate, that.startDate)
+          && Objects.equals(timeZone, that.timeZone);
     }
 
     @Override
@@ -252,8 +253,8 @@ public class CalendarWindows {
       MonthsWindows that = (MonthsWindows) other;
       return number == that.number
           && dayOfMonth == that.dayOfMonth
-          && startDate == that.startDate
-          && timeZone == that.timeZone;
+          && Objects.equals(startDate, that.startDate)
+          && Objects.equals(timeZone, that.timeZone);
     }
 
     @Override
@@ -373,8 +374,8 @@ public class CalendarWindows {
       return number == that.number
           && monthOfYear == that.monthOfYear
           && dayOfMonth == that.dayOfMonth
-          && startDate == that.startDate
-          && timeZone == that.timeZone;
+          && Objects.equals(startDate, that.startDate)
+          && Objects.equals(timeZone, that.timeZone);
     }
 
     @Override

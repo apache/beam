@@ -46,17 +46,20 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOCassandraIT
+ *  ./gradlew integrationTest -p sdks/java/io/hadoop-input-format
+ *  -Dit.test=org.apache.beam.sdk.io.hadoop.inputformat.HIFIOCassandraIT
  *  -DintegrationTestPipelineOptions='[
  *  "--cassandraServerIp=1.2.3.4",
  *  "--cassandraServerPort=port",
  *  "--cassandraUserName=user",
  *  "--cassandraPassword=mypass" ]'
+ *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HIFIOCassandraIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
- * and spark in the jdk1.8-tests pom. You'll want to activate those in addition to the normal test
- * runner invocation pipeline options.
+ * and spark in the pom. You'll want to activate those in addition to the normal test runner
+ * invocation pipeline options.
  */
 
 @RunWith(JUnit4.class)
@@ -106,7 +109,7 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+  private final SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
     @Override
     public String apply(Row input) {
       return input.getString("y_id") + "|" + input.getString("field0") + "|"

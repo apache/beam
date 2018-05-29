@@ -61,6 +61,6 @@ public class BigQueryTornadoesIT {
         new BigqueryMatcher(
             options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
 
-    BigQueryTornadoes.main(TestPipeline.convertToArgs(options));
+    BigQueryTornadoes.runBigQueryTornadoes(options);
   }
 }

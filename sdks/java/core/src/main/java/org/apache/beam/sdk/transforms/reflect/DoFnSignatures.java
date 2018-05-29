@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -47,9 +46,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
@@ -62,10 +64,12 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.joda.time.Instant;
 
 /**
  * Utilities for working with {@link DoFnSignature}. See {@link #getSignature}.
@@ -76,28 +80,41 @@ public class DoFnSignatures {
 
   private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
-  private static final Collection<Class<? extends Parameter>>
+  private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
       ImmutableList.of(
           Parameter.ProcessContextParameter.class,
+          Parameter.ElementParameter.class,
+          Parameter.TimestampParameter.class,
+          Parameter.OutputReceiverParameter.class,
+          Parameter.TaggedOutputReceiverParameter.class,
           Parameter.WindowParameter.class,
+          Parameter.PaneInfoParameter.class,
           Parameter.PipelineOptionsParameter.class,
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class);
 
-  private static final Collection<Class<? extends Parameter>>
+  private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
+              Parameter.ElementParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
               Parameter.ProcessContextParameter.class,
               Parameter.RestrictionTrackerParameter.class);
 
-  private static final Collection<Class<? extends Parameter>>
+  private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_PARAMETERS =
           ImmutableList.of(
               Parameter.OnTimerContextParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.TimeDomainParameter.class,
               Parameter.WindowParameter.class,
               Parameter.PipelineOptionsParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
               Parameter.TimerParameter.class,
               Parameter.StateParameter.class);
 
@@ -108,11 +125,7 @@ public class DoFnSignatures {
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public static synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
-    DoFnSignature signature = signatureCache.get(fn);
-    if (signature == null) {
-      signatureCache.put(fn, signature = parseSignature(fn));
-    }
-    return signature;
+    return signatureCache.computeIfAbsent(fn, k -> parseSignature(fn));
   }
 
   /**
@@ -184,14 +197,14 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
-      return Iterables.any(
-          extraParameters, Predicates.instanceOf(RestrictionTrackerParameter.class));
+      return extraParameters
+          .stream()
+          .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
 
     /** Indicates whether a {@link WindowParameter} is known in this context. */
     public boolean hasWindowParameter() {
-      return Iterables.any(
-          extraParameters, Predicates.instanceOf(WindowParameter.class));
+      return extraParameters.stream().anyMatch(Predicates.instanceOf(WindowParameter.class)::apply);
     }
 
     /**
@@ -199,8 +212,9 @@ public class DoFnSignatures {
      * known in this context.
      */
     public boolean hasPipelineOptionsParamter() {
-      return Iterables.any(
-          extraParameters, Predicates.instanceOf(Parameter.PipelineOptionsParameter.class));
+      return extraParameters
+          .stream()
+          .anyMatch(Predicates.instanceOf(Parameter.PipelineOptionsParameter.class)::apply);
     }
 
     /** The window type, if any, used by this method. */
@@ -805,7 +819,19 @@ public class DoFnSignatures {
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (rawType.equals(DoFn.ProcessContext.class)) {
+    if (hasElementAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(paramT.equals(inputT),
+          "@Element argument must have type %s", inputT);
+      return Parameter.elementParameter(paramT);
+    }  else if (hasTimestampAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(rawType.equals(Instant.class),
+          "@Timestamp argument must have type org.joda.time.Instant.");
+      return Parameter.timestampParameter();
+    } else if (rawType.equals(TimeDomain.class)) {
+      return Parameter.timeDomainParameter();
+    } else if (rawType.equals(PaneInfo.class)) {
+      return Parameter.paneInfoParameter();
+    } else if (rawType.equals(DoFn.ProcessContext.class)) {
       paramErrors.checkArgument(paramT.equals(expectedProcessContextT),
         "ProcessContext argument must have type %s",
         formatType(expectedProcessContextT));
@@ -822,6 +848,15 @@ public class DoFnSignatures {
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
+    } else if (rawType.equals(OutputReceiver.class)) {
+      TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
+      paramErrors.checkArgument(
+          paramT.equals(expectedReceiverT),
+      "OutputReceiver should be parameterized by %s",
+          outputT);
+      return Parameter.outputReceiverParameter();
+    }  else if (rawType.equals(MultiOutputReceiver.class)) {
+      return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasPipelineOptionsParamter(),
@@ -912,7 +947,7 @@ public class DoFnSignatures {
       List<String> allowedParamTypes =
           Arrays.asList(
               formatType(new TypeDescriptor<BoundedWindow>() {}),
-              formatType(new TypeDescriptor<RestrictionTracker<?>>() {}));
+              formatType(new TypeDescriptor<RestrictionTracker<?, ?>>() {}));
       paramErrors.throwIllegalArgument(
           "%s is not a valid context parameter. Should be one of %s",
           formatType(paramT), allowedParamTypes);
@@ -941,11 +976,29 @@ public class DoFnSignatures {
     return null;
   }
 
+  private static boolean hasElementAnnotation(List<Annotation> annotations) {
+    for (Annotation anno : annotations) {
+      if (anno.annotationType().equals(DoFn.Element.class)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
+    for (Annotation anno : annotations) {
+      if (anno.annotationType().equals(DoFn.Timestamp.class)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @Nullable
   private static TypeDescriptor<?> getTrackerType(TypeDescriptor<?> fnClass, Method method) {
     Type[] params = method.getGenericParameterTypes();
-    for (int i = 0; i < params.length; i++) {
-      TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
+    for (Type param : params) {
+      TypeDescriptor<?> paramT = fnClass.resolveType(param);
       if (RestrictionTracker.class.isAssignableFrom(paramT.getRawType())) {
         return paramT;
       }
@@ -957,8 +1010,8 @@ public class DoFnSignatures {
   private static TypeDescriptor<? extends BoundedWindow> getWindowType(
       TypeDescriptor<?> fnClass, Method method) {
     Type[] params = method.getGenericParameterTypes();
-    for (int i = 0; i < params.length; i++) {
-      TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
+    for (Type param : params) {
+      TypeDescriptor<?> paramT = fnClass.resolveType(param);
       if (BoundedWindow.class.isAssignableFrom(paramT.getRawType())) {
         return (TypeDescriptor<? extends BoundedWindow>) paramT;
       }
@@ -1032,9 +1085,9 @@ public class DoFnSignatures {
    * OutputT}.
    */
   private static <OutputT> TypeDescriptor<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
-      TypeDescriptor<OutputT> inputT) {
+      TypeDescriptor<OutputT> outputT) {
     return new TypeDescriptor<DoFn.OutputReceiver<OutputT>>() {}.where(
-        new TypeParameter<OutputT>() {}, inputT);
+        new TypeParameter<OutputT>() {}, outputT);
   }
 
   @VisibleForTesting
@@ -1135,9 +1188,9 @@ public class DoFnSignatures {
    * RestrictionT}.
    */
   private static <RestrictionT>
-      TypeDescriptor<RestrictionTracker<RestrictionT>> restrictionTrackerTypeOf(
+      TypeDescriptor<RestrictionTracker<RestrictionT, ?>> restrictionTrackerTypeOf(
           TypeDescriptor<RestrictionT> restrictionT) {
-    return new TypeDescriptor<RestrictionTracker<RestrictionT>>() {}.where(
+    return new TypeDescriptor<RestrictionTracker<RestrictionT, ?>>() {}.where(
         new TypeParameter<RestrictionT>() {}, restrictionT);
   }
 
@@ -1175,11 +1228,9 @@ public class DoFnSignatures {
     MemberT[] getMembers(Class<?> clazz);
   }
 
-  // Class::getDeclaredMethods for Java 7
-  private static final MemberGetter<Method> GET_METHODS = clazz -> clazz.getDeclaredMethods();
+  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
 
-  // Class::getDeclaredFields for Java 7
-  private static final MemberGetter<Field> GET_FIELDS = clazz -> clazz.getDeclaredFields();
+  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
 
   private static <MemberT extends AnnotatedElement>
       Collection<MemberT> declaredMembersWithAnnotation(
@@ -1294,7 +1345,7 @@ public class DoFnSignatures {
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
-    if (matches.size() == 0) {
+    if (matches.isEmpty()) {
       errors.checkArgument(!required, "No method annotated with @%s found", anno.getSimpleName());
       return null;
     }

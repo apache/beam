@@ -130,9 +130,7 @@ public class DebuggingWordCount {
     void setFilterPattern(String value);
   }
 
-  public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
+  static void runDebuggingWordCount(WordCountOptions options) {
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> filteredWords =
@@ -158,5 +156,12 @@ public class DebuggingWordCount {
     PAssert.that(filteredWords).containsInAnyOrder(expectedResults);
 
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+      .as(WordCountOptions.class);
+
+    runDebuggingWordCount(options);
   }
 }

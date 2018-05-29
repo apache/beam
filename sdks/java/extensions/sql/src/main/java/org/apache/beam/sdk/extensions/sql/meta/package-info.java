@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Metadata related classes.
- */
+/** Metadata related classes. */
 package org.apache.beam.sdk.extensions.sql.meta;

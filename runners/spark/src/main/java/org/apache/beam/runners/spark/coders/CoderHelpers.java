@@ -20,13 +20,14 @@ package org.apache.beam.runners.spark.coders;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.Iterables;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
@@ -101,9 +102,10 @@ public final class CoderHelpers {
    */
   public static <T> Iterable<T> fromByteArrays(
       Collection<byte[]> serialized, final Coder<T> coder) {
-    return Iterables.transform(
-        serialized,
-        bytes -> fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder));
+    return serialized
+        .stream()
+        .map(bytes -> fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -175,6 +177,8 @@ public final class CoderHelpers {
     return tuple ->
         new Tuple2<>(
             fromByteArray(tuple._1().getValue(), keyCoder),
-            Iterables.transform(tuple._2(), bytes -> fromByteArray(bytes, valueCoder)));
+            StreamSupport.stream(tuple._2().spliterator(), false)
+                .map(bytes -> fromByteArray(bytes, valueCoder))
+                .collect(Collectors.toList()));
   }
 }

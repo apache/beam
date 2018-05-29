@@ -49,6 +49,7 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,9 +63,9 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 public class HadoopInputFormatIOTest {
-  static SerializableConfiguration serConf;
-  static SimpleFunction<Text, String> myKeyTranslate;
-  static SimpleFunction<Employee, String> myValueTranslate;
+  private static SerializableConfiguration serConf;
+  private static SimpleFunction<Text, String> myKeyTranslate;
+  private static SimpleFunction<Employee, String> myValueTranslate;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -72,7 +73,7 @@ public class HadoopInputFormatIOTest {
   private PBegin input = PBegin.in(p);
 
   @BeforeClass
-  public static void setUp() throws IOException, InterruptedException {
+  public static void setUp() {
     serConf = loadTestConfiguration(
                   EmployeeInputFormat.class,
                   Text.class,
@@ -134,8 +135,7 @@ public class HadoopInputFormatIOTest {
    * @throws IOException
    */
   @Test
-  public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime()
-      throws IOException, InterruptedException {
+  public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime() {
     SerializableConfiguration diffConf =
         loadTestConfiguration(
             EmployeeInputFormat.class,
@@ -385,7 +385,7 @@ public class HadoopInputFormatIOTest {
   }
 
   @Test
-  public void testReadingData() throws Exception {
+  public void testReadingData() {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(serConf.get());
     List<KV<Text, Employee>> expected = TestEmployeeDataSet.getEmployeeData();
@@ -805,6 +805,20 @@ public class HadoopInputFormatIOTest {
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
+  @Test
+  public void testValidateConfigurationWithDBInputFormat() {
+    Configuration conf = new Configuration();
+    conf.setClass("key.class", LongWritable.class, Object.class);
+    conf.setClass("value.class", Text.class, Object.class);
+    conf.setClass("mapreduce.job.inputformat.class", DBInputFormat.class, InputFormat.class);
+
+    thrown.expect(IllegalArgumentException.class);
+    HadoopInputFormatIO.<String, String>read()
+        .withConfiguration(new SerializableConfiguration(conf).get())
+        .withKeyTranslation(myKeyTranslate)
+        .withValueTranslation(myValueTranslate);
+  }
+
   private static SerializableConfiguration loadTestConfiguration(Class<?> inputFormatClassName,
       Class<?> keyClass, Class<?> valueClass) {
     Configuration conf = new Configuration();
@@ -819,7 +833,7 @@ public class HadoopInputFormatIOTest {
       Class<K> inputFormatKeyClass,
       Class<V> inputFormatValueClass,
       Coder<K> keyCoder,
-      Coder<V> valueCoder){
+      Coder<V> valueCoder) {
     SerializableConfiguration serConf =
         loadTestConfiguration(
             inputFormatClass,

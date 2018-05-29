@@ -436,12 +436,14 @@ public class PipelineTest {
         return input.apply("custom_name", Sum.integersGlobally());
       }
     }
+
     class ReplacementTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
       @Override
       public PCollection<Integer> expand(PCollection<Integer> input) {
         return input.apply("custom_name", Max.integersGlobally());
       }
     }
+
     class ReplacementOverrideFactory
         implements PTransformOverrideFactory<
             PCollection<Integer>, PCollection<Integer>, OriginalTransform> {

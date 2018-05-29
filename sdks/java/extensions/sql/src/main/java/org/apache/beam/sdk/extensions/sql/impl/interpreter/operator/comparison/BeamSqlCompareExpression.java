@@ -17,21 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * {@link BeamSqlCompareExpression} is used for compare operations.
  *
- * <p>See {@link BeamSqlEqualsExpression}, {@link BeamSqlLessThanExpression},
- * {@link BeamSqlLessThanOrEqualsExpression}, {@link BeamSqlGreaterThanExpression},
- * {@link BeamSqlGreaterThanOrEqualsExpression} and {@link BeamSqlNotEqualsExpression}
- * for more details.
- *
+ * <p>See {@link BeamSqlEqualsExpression}, {@link BeamSqlLessThanExpression}, {@link
+ * BeamSqlLessThanOrEqualsExpression}, {@link BeamSqlGreaterThanExpression}, {@link
+ * BeamSqlGreaterThanOrEqualsExpression} and {@link BeamSqlNotEqualsExpression} for more details.
  */
 public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
 
@@ -43,55 +42,48 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
     this(operands, SqlTypeName.BOOLEAN);
   }
 
-  /**
-   * Compare operation must have 2 operands.
-   */
+  /** Compare operation must have 2 operands. */
   @Override
   public boolean accept() {
     return operands.size() == 2;
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamRecord inputRow, BoundedWindow window) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window).getValue();
-    Object rightValue = operands.get(1).evaluate(inputRow, window).getValue();
+  public BeamSqlPrimitive<Boolean> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    Object leftValue = operands.get(0).evaluate(inputRow, window, correlateEnv).getValue();
+    Object rightValue = operands.get(1).evaluate(inputRow, window, correlateEnv).getValue();
     switch (operands.get(0).getOutputType()) {
-    case BIGINT:
-    case DECIMAL:
-    case DOUBLE:
-    case FLOAT:
-    case INTEGER:
-    case SMALLINT:
-    case TINYINT:
-      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN,
-          compare((Number) leftValue, (Number) rightValue));
-    case BOOLEAN:
-      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN,
-          compare((Boolean) leftValue, (Boolean) rightValue));
-    case VARCHAR:
-      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN,
-          compare((CharSequence) leftValue, (CharSequence) rightValue));
-    default:
-      throw new UnsupportedOperationException(toString());
+      case BIGINT:
+      case DECIMAL:
+      case DOUBLE:
+      case FLOAT:
+      case INTEGER:
+      case SMALLINT:
+      case TINYINT:
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BOOLEAN, compare((Number) leftValue, (Number) rightValue));
+      case BOOLEAN:
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BOOLEAN, compare((Boolean) leftValue, (Boolean) rightValue));
+      case VARCHAR:
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BOOLEAN, compare((CharSequence) leftValue, (CharSequence) rightValue));
+      default:
+        throw new UnsupportedOperationException(toString());
     }
   }
 
-  /**
-   * Compare between String values, mapping to {@link SqlTypeName#VARCHAR}.
-   */
+  /** Compare between String values, mapping to {@link SqlTypeName#VARCHAR}. */
   public abstract Boolean compare(CharSequence leftValue, CharSequence rightValue);
 
-  /**
-   * Compare between Boolean values, mapping to {@link SqlTypeName#BOOLEAN}.
-   */
+  /** Compare between Boolean values, mapping to {@link SqlTypeName#BOOLEAN}. */
   public abstract Boolean compare(Boolean leftValue, Boolean rightValue);
 
   /**
-   * Compare between Number values, including {@link SqlTypeName#BIGINT},
-   * {@link SqlTypeName#DECIMAL}, {@link SqlTypeName#DOUBLE}, {@link SqlTypeName#FLOAT},
-   * {@link SqlTypeName#INTEGER}, {@link SqlTypeName#SMALLINT} and {@link SqlTypeName#TINYINT}.
+   * Compare between Number values, including {@link SqlTypeName#BIGINT}, {@link
+   * SqlTypeName#DECIMAL}, {@link SqlTypeName#DOUBLE}, {@link SqlTypeName#FLOAT}, {@link
+   * SqlTypeName#INTEGER}, {@link SqlTypeName#SMALLINT} and {@link SqlTypeName#TINYINT}.
    */
   public abstract Boolean compare(Number leftValue, Number rightValue);
-
-
 }

@@ -99,7 +99,11 @@ public class NexmarkUtils {
     /**
      * Read from a PubSub topic. It will be fed the same synthetic events by this pipeline.
      */
-    PUBSUB
+    PUBSUB,
+    /**
+     * Read events from a Kafka topic. It will be fed the same synthetic events by this pipeline.
+     */
+    KAFKA
   }
 
   /**
@@ -119,6 +123,10 @@ public class NexmarkUtils {
      */
     PUBSUB,
     /**
+     * Write to a Kafka topic. It will be drained by this pipeline.
+     */
+    KAFKA,
+    /**
      * Write to a text file. Only works in batch mode.
      */
     TEXT,
@@ -129,7 +137,7 @@ public class NexmarkUtils {
     /**
      * Write raw Events to BigQuery.
      */
-    BIGQUERY,
+    BIGQUERY
   }
 
   /**
@@ -281,11 +289,6 @@ public class NexmarkUtils {
    * Set to true to capture all info messages. The logging level flags don't currently work.
    */
   private static final boolean LOG_INFO = false;
-
-  /**
-   * Set to true to capture all error messages. The logging level flags don't currently work.
-   */
-  private static final boolean LOG_ERROR = true;
 
   /**
    * Set to true to log directly to stdout. If run using Google Dataflow, you can watch the results

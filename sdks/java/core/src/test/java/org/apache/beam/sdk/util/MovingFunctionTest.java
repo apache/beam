@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class MovingFunctionTest {
 
   private static final long SAMPLE_PERIOD = 100;
-  private static final long SAMPLE_UPDATE = 10;
+  private static final int SAMPLE_UPDATE = 10;
   private static final int SIGNIFICANT_BUCKETS = 2;
   private static final int SIGNIFICANT_SAMPLES = 10;
 
@@ -95,10 +95,8 @@ public class MovingFunctionTest {
     int lost = 0;
     for (int i = 0; i < SAMPLE_PERIOD * 2; i++) {
       f.add(i , 1);
-      if (i >= SAMPLE_PERIOD) {
-        if (i % SAMPLE_UPDATE == 0) {
-          lost += SAMPLE_UPDATE;
-        }
+      if (i >= SAMPLE_PERIOD && i % SAMPLE_UPDATE == 0) {
+        lost += SAMPLE_UPDATE;
       }
       assertEquals(i + 1 - lost, f.get(i));
     }

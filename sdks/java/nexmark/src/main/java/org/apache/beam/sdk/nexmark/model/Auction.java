@@ -172,8 +172,8 @@ public class Auction implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + itemName.length() + 1 + description.length() + 1 + 8 + 8 + 8 + 8 + 8 + 8
-        + extra.length() + 1;
+    return 8L + itemName.length() + 1L + description.length() + 1L + 8L + 8L + 8L + 8L + 8L + 8L
+        + extra.length() + 1L;
   }
 
   @Override

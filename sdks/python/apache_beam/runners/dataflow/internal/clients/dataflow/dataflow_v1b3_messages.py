@@ -16,6 +16,7 @@
 #
 
 """Generated message classes for dataflow version v1b3.
+
 Develops and executes data processing patterns like ETL, batch computation,
 and continuous computation.
 """
@@ -24,6 +25,7 @@ and continuous computation.
 from apitools.base.protorpclite import messages as _messages
 from apitools.base.py import encoding
 from apitools.base.py import extra_types
+
 
 package = 'dataflow'
 
@@ -294,6 +296,7 @@ class CounterMetadata(_messages.Message):
         values.
       SET: Aggregated value is a set of unique contributed values.
       DISTRIBUTION: Aggregated value captures statistics about a distribution.
+      LATEST_VALUE: Aggregated value tracks the latest value of a variable.
     """
     INVALID = 0
     SUM = 1
@@ -304,6 +307,7 @@ class CounterMetadata(_messages.Message):
     AND = 6
     SET = 7
     DISTRIBUTION = 8
+    LATEST_VALUE = 9
 
   class StandardUnitsValueValuesEnum(_messages.Enum):
     """System defined Units, see above enum.
@@ -426,6 +430,7 @@ class CounterUpdate(_messages.Message):
     floatingPointList: List of floating point numbers, for Set.
     floatingPointMean: Floating point mean aggregation value for Mean.
     integer: Integer value for Sum, Max, Min.
+    integerGauge: Gauge data
     integerList: List of integers, for Set.
     integerMean: Integer mean aggregation value for Mean.
     internal: Value for internally-defined counters used by the Dataflow
@@ -445,13 +450,14 @@ class CounterUpdate(_messages.Message):
   floatingPointList = _messages.MessageField('FloatingPointList', 5)
   floatingPointMean = _messages.MessageField('FloatingPointMean', 6)
   integer = _messages.MessageField('SplitInt64', 7)
-  integerList = _messages.MessageField('IntegerList', 8)
-  integerMean = _messages.MessageField('IntegerMean', 9)
-  internal = _messages.MessageField('extra_types.JsonValue', 10)
-  nameAndKind = _messages.MessageField('NameAndKind', 11)
-  shortId = _messages.IntegerField(12)
-  stringList = _messages.MessageField('StringList', 13)
-  structuredNameAndMetadata = _messages.MessageField('CounterStructuredNameAndMetadata', 14)
+  integerGauge = _messages.MessageField('IntegerGauge', 8)
+  integerList = _messages.MessageField('IntegerList', 9)
+  integerMean = _messages.MessageField('IntegerMean', 10)
+  internal = _messages.MessageField('extra_types.JsonValue', 11)
+  nameAndKind = _messages.MessageField('NameAndKind', 12)
+  shortId = _messages.IntegerField(13)
+  stringList = _messages.MessageField('StringList', 14)
+  structuredNameAndMetadata = _messages.MessageField('CounterStructuredNameAndMetadata', 15)
 
 
 class CreateJobFromTemplateRequest(_messages.Message):
@@ -1905,6 +1911,19 @@ class InstructionOutput(_messages.Message):
   systemName = _messages.StringField(6)
 
 
+class IntegerGauge(_messages.Message):
+  """A metric value representing temporal values of a variable.
+
+  Fields:
+    timestamp: The time at which this value was measured. Measured as msecs
+      from epoch.
+    value: The value of the variable represented by this gauge.
+  """
+
+  timestamp = _messages.StringField(1)
+  value = _messages.MessageField('SplitInt64', 2)
+
+
 class IntegerList(_messages.Message):
   """A metric value representing a list of integers.
 
@@ -2710,6 +2729,7 @@ class NameAndKind(_messages.Message):
         values.
       SET: Aggregated value is a set of unique contributed values.
       DISTRIBUTION: Aggregated value captures statistics about a distribution.
+      LATEST_VALUE: Aggregated value tracks the latest value of a variable.
     """
     INVALID = 0
     SUM = 1
@@ -2720,6 +2740,7 @@ class NameAndKind(_messages.Message):
     AND = 6
     SET = 7
     DISTRIBUTION = 8
+    LATEST_VALUE = 9
 
   kind = _messages.EnumField('KindValueValuesEnum', 1)
   name = _messages.StringField(2)
@@ -3088,14 +3109,19 @@ class RuntimeEnvironment(_messages.Message):
   """The environment values to set at runtime.
 
   Fields:
+    additionalExperiments: Additional experiment flags for the job.
     bypassTempDirValidation: Whether to bypass the safety checks for the job's
       temporary directory. Use with caution.
     machineType: The machine type to use for the job. Defaults to the value
       from the template if not specified.
     maxWorkers: The maximum number of Google Compute Engine instances to be
       made available to your pipeline during execution, from 1 to 1000.
+    network: Network to which VMs will be assigned.  If empty or unspecified,
+      the service will use the network "default".
     serviceAccountEmail: The email address of the service account to run the
       job as.
+    subnetwork: Subnetwork to which VMs will be assigned, if desired.
+      Expected to be of the form "regions/REGION/subnetworks/SUBNETWORK".
     tempLocation: The Cloud Storage path to use for temporary files. Must be a
       valid Cloud Storage URL, beginning with `gs://`.
     zone: The Compute Engine [availability
@@ -3103,12 +3129,15 @@ class RuntimeEnvironment(_messages.Message):
       for launching worker instances to run your pipeline.
   """
 
-  bypassTempDirValidation = _messages.BooleanField(1)
-  machineType = _messages.StringField(2)
-  maxWorkers = _messages.IntegerField(3, variant=_messages.Variant.INT32)
-  serviceAccountEmail = _messages.StringField(4)
-  tempLocation = _messages.StringField(5)
-  zone = _messages.StringField(6)
+  additionalExperiments = _messages.StringField(1, repeated=True)
+  bypassTempDirValidation = _messages.BooleanField(2)
+  machineType = _messages.StringField(3)
+  maxWorkers = _messages.IntegerField(4, variant=_messages.Variant.INT32)
+  network = _messages.StringField(5)
+  serviceAccountEmail = _messages.StringField(6)
+  subnetwork = _messages.StringField(7)
+  tempLocation = _messages.StringField(8)
+  zone = _messages.StringField(9)
 
 
 class SendDebugCaptureRequest(_messages.Message):
@@ -4538,6 +4567,83 @@ class WorkerHealthReportResponse(_messages.Message):
   reportInterval = _messages.StringField(1)
 
 
+class WorkerLifecycleEvent(_messages.Message):
+  """A report of an event in a worker's lifecycle. The proto contains one
+  event, because the worker is expected to asynchronously send each message
+  immediately after the event. Due to this asynchrony, messages may arrive out
+  of order (or missing), and it is up to the consumer to interpret. The
+  timestamp of the event is in the enclosing WorkerMessage proto.
+
+  Enums:
+    EventValueValuesEnum: The event being reported.
+
+  Messages:
+    MetadataValue: Other stats that can accompany an event. E.g. {
+      "downloaded_bytes" : "123456" }
+
+  Fields:
+    containerStartTime: The start time of this container. All events will
+      report this so that events can be grouped together across container/VM
+      restarts.
+    event: The event being reported.
+    metadata: Other stats that can accompany an event. E.g. {
+      "downloaded_bytes" : "123456" }
+  """
+
+  class EventValueValuesEnum(_messages.Enum):
+    """The event being reported.
+
+    Values:
+      UNKNOWN_EVENT: Invalid event.
+      OS_START: The time the VM started.
+      CONTAINER_START: Our container code starts running. Multiple containers
+        could be distinguished with WorkerMessage.labels if desired.
+      NETWORK_UP: The worker has a functional external network connection.
+      STAGING_FILES_DOWNLOAD_START: Started downloading staging files.
+      STAGING_FILES_DOWNLOAD_FINISH: Finished downloading all staging files.
+      SDK_INSTALL_START: For applicable SDKs, started installation of SDK and
+        worker packages.
+      SDK_INSTALL_FINISH: Finished installing SDK.
+    """
+    UNKNOWN_EVENT = 0
+    OS_START = 1
+    CONTAINER_START = 2
+    NETWORK_UP = 3
+    STAGING_FILES_DOWNLOAD_START = 4
+    STAGING_FILES_DOWNLOAD_FINISH = 5
+    SDK_INSTALL_START = 6
+    SDK_INSTALL_FINISH = 7
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class MetadataValue(_messages.Message):
+    """Other stats that can accompany an event. E.g. { "downloaded_bytes" :
+    "123456" }
+
+    Messages:
+      AdditionalProperty: An additional property for a MetadataValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type MetadataValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      """An additional property for a MetadataValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  containerStartTime = _messages.StringField(1)
+  event = _messages.EnumField('EventValueValuesEnum', 2)
+  metadata = _messages.MessageField('MetadataValue', 3)
+
+
 class WorkerMessage(_messages.Message):
   """WorkerMessage provides information to the backend about a worker.
 
@@ -4560,6 +4666,7 @@ class WorkerMessage(_messages.Message):
       not be used here.
     time: The timestamp of the worker_message.
     workerHealthReport: The health of a worker.
+    workerLifecycleEvent: Record of worker lifecycle events.
     workerMessageCode: A worker message code.
     workerMetrics: Resource metrics reported by workers.
     workerShutdownNotice: Shutdown notice by workers.
@@ -4597,9 +4704,10 @@ class WorkerMessage(_messages.Message):
   labels = _messages.MessageField('LabelsValue', 1)
   time = _messages.StringField(2)
   workerHealthReport = _messages.MessageField('WorkerHealthReport', 3)
-  workerMessageCode = _messages.MessageField('WorkerMessageCode', 4)
-  workerMetrics = _messages.MessageField('ResourceUtilizationReport', 5)
-  workerShutdownNotice = _messages.MessageField('WorkerShutdownNotice', 6)
+  workerLifecycleEvent = _messages.MessageField('WorkerLifecycleEvent', 4)
+  workerMessageCode = _messages.MessageField('WorkerMessageCode', 5)
+  workerMetrics = _messages.MessageField('ResourceUtilizationReport', 6)
+  workerShutdownNotice = _messages.MessageField('WorkerShutdownNotice', 7)
 
 
 class WorkerMessageCode(_messages.Message):
@@ -4979,11 +5087,8 @@ class WriteInstruction(_messages.Message):
 
 
 encoding.AddCustomJsonFieldMapping(
-    StandardQueryParameters, 'f__xgafv', '$.xgafv',
-    package=u'dataflow')
+    StandardQueryParameters, 'f__xgafv', '$.xgafv')
 encoding.AddCustomJsonEnumMapping(
-    StandardQueryParameters.FXgafvValueValuesEnum, '_1', '1',
-    package=u'dataflow')
+    StandardQueryParameters.FXgafvValueValuesEnum, '_1', '1')
 encoding.AddCustomJsonEnumMapping(
-    StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2',
-    package=u'dataflow')
+    StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2')

@@ -93,12 +93,12 @@ public final class TimeUtil {
     if (!matcher.matches()) {
       return null;
     }
-    int year = Integer.valueOf(matcher.group(1));
-    int month = Integer.valueOf(matcher.group(2));
-    int day = Integer.valueOf(matcher.group(3));
-    int hour = Integer.valueOf(matcher.group(4));
-    int minute = Integer.valueOf(matcher.group(5));
-    int second = Integer.valueOf(matcher.group(6));
+    int year = Integer.parseInt(matcher.group(1));
+    int month = Integer.parseInt(matcher.group(2));
+    int day = Integer.parseInt(matcher.group(3));
+    int hour = Integer.parseInt(matcher.group(4));
+    int minute = Integer.parseInt(matcher.group(5));
+    int second = Integer.parseInt(matcher.group(6));
     int millis = computeMillis(matcher.group(7));
 
     return new DateTime(year, month, day, hour, minute, second, millis,
@@ -109,7 +109,8 @@ public final class TimeUtil {
     if (frac == null) {
       return 0;
     }
-    return Integer.valueOf(frac.length() > 3 ? frac.substring(0, 3) : Strings.padEnd(frac, 3, '0'));
+    return Integer.parseInt(frac.length() > 3 ? frac.substring(0, 3)
+      : Strings.padEnd(frac, 3, '0'));
   }
 
   /**
@@ -139,10 +140,10 @@ public final class TimeUtil {
     if (!matcher.matches()) {
       return null;
     }
-    long millis = Long.valueOf(matcher.group(1)) * 1000;
+    long millis = Long.parseLong(matcher.group(1)) * 1000;
     String frac = matcher.group(2);
     if (frac != null) {
-      long fracs = Long.valueOf(frac);
+      long fracs = Long.parseLong(frac);
       if (frac.length() == 3) {  // millisecond resolution
         millis += fracs;
       } else if (frac.length() == 6) {  // microsecond resolution

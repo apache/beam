@@ -78,7 +78,7 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
    */
   public interface OutputEmitter<T> {
     void emit(T tuple);
-  };
+  }
 
   /**
    * The processing logic for this operator.

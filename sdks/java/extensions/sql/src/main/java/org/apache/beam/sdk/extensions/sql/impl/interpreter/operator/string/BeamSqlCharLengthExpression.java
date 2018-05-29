@@ -18,23 +18,24 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * 'CHAR_LENGTH' operator.
- */
+/** 'CHAR_LENGTH' operator. */
 public class BeamSqlCharLengthExpression extends BeamSqlStringUnaryExpression {
   public BeamSqlCharLengthExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.INTEGER);
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
     return BeamSqlPrimitive.of(SqlTypeName.INTEGER, str.length());
   }
 }

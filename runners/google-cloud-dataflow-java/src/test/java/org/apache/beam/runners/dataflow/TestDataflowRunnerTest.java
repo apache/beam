@@ -122,6 +122,40 @@ public class TestDataflowRunnerTest {
   }
 
   /**
+   * Job success on Dataflow means that it handled transient errors (if any) successfully
+   * by retrying failed bundles.
+   */
+  @Test
+  public void testRunBatchJobThatSucceedsDespiteTransientErrors() throws Exception {
+    Pipeline p = Pipeline.create(options);
+    PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getState()).thenReturn(State.DONE);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+      .thenAnswer(
+        invocation -> {
+          JobMessage message = new JobMessage();
+          message.setMessageText("TransientError");
+          message.setTime(TimeUtil.toCloudTime(Instant.now()));
+          message.setMessageImportance("JOB_MESSAGE_ERROR");
+          ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
+          return State.DONE;
+        });
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    when(mockClient.getJobMetrics(anyString()))
+      .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
+    assertEquals(mockJob, runner.run(p, mockRunner));
+  }
+
+  /**
    * Tests that when a batch job terminates in a failure state even if all assertions
    * passed, it throws an error to that effect.
    */

@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
@@ -85,8 +86,10 @@ public class BoundedDataset<T> implements Dataset {
           rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
       windowedValues =
-          Iterables.transform(
-              clientBytes, bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder));
+          clientBytes
+              .stream()
+              .map(bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder))
+              .collect(Collectors.toList());
     }
     return windowedValues;
   }

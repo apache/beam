@@ -25,6 +25,7 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -34,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -53,7 +56,8 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 final class ExecutorServiceParallelExecutor
-    implements PipelineExecutor, BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
+    implements PipelineExecutor,
+        BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final int targetParallelism;
@@ -69,23 +73,28 @@ final class ExecutorServiceParallelExecutor
 
   private final QueueMessageReceiver visibleUpdates;
 
+  private final ExecutorService metricsExecutor;
+
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     return new ExecutorServiceParallelExecutor(
-        targetParallelism, registry, transformEnforcements, context);
+        targetParallelism, registry, transformEnforcements, context, metricsExecutor);
   }
 
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     this.targetParallelism = targetParallelism;
+    this.metricsExecutor = metricsExecutor;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
     this.executorService =
@@ -272,17 +281,48 @@ final class ExecutorServiceParallelExecutor
       return;
     }
     LOG.debug("Pipeline has terminated. Shutting down.");
-    pipelineState.compareAndSet(State.RUNNING, newState);
+
+    final Collection<Exception> errors = new ArrayList<>();
     // Stop accepting new work before shutting down the executor. This ensures that thread don't try
     // to add work to the shutdown executor.
-    serialExecutorServices.invalidateAll();
-    serialExecutorServices.cleanUp();
-    parallelExecutorService.shutdown();
-    executorService.shutdown();
+    try {
+      serialExecutorServices.invalidateAll();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+      serialExecutorServices.cleanUp();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+      parallelExecutorService.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+      executorService.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+        metricsExecutor.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
     try {
       registry.cleanup();
-    } catch (Exception e) {
-      visibleUpdates.failed(e);
+    } catch (final Exception e) {
+      errors.add(e);
+    }
+    pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
+    if (!errors.isEmpty()) {
+      final IllegalStateException exception = new IllegalStateException(
+        "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
+        + errors.stream().map(Exception::getMessage)
+          .collect(Collectors.joining("\n- ", "- ", "")));
+      visibleUpdates.failed(exception);
+      throw exception;
     }
   }
 

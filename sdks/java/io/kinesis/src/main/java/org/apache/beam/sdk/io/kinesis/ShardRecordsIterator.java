@@ -19,12 +19,13 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-
+import com.amazonaws.services.kinesis.model.Shard;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,13 @@ class ShardRecordsIterator {
     this.shardIterator = initialCheckpoint.getShardIterator(kinesis);
   }
 
-  List<KinesisRecord> readNextBatch() throws TransientKinesisException {
+  List<KinesisRecord> readNextBatch()
+      throws TransientKinesisException, KinesisShardClosedException {
+    if (shardIterator == null) {
+      throw new KinesisShardClosedException(
+          String.format("Shard iterator reached end of the shard: streamName=%s, shardId=%s",
+              streamName, shardId));
+    }
     GetKinesisRecordsResult response = fetchRecords();
     LOG.debug("Fetched {} new records", response.getRecords().size());
 
@@ -95,4 +102,20 @@ class ShardRecordsIterator {
     checkpoint.set(checkpoint.get().moveAfter(record));
   }
 
+  String getShardId() {
+    return shardId;
+  }
+
+  List<ShardRecordsIterator> findSuccessiveShardRecordIterators() throws TransientKinesisException {
+    List<Shard> shards = kinesis.listShards(streamName);
+    List<ShardRecordsIterator> successiveShardRecordIterators = new ArrayList<>();
+    for (Shard shard : shards) {
+      if (shardId.equals(shard.getParentShardId())) {
+        ShardCheckpoint shardCheckpoint = new ShardCheckpoint(streamName, shard.getShardId(),
+            new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+        successiveShardRecordIterators.add(new ShardRecordsIterator(shardCheckpoint, kinesis));
+      }
+    }
+    return successiveShardRecordIterators;
+  }
 }

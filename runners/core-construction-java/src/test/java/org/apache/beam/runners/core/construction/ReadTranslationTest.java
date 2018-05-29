@@ -157,7 +157,7 @@ public class ReadTranslationTest {
       return TestUnboundedSource.class.hashCode();
     }
 
-    private class TestCheckpointMarkCoder extends AtomicCoder<CheckpointMark> {
+    private static class TestCheckpointMarkCoder extends AtomicCoder<CheckpointMark> {
       @Override
       public void encode(CheckpointMark value, OutputStream outStream)
           throws CoderException, IOException {

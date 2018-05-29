@@ -57,14 +57,20 @@ import org.postgresql.ds.PGSimpleDataSource;
  * <p>This test requires a running instance of Postgres. Pass in connection information using
  * PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/input-format/ -DintegrationTestPipelineOptions='[
- *  "--postgresServerName=1.2.3.4",
- *  "--postgresUsername=postgres",
- *  "--postgresDatabaseName=myfancydb",
- *  "--postgresPassword=mypass",
- *  "--postgresSsl=false",
- *  "--numberOfRecords=1000" ]'
+ *  ./gradlew integrationTest -p sdks/java/io/hadoop/input-format/
+ *   -DintegrationTestPipelineOptions='[
+ *     "--postgresServerName=1.2.3.4",
+ *     "--postgresUsername=postgres",
+ *     "--postgresDatabaseName=myfancydb",
+ *     "--postgresPassword=mypass",
+ *     "--postgresSsl=false",
+ *     "--numberOfRecords=1000" ]'
+ *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  */
 public class HadoopInputFormatIOIT {
 
@@ -104,6 +110,7 @@ public class HadoopInputFormatIOIT {
     );
     conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
     conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
+    conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
     conf.setClass(DBConfiguration.INPUT_CLASS_PROPERTY, TestRowDBWritable.class, DBWritable.class);
 
     conf.setClass("key.class", LongWritable.class, Object.class);

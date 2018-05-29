@@ -49,7 +49,6 @@ import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -57,7 +56,6 @@ import org.junit.runners.Parameterized;
 /**
  * Tests for {@link ApproximateQuantiles}.
  */
-@RunWith(Enclosed.class)
 public class ApproximateQuantilesTest {
 
   /** Tests for the overall combiner behavior. */

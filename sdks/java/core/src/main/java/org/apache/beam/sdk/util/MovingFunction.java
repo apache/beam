@@ -123,8 +123,8 @@ public class MovingFunction {
   public long get(long nowMsSinceEpoch) {
     flush(nowMsSinceEpoch);
     long result = function.identity();
-    for (int i = 0; i < buckets.length; i++) {
-      result = function.apply(result, buckets[i]);
+    for (long bucket : buckets) {
+      result = function.apply(result, bucket);
     }
     return result;
   }

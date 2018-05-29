@@ -226,7 +226,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
    * about additional separators that are transparently added by this
    * coder.
    */
-  private class IteratorObserver implements Observer {
+  private static class IteratorObserver implements Observer {
     private final ElementByteSizeObserver outerObserver;
     private final boolean countable;
 

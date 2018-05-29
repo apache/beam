@@ -151,11 +151,7 @@ class FakeDatasetService implements DatasetService, Serializable {
             tableReference.getProjectId(),
             tableReference.getDatasetId());
       }
-      TableContainer tableContainer = dataset.get(tableReference.getTableId());
-      if (tableContainer == null) {
-        tableContainer = new TableContainer(table);
-        dataset.put(tableReference.getTableId(), tableContainer);
-      }
+      dataset.computeIfAbsent(tableReference.getTableId(), k -> new TableContainer(table));
     }
   }
 

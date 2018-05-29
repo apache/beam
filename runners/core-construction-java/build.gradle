@@ -17,9 +17,12 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Core Construction Java"
+ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
+prior to execution."""
+
 
 // Exclude tests that need a runner
 test {
@@ -32,12 +35,11 @@ test {
 dependencies {
   compile library.java.guava
   compileOnly library.java.findbugs_annotations
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.jackson_annotations
-  shadow library.java.jackson_databind
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_core
+  shadow library.java.jackson_databind
   shadow library.java.protobuf_java
   shadow library.java.protobuf_java_util
   shadow library.java.findbugs_jsr305
@@ -45,14 +47,11 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
+  testCompileOnly library.java.findbugs_annotations
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_annotations
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadowTest")
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

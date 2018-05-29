@@ -49,4 +49,10 @@ public interface DoFnRunner<InputT, OutputT> {
    * additional tasks, such as flushing in-memory states.
    */
   void finishBundle();
+
+  /**
+   * @since 2.5.0
+   * @return the underlying fn instance.
+   */
+  DoFn<InputT, OutputT> getFn();
 }

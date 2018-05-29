@@ -89,7 +89,7 @@ public class SplitQueryFnIT {
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
 
     List<Query> queries = doFnTester.processBundle(query.build());
-    assertEquals(queries.size(), expectedNumSplits);
+    assertEquals(expectedNumSplits, queries.size());
   }
 
   // TODO (vikasrk): Create datasets under a different namespace and add tests.

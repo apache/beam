@@ -34,12 +34,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
+import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -81,13 +83,13 @@ public class ArtifactServiceStagerTest {
   @Test
   public void testStage() throws Exception {
     File file = temp.newFile();
-    byte[] content = "foo-bar-baz".getBytes();
+    byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     byte[] contentMd5 = MessageDigest.getInstance("MD5").digest(content);
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
-    stager.stage(Collections.singleton(file));
+    stager.stage(Collections.singleton(StagedFile.of(file, file.getName())));
 
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(1));
     byte[] stagedContent = Iterables.getOnlyElement(service.getStagedArtifacts().values());
@@ -105,24 +107,28 @@ public class ArtifactServiceStagerTest {
   @Test
   public void testStagingMultipleFiles() throws Exception {
     File file = temp.newFile();
-    byte[] content = "foo-bar-baz".getBytes();
+    byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
     File otherFile = temp.newFile();
-    byte[] otherContent = "spam-ham-eggs".getBytes();
+    byte[] otherContent = "spam-ham-eggs".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(otherFile).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(otherContent));
     }
 
     File thirdFile = temp.newFile();
-    byte[] thirdContent = "up, down, charm, top, bottom, strange".getBytes();
+    byte[] thirdContent = "up, down, charm, top, bottom, strange".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(thirdFile).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(thirdContent));
     }
 
-    stager.stage(ImmutableList.of(file, otherFile, thirdFile));
+    stager.stage(
+        ImmutableList.of(
+            StagedFile.of(file, file.getName()),
+            StagedFile.of(otherFile, otherFile.getName()),
+            StagedFile.of(thirdFile, thirdFile.getName())));
 
     assertThat(service.getManifest().getArtifactCount(), equalTo(3));
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(3));

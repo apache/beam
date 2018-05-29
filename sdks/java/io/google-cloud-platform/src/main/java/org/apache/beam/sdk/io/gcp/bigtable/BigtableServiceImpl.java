@@ -35,13 +35,16 @@ import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
@@ -216,14 +219,29 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public ListenableFuture<MutateRowResponse> writeRecord(
+    public CompletionStage<MutateRowResponse> writeRecord(
         KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
       MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
           .setRowKey(record.getKey())
           .addAllMutations(record.getValue())
           .build();
-      return bulkMutation.add(request);
+
+      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+      Futures.addCallback(
+          bulkMutation.add(request),
+          new FutureCallback<MutateRowResponse>() {
+            @Override
+            public void onSuccess(MutateRowResponse mutateRowResponse) {
+              result.complete(mutateRowResponse);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+              result.completeExceptionally(throwable);
+            }
+          });
+      return result;
     }
   }
 

@@ -19,19 +19,23 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
+import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
@@ -41,11 +45,11 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -67,6 +71,7 @@ import org.mockito.ArgumentMatcher;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
+  private static final long CELLS_PER_KEY = 7;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -80,13 +85,16 @@ public class SpannerIOWriteTest implements Serializable {
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
     // Simplest schema: a table with int64 key
-    preparePkMetadata(tx, Arrays.asList(pkMetadata("test", "key", "ASC")));
-    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("test", "key", "INT64")));
+    preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
+    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
   }
 
-  private static Struct columnMetadata(String tableName, String columnName, String type) {
+  private static Struct columnMetadata(
+      String tableName, String columnName, String type, long cellsMutated) {
     return Struct.newBuilder().add("table_name", Value.string(tableName))
-        .add("column_name", Value.string(columnName)).add("spanner_type", Value.string(type))
+        .add("column_name", Value.string(columnName))
+        .add("spanner_type", Value.string(type))
+        .add("cells_mutated", Value.int64(cellsMutated))
         .build();
   }
 
@@ -99,7 +107,8 @@ public class SpannerIOWriteTest implements Serializable {
   private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type = Type.struct(Type.StructField.of("table_name", Type.string()),
         Type.StructField.of("column_name", Type.string()),
-        Type.StructField.of("spanner_type", Type.string()));
+        Type.StructField.of("spanner_type", Type.string()),
+        Type.StructField.of("cells_mutated", Type.int64()));
     when(tx.executeQuery(argThat(new ArgumentMatcher<Statement>() {
 
       @Override public boolean matches(Object argument) {
@@ -281,10 +290,9 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void batchingGroups() throws Exception {
-
-    // Have a room to accumulate one more item.
-    long batchSize = MutationSizeEstimator.sizeOf(g(m(1L))) + 1;
+  public void sizeBatchingGroups() throws Exception {
+    // Accumulate two items per batch.
+    long batchSize = MutationSizeEstimator.sizeOf(g(m(1L))) * 2;
 
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L))));
     mutations.apply(SpannerIO.write()
@@ -293,6 +301,32 @@ public class SpannerIOWriteTest implements Serializable {
         .withDatabaseId("test-database")
         .withServiceFactory(serviceFactory)
         .withBatchSizeBytes(batchSize)
+        .withSampler(fakeSampler(m(1000L)))
+        .grouped());
+
+    pipeline.run();
+
+    // The content of batches is not deterministic. Just verify that the size is correct.
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(iterableOfSize(2));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(iterableOfSize(1));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void cellBatchingGroups() throws Exception {
+    // Accumulate two items per batch.
+    long maxNumMutations = CELLS_PER_KEY * 2;
+
+    PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L))));
+    mutations.apply(SpannerIO.write()
+        .withProjectId("test-project")
+        .withInstanceId("test-instance")
+        .withDatabaseId("test-database")
+        .withServiceFactory(serviceFactory)
+        .withMaxNumMutations(maxNumMutations)
+        .withBatchSizeBytes(Integer.MAX_VALUE)
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
 
@@ -349,6 +383,45 @@ public class SpannerIOWriteTest implements Serializable {
         batch(m(3L), m(4L), m(5L)),
         batch(m(6L), m(7L), m(8L), m(9L), m(10L))
     );
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void reportFailures() throws Exception {
+    PCollection<MutationGroup> mutations = pipeline
+        .apply(Create.of(
+            g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)),  g(m(5L)),
+            g(m(6L)), g(m(7L)), g(m(8L)), g(m(9L)),  g(m(10L)))
+        );
+
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenAnswer(invocationOnMock -> {
+          throw SpannerExceptionFactory.newSpannerException(ErrorCode.ALREADY_EXISTS, "oops");
+        });
+
+    SpannerWriteResult result = mutations.apply(SpannerIO.write()
+        .withProjectId("test-project")
+        .withInstanceId("test-instance")
+        .withDatabaseId("test-database")
+        .withServiceFactory(serviceFactory)
+        .withBatchSizeBytes(1000000000)
+        .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
+        .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
+        .grouped());
+    PAssert.that(result.getFailedMutations()).satisfies(m -> {
+      assertEquals(10, Iterables.size(m));
+      return null;
+    });
+    pipeline.run();
+
+    verifyBatches(
+        batch(m(1L), m(2L)),
+        batch(m(3L), m(4L), m(5L)),
+        batch(m(6L), m(7L), m(8L), m(9L), m(10L)),
+        // Mutations were also retried individually.
+        batch(m(1L)), batch(m(2L)), batch(m(3L)), batch(m(4L)),
+        batch(m(5L)), batch(m(6L)), batch(m(7L)), batch(m(8L)),
+        batch(m(9L)), batch(m(10L)));
   }
 
   @Test
@@ -456,7 +529,7 @@ public class SpannerIOWriteTest implements Serializable {
 
   private static FakeSampler fakeSampler(Mutation... mutations) {
     SpannerSchema.Builder schema = SpannerSchema.builder();
-    schema.addColumn("test", "key", "INT64");
+    schema.addColumn("test", "key", "INT64", CELLS_PER_KEY);
     schema.addKeyPart("test", "key", false);
     return new FakeSampler(schema.build(), Arrays.asList(mutations));
   }
@@ -478,17 +551,13 @@ public class SpannerIOWriteTest implements Serializable {
       MutationGroupEncoder coder = new MutationGroupEncoder(schema);
       Map<String, List<byte[]>> map = new HashMap<>();
       for (Mutation m : mutations) {
-        String table = m.getTable();
-        List<byte[]> list = map.get(table);
-        if (list == null) {
-          list = new ArrayList<>();
-          map.put(table, list);
-        }
+        String table = m.getTable().toLowerCase();
+        List<byte[]> list = map.computeIfAbsent(table, k -> new ArrayList<>());
         list.add(coder.encodeKey(m));
       }
       List<KV<String, List<byte[]>>> result = new ArrayList<>();
       for (Map.Entry<String, List<byte[]>> entry : map.entrySet()) {
-        Collections.sort(entry.getValue(), SpannerIO.SerializableBytesComparator.INSTANCE);
+        entry.getValue().sort(SpannerIO.SerializableBytesComparator.INSTANCE);
         result.add(KV.of(entry.getKey(), entry.getValue()));
       }
       return input.getPipeline().apply(Create.of(result));

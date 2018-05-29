@@ -75,7 +75,7 @@ public class InstantCoderTest {
     // Verify that the encodings were already sorted, since they were generated
     // in the correct order.
     List<byte[]> sortedEncodings = new ArrayList<>(encodings);
-    Collections.sort(sortedEncodings, UnsignedBytes.lexicographicalComparator());
+    sortedEncodings.sort(UnsignedBytes.lexicographicalComparator());
 
     Assert.assertEquals(encodings, sortedEncodings);
   }

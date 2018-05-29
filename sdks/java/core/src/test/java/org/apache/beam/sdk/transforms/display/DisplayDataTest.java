@@ -264,7 +264,7 @@ public class DisplayDataTest implements Serializable {
             });
 
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
-    assertEquals(map.size(), 1);
+    assertEquals(1, map.size());
     assertThat(data, hasDisplayItem("foo", "bar"));
     assertEquals(map.values(), data.items());
   }
@@ -366,8 +366,8 @@ public class DisplayDataTest implements Serializable {
             .addIfNotDefault(DisplayData.item("Double", Double.valueOf(1.23)), Double.valueOf(1.23))
             .addIfNotDefault(DisplayData.item("boolean", true), true)
             .addIfNotDefault(
-                DisplayData.item("Boolean", Boolean.valueOf(true)),
-                Boolean.valueOf(true));
+                DisplayData.item("Boolean", Boolean.TRUE),
+                Boolean.TRUE);
       }
     });
 
@@ -732,7 +732,7 @@ public class DisplayDataTest implements Serializable {
     assertThat(data.items(), hasSize(2));
   }
 
-  private class DelegatingDisplayData implements HasDisplayData {
+  private static class DelegatingDisplayData implements HasDisplayData {
     private final HasDisplayData subComponent;
     public DelegatingDisplayData(HasDisplayData subComponent) {
       this.subComponent = subComponent;
@@ -846,7 +846,7 @@ public class DisplayDataTest implements Serializable {
                 builder
                     .add(DisplayData.item("string", "foobar"))
                     .add(DisplayData.item("integer", 123))
-                    .add(DisplayData.item("float", 3.14))
+                    .add(DisplayData.item("float", 2.34))
                     .add(DisplayData.item("boolean", true))
                     .add(DisplayData.item("java_class", DisplayDataTest.class))
                     .add(DisplayData.item("timestamp", Instant.now()))
@@ -931,8 +931,8 @@ public class DisplayDataTest implements Serializable {
       try {
         type.format(value);
       } catch (ClassCastException e) {
-        fail(String.format("Failed to format %s for DisplayData.%s",
-            value.getClass().getSimpleName(), type));
+        throw new AssertionError(String.format("Failed to format %s for DisplayData.%s",
+            value.getClass().getSimpleName(), type), e);
       }
     }
   }
@@ -977,7 +977,7 @@ public class DisplayDataTest implements Serializable {
         builder
           .add(DisplayData.item("string", "foobar"))
           .add(DisplayData.item("integer", 123))
-          .add(DisplayData.item("float", 3.14))
+          .add(DisplayData.item("float", 2.34))
           .add(DisplayData.item("boolean", true))
           .add(DisplayData.item("java_class", DisplayDataTest.class))
           .add(DisplayData.item("timestamp", now))
@@ -988,7 +988,7 @@ public class DisplayDataTest implements Serializable {
 
     assertThat(data, hasDisplayItem("string", "foobar"));
     assertThat(data, hasDisplayItem("integer", 123));
-    assertThat(data, hasDisplayItem("float", 3.14));
+    assertThat(data, hasDisplayItem("float", 2.34));
     assertThat(data, hasDisplayItem("boolean", true));
     assertThat(data, hasDisplayItem("java_class", DisplayDataTest.class));
     assertThat(data, hasDisplayItem("timestamp", now));

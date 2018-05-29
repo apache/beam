@@ -98,11 +98,12 @@ class TestPipeline(Pipeline):
       options = PipelineOptions(self.options_list)
     super(TestPipeline, self).__init__(runner, options)
 
-  def run(self):
-    result = super(TestPipeline, self).run()
+  def run(self, test_runner_api=True):
+    result = super(TestPipeline, self).run(test_runner_api)
     if self.blocking:
       state = result.wait_until_finish()
-      assert state == PipelineState.DONE, "Pipeline execution failed."
+      assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
+          "Pipeline execution failed."
 
     return result
 

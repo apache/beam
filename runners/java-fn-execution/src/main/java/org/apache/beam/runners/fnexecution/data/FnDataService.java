@@ -38,9 +38,9 @@ public interface FnDataService {
    * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
    * the provided receiver.
    *
-   * <p>Any failure during decoding or processing of the element will complete the returned future
-   * exceptionally. On successful termination of the stream, the returned future is completed
-   * successfully.
+   * <p>Any failure during decoding or processing of the element will put the
+   * {@link InboundDataClient} into an error state such that
+   * {@link InboundDataClient#awaitCompletion()} will throw an exception.
    *
    * <p>The provided receiver is not required to be thread safe.
    */

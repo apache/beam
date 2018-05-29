@@ -35,9 +35,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -59,8 +59,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** End-to-end integration test of {@link WindowedWordCount}. */
 @RunWith(JUnit4.class)
@@ -148,21 +146,21 @@ public class WindowedWordCountIT {
 
   private void testWindowedWordCountPipeline(WindowedWordCountITOptions options) throws Exception {
 
-    String outputPrefix = options.getOutput();
-
-    PerWindowFiles filenamePolicy =
-        new PerWindowFiles(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
+    ResourceId output = FileBasedSink.convertToFileResourceIfPossible(options.getOutput());
+    PerWindowFiles filenamePolicy = new PerWindowFiles(output);
 
     List<ShardedFile> expectedOutputFiles = Lists.newArrayListWithCapacity(6);
 
     for (int startMinute : ImmutableList.of(0, 10, 20, 30, 40, 50)) {
       final Instant windowStart =
           new Instant(options.getMinTimestampMillis()).plus(Duration.standardMinutes(startMinute));
+      String filePrefix = filenamePolicy.filenamePrefixForWindow(
+          new IntervalWindow(
+              windowStart, windowStart.plus(Duration.standardMinutes(10))));
       expectedOutputFiles.add(
           new NumberedShardedFile(
-              filenamePolicy.filenamePrefixForWindow(
-                  new IntervalWindow(
-                      windowStart, windowStart.plus(Duration.standardMinutes(10)))) + "*"));
+              output.getCurrentDirectory()
+                  .resolve(filePrefix, StandardResolveOptions.RESOLVE_FILE).toString() + "*"));
     }
 
     ShardedFile inputFile = new ExplicitShardedFile(Collections.singleton(options.getInputFile()));
@@ -184,7 +182,7 @@ public class WindowedWordCountIT {
     options.setOnSuccessMatcher(
         new WordCountsMatcher(expectedWordCounts, expectedOutputFiles));
 
-    WindowedWordCount.main(TestPipeline.convertToArgs(options));
+    WindowedWordCount.runWindowedWordCount(options);
   }
 
   /**
@@ -193,8 +191,6 @@ public class WindowedWordCountIT {
    */
   private static class WordCountsMatcher extends TypeSafeMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(FileChecksumMatcher.class);
 
     private final SortedMap<String, Long> expectedWordCounts;
     private final List<ShardedFile> outputFiles;
@@ -222,13 +218,7 @@ public class WindowedWordCountIT {
           String[] splits = line.split(": ");
           String word = splits[0];
           long count = Long.parseLong(splits[1]);
-
-          Long current = actualCounts.get(word);
-          if (current == null) {
-            actualCounts.put(word, count);
-          } else {
-            actualCounts.put(word, current + count);
-          }
+          actualCounts.merge(word, count, (a, b) -> a + b);
         }
 
         return actualCounts.equals(expectedWordCounts);

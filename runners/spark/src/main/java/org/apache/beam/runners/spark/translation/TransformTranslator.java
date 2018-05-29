@@ -86,7 +86,7 @@ public final class TransformTranslator {
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
         Collection<PValue> pcs = context.getInputs(transform).values();
         JavaRDD<WindowedValue<T>> unionRDD;
-        if (pcs.size() == 0) {
+        if (pcs.isEmpty()) {
           unionRDD = context.getSparkContext().emptyRDD();
         } else {
           JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[pcs.size()];
@@ -317,7 +317,7 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
-                .flatMapValues(iter -> sparkCombineFn.extractOutput(iter))
+                .flatMapValues(sparkCombineFn::extractOutput)
                 .map(TranslationUtils.fromPairFunction())
                 .map(TranslationUtils.toKVByWindowInValue());
 

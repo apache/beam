@@ -97,7 +97,7 @@ public class GroupIntoBatchesTest implements Serializable {
 
               private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
                 for (KV<String, Iterable<String>> element : listToCheck) {
-                  if (Iterables.size(element.getValue()) != BATCH_SIZE){
+                  if (Iterables.size(element.getValue()) != BATCH_SIZE) {
                     return false;
                   }
                 }

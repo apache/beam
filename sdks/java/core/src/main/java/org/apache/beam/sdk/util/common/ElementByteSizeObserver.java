@@ -71,9 +71,9 @@ public abstract class ElementByteSizeObserver implements Observer {
   @Override
   public void update(Observable obs, Object obj) {
     if (obj instanceof Long) {
-      totalSize += scalingFactor * (Long) obj;
+      totalSize += (long) (scalingFactor * (Long) obj);
     } else if (obj instanceof Integer) {
-      totalSize += scalingFactor * (Integer) obj;
+      totalSize += (long) (scalingFactor * (Integer) obj);
     } else {
       throw new AssertionError("unexpected parameter object");
     }

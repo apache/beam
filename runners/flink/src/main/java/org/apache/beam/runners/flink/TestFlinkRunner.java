@@ -36,6 +36,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   private TestFlinkRunner(FlinkPipelineOptions options) {
     // We use [auto] for testing since this will make it pick up the Testing ExecutionEnvironment
     options.setFlinkMaster("[auto]");
+    options.setShutdownSourcesOnFinalWatermark(true);
     this.delegate = FlinkRunner.fromOptions(options);
   }
 

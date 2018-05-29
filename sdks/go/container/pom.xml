@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-sdks-go</artifactId>
+    <version>2.5.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>beam-sdks-go-container</artifactId>
+
+  <packaging>pom</packaging>
+
+  <name>Apache Beam :: SDKs :: Go :: Container</name>
+
+  <properties>
+    <!-- Add full path directory structure for 'go get' compatibility -->
+    <go.source.base>${project.basedir}/target/src</go.source.base>
+    <go.source.dir>${go.source.base}/github.com/apache/beam/sdks/go</go.source.dir>
+  </properties>
+
+  <build>
+    <sourceDirectory>${go.source.base}</sourceDirectory>
+    <plugins>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-go-cmd-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${go.source.base}/github.com/apache/beam/cmd/boot</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>.</directory>
+                  <includes>
+                    <include>*.go</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- CAVEAT: for latest shared files, run mvn install in sdks/go -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-dependency</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.beam</groupId>
+                  <artifactId>beam-sdks-go</artifactId>
+                  <version>${project.version}</version>
+                  <type>zip</type>
+                  <classifier>pkg-sources</classifier>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${go.source.dir}</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.igormaznitsa</groupId>
+        <artifactId>mvn-golang-wrapper</artifactId>
+        <executions>
+          <execution>
+            <id>go-get-imports</id>
+            <goals>
+              <goal>get</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <buildFlags>
+                <flag>-u</flag>
+              </buildFlags>
+              <packages>
+                <package>google.golang.org/grpc</package>
+                <package>golang.org/x/oauth2/google</package>
+                <package>google.golang.org/api/storage/v1</package>
+              </packages>
+            </configuration>
+          </execution>
+          <execution>
+            <id>go-build</id>
+            <goals>
+              <goal>build</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <packages>
+                <package>github.com/apache/beam/cmd/boot</package>
+              </packages>
+              <resultName>boot</resultName>
+            </configuration>
+          </execution>
+          <execution>
+            <id>go-build-linux-amd64</id>
+            <goals>
+              <goal>build</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <packages>
+                <package>github.com/apache/beam/cmd/boot</package>
+              </packages>
+              <resultName>linux_amd64/boot</resultName>
+              <targetArch>amd64</targetArch>
+              <targetOs>linux</targetOs>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.spotify</groupId>
+        <artifactId>dockerfile-maven-plugin</artifactId>
+        <configuration>
+          <repository>${docker-repository-root}/go</repository>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

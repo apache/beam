@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -65,14 +64,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link ParDoTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  ParDoTranslationTest.TestParDoPayloadTranslation.class,
-  ParDoTranslationTest.TestStateAndTimerTranslation.class
-})
 public class ParDoTranslationTest {
 
   /**
@@ -119,7 +112,7 @@ public class ParDoTranslationTest {
     @Test
     public void testToAndFromProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, components);
+      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), Matchers.equalTo(parDo.getFn()));
       assertThat(
@@ -149,8 +142,6 @@ public class ParDoTranslationTest {
           RehydratedComponents.forComponents(components);
 
       // Decode
-      Pipeline rehydratedPipeline = Pipeline.create();
-
       ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
@@ -231,7 +222,7 @@ public class ParDoTranslationTest {
 
   private static class SplittableDropElementsFn extends DoFn<KV<Long, String>, Void> {
     @ProcessElement
-    public void proc(ProcessContext context, RestrictionTracker<Integer> restriction) {
+    public void proc(ProcessContext context, RestrictionTracker<Integer, ?> restriction) {
       context.output(null);
     }
 
@@ -241,7 +232,7 @@ public class ParDoTranslationTest {
     }
 
     @NewTracker
-    public RestrictionTracker<Integer> newTracker(Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
 

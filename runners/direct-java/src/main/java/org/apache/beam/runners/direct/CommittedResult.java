@@ -28,11 +28,11 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
  * A {@link TransformResult} that has been committed.
  */
 @AutoValue
-abstract class CommittedResult {
+abstract class CommittedResult<ExecutableT> {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.
    */
-  public abstract AppliedPTransform<?, ?, ?> getTransform();
+  public abstract ExecutableT getExecutable();
 
   /**
    * Returns the {@link CommittedBundle} that contains the input elements that could not be
@@ -55,15 +55,13 @@ abstract class CommittedResult {
    */
   public abstract Set<OutputType> getProducedOutputTypes();
 
-  public static CommittedResult create(
+  public static CommittedResult<AppliedPTransform<?, ?, ?>> create(
       TransformResult<?> original,
       Optional<? extends CommittedBundle<?>> unprocessedElements,
       Iterable<? extends CommittedBundle<?>> outputs,
       Set<OutputType> producedOutputs) {
-    return new AutoValue_CommittedResult(original.getTransform(),
-        unprocessedElements,
-        outputs,
-        producedOutputs);
+    return new AutoValue_CommittedResult<>(
+        original.getTransform(), unprocessedElements, outputs, producedOutputs);
   }
 
   enum OutputType {

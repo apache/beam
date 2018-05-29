@@ -57,12 +57,7 @@ class DirectExecutionContext {
    * Returns the {@link StepContext} associated with the given step.
    */
   public DirectStepContext getStepContext(String stepName) {
-    DirectStepContext context = cachedStepContexts.get(stepName);
-    if (context == null) {
-      context = createStepContext();
-      cachedStepContexts.put(stepName, context);
-    }
-    return context;
+    return cachedStepContexts.computeIfAbsent(stepName, k -> createStepContext());
   }
 
   /**

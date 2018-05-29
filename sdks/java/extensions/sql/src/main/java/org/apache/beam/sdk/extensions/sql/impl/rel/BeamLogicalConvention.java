@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 
-/**
- * Convertion for Beam SQL.
- *
- */
+/** Convertion for Beam SQL. */
 public enum BeamLogicalConvention implements Convention {
   INSTANCE;
 
@@ -53,6 +52,9 @@ public enum BeamLogicalConvention implements Convention {
 
   @Override
   public void register(RelOptPlanner planner) {
+    for (RelOptRule rule : BeamRuleSets.getRuleSets()[0]) {
+      planner.addRule(rule);
+    }
   }
 
   @Override

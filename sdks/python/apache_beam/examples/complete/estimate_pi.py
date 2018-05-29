@@ -55,7 +55,7 @@ def run_trials(runs):
   has same type for inputs and outputs (a requirement for combiner functions).
   """
   inside_runs = 0
-  for _ in xrange(runs):
+  for _ in range(runs):
     x = random.uniform(0, 1)
     y = random.uniform(0, 1)
     inside_runs += 1 if x * x + y * y <= 1.0 else 0

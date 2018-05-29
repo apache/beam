@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
@@ -189,6 +189,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((OnTimerContextParameter) this);
       } else if (this instanceof WindowParameter) {
         return cases.dispatch((WindowParameter) this);
+      } else if (this instanceof PaneInfoParameter) {
+        return cases.dispatch((PaneInfoParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof StateParameter) {
@@ -197,6 +199,16 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimerParameter) this);
       } else if (this instanceof PipelineOptionsParameter) {
         return cases.dispatch((PipelineOptionsParameter) this);
+      } else if (this instanceof ElementParameter) {
+        return cases.dispatch((ElementParameter) this);
+      } else if (this instanceof TimestampParameter) {
+        return cases.dispatch((TimestampParameter) this);
+      } else if (this instanceof OutputReceiverParameter) {
+        return cases.dispatch((OutputReceiverParameter) this);
+      } else if (this instanceof TaggedOutputReceiverParameter) {
+        return cases.dispatch((TaggedOutputReceiverParameter) this);
+      } else if (this instanceof TimeDomainParameter) {
+        return cases.dispatch((TimeDomainParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -211,8 +223,14 @@ public abstract class DoFnSignature {
       ResultT dispatch(StartBundleContextParameter p);
       ResultT dispatch(FinishBundleContextParameter p);
       ResultT dispatch(ProcessContextParameter p);
+      ResultT dispatch(ElementParameter p);
+      ResultT dispatch(TimestampParameter p);
+      ResultT dispatch(TimeDomainParameter p);
+      ResultT dispatch(OutputReceiverParameter p);
+      ResultT dispatch(TaggedOutputReceiverParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
+      ResultT dispatch(PaneInfoParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
       ResultT dispatch(StateParameter p);
       ResultT dispatch(TimerParameter p);
@@ -241,12 +259,42 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(ElementParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TaggedOutputReceiverParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(OutputReceiverParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TimestampParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TimeDomainParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(OnTimerContextParameter p) {
           return dispatchDefault(p);
         }
 
         @Override
         public ResultT dispatch(WindowParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(PaneInfoParameter p) {
           return dispatchDefault(p);
         }
 
@@ -272,7 +320,7 @@ public abstract class DoFnSignature {
       }
     }
 
-    // These parameter descriptors are constant
+    // These parameter descriptors are constant.
     private static final StartBundleContextParameter START_BUNDLE_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_StartBundleContextParameter();
     private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
@@ -281,15 +329,49 @@ public abstract class DoFnSignature {
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
+    private static final TimestampParameter TIMESTAMP_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TimestampParameter();
+    private static final PaneInfoParameter PANE_INFO_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
+    private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
+    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
+    private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
       return PROCESS_CONTEXT_PARAMETER;
     }
 
+    public static ElementParameter elementParameter(TypeDescriptor<?> elementT) {
+      return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
+    }
+
+    public static TimestampParameter timestampParameter() {
+      return TIMESTAMP_PARAMETER;
+    }
+
+    public static TimeDomainParameter timeDomainParameter() {
+      return TIME_DOMAIN_PARAMETER;
+    }
+
+    public static OutputReceiverParameter outputReceiverParameter() {
+      return OUTPUT_RECEIVER_PARAMETER;
+    }
+
+    public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
+      return TAGGED_OUTPUT_RECEIVER_PARAMETER;
+    }
+
     /** Returns a {@link OnTimerContextParameter}. */
     public static OnTimerContextParameter onTimerContext() {
       return ON_TIMER_CONTEXT_PARAMETER;
+    }
+
+    public static PaneInfoParameter paneInfoParameter() {
+      return PANE_INFO_PARAMETER;
     }
 
     /** Returns a {@link WindowParameter}. */
@@ -359,6 +441,60 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Element}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ElementParameter extends Parameter {
+      ElementParameter() {}
+
+      public abstract TypeDescriptor<?> elementT();
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Timestamp}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class TimestampParameter extends Parameter {
+      TimestampParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} representing the time domain of a timer.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class TimeDomainParameter extends Parameter {
+      TimeDomainParameter() {
+      }
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.OutputReceiver}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class OutputReceiverParameter extends Parameter {
+      OutputReceiverParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link MultiOutputReceiver}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class TaggedOutputReceiverParameter extends Parameter {
+      TaggedOutputReceiverParameter() {
+      }
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of type {@link DoFn.OnTimerContext}.
      *
      * <p>All such descriptors are equal.
@@ -367,6 +503,7 @@ public abstract class DoFnSignature {
     public abstract static class OnTimerContextParameter extends Parameter {
       OnTimerContextParameter() {}
     }
+
     /**
      * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
      *
@@ -375,7 +512,19 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class WindowParameter extends Parameter {
       WindowParameter() {}
+
       public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type
+     * {@link org.apache.beam.sdk.transforms.windowing.PaneInfo}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class PaneInfoParameter extends Parameter {
+      PaneInfoParameter() {}
     }
 
     /**
@@ -387,6 +536,7 @@ public abstract class DoFnSignature {
     public abstract static class RestrictionTrackerParameter extends Parameter {
       // Package visible for AutoValue
       RestrictionTrackerParameter() {}
+
       public abstract TypeDescriptor<?> trackerT();
     }
 
@@ -400,6 +550,7 @@ public abstract class DoFnSignature {
     public abstract static class StateParameter extends Parameter {
       // Package visible for AutoValue
       StateParameter() {}
+
       public abstract StateDeclaration referent();
     }
 
@@ -411,6 +562,7 @@ public abstract class DoFnSignature {
     public abstract static class TimerParameter extends Parameter {
       // Package visible for AutoValue
       TimerParameter() {}
+
       public abstract TimerDeclaration referent();
     }
   }
@@ -438,6 +590,7 @@ public abstract class DoFnSignature {
 
     /** The window type used by this method, if any. */
     @Nullable
+    @Override
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
@@ -467,20 +620,23 @@ public abstract class DoFnSignature {
      * they are each scoped to a single window.
      */
     public boolean observesWindow() {
-      return Iterables.any(
-          extraParameters(),
-          Predicates.or(
-              Predicates.instanceOf(WindowParameter.class),
-              Predicates.instanceOf(TimerParameter.class),
-              Predicates.instanceOf(StateParameter.class)));
+      return extraParameters()
+          .stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
     }
 
     /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return Iterables.any(
-          extraParameters(), Predicates.instanceOf(RestrictionTrackerParameter.class));
+      return extraParameters()
+          .stream()
+          .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }
 
@@ -504,6 +660,7 @@ public abstract class DoFnSignature {
 
     /** The window type used by this method, if any. */
     @Nullable
+    @Override
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
