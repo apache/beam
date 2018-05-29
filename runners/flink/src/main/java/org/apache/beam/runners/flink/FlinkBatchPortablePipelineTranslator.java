@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -56,6 +55,7 @@ import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFun
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
+import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
@@ -319,7 +319,8 @@ public class FlinkBatchPortablePipelineTranslator
     RunnerApi.Components components = pipeline.getComponents();
     Map<String, String> outputs = transform.getTransform().getOutputsMap();
     // Mapping from PCollection id to coder tag id.
-    BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
+    BiMap<String, Integer> outputMap =
+            FlinkPipelineTranslatorUtils.createOutputMap(outputs.values());
     // Collect all output Coders and create a UnionCoder for our tagged outputs.
     List<Coder<?>> unionCoders = Lists.newArrayList();
     // Enforce tuple tag sorting by union tag index.
@@ -615,14 +616,4 @@ public class FlinkBatchPortablePipelineTranslator
     context.addDataSet(collectionId, pruningOperator);
   }
 
-  /**  Creates a mapping from PCollection id to output tag integer. */
-  private static BiMap<String, Integer> createOutputMap(Iterable<String> localOutputs) {
-    ImmutableBiMap.Builder<String, Integer> builder = ImmutableBiMap.builder();
-    int outputIndex = 0;
-    for (String tag : localOutputs) {
-      builder.put(tag, outputIndex);
-      outputIndex++;
-    }
-    return builder.build();
-  }
 }
