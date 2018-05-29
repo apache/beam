@@ -15,14 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    compileOnly library.java.findbugs_jsr305
-    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-    testCompile project(':beam-sdks-java-extensions-euphoria-beam')
-//  testCompile project(path: ':beam-sdks-java-extensions-euphoria-core', configuration: 'testArtifact')
+final class LongHistogram
+    implements Histogram,
+        Snapshotable<Map<Long, Long>> {
+
+  final Map<Long, Long> buckets = new ConcurrentHashMap<>();
+
+  LongHistogram() {}
+
+  @Override
+  public void add(long value, long times) {
+    buckets.compute(value, (key, count) -> count == null ? times : (count + times));
+  }
+
+  @Override
+  public void add(long value) {
+    add(value, 1);
+  }
+
+  public Map<Long, Long> getSnapshot() {
+    return new HashMap<>(buckets);
+  }
 }
