@@ -69,7 +69,7 @@ class InMemorySorter implements Sorter {
   private static final long RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
 
   /** Maximum size of the buffer in bytes. */
-  private long maxBufferSize;
+  private final long maxBufferSize;
 
   /** Current number of stored bytes. Including estimated overhead bytes. */
   private long numBytes;
@@ -78,7 +78,7 @@ class InMemorySorter implements Sorter {
   private boolean sortCalled;
 
   /** The stored records to be sorted. */
-  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
+  private final ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
 
   /** Private constructor. */
   private InMemorySorter(Options options) {

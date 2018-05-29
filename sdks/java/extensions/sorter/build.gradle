@@ -17,12 +17,13 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
@@ -30,4 +31,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit
+  testCompileOnly library.java.findbugs_annotations
 }
