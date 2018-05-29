@@ -49,7 +49,9 @@ maintains these helpful guides:
  - [Forking a repository](https://guides.github.com/activities/forking/)
 
 If your change is large, it is a good idea to [discuss it on the dev@ mailing list]({{
-site.baseurl }}/community/contact-us/). You will also
+site.baseurl }}/community/contact-us/) (you may be asked to create a design doc
+([template](https://s.apache.org/beam-design-doc-template),
+[examples](https://s.apache.org/beam-design-docs))). You will also
 need to submit a signed [Individual Contributor License
 Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
 Software Foundation (ASF).  The purpose of this agreement is to clearly define
