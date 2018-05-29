@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sorter;
 
 import java.io.IOException;
 import java.util.Iterator;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -53,7 +54,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
         PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>>,
         PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>>> {
 
-  private BufferedExternalSorter.Options sorterOptions;
+  private final BufferedExternalSorter.Options sorterOptions;
 
   private SortValues(BufferedExternalSorter.Options sorterOptions) {
     this.sorterOptions = sorterOptions;
@@ -154,22 +155,20 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
                   CoderUtils.encodeToByteArray(valueCoder, record.getValue())));
         }
 
-        c.output(
-            KV.of(
-                c.element().getKey(),
-                (Iterable<KV<SecondaryKeyT, ValueT>>) (new DecodingIterable(sorter.sort()))));
+        c.output(KV.of(c.element().getKey(), new DecodingIterable(sorter.sort())));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
 
     private class DecodingIterable implements Iterable<KV<SecondaryKeyT, ValueT>> {
-      Iterable<KV<byte[], byte[]>> iterable;
+      final Iterable<KV<byte[], byte[]>> iterable;
 
       DecodingIterable(Iterable<KV<byte[], byte[]>> iterable) {
         this.iterable = iterable;
       }
 
+      @Nonnull
       @Override
       public Iterator<KV<SecondaryKeyT, ValueT>> iterator() {
         return new DecodingIterator(iterable.iterator());
@@ -177,7 +176,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     }
 
     private class DecodingIterator implements Iterator<KV<SecondaryKeyT, ValueT>> {
-      Iterator<KV<byte[], byte[]>> iterator;
+      final Iterator<KV<byte[], byte[]>> iterator;
 
       DecodingIterator(Iterator<KV<byte[], byte[]>> iterator) {
         this.iterator = iterator;
