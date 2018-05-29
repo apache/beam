@@ -76,7 +76,7 @@ public class BufferedExternalSorter implements Sorter {
     }
   }
 
-  private ExternalSorter externalSorter;
+  private final ExternalSorter externalSorter;
   private InMemorySorter inMemorySorter;
 
   boolean inMemorySorterFull;

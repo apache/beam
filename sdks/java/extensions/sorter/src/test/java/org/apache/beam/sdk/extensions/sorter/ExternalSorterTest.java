@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExternalSorterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
-  static Path tmpLocation;
+  private static Path tmpLocation;
 
   @BeforeClass
   public static void setupTempDir() throws IOException {
@@ -111,7 +111,7 @@ public class ExternalSorterTest {
   }
 
   @Test
-  public void testNegativeMemory() throws Exception {
+  public void testNegativeMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     ExternalSorter.Options options = new ExternalSorter.Options();
@@ -119,7 +119,7 @@ public class ExternalSorterTest {
   }
 
   @Test
-  public void testZeroMemory() throws Exception {
+  public void testZeroMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     ExternalSorter.Options options = new ExternalSorter.Options();
@@ -127,7 +127,7 @@ public class ExternalSorterTest {
   }
 
   @Test
-  public void testMemoryTooLarge() throws Exception {
+  public void testMemoryTooLarge() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be less than 2048");
     ExternalSorter.Options options = new ExternalSorter.Options();
