@@ -15,14 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    compileOnly library.java.findbugs_jsr305
-    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-    testCompile project(':beam-sdks-java-extensions-euphoria-beam')
-//  testCompile project(path: ':beam-sdks-java-extensions-euphoria-core', configuration: 'testArtifact')
+final class LongCounter
+    implements Counter, Snapshotable<Long> {
+
+  private AtomicLong value = new AtomicLong();
+
+  LongCounter() {}
+
+  @Override
+  public void increment(long value) {
+    this.value.addAndGet(value);
+  }
+
+  @Override
+  public void increment() {
+    increment(1);
+  }
+
+  @Override
+  public Long getSnapshot() {
+    return value.get();
+  }
+
+  @Override
+  public String toString() {
+    return "LongCounter{" + "value=" + value + '}';
+  }
 }

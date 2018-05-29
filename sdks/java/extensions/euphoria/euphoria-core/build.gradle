@@ -19,7 +19,7 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(enableFindbugs: false)
 
-description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL :: Core"
 
 dependencies {
     shadow library.java.guava

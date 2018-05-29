@@ -16,13 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
-
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    compileOnly library.java.findbugs_jsr305
-    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-    testCompile project(':beam-sdks-java-extensions-euphoria-beam')
-//  testCompile project(path: ':beam-sdks-java-extensions-euphoria-core', configuration: 'testArtifact')
-}
+/**
+ * Euphoria operators test suite, see
+ * {@link org.apache.beam.sdk.extensions.euphoria.operator.test.AllOperatorsSuite}.
+ */
+package org.apache.beam.sdk.extensions.euphoria.beam.testkit;

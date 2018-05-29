@@ -15,14 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import java.time.Duration;
+import java.util.Map;
 
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    compileOnly library.java.findbugs_jsr305
-    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-    testCompile project(':beam-sdks-java-extensions-euphoria-beam')
-//  testCompile project(path: ':beam-sdks-java-extensions-euphoria-core', configuration: 'testArtifact')
+/**
+ * Provider of snapshots.
+ */
+public interface SnapshotProvider {
+
+  Map<String, Long> getCounterSnapshots();
+
+  Map<String, Map<Long, Long>> getHistogramSnapshots();
+
+  Map<String, Map<Duration, Long>> getTimerSnapshots();
 }
