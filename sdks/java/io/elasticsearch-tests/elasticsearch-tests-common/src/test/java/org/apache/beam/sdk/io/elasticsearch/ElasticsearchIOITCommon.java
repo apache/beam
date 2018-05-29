@@ -35,7 +35,21 @@ import org.elasticsearch.client.RestClient;
  */
 public class ElasticsearchIOITCommon {
 
-  private static final String writeIndex = ES_INDEX + System.currentTimeMillis();
+  /** Enum encapsulating the mode of operation and the index. */
+  enum IndexMode {
+    READ(ES_INDEX),
+    WRITE(ES_INDEX + System.currentTimeMillis()),
+    WRITE_PARTIAL(ES_INDEX + "_partial_" + System.currentTimeMillis());
+
+    private final String index;
+    IndexMode(String index) {
+      this.index = index;
+    }
+
+    public String getIndex() {
+      return index;
+    }
+  }
 
   /**
    * Use this to create the index for reading before IT read tests.
@@ -64,15 +78,15 @@ public class ElasticsearchIOITCommon {
   private static void createAndPopulateReadIndex(IOTestPipelineOptions options) throws Exception {
     // automatically creates the index and insert docs
     ConnectionConfiguration connectionConfiguration =
-        getConnectionConfiguration(options, ReadOrWrite.READ);
+        getConnectionConfiguration(options, IndexMode.READ);
     try (RestClient restClient = connectionConfiguration.createClient()) {
       ElasticSearchIOTestUtils
           .insertTestDocuments(connectionConfiguration, NUM_DOCS_ITESTS, restClient);
     }
   }
 
-  static ConnectionConfiguration getConnectionConfiguration(IOTestPipelineOptions options,
-      ReadOrWrite rOw) {
+  static ConnectionConfiguration getConnectionConfiguration(
+      IOTestPipelineOptions options, IndexMode mode) {
     return ConnectionConfiguration.create(
             new String[] {
               "http://"
@@ -80,13 +94,9 @@ public class ElasticsearchIOITCommon {
                   + ":"
                   + options.getElasticsearchHttpPort()
             },
-            (rOw == ReadOrWrite.READ) ? ES_INDEX : writeIndex,
+            mode.getIndex(),
             ES_TYPE);
   }
 
-  /** Enum that tells whether we use the index for reading or for writing. */
-  enum ReadOrWrite {
-    READ,
-    WRITE
-  }
+
 }
