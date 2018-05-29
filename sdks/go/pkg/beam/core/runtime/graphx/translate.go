@@ -28,15 +28,15 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
+// Model constants for interfacing with a Beam runner.
+// TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
-	// Model constants
-
-	URNImpulse = "beam:transform:impulse:v1"
-	URNParDo   = "urn:beam:transform:pardo:v1"
-	URNFlatten = "beam:transform:flatten:v1"
-	URNGBK     = "beam:transform:group_by_key:v1"
-	URNCombine = "beam:transform:combine:v1"
-	URNWindow  = "beam:transform:window:v1"
+	URNImpulse       = "beam:transform:impulse:v1"
+	URNParDo         = "urn:beam:transform:pardo:v1"
+	URNFlatten       = "beam:transform:flatten:v1"
+	URNGBK           = "beam:transform:group_by_key:v1"
+	URNCombinePerKey = "beam:transform:combine_per_key:v1"
+	URNWindow        = "beam:transform:window:v1"
 
 	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
 	URNFixedWindowsWindowFn   = "beam:windowfn:fixed_windows:v0.1"
@@ -148,8 +148,56 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 		Inputs:        diff(in, out),
 		Outputs:       diff(out, in),
 	}
+
+	m.updateIfCombineComposite(s, transform)
+
 	m.transforms[id] = transform
 	return id
+}
+
+// updateIfCombineComposite examines the scope tree and sets the PTransform Spec
+// to be a CombinePerKey with a CombinePayload if it's a liftable composite.
+// Beam Portability requires that composites
+func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTransform) {
+	if s.Scope.Name != graph.CombinePerKeyScope ||
+		len(s.Edges) != 2 ||
+		len(s.Edges[0].Edge.Input) != 1 ||
+		len(s.Edges[1].Edge.Output) != 1 ||
+		s.Edges[1].Edge.Op != graph.Combine {
+		return
+	}
+
+	edge := s.Edges[1].Edge
+	if !tryAddingCoder(edge.AccumCoder) {
+		return
+	}
+	acID := m.coders.Add(edge.AccumCoder)
+	payload := &pb.CombinePayload{
+		CombineFn: &pb.SdkFunctionSpec{
+			Spec: &pb.FunctionSpec{
+				Urn:     URNJavaDoFn,
+				Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
+			},
+			EnvironmentId: m.addDefaultEnv(),
+		},
+		AccumulatorCoderId: acID,
+	}
+	transform.Spec = &pb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
+}
+
+// If the accumulator type is unencodable (eg. contains raw interface{})
+// Try encoding the AccumCoder. If the marshaller doesn't panic, it's
+// encodable.
+func tryAddingCoder(c *coder.Coder) (ok bool) {
+	defer func() {
+		if p := recover(); p != nil {
+			ok = false
+			fmt.Printf("Unable to encode combiner for lifting: %v", p)
+		}
+	}()
+	// Try in a new Marshaller to not corrupt state.
+	NewCoderMarshaller().Add(c)
+	return true
 }
 
 // diff computes A\B and returns its keys as an identity map.
