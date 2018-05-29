@@ -35,15 +35,29 @@ mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 #
 # Copy the Java subset of the examples project verbatim. 
 #
-rsync -a --exclude cookbook --exclude complete                  \
-    "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/  \
-    "${ARCHETYPE_ROOT}/src/main/java"				            \
+rsync -a --exclude cookbook --exclude complete --exclude snippets  \
+    "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/     \
+    "${ARCHETYPE_ROOT}/src/main/java"                              \
     --delete
 
-rsync -a --exclude cookbook --exclude complete --exclude '*IT.java'  \
-    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/       \
-    "${ARCHETYPE_ROOT}/src/test/java"				                 \
+rsync -a --exclude cookbook --exclude complete --exclude snippets --exclude '*IT.java'  \
+    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/                          \
+    "${ARCHETYPE_ROOT}/src/test/java"                                                   \
     --delete
+
+mkdir -p "${ARCHETYPE_ROOT}/src/main/java/complete/game"
+mkdir -p "${ARCHETYPE_ROOT}/src/test/java/complete/game"
+
+#
+# Copy the Java mobile gaming examples.
+#
+rsync -a                                                                      \
+    "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/complete/game/  \
+    "${ARCHETYPE_ROOT}/src/main/java/complete/game"
+
+rsync -a                                                                      \
+    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/complete/game/  \
+    "${ARCHETYPE_ROOT}/src/test/java/complete/game"
 
 #
 # Replace 'package org.apache.beam.examples' with 'package ${package}' in all Java code

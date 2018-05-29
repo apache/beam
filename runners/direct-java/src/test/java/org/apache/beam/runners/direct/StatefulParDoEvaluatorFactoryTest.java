@@ -47,6 +47,8 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -90,7 +92,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Mock private transient UncommittedBundle<Integer> mockUncommittedBundle;
 
   private static final String KEY = "any-key";
-  private transient StateInternals stateInternals =
+  private final transient PipelineOptions options = PipelineOptionsFactory.create();
+  private final transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
@@ -142,7 +145,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
-        new StatefulParDoEvaluatorFactory(mockEvaluationContext);
+        new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
 
     AppliedPTransform<
             PCollection<? extends KeyedWorkItem<String, KV<String, Integer>>>, PCollectionTuple,
@@ -249,7 +252,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
-        new StatefulParDoEvaluatorFactory(mockEvaluationContext);
+        new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
 
     // This will be the stateful ParDo from the expansion
     AppliedPTransform<

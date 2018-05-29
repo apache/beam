@@ -19,48 +19,33 @@ package org.apache.beam.sdk.io.cassandra;
 
 import java.io.Serializable;
 import java.util.List;
-
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.BoundedSource;
 
-/**
- * An interface for real or fake implementations of Cassandra.
- */
+/** An interface for real or fake implementations of Cassandra. */
 public interface CassandraService<T> extends Serializable {
-
   /**
    * Returns a {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader} that will read from
-   * Cassandra using the spec from
-   * {@link org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource}.
+   * Cassandra using the spec from {@link
+   * org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource}.
    */
   BoundedSource.BoundedReader<T> createReader(CassandraIO.CassandraSource<T> source);
 
-  /**
-   * Returns an estimation of the size that could be read.
-   */
+  /** Returns an estimation of the size that could be read. */
   long getEstimatedSizeBytes(CassandraIO.Read<T> spec);
 
-  /**
-   * Split a table read into several sources.
-   */
-  List<BoundedSource<T>> split(CassandraIO.Read<T> spec,
-                                          long desiredBundleSizeBytes);
+  /** Split a table read into several sources. */
+  List<BoundedSource<T>> split(CassandraIO.Read<T> spec, long desiredBundleSizeBytes);
 
-  /**
-   * Create a {@link Writer} that writes entities into the Cassandra instance.
-   */
-  Writer createWriter(CassandraIO.Write<T> spec) throws Exception;
+  /** Create a {@link Writer} that writes entities into the Cassandra instance. */
+  Writer createWriter(CassandraIO.Write<T> spec);
 
-  /**
-   * Writer for an entity.
-   */
+  /** Writer for an entity. */
   interface Writer<T> extends AutoCloseable {
-
     /**
      * This method should be synchronous. It means you have to be sure that the entity is fully
      * stored (and committed) into the Cassandra instance when you exit from this method.
      */
-    void write(T entity);
-
+    void write(T entity) throws ExecutionException, InterruptedException;
   }
-
 }

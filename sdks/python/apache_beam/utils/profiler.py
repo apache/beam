@@ -24,11 +24,16 @@ import cProfile
 import logging
 import os
 import pstats
-import StringIO
+import sys
 import tempfile
 import time
 import warnings
 from threading import Timer
+
+if sys.version_info[0] < 3:
+  import StringIO
+else:
+  from io import StringIO
 
 
 class Profile(object):
@@ -66,7 +71,7 @@ class Profile(object):
       os.remove(filename)
 
     if self.log_results:
-      s = StringIO.StringIO()
+      s = StringIO()
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()

@@ -30,6 +30,7 @@ import static org.junit.Assert.assertThat;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
@@ -72,6 +73,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -80,6 +82,7 @@ import org.junit.runners.JUnit4;
 public class HBaseIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryHBaseTable tmpTable = new TemporaryHBaseTable();
 
   private static HBaseTestingUtility htu;
   private static HBaseAdmin admin;
@@ -115,6 +118,7 @@ public class HBaseIOTest {
     if (htu != null) {
       htu.shutdownMiniHBaseCluster();
       htu.shutdownMiniZKCluster();
+      htu.cleanupTestDir();
       htu = null;
     }
   }
@@ -163,8 +167,8 @@ public class HBaseIOTest {
 
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
-  public void testReadingFailsTableDoesNotExist() throws Exception {
-    final String table = "TEST-TABLE-INVALID";
+  public void testReadingFailsTableDoesNotExist() {
+    final String table = tmpTable.getName();
     // Exception will be thrown by read.expand() when read is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
@@ -174,14 +178,14 @@ public class HBaseIOTest {
   /** Tests that when reading from an empty table, the read succeeds. */
   @Test
   public void testReadingEmptyTable() throws Exception {
-    final String table = "TEST-EMPTY-TABLE";
+    final String table = tmpTable.getName();
     createTable(table);
     runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   @Test
   public void testReading() throws Exception {
-    final String table = "TEST-MANY-ROWS-TABLE";
+    final String table = tmpTable.getName();
     final int numRows = 1001;
     createTable(table);
     writeData(table, numRows);
@@ -191,7 +195,7 @@ public class HBaseIOTest {
   /** Tests reading all rows from a split table. */
   @Test
   public void testReadingWithSplits() throws Exception {
-    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final String table = tmpTable.getName();
     final int numRows = 1500;
     final int numRegions = 4;
     final long bytesPerRow = 100L;
@@ -213,7 +217,7 @@ public class HBaseIOTest {
   /** Tests that a {@link HBaseSource} can be read twice, verifying its immutability. */
   @Test
   public void testReadingSourceTwice() throws Exception {
-    final String table = "TEST-READING-TWICE";
+    final String table = tmpTable.getName();
     final int numRows = 10;
 
     // Set up test table data and sample row keys for size estimation and splitting.
@@ -230,7 +234,7 @@ public class HBaseIOTest {
   /** Tests reading all rows using a filter. */
   @Test
   public void testReadingWithFilter() throws Exception {
-    final String table = "TEST-FILTER-TABLE";
+    final String table = tmpTable.getName();
     final int numRows = 1001;
 
     createTable(table);
@@ -248,12 +252,10 @@ public class HBaseIOTest {
    * [] and that some properties hold across them.
    */
   @Test
-  public void testReadingWithKeyRange() throws Exception {
-    final String table = "TEST-KEY-RANGE-TABLE";
+  public void testReadingKeyRangePrefix() throws Exception {
+    final String table = tmpTable.getName();
     final int numRows = 1001;
-    final byte[] startRow = "2".getBytes();
-    final byte[] stopRow = "9".getBytes();
-    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    final ByteKey startKey = ByteKey.copyFrom("2".getBytes(StandardCharsets.UTF_8));
 
     createTable(table);
     writeData(table, numRows);
@@ -262,11 +264,40 @@ public class HBaseIOTest {
     final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(prefixRange), 126);
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted range
+   * [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingKeyRangeSuffix() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    final ByteKey startKey = ByteKey.copyFrom("2".getBytes(StandardCharsets.UTF_8));
+
+    createTable(table);
+    writeData(table, numRows);
 
     // Test suffix: [startKey, end).
     final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(suffixRange), 875);
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted range
+   * [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingKeyRangeMiddle() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes(StandardCharsets.UTF_8);
+    final byte[] stopRow = "9".getBytes(StandardCharsets.UTF_8);
+
+    createTable(table);
+    writeData(table, numRows);
 
     // Test restricted range: [startKey, endKey).
     // This one tests the second signature of .withKeyRange
@@ -278,7 +309,7 @@ public class HBaseIOTest {
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
-    final String table = "TEST-FEW-ROWS-SPLIT-EXHAUSTIVE-TABLE";
+    final String table = tmpTable.getName();
     final int numRows = 7;
 
     createTable(table);
@@ -296,7 +327,7 @@ public class HBaseIOTest {
   /** Unit tests of splitAtFraction. */
   @Test
   public void testReadingSplitAtFraction() throws Exception {
-    final String table = "TEST-SPLIT-AT-FRACTION";
+    final String table = tmpTable.getName();
     final int numRows = 10;
 
     createTable(table);
@@ -335,7 +366,7 @@ public class HBaseIOTest {
   /** Tests that a record gets written to the service and messages are logged. */
   @Test
   public void testWriting() throws Exception {
-    final String table = "table";
+    final String table = tmpTable.getName();
     final String key = "key";
     final String value = "value";
     final int numMutations = 100;
@@ -352,8 +383,8 @@ public class HBaseIOTest {
 
   /** Tests that when writing to a non-existent table, the write fails. */
   @Test
-  public void testWritingFailsTableDoesNotExist() throws Exception {
-    final String table = "TEST-TABLE-DOES-NOT-EXIST";
+  public void testWritingFailsTableDoesNotExist() {
+    final String table = tmpTable.getName();
 
     // Exception will be thrown by write.expand() when writeToDynamic is applied.
     thrown.expect(IllegalArgumentException.class);
@@ -365,7 +396,7 @@ public class HBaseIOTest {
   /** Tests that when writing an element fails, the write fails. */
   @Test
   public void testWritingFailsBadElement() throws Exception {
-    final String table = "TEST-TABLE-BAD-ELEMENT";
+    final String table = tmpTable.getName();
     final String key = "KEY";
     createTable(table);
 
@@ -380,14 +411,19 @@ public class HBaseIOTest {
 
   @Test
   public void testWritingDisplayData() {
-    HBaseIO.Write write = HBaseIO.write().withTableId("fooTable").withConfiguration(conf);
+    final String table = tmpTable.getName();
+    HBaseIO.Write write = HBaseIO.write().withTableId(table).withConfiguration(conf);
     DisplayData displayData = DisplayData.from(write);
-    assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+    assertThat(displayData, hasDisplayItem("tableId", table));
   }
 
   // HBase helper methods
   private static void createTable(String tableId) throws Exception {
-    byte[][] splitKeys = {"4".getBytes(), "8".getBytes(), "C".getBytes()};
+    byte[][] splitKeys = {
+      "4".getBytes(StandardCharsets.UTF_8),
+      "8".getBytes(StandardCharsets.UTF_8),
+      "C".getBytes(StandardCharsets.UTF_8)
+    };
     createTable(tableId, COLUMN_FAMILY, splitKeys);
   }
 
@@ -460,7 +496,7 @@ public class HBaseIOTest {
   }
 
   private static Mutation makeBadMutation(String key) {
-    return new Put(key.getBytes());
+    return new Put(key.getBytes(StandardCharsets.UTF_8));
   }
 
   private void runReadTest(HBaseIO.Read read, List<Result> expected) {
@@ -476,5 +512,18 @@ public class HBaseIOTest {
     PAssert.thatSingleton(rows.apply("Count" + transformId, Count.globally()))
         .isEqualTo(numElements);
     p.run().waitUntilFinish();
+  }
+
+  private static class TemporaryHBaseTable extends ExternalResource {
+    private String name;
+
+    @Override
+    protected void before() {
+      name = "table_" + UUID.randomUUID();
+    }
+
+    String getName() {
+      return name;
+    }
   }
 }

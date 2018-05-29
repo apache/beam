@@ -18,17 +18,26 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 
-/**
- * Base class for rel test.
- */
-public class BaseRelTest {
-  public PCollection<BeamRecord> compilePipeline (
-      String sql, Pipeline pipeline, BeamSqlEnv sqlEnv) throws Exception {
-    return sqlEnv.getPlanner().compileBeamPipeline(sql, pipeline, sqlEnv);
+/** Base class for rel test. */
+abstract class BaseRelTest {
+  private static Map<String, BeamSqlTable> tables = new HashMap();
+  private static BeamSqlEnv env = new BeamSqlEnv(new BeamSqlTableProvider("test", tables));
+
+  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline)
+      throws Exception {
+    return env.getPlanner().compileBeamPipeline(sql, pipeline);
+  }
+
+  protected static void registerTable(String tableName, BeamSqlTable table) {
+    tables.put(tableName, table);
   }
 }

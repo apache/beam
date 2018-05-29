@@ -27,24 +27,24 @@ import org.apache.calcite.rel.core.Union;
 import org.apache.calcite.rel.logical.LogicalUnion;
 
 /**
- * A {@code ConverterRule} to replace {@link org.apache.calcite.rel.core.Union} with
- * {@link BeamUnionRule}.
+ * A {@code ConverterRule} to replace {@link org.apache.calcite.rel.core.Union} with {@link
+ * BeamUnionRule}.
  */
 public class BeamUnionRule extends ConverterRule {
   public static final BeamUnionRule INSTANCE = new BeamUnionRule();
+
   private BeamUnionRule() {
-    super(LogicalUnion.class, Convention.NONE, BeamLogicalConvention.INSTANCE,
-        "BeamUnionRule");
+    super(LogicalUnion.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamUnionRule");
   }
 
-  @Override public RelNode convert(RelNode rel) {
+  @Override
+  public RelNode convert(RelNode rel) {
     Union union = (Union) rel;
 
     return new BeamUnionRel(
         union.getCluster(),
         union.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convertList(union.getInputs(), BeamLogicalConvention.INSTANCE),
-        union.all
-    );
+        union.all);
   }
 }

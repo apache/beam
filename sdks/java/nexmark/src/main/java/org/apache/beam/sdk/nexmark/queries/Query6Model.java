@@ -21,6 +21,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.TreeMap;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
@@ -42,17 +44,17 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
    * Simulator for query 6.
    */
   private static class Simulator extends AbstractSimulator<AuctionBid, SellerPrice> {
-    /** The cumulative count of winning bids, indexed by seller id. */
-    private final Map<Long, Long> numWinningBidsPerSeller;
+    /** The last 10 winning bids ordered by age, indexed by seller id. */
+    private final Map<Long, Queue<Bid>> winningBidsPerSeller;
 
-    /** The cumulative total of winning bid prices, indexed by seller id. */
+    /** The cumulative total of last 10 winning bid prices, indexed by seller id. */
     private final Map<Long, Long> totalWinningBidPricesPerSeller;
 
     private Instant lastTimestamp;
 
     public Simulator(NexmarkConfiguration configuration) {
       super(new WinningBidsSimulator(configuration).results());
-      numWinningBidsPerSeller = new TreeMap<>();
+      winningBidsPerSeller = new TreeMap<>();
       totalWinningBidPricesPerSeller = new TreeMap<>();
       lastTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -62,19 +64,24 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
      */
     private void captureWinningBid(Auction auction, Bid bid, Instant timestamp) {
       NexmarkUtils.info("winning auction, bid: %s, %s", auction, bid);
-      Long count = numWinningBidsPerSeller.get(auction.seller);
-      if (count == null) {
-        count = 1L;
+      Queue<Bid> queue = winningBidsPerSeller.get(auction.seller);
+      if (queue == null) {
+        queue = new PriorityQueue<Bid>(10,
+            (Bid b1, Bid b2) -> Long.compare(b1.dateTime, b2.dateTime));
+      }
+      Long total = totalWinningBidPricesPerSeller.get(auction.seller);
+      if (total == null) {
+        total = 0L;
+      }
+      int count = queue.size();
+      if (count == 10) {
+        total -= queue.remove().price;
       } else {
         count += 1;
       }
-      numWinningBidsPerSeller.put(auction.seller, count);
-      Long total = totalWinningBidPricesPerSeller.get(auction.seller);
-      if (total == null) {
-        total = bid.price;
-      } else {
-        total += bid.price;
-      }
+      queue.add(bid);
+      total += bid.price;
+      winningBidsPerSeller.put(auction.seller, queue);
       totalWinningBidPricesPerSeller.put(auction.seller, total);
       TimestampedValue<SellerPrice> intermediateResult = TimestampedValue.of(
           new SellerPrice(auction.seller, Math.round((double) total / count)), timestamp);
@@ -86,9 +93,9 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
     protected void run() {
       TimestampedValue<AuctionBid> timestampedWinningBid = nextInput();
       if (timestampedWinningBid == null) {
-        for (Map.Entry<Long, Long> entry : numWinningBidsPerSeller.entrySet()) {
+        for (Map.Entry<Long, Queue<Bid>> entry : winningBidsPerSeller.entrySet()) {
           long seller = entry.getKey();
-          long count = entry.getValue();
+          long count = entry.getValue().size();
           long total = totalWinningBidPricesPerSeller.get(seller);
           addResult(TimestampedValue.of(
               new SellerPrice(seller, Math.round((double) total / count)), lastTimestamp));

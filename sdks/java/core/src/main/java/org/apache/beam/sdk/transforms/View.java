@@ -396,6 +396,7 @@ public class View {
               + "combine the PCollection into a single value");
     }
 
+    @Override
     public T identity() {
       if (hasDefault) {
         if (defaultValue == null) {

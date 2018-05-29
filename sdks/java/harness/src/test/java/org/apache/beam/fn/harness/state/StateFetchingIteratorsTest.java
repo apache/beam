@@ -27,12 +27,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link StateFetchingIterators}. */
-@RunWith(Enclosed.class)
 public class StateFetchingIteratorsTest {
   /** Tests for {@link StateFetchingIterators.LazyBlockingStateFetchingIterator}. */
   @RunWith(JUnit4.class)
@@ -91,7 +89,7 @@ public class StateFetchingIteratorsTest {
                     .build());
           };
       Iterator<ByteString> byteStrings =
-          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest::newBuilder);
+          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest.getDefaultInstance());
       assertArrayEquals(expected, Iterators.toArray(byteStrings, Object.class));
     }
   }

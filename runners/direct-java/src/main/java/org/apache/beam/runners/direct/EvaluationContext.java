@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import javax.annotation.Nullable;
+import java.util.concurrent.ExecutorService;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -73,13 +73,13 @@ class EvaluationContext {
    */
   private final DirectGraph graph;
 
-  /** The options that were used to create this {@link Pipeline}. */
-  private final DirectOptions options;
   private final Clock clock;
 
   private final BundleFactory bundleFactory;
+
   /** The current processing time and event time watermarks and timers. */
-  private final WatermarkManager watermarkManager;
+  private final WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>>
+      watermarkManager;
 
   /** Executes callbacks based on the progression of the watermark. */
   private final WatermarkCallbackExecutor callbackExecutor;
@@ -94,39 +94,41 @@ class EvaluationContext {
 
   private final Set<PValue> keyedPValues;
 
+  private final ExecutorService executorService;
+
   public static EvaluationContext create(
-      DirectOptions options,
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
-      Set<PValue> keyedPValues) {
-    return new EvaluationContext(options, clock, bundleFactory, graph, keyedPValues);
+      Set<PValue> keyedPValues,
+      ExecutorService executorService) {
+    return new EvaluationContext(clock, bundleFactory, graph, keyedPValues, executorService);
   }
 
   private EvaluationContext(
-      DirectOptions options,
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
-      Set<PValue> keyedPValues) {
-    this.options = checkNotNull(options);
+      Set<PValue> keyedPValues,
+      ExecutorService executorService) {
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
+    this.executorService = executorService;
 
     this.watermarkManager = WatermarkManager.create(clock, graph);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.metrics = new DirectMetrics();
+    this.metrics = new DirectMetrics(executorService);
 
     this.callbackExecutor = WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
 
   public void initialize(
       Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
-    watermarkManager.initialize(initialInputs);
+    watermarkManager.initialize((Map) initialInputs);
   }
 
   /**
@@ -144,8 +146,8 @@ class EvaluationContext {
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
-  public CommittedResult handleResult(
-      @Nullable CommittedBundle<?> completedBundle,
+  public CommittedResult<AppliedPTransform<?, ?, ?>> handleResult(
+      CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       TransformResult<?> result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
@@ -159,16 +161,14 @@ class EvaluationContext {
     } else {
       outputTypes.add(OutputType.BUNDLE);
     }
-    CommittedResult committedResult =
+    CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
         CommittedResult.create(
             result, getUnprocessedInput(completedBundle, result), committedBundles, outputTypes);
     // Update state internals
     CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
       CopyOnAccessInMemoryStateInternals committedState = theirState.commit();
-      StepAndKey stepAndKey =
-          StepAndKey.of(
-              result.getTransform(), completedBundle == null ? null : completedBundle.getKey());
+      StepAndKey stepAndKey = StepAndKey.of(result.getTransform(), completedBundle.getKey());
       if (!committedState.isEmpty()) {
         applicationStateInternals.put(stepAndKey, committedState);
       } else {
@@ -180,7 +180,9 @@ class EvaluationContext {
     watermarkManager.updateWatermarks(
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
-        committedResult,
+        committedResult.getExecutable(),
+        committedResult.getUnprocessedInputs().orNull(),
+        committedResult.getOutputs(),
         result.getWatermarkHold());
     return committedResult;
   }
@@ -192,7 +194,7 @@ class EvaluationContext {
    * {@link Optional}.
    */
   private Optional<? extends CommittedBundle<?>> getUnprocessedInput(
-      @Nullable CommittedBundle<?> completedBundle, TransformResult<?> result) {
+      CommittedBundle<?> completedBundle, TransformResult<?> result) {
     if (completedBundle == null || Iterables.isEmpty(result.getUnprocessedElements())) {
       return Optional.absent();
     }
@@ -220,7 +222,7 @@ class EvaluationContext {
   }
 
   private void fireAllAvailableCallbacks() {
-    for (AppliedPTransform<?, ?, ?> transform : graph.getPrimitiveTransforms()) {
+    for (AppliedPTransform<?, ?, ?> transform : graph.getExecutables()) {
       fireAvailableCallbacks(transform);
     }
   }
@@ -304,7 +306,7 @@ class EvaluationContext {
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
-    AppliedPTransform<?, ?, ?> producing = graph.getWriter(view);
+    AppliedPTransform<?, ?, ?> producing = graph.getProducer(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -323,13 +325,6 @@ class EvaluationContext {
     callbackExecutor.callOnWindowExpiration(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
-  }
-
-  /**
-   * Get the options used by this {@link Pipeline}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
   }
 
   /**
@@ -355,7 +350,7 @@ class EvaluationContext {
 
   /** Returns all of the steps in this {@link Pipeline}. */
   Collection<AppliedPTransform<?, ?, ?>> getSteps() {
-    return graph.getPrimitiveTransforms();
+    return graph.getExecutables();
   }
 
   /**
@@ -389,7 +384,7 @@ class EvaluationContext {
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Collection<FiredTimers> extractFiredTimers() {
+  public Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
     forceRefresh();
     return watermarkManager.extractFiredTimers();
   }
@@ -407,7 +402,7 @@ class EvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    for (AppliedPTransform<?, ?, ?> transform : graph.getPrimitiveTransforms()) {
+    for (AppliedPTransform<?, ?, ?> transform : graph.getExecutables()) {
       if (!isDone(transform)) {
         return false;
       }

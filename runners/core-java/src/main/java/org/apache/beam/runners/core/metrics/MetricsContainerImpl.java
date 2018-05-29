@@ -50,13 +50,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private final String stepName;
 
-  private MetricsMap<MetricName, CounterCell> counters =
-      new MetricsMap<>(name -> new CounterCell(name));
+  private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
   private MetricsMap<MetricName, DistributionCell> distributions =
-      new MetricsMap<>(name -> new DistributionCell(name));
+      new MetricsMap<>(DistributionCell::new);
 
-  private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(name -> new GaugeCell(name));
+  private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   /**
    * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}.

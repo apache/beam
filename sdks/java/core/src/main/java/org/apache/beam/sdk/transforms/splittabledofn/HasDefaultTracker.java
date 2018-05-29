@@ -24,7 +24,7 @@ package org.apache.beam.sdk.transforms.splittabledofn;
  */
 public interface HasDefaultTracker<
     RestrictionT extends HasDefaultTracker<RestrictionT, TrackerT>,
-    TrackerT extends RestrictionTracker<RestrictionT>> {
+    TrackerT extends RestrictionTracker<RestrictionT, ?>> {
   /** Creates a new tracker for {@code this}. */
   TrackerT newTracker();
 }

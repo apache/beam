@@ -51,7 +51,8 @@ cdef class DoFnInvoker(object):
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
-                       OutputProcessor output_processor=*)
+                       OutputProcessor output_processor=*,
+                       additional_args=*, additional_kwargs=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)
   cpdef invoke_split(self, element, restriction)
@@ -71,6 +72,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef dict kwargs_for_process
   cdef list placeholders
   cdef bint has_windowed_inputs
+  cdef bint cache_globally_windowed_args
   cdef object process_method
 
 

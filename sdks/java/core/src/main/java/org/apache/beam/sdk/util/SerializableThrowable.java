@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.Arrays;
 import javax.annotation.Nullable;
 
 /**
@@ -45,5 +46,22 @@ public final class SerializableThrowable implements Serializable {
     if (throwable != null) {
       throwable.setStackTrace(stackTrace);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SerializableThrowable that = (SerializableThrowable) o;
+    return Arrays.equals(stackTrace, that.stackTrace);
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(stackTrace);
   }
 }

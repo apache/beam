@@ -29,13 +29,18 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
+
+from __future__ import absolute_import
+
 import threading
+from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
-from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.cells import GaugeCell
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker import statesampler
 
 
 class MetricKey(object):
@@ -58,20 +63,15 @@ class MetricKey(object):
     return (self.step == other.step and
             self.metric == other.metric)
 
+  def __hash__(self):
+    return hash((self.step, self.metric))
+
   def __repr__(self):
     return 'MetricKey(step={}, metric={})'.format(
         self.step, self.metric)
 
   def __hash__(self):
     return hash((self.step, self.metric))
-
-  def to_runner_api(self):
-    return beam_fn_api_pb2.Metrics.User.MetricKey(
-        step=self.step, namespace=self.metric.namespace, name=self.metric.name)
-
-  @staticmethod
-  def from_runner_api(proto):
-    return MetricKey(proto.step, MetricName(proto.namespace, proto.name))
 
 
 class MetricResult(object):
@@ -105,6 +105,9 @@ class MetricResult(object):
             self.committed == other.committed and
             self.attempted == other.attempted)
 
+  def __hash__(self):
+    return hash((self.key, self.committed, self.attempted))
+
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
@@ -135,20 +138,23 @@ class _MetricsEnvironment(object):
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
 
-  def current_container(self):
+  def _old_style_container(self):
+    """Gets the current MetricsContainer based on the container stack.
+
+    The container stack is the old method, and will be deprecated. Should
+    rely on StateSampler instead."""
     self.set_container_stack()
     index = len(self.PER_THREAD.container) - 1
     if index < 0:
       return None
     return self.PER_THREAD.container[index]
 
-  def set_current_container(self, container):
-    self.set_container_stack()
-    self.PER_THREAD.container.append(container)
-
-  def unset_current_container(self):
-    self.set_container_stack()
-    self.PER_THREAD.container.pop()
+  def current_container(self):
+    """Returns the current MetricsContainer."""
+    sampler = statesampler.get_current_tracker()
+    if sampler is None:
+      return self._old_style_container()
+    return sampler.current_state().metrics_container
 
 
 MetricsEnvironment = _MetricsEnvironment()
@@ -160,12 +166,16 @@ class MetricsContainer(object):
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
     self.distributions = defaultdict(lambda: DistributionCell())
+    self.gauges = defaultdict(lambda: GaugeCell())
 
   def get_counter(self, metric_name):
     return self.counters[metric_name]
 
   def get_distribution(self, metric_name):
     return self.distributions[metric_name]
+
+  def get_gauge(self, metric_name):
+    return self.gauges[metric_name]
 
   def _get_updates(self, filter=None):
     """Return cumulative values of metrics filtered according to a lambda.
@@ -184,7 +194,11 @@ class MetricsContainer(object):
                      for k, v in self.distributions.items()
                      if filter(v)}
 
-    return MetricUpdates(counters, distributions)
+    gauges = {MetricKey(self.step_name, k): v.get_cumulative()
+              for k, v in self.gauges.items()
+              if filter(v)}
+
+    return MetricUpdates(counters, distributions, gauges)
 
   def get_updates(self):
     """Return cumulative values of metrics that changed since the last commit.
@@ -205,16 +219,19 @@ class MetricsContainer(object):
   def to_runner_api(self):
     return (
         [beam_fn_api_pb2.Metrics.User(
-            key=beam_fn_api_pb2.Metrics.User.MetricKey(
-                step=self.step_name, namespace=k.namespace, name=k.name),
+            metric_name=k.to_runner_api(),
             counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
                 value=v.get_cumulative()))
          for k, v in self.counters.items()] +
         [beam_fn_api_pb2.Metrics.User(
-            key=beam_fn_api_pb2.Metrics.User.MetricKey(
-                step=self.step_name, namespace=k.namespace, name=k.name),
+            metric_name=k.to_runner_api(),
             distribution_data=v.get_cumulative().to_runner_api())
-         for k, v in self.distributions.items()])
+         for k, v in self.distributions.items()] +
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=k.to_runner_api(),
+            gauge_data=v.get_cumulative().to_runner_api())
+         for k, v in self.gauges.items()]
+    )
 
 
 class ScopedMetricsContainer(object):
@@ -224,10 +241,12 @@ class ScopedMetricsContainer(object):
     self._container = container
 
   def enter(self):
-    self._stack.append(self._container)
+    if self._container:
+      self._stack.append(self._container)
 
   def exit(self):
-    self._stack.pop()
+    if self._container:
+      self._stack.pop()
 
   def __enter__(self):
     self.enter()
@@ -243,12 +262,14 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
-  def __init__(self, counters=None, distributions=None):
+  def __init__(self, counters=None, distributions=None, gauges=None):
     """Create a MetricUpdates object.
 
     Args:
       counters: Dictionary of MetricKey:MetricUpdate updates.
       distributions: Dictionary of MetricKey:MetricUpdate objects.
+      gauges: Dictionary of MetricKey:MetricUpdate objects.
     """
     self.counters = counters or {}
     self.distributions = distributions or {}
+    self.gauges = gauges or {}

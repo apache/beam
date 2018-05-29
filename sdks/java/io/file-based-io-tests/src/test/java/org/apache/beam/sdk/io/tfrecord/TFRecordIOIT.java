@@ -19,14 +19,16 @@
 package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -45,21 +47,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TFRecordIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
+ *  --tests org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
- * <p>Please {@see 'sdks/java/io/file-based-io-tests/pom.xml'} for instructions regarding
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
@@ -80,7 +85,7 @@ public class TFRecordIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
   }
 
@@ -121,7 +126,7 @@ public class TFRecordIOIT {
         .apply(Create.of(filenamePattern))
         .apply(
             "Delete test files",
-            ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+            ParDo.of(new DeleteFileFn())
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     readPipeline.run().waitUntilFinish();
   }
@@ -129,14 +134,14 @@ public class TFRecordIOIT {
   static class StringToByteArray extends SimpleFunction<String, byte[]> {
     @Override
     public byte[] apply(String input) {
-      return input.getBytes();
+      return input.getBytes(StandardCharsets.UTF_8);
     }
   }
 
   static class ByteArrayToString extends SimpleFunction<byte[], String> {
     @Override
     public String apply(byte[] input) {
-      return new String(input);
+      return new String(input, StandardCharsets.UTF_8);
     }
   }
 }

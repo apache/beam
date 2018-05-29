@@ -102,7 +102,7 @@ public class BufferingStreamObserverTest {
         new BufferingStreamObserver<>(
             phaser,
             TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
-                .withIsReady(() -> elementsAllowed.get())
+                .withIsReady(elementsAllowed::get)
                 .build(),
             executor,
             3);

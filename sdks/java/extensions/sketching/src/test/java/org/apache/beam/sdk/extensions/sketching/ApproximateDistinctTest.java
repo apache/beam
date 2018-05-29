@@ -46,14 +46,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ApproximateDistinct}. */
 @RunWith(JUnit4.class)
 public class ApproximateDistinctTest implements Serializable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ApproximateDistinctTest.class);
 
   @Rule public final transient TestPipeline tp = TestPipeline.create();
 

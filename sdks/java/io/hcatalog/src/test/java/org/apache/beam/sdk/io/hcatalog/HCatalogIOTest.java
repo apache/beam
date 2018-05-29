@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_DATABASE;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_FILTER;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigPropertiesAsMap;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getHCatRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.insertTestData;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -85,6 +85,7 @@ public class HCatalogIOTest implements Serializable {
   @Rule
   public final transient TestRule testDataSetupRule =
       new TestWatcher() {
+        @Override
         public Statement apply(final Statement base, final Description description) {
           return new Statement() {
             @Override
@@ -128,7 +129,7 @@ public class HCatalogIOTest implements Serializable {
   @NeedsEmptyTestTables
   public void testWriteThenReadSuccess() throws Exception {
     defaultPipeline
-        .apply(Create.of(getHCatRecords(TEST_RECORDS_COUNT)))
+        .apply(Create.of(buildHCatRecords(TEST_RECORDS_COUNT)))
         .apply(
             HCatalogIO.write()
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
@@ -164,7 +165,7 @@ public class HCatalogIOTest implements Serializable {
     thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
     thrown.expectMessage(containsString("NoSuchObjectException"));
     defaultPipeline
-        .apply(Create.of(getHCatRecords(TEST_RECORDS_COUNT)))
+        .apply(Create.of(buildHCatRecords(TEST_RECORDS_COUNT)))
         .apply(
             HCatalogIO.write()
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))

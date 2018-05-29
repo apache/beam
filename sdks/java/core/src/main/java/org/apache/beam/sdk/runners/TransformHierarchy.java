@@ -495,27 +495,25 @@ public class TransformHierarchy {
       for (PValue outputValue : output.expand().values()) {
         outputProducers.add(getProducer(outputValue));
       }
-      if (outputProducers.contains(this)) {
-        if (!parts.isEmpty() || outputProducers.size() > 1) {
-          Set<String> otherProducerNames = new HashSet<>();
-          for (Node outputProducer : outputProducers) {
-            if (outputProducer != this) {
-              otherProducerNames.add(outputProducer.getFullName());
-            }
+      if (outputProducers.contains(this) && (!parts.isEmpty() || outputProducers.size() > 1)) {
+        Set<String> otherProducerNames = new HashSet<>();
+        for (Node outputProducer : outputProducers) {
+          if (outputProducer != this) {
+            otherProducerNames.add(outputProducer.getFullName());
           }
-          throw new IllegalArgumentException(
-              String.format(
-                  "Output of composite transform [%s] contains a primitive %s produced by it. "
-                      + "Only primitive transforms are permitted to produce primitive outputs."
-                      + "%n    Outputs: %s"
-                      + "%n    Other Producers: %s"
-                      + "%n    Components: %s",
-                  getFullName(),
-                  POutput.class.getSimpleName(),
-                  output.expand(),
-                  otherProducerNames,
-                  parts));
         }
+        throw new IllegalArgumentException(
+            String.format(
+                "Output of composite transform [%s] contains a primitive %s produced by it. "
+                    + "Only primitive transforms are permitted to produce primitive outputs."
+                    + "%n    Outputs: %s"
+                    + "%n    Other Producers: %s"
+                    + "%n    Components: %s",
+                getFullName(),
+                POutput.class.getSimpleName(),
+                output.expand(),
+                otherProducerNames,
+                parts));
       }
     }
 

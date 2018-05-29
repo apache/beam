@@ -24,15 +24,12 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
-import org.apache.beam.runners.core.construction.TestStreamTranslationTest.TestStreamPayloadTranslation;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -44,85 +41,76 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link TestStreamTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  TestStreamPayloadTranslation.class,
-})
+@RunWith(Parameterized.class)
 public class TestStreamTranslationTest {
+  @Parameters(name = "{index}: {0}")
+  public static Iterable<TestStream<?>> data() {
+    return ImmutableList.of(
+        TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity(),
+        TestStream.create(VarIntCoder.of())
+            .advanceWatermarkTo(new Instant(42))
+            .advanceWatermarkToInfinity(),
+        TestStream.create(VarIntCoder.of())
+            .addElements(TimestampedValue.of(3, new Instant(17)))
+            .advanceWatermarkToInfinity(),
+        TestStream.create(StringUtf8Coder.of())
+            .advanceProcessingTime(Duration.millis(82))
+            .advanceWatermarkToInfinity());
+  }
 
-  /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
-  @RunWith(Parameterized.class)
-  public static class TestStreamPayloadTranslation {
-    @Parameters(name = "{index}: {0}")
-    public static Iterable<TestStream<?>> data() {
-      return ImmutableList.of(
-          TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity(),
-          TestStream.create(VarIntCoder.of())
-              .advanceWatermarkTo(new Instant(42))
-              .advanceWatermarkToInfinity(),
-          TestStream.create(VarIntCoder.of())
-              .addElements(TimestampedValue.of(3, new Instant(17)))
-              .advanceWatermarkToInfinity(),
-          TestStream.create(StringUtf8Coder.of())
-              .advanceProcessingTime(Duration.millis(82))
-              .advanceWatermarkToInfinity());
-    }
+  @Parameter(0)
+  public TestStream<String> testStream;
 
-    @Parameter(0)
-    public TestStream<String> testStream;
+  public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-    public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Test
+  public void testEncodedProto() throws Exception {
+    SdkComponents components = SdkComponents.create();
+    RunnerApi.TestStreamPayload payload =
+        TestStreamTranslation.payloadForTestStream(testStream, components);
 
-    @Test
-    public void testEncodedProto() throws Exception {
-      SdkComponents components = SdkComponents.create();
-      RunnerApi.TestStreamPayload payload =
-          TestStreamTranslation.payloadForTestStream(testStream, components);
+    verifyTestStreamEncoding(
+        testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
+  }
 
-      verifyTestStreamEncoding(
-          testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
-    }
+  @Test
+  public void testRegistrarEncodedProto() throws Exception {
+    PCollection<String> output = p.apply(testStream);
 
-    @Test
-    public void testRegistrarEncodedProto() throws Exception {
-      PCollection<String> output = p.apply(testStream);
+    AppliedPTransform<PBegin, PCollection<String>, TestStream<String>> appliedTestStream =
+        AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
 
-      AppliedPTransform<PBegin, PCollection<String>, TestStream<String>> appliedTestStream =
-          AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
+    SdkComponents components = SdkComponents.create();
+    RunnerApi.FunctionSpec spec =
+        PTransformTranslation.toProto(appliedTestStream, components).getSpec();
 
-      SdkComponents components = SdkComponents.create();
-      RunnerApi.FunctionSpec spec =
-          PTransformTranslation.toProto(appliedTestStream, components).getSpec();
+    assertThat(spec.getUrn(), equalTo(TEST_STREAM_TRANSFORM_URN));
 
-      assertThat(spec.getUrn(), equalTo(TEST_STREAM_TRANSFORM_URN));
+    RunnerApi.TestStreamPayload payload = TestStreamPayload.parseFrom(spec.getPayload());
 
-      RunnerApi.TestStreamPayload payload = TestStreamPayload.parseFrom(spec.getPayload());
+    verifyTestStreamEncoding(
+        testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
+  }
 
-      verifyTestStreamEncoding(
-          testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
-    }
+  private static <T> void verifyTestStreamEncoding(
+      TestStream<T> testStream,
+      RunnerApi.TestStreamPayload payload,
+      RehydratedComponents protoComponents)
+      throws Exception {
 
-    private static <T> void verifyTestStreamEncoding(
-        TestStream<T> testStream,
-        RunnerApi.TestStreamPayload payload,
-        RehydratedComponents protoComponents)
-        throws Exception {
+    // This reverse direction is only valid for Java-based coders
+    assertThat(
+        protoComponents.getCoder(payload.getCoderId()),
+        Matchers.equalTo(testStream.getValueCoder()));
 
-      // This reverse direction is only valid for Java-based coders
+    assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
+
+    for (int i = 0; i < payload.getEventsList().size(); ++i) {
       assertThat(
-          protoComponents.getCoder(payload.getCoderId()),
-          Matchers.equalTo(testStream.getValueCoder()));
-
-      assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
-
-      for (int i = 0; i < payload.getEventsList().size(); ++i) {
-        assertThat(
-            TestStreamTranslation.eventFromProto(payload.getEvents(i), testStream.getValueCoder()),
-            equalTo(testStream.getEvents().get(i)));
-      }
+          TestStreamTranslation.eventFromProto(payload.getEvents(i), testStream.getValueCoder()),
+          equalTo(testStream.getEvents().get(i)));
     }
   }
 }

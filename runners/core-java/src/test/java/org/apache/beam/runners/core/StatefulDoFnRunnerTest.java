@@ -115,9 +115,12 @@ public class StatefulDoFnRunnerTest {
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
 
-
-    long droppedValues = container.getCounter(MetricName.named(StatefulDoFnRunner.class,
-        StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER)).getCumulative().longValue();
+    long droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
     assertEquals(1L, droppedValues);
 
     runner.finishBundle();
@@ -232,5 +235,5 @@ public class StatefulDoFnRunnerTest {
       Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
       state.write(currentValue + 1);
     }
-  };
+  }
 }

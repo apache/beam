@@ -28,12 +28,11 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlStringUnaryExpression.
- */
+/** Test for BeamSqlStringUnaryExpression. */
 public class BeamSqlStringUnaryExpressionTest {
 
-  @Test public void accept() throws Exception {
+  @Test
+  public void accept() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -48,5 +47,4 @@ public class BeamSqlStringUnaryExpressionTest {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     assertFalse(new BeamSqlCharLengthExpression(operands).accept());
   }
-
 }

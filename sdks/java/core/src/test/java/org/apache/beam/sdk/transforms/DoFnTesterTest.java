@@ -416,6 +416,7 @@ public class DoFnTesterTest {
       INSIDE_BUNDLE,
       TORN_DOWN
     }
+
     private LifecycleState state = LifecycleState.UNINITIALIZED;
 
     @Setup

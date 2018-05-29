@@ -82,7 +82,7 @@ public class HourlyTeamScore extends UserScore {
   /**
    * Options supported by {@link HourlyTeamScore}.
    */
-  interface Options extends UserScore.Options {
+  public interface Options extends UserScore.Options {
 
     @Description("Numeric value of fixed window duration, in minutes")
     @Default.Integer(60)

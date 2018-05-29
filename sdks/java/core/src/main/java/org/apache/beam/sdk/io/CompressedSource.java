@@ -95,7 +95,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionMode(Compression canonical) {
       this.canonical = canonical;
@@ -305,7 +305,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     private final FileBasedReader<T> readerDelegate;
     private final Object progressLock = new Object();
     @GuardedBy("progressLock")
-    private int numRecordsRead;
+    private long numRecordsRead;
 
     @Nullable // Initialized in startReading
     @GuardedBy("progressLock")

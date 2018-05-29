@@ -103,7 +103,7 @@ class SerializableMatchers implements Serializable {
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#anything()}.
    */
   public static SerializableMatcher<Object> anything() {
-    return fromSupplier(() -> Matchers.anything());
+    return fromSupplier(Matchers::anything);
   }
 
   /**
@@ -341,21 +341,21 @@ class SerializableMatchers implements Serializable {
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#empty()}.
    */
   public static <T> SerializableMatcher<Collection<? extends T>> empty() {
-    return fromSupplier(() -> Matchers.empty());
+    return fromSupplier(Matchers::empty);
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#emptyArray()}.
    */
   public static <T> SerializableMatcher<T[]> emptyArray() {
-    return fromSupplier(() -> Matchers.emptyArray());
+    return fromSupplier(Matchers::emptyArray);
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#emptyIterable()}.
    */
   public static <T> SerializableMatcher<Iterable<? extends T>> emptyIterable() {
-    return fromSupplier(() -> Matchers.emptyIterable());
+    return fromSupplier(Matchers::emptyIterable);
   }
 
   /**
@@ -670,7 +670,7 @@ class SerializableMatchers implements Serializable {
    * {@link Matchers#nullValue}.
    */
   public static SerializableMatcher<Object> nullValue() {
-    return fromSupplier(() -> Matchers.nullValue());
+    return fromSupplier(Matchers::nullValue);
   }
 
   /**

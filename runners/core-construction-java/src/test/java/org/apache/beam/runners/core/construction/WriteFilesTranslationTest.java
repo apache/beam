@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -48,74 +46,65 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link WriteFilesTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  WriteFilesTranslationTest.TestWriteFilesPayloadTranslation.class,
-})
+@RunWith(Parameterized.class)
 public class WriteFilesTranslationTest {
+  @Parameters(name = "{index}: {0}")
+  public static Iterable<WriteFiles<Object, Void, Object>> data() {
+    return ImmutableList.of(
+        WriteFiles.to(new DummySink()),
+        WriteFiles.to(new DummySink()).withWindowedWrites(),
+        WriteFiles.to(new DummySink()).withNumShards(17),
+        WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
+  }
 
-  /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
-  @RunWith(Parameterized.class)
-  public static class TestWriteFilesPayloadTranslation {
-    @Parameters(name = "{index}: {0}")
-    public static Iterable<WriteFiles<Object, Void, Object>> data() {
-      return ImmutableList.of(
-          WriteFiles.to(new DummySink()),
-          WriteFiles.to(new DummySink()).withWindowedWrites(),
-          WriteFiles.to(new DummySink()).withNumShards(17),
-          WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
-    }
+  @Parameter(0)
+  public WriteFiles<String, Void, String> writeFiles;
 
-    @Parameter(0)
-    public WriteFiles<String, Void, String> writeFiles;
+  public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-    public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Test
+  public void testEncodedProto() throws Exception {
+    RunnerApi.WriteFilesPayload payload =
+        WriteFilesTranslation.payloadForWriteFiles(writeFiles, SdkComponents.create());
 
-    @Test
-    public void testEncodedProto() throws Exception {
-      RunnerApi.WriteFilesPayload payload =
-          WriteFilesTranslation.payloadForWriteFiles(writeFiles, SdkComponents.create());
+    assertThat(
+        payload.getRunnerDeterminedSharding(),
+        equalTo(
+            writeFiles.getNumShardsProvider() == null
+                && writeFiles.getComputeNumShards() == null));
 
-      assertThat(
-          payload.getRunnerDeterminedSharding(),
-          equalTo(
-              writeFiles.getNumShardsProvider() == null
-                  && writeFiles.getComputeNumShards() == null));
+    assertThat(payload.getWindowedWrites(), equalTo(writeFiles.getWindowedWrites()));
 
-      assertThat(payload.getWindowedWrites(), equalTo(writeFiles.getWindowedWrites()));
+    assertThat(
+        (FileBasedSink<String, Void, String>)
+            WriteFilesTranslation.sinkFromProto(payload.getSink()),
+        equalTo(writeFiles.getSink()));
+  }
 
-      assertThat(
-          (FileBasedSink<String, Void, String>)
-              WriteFilesTranslation.sinkFromProto(payload.getSink()),
-          equalTo(writeFiles.getSink()));
-    }
+  @Test
+  public void testExtractionDirectFromTransform() throws Exception {
+    PCollection<String> input = p.apply(Create.of("hello"));
+    WriteFilesResult<Void> output = input.apply(writeFiles);
 
-    @Test
-    public void testExtractionDirectFromTransform() throws Exception {
-      PCollection<String> input = p.apply(Create.of("hello"));
-      WriteFilesResult<Void> output = input.apply(writeFiles);
+    AppliedPTransform<
+            PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
+        appliedPTransform =
+            AppliedPTransform.of("foo", input.expand(), output.expand(), writeFiles, p);
 
-      AppliedPTransform<
-              PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
-          appliedPTransform =
-              AppliedPTransform.of("foo", input.expand(), output.expand(), writeFiles, p);
+    assertThat(
+        WriteFilesTranslation.isRunnerDeterminedSharding(appliedPTransform),
+        equalTo(
+            writeFiles.getNumShardsProvider() == null
+                && writeFiles.getComputeNumShards() == null));
 
-      assertThat(
-          WriteFilesTranslation.isRunnerDeterminedSharding(appliedPTransform),
-          equalTo(
-              writeFiles.getNumShardsProvider() == null
-                  && writeFiles.getComputeNumShards() == null));
-
-      assertThat(
-          WriteFilesTranslation.isWindowedWrites(appliedPTransform),
-          equalTo(writeFiles.getWindowedWrites()));
-      assertThat(
-          WriteFilesTranslation.<String, Void, String>getSink(appliedPTransform),
-          equalTo(writeFiles.getSink()));
-    }
+    assertThat(
+        WriteFilesTranslation.isWindowedWrites(appliedPTransform),
+        equalTo(writeFiles.getWindowedWrites()));
+    assertThat(
+        WriteFilesTranslation.<String, Void, String>getSink(appliedPTransform),
+        equalTo(writeFiles.getSink()));
   }
 
   /**

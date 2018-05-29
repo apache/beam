@@ -48,6 +48,7 @@ import org.junit.runners.JUnit4;
 public class HadoopFileSystemOptionsTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testParsingHdfsConfiguration() {
     HadoopFileSystemOptions options = PipelineOptionsFactory.fromArgs(

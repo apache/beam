@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
+import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.transforms.GroupByKey;
 
 /**
@@ -48,7 +49,9 @@ public interface StateInternals {
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}.
    */
-  <T extends State> T state(StateNamespace namespace, StateTag<T> address);
+  default <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
+    return state(namespace, address, StateContexts.nullContext());
+  }
 
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}

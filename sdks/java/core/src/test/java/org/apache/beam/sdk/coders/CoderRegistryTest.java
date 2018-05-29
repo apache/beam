@@ -78,28 +78,6 @@ public class CoderRegistryTest {
     assertEquals(registry.getCoder(MyValue.class), MyValueCoder.of());
   }
 
-  @SuppressWarnings("rawtypes") // this class exists to fail a test because of its rawtypes
-  private class MyListCoder extends AtomicCoder<List> {
-    @Override
-    public void encode(List value, OutputStream outStream)
-        throws CoderException, IOException {
-    }
-
-    @Override
-    public List decode(InputStream inStream)
-        throws CoderException, IOException {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public List<Coder<?>> getCoderArguments() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {}
-  }
-
   @Test
   public void testSimpleDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
@@ -290,7 +268,8 @@ public class CoderRegistryTest {
   private static class PTransformOutputingMySerializableGeneric
   extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
 
-    private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
+    private static class OutputDoFn
+    extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
       @ProcessElement
       public void processElement(ProcessContext c) { }
     }

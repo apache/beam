@@ -19,13 +19,10 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import java.math.BigDecimal;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Utils to convert between Calcite's TimeUnit and Sql intervals.
- */
+/** Utils to convert between Calcite's TimeUnit and Sql intervals. */
 public abstract class TimeUnitUtils {
 
   /**
@@ -47,8 +44,8 @@ public abstract class TimeUnitUtils {
       case INTERVAL_YEAR:
         return TimeUnit.YEAR.multiplier;
       default:
-        throw new IllegalArgumentException("Interval " + sqlIntervalType
-            + " cannot be converted to TimeUnit");
+        throw new IllegalArgumentException(
+            "Interval " + sqlIntervalType + " cannot be converted to TimeUnit");
     }
   }
 }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.avro;
 
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,15 +50,17 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.avro.AvroIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path"
  *  ]'
+ *  --tests org.apache.beam.sdk.io.avro.AvroIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
- * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
@@ -85,7 +87,7 @@ public class AvroIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
   }
 
   @Test
@@ -106,8 +108,7 @@ public class AvroIOIT {
                     .withOutputFilenames()
                     .withSuffix(".avro"))
             .getPerDestinationOutputFilenames()
-            .apply(Values.create())
-            .apply(Reshuffle.viaRandomKey());
+            .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
@@ -119,7 +120,7 @@ public class AvroIOIT {
 
     testFilenames.apply(
         "Delete test files",
-        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+        ParDo.of(new DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
@@ -127,7 +128,7 @@ public class AvroIOIT {
 
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       c.output(
           new GenericRecordBuilder(AVRO_SCHEMA).set("row", c.element()).build()
       );
@@ -136,7 +137,7 @@ public class AvroIOIT {
 
   private static class ParseAvroRecordsFn extends DoFn<GenericRecord, String> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       c.output(String.valueOf(c.element().get("row")));
     }
   }

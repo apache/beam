@@ -17,32 +17,31 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlExpression} for 'AND' operation.
- */
+/** {@code BeamSqlExpression} for 'AND' operation. */
 public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
   public BeamSqlAndExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<Boolean> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     boolean result = true;
     for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window);
-      result = result && expOut.getValue();
-      if (!result) {
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, correlateEnv);
+      if (!expOut.getValue()) {
+        result = false;
         break;
       }
     }
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
-
 }

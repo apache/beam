@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,7 +60,7 @@ public class GenerateSequenceTest {
   @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testBoundedInput() {
     long numElements = 1000;
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
@@ -71,7 +70,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEmptyBoundedInput() {
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(0));
 
@@ -80,7 +79,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEmptyBoundedInputSubrange() {
     PCollection<Long> input = p.apply(GenerateSequence.from(42).to(42));
 
@@ -89,7 +88,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testBoundedInputSubrange() {
     long start = 10;
     long end = 1000;
@@ -141,7 +140,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedInputTimestamps() {
     long numElements = 1000;
 

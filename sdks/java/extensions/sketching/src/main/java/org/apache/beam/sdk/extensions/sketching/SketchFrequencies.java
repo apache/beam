@@ -21,13 +21,11 @@ import com.clearspring.analytics.stream.frequency.CountMinSketch;
 import com.clearspring.analytics.stream.frequency.FrequencyMergeException;
 import com.google.auto.value.AutoValue;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -100,16 +98,15 @@ import org.apache.beam.sdk.values.PCollection;
  *       advanced processing involving the Count-Min sketch.
  * </ul>
  *
- * <h3>Example 1: simple default use</h3>
+ * <h3>Example 1: default use</h3>
  *
- * <p>The simplest use is simply to call the {@link #globally()} or {@link #perKey()} method in
+ * <p>The simplest use is to call the {@link #globally()} or {@link #perKey()} method in
  * order to retrieve the sketch with an estimate number of hits for each element in the stream.
  *
  * <pre><code>
  * {@literal PCollection<MyObject>} pc = ...;
  * {@literal PCollection<CountMinSketch>} countMinSketch = pc.apply(SketchFrequencies
  * {@literal        .<MyObject>}globally()); //{@literal .<MyObject>}perKey();
- * }
  * </code></pre>
  *
  * <h3>Example 2: tune accuracy parameters</h3>
@@ -126,7 +123,6 @@ import org.apache.beam.sdk.values.PCollection;
  * {@literal  .<MyObject>}globally() //{@literal .<MyObject>}perKey()
  *            .withRelativeError(eps)
  *            .withConfidence(conf));
- * }
  * </code></pre>
  *
  * <h3>Example 3: query the resulting sketch</h3>
@@ -155,9 +151,8 @@ import org.apache.beam.sdk.values.PCollection;
  *           public void procesElement(ProcessContext c) {
  *             Long elem = c.element();
  *             CountMinSketch sketch = c.sideInput(sketchView);
- *             sketch.estimateCount(elem, coder);
+ *             c.output(sketch.estimateCount(elem, coder));
  *            }}).withSideInputs(sketchView));
- * }
  * </code></pre>
  *
  * <h3>Example 4: Using the CombineFn</h3>
@@ -177,7 +172,6 @@ import org.apache.beam.sdk.values.PCollection;
  * {@literal PCollection<CountMinSketch>} output = input.apply(Combine.globally(CountMinSketchFn
  * {@literal    .<MyObject>}create(new MyObjectCoder())
  *              .withAccuracy(eps, conf)));
- * }
  * </code></pre>
  *
  * <p><b>Warning: this class is experimental.</b> <br>
@@ -241,10 +235,25 @@ public final class SketchFrequencies {
       abstract GlobalSketch<InputT> build();
     }
 
+    /**
+     * Sets the relative error {@code epsilon}.
+     *
+     * <p>Keep in mind that the lower the {@code epsilon} value, the greater the width.
+     *
+     * @param eps the error relative to the total number of distinct elements
+     */
     public GlobalSketch<InputT> withRelativeError(double eps) {
       return toBuilder().setRelativeError(eps).build();
     }
 
+    /**
+     * Sets the {@code confidence} value, i.e.
+     * the probability that the relative error is lower or equal to {@code epsilon}.
+     *
+     * <p>Keep in mind that the greater the confidence, the greater the depth.
+     *
+     * @param conf the confidence in the result to not exceed the relative error
+     */
     public GlobalSketch<InputT> withConfidence(double conf) {
       return toBuilder().setConfidence(conf).build();
     }
@@ -289,10 +298,25 @@ public final class SketchFrequencies {
       abstract PerKeySketch<K, V> build();
     }
 
+    /**
+     * Sets the relative error {@code epsilon}.
+     *
+     * <p>Keep in mind that the lower the {@code epsilon} value, the greater the width.
+     *
+     * @param eps the error relative to the total number of distinct elements
+     */
     public PerKeySketch<K, V> withRelativeError(double eps) {
       return toBuilder().setRelativeError(eps).build();
     }
 
+    /**
+     * Sets the {@code confidence} value, i.e.
+     * the probability that the relative error is lower or equal to {@code epsilon}.
+     *
+     * <p>Keep in mind that the greater the confidence, the greater the depth.
+     *
+     * @param conf the confidence in the result to not exceed the relative error
+     */
     public PerKeySketch<K, V> withConfidence(double conf) {
       return toBuilder().setConfidence(conf).build();
     }
@@ -330,7 +354,7 @@ public final class SketchFrequencies {
     }
 
     /**
-     * Returns an {@link CountMinSketchFn} combiner with the given input coder. <br>
+     * Returns a {@link CountMinSketchFn} combiner with the given input coder. <br>
      * <b>Warning :</b> the coder must be deterministic.
      *
      * @param coder the coder that encodes the elements' type
@@ -363,7 +387,7 @@ public final class SketchFrequencies {
       if (confidence <= 0D || confidence >= 1D) {
         throw new IllegalArgumentException("The confidence must be between 0 and 1");
       }
-      return new CountMinSketchFn<InputT>(inputCoder, epsilon, confidence);
+      return new CountMinSketchFn<>(inputCoder, epsilon, confidence);
     }
 
     @Override public Sketch<InputT> createAccumulator() {
@@ -400,7 +424,7 @@ public final class SketchFrequencies {
 
     @Override public Coder<Sketch<InputT>> getAccumulatorCoder(CoderRegistry registry,
                                                                Coder inputCoder) {
-      return new CountMinSketchCoder<InputT>();
+      return new CountMinSketchCoder<>();
     }
 
     @Override
@@ -431,7 +455,7 @@ public final class SketchFrequencies {
     static <T> Sketch<T> create(double eps, double conf) {
       int width = (int) Math.ceil(2 / eps);
       int depth = (int) Math.ceil(-Math.log(1 - conf) / Math.log(2));
-      return new AutoValue_SketchFrequencies_Sketch<T>(
+      return new AutoValue_SketchFrequencies_Sketch<>(
               depth,
               width,
               new CountMinSketch(depth, width, SEED));
@@ -440,7 +464,7 @@ public final class SketchFrequencies {
     static <T> Sketch<T> create(CountMinSketch sketch) {
       int width = (int) Math.ceil(2 / sketch.getRelativeError());
       int depth = (int) Math.ceil(-Math.log(1 - sketch.getConfidence()) / Math.log(2));
-      return new AutoValue_SketchFrequencies_Sketch<T>(
+      return new AutoValue_SketchFrequencies_Sketch<>(
               depth,
               width,
               sketch);

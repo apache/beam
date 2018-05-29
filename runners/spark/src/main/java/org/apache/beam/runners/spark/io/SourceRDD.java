@@ -96,7 +96,7 @@ public class SourceRDD {
       this.metricsAccum = MetricsAccumulator.getInstance();
     }
 
-    private static final long DEFAULT_BUNDLE_SIZE = 64 * 1024 * 1024;
+    private static final long DEFAULT_BUNDLE_SIZE = 64L * 1024L * 1024L;
 
     @Override
     public Partition[] getPartitions() {

@@ -103,11 +103,7 @@ public class BucketingFunction {
    */
   public void add(long timeMsSinceEpoch, long value) {
     long key = key(timeMsSinceEpoch);
-    Bucket bucket = buckets.get(key);
-    if (bucket == null) {
-      bucket = new Bucket(this);
-      buckets.put(key, bucket);
-    }
+    Bucket bucket = buckets.computeIfAbsent(key, k -> new Bucket(this));
     bucket.add(this, value);
   }
 

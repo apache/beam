@@ -762,7 +762,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       PCollection<KV<DestinationT, String>> outputFilenames =
           input
               .apply("Finalize", ParDo.of(new FinalizeFn()).withSideInputs(finalizeSideInputs))
-              .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
+              .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()))
+              // Reshuffle the filenames to make sure they are observable downstream
+              // only after each one is done finalizing.
+              .apply(Reshuffle.viaRandomKey());
 
       TupleTag<KV<DestinationT, String>> perDestinationOutputFilenamesTag =
           new TupleTag<>("perDestinationOutputFilenames");

@@ -79,7 +79,7 @@ public abstract class Trigger implements Serializable {
   }
 
   protected Trigger() {
-    this(Collections.EMPTY_LIST);
+    this(Collections.emptyList());
   }
 
   public List<Trigger> subTriggers() {
@@ -168,7 +168,7 @@ public abstract class Trigger implements Serializable {
     if (getClass().getEnclosingClass() != null) {
       simpleName = getClass().getEnclosingClass().getSimpleName() + "." + simpleName;
     }
-    if (subTriggers == null || subTriggers.size() == 0) {
+    if (subTriggers == null || subTriggers.isEmpty()) {
       return simpleName;
     } else {
       return simpleName + "(" + Joiner.on(", ").join(subTriggers) + ")";

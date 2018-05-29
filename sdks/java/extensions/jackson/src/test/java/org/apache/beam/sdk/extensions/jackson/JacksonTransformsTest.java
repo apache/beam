@@ -145,10 +145,9 @@ public class JacksonTransformsTest {
 
   @Test(expected = Pipeline.PipelineExecutionException.class)
   public void failWritingWithoutCustomMapper() {
-    PCollection<String> output =
-        pipeline
-            .apply(Create.of(EMPTY_BEANS))
-            .apply(AsJsons.of(MyEmptyBean.class)).setCoder(StringUtf8Coder.of());
+    pipeline
+        .apply(Create.of(EMPTY_BEANS))
+        .apply(AsJsons.of(MyEmptyBean.class)).setCoder(StringUtf8Coder.of());
 
     pipeline.run();
   }
@@ -237,6 +236,30 @@ public class JacksonTransformsTest {
     public MyEmptyBean(String myString, int myInt) {
       this.myString = myString;
       this.myInt = myInt;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      MyEmptyBean that = (MyEmptyBean) o;
+
+      if (myInt != that.myInt) {
+        return false;
+      }
+      return myString != null ? myString.equals(that.myString) : that.myString == null;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = myString != null ? myString.hashCode() : 0;
+      result = 31 * result + myInt;
+      return result;
     }
   }
 }

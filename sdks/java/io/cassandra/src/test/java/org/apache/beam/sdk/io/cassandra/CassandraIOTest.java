@@ -22,8 +22,9 @@ import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
-import java.io.IOException;
+import com.google.common.base.Objects;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -32,6 +33,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -44,18 +46,14 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 public class CassandraIOTest implements Serializable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
-
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void testEstimatedSizeBytes() throws Exception {
+  public void testEstimatedSizeBytes() {
     final FakeCassandraService service = new FakeCassandraService();
     service.load();
 
@@ -70,7 +68,7 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testRead() throws Exception {
+  public void testRead() {
     FakeCassandraService service = new FakeCassandraService();
     service.load();
 
@@ -89,6 +87,7 @@ public class CassandraIOTest implements Serializable {
         output.apply(
             MapElements.via(
                 new SimpleFunction<Scientist, KV<String, Integer>>() {
+                  @Override
                   public KV<String, Integer> apply(Scientist scientist) {
                     return KV.of(scientist.name, scientist.id);
                   }
@@ -106,7 +105,7 @@ public class CassandraIOTest implements Serializable {
   }
 
   @Test
-  public void testWrite() throws  Exception {
+  public void testWrite() {
     FakeCassandraService service = new FakeCassandraService();
 
     ArrayList<Scientist> data = new ArrayList<>();
@@ -124,7 +123,7 @@ public class CassandraIOTest implements Serializable {
             .withEntity(Scientist.class));
     pipeline.run();
 
-    assertEquals(service.getTable().size(), 1000);
+    assertEquals(1000, service.getTable().size());
     for (Scientist scientist : service.getTable().values()) {
       assertTrue(scientist.name.matches("Name (\\d*)"));
     }
@@ -134,10 +133,9 @@ public class CassandraIOTest implements Serializable {
    * A {@link CassandraService} implementation that stores the entity in memory.
    */
   private static class FakeCassandraService implements CassandraService<Scientist> {
-
     private static final Map<Integer, Scientist> table = new ConcurrentHashMap<>();
 
-    public void load() {
+    void load() {
       table.clear();
       String[] scientists = {
           "Lovelace",
@@ -160,34 +158,33 @@ public class CassandraIOTest implements Serializable {
       }
     }
 
-    public Map<Integer, Scientist> getTable() {
+    Map<Integer, Scientist> getTable() {
       return table;
     }
 
     @Override
-    public FakeCassandraReader createReader(CassandraIO.CassandraSource source) {
+    public BoundedReader<Scientist> createReader(CassandraIO.CassandraSource source) {
       return new FakeCassandraReader(source);
     }
 
-    static class FakeCassandraReader extends BoundedSource.BoundedReader {
-
+    private static class FakeCassandraReader extends BoundedSource.BoundedReader {
       private final CassandraIO.CassandraSource source;
 
       private Iterator<Scientist> iterator;
       private Scientist current;
 
-      public FakeCassandraReader(CassandraIO.CassandraSource source) {
+      FakeCassandraReader(CassandraIO.CassandraSource source) {
         this.source = source;
       }
 
       @Override
-      public boolean start() throws IOException {
+      public boolean start() {
         iterator = table.values().iterator();
         return advance();
       }
 
       @Override
-      public boolean advance() throws IOException {
+      public boolean advance() {
         if (iterator.hasNext()) {
           current = iterator.next();
           return true;
@@ -214,28 +211,26 @@ public class CassandraIOTest implements Serializable {
       public CassandraIO.CassandraSource getCurrentSource() {
         return this.source;
       }
-
     }
 
     @Override
     public long getEstimatedSizeBytes(CassandraIO.Read spec) {
       long size = 0L;
       for (Scientist scientist : table.values()) {
-        size = size + scientist.toString().getBytes().length;
+        size = size + scientist.toString().getBytes(StandardCharsets.UTF_8).length;
       }
       return size;
     }
 
     @Override
-    public List<BoundedSource<Scientist>> split(CassandraIO.Read spec,
-                                                           long desiredBundleSizeBytes) {
+    public List<BoundedSource<Scientist>> split(
+        CassandraIO.Read spec, long desiredBundleSizeBytes) {
       List<BoundedSource<Scientist>> sources = new ArrayList<>();
       sources.add(new CassandraIO.CassandraSource<Scientist>(spec, null));
       return sources;
     }
 
-    static class FakeCassandraWriter implements Writer<Scientist> {
-
+    private static class FakeCassandraWriter implements Writer<Scientist> {
       @Override
       public void write(Scientist scientist) {
         table.put(scientist.id, scientist);
@@ -245,28 +240,43 @@ public class CassandraIOTest implements Serializable {
       public void close() {
         // nothing to do
       }
-
     }
 
     @Override
     public FakeCassandraWriter createWriter(CassandraIO.Write<Scientist> spec) {
       return new FakeCassandraWriter();
     }
-
   }
 
   /** Simple Cassandra entity used in test. */
   @Table(name = "scientist", keyspace = "beam")
-  public static class Scientist implements Serializable {
-
+  static class Scientist implements Serializable {
     @Column(name = "person_name")
-    public String name;
+    String name;
 
     @Column(name = "person_id")
-    public int id;
+    int id;
 
+    @Override
     public String toString() {
       return id + ":" + name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      Scientist scientist = (Scientist) o;
+      return id == scientist.id && Objects.equal(name, scientist.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(name, id);
     }
   }
 }

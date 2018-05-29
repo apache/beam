@@ -21,7 +21,11 @@ KafkaIO contains I/O transforms which allow you to read/write messages from/to [
 
 ## Dependencies
 
-To use KafkaIO you must first add a dependency on `beam-sdks-java-io-kafka`
+To use KafkaIO you must first add a dependency on `beam-sdks-java-io-kafka`. KafkaIO supports
+multiple versions of Kafka clients at run time. It does not pull a specific version `kafka-clients`
+transitively. You need to include a compatible version of `kafka-clients` as runtime dependency.
+Usually current and recent versions of Kafka are supported, please see JavaDoc for KafkaIO for
+complete list.
 
 ```maven
 <dependency>
@@ -29,8 +33,17 @@ To use KafkaIO you must first add a dependency on `beam-sdks-java-io-kafka`
     <artifactId>beam-sdks-java-io-kafka</artifactId>
     <version>...</version>
 </dependency>
+
+<dependency>
+  <groupId>org.apache.kafka</groupId>
+  <artifactId>kafka-clients</artifactId>
+  <version>a_recent_version</version>
+  <scope>runtime</scope>
+</dependency>
 ```
 
 ## Documentation
 
-- [KafkaIO.java](https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java)
+The documentation is maintained in JavaDoc for KafkaIO class. It includes
+ usage examples and primary concepts.
+- [KafkaIO.java](src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java)

@@ -18,41 +18,42 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * {@code BeamSqlExpression} for Reinterpret call.
  *
- * <p>Currently supported conversions:
- *  - {@link SqlTypeName#DATETIME_TYPES} to {@code BIGINT};
- *  - {@link SqlTypeName#INTEGER} to {@code BIGINT};
+ * <p>Currently supported conversions: - {@link SqlTypeName#DATETIME_TYPES} to {@code BIGINT}; -
+ * {@link SqlTypeName#INTEGER} to {@code BIGINT};
  */
 public class BeamSqlReinterpretExpression extends BeamSqlExpression {
 
-  private static final Reinterpreter REINTERPRETER = Reinterpreter.builder()
-      .withConversion(DatetimeReinterpretConversions.TIME_TO_BIGINT)
-      .withConversion(DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT)
-      .withConversion(IntegerReinterpretConversions.INTEGER_TYPES_TO_BIGINT)
-      .build();
+  private static final Reinterpreter REINTERPRETER =
+      Reinterpreter.builder()
+          .withConversion(DatetimeReinterpretConversions.TIME_TO_BIGINT)
+          .withConversion(DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT)
+          .withConversion(IntegerReinterpretConversions.INTEGER_TYPES_TO_BIGINT)
+          .build();
 
   public BeamSqlReinterpretExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
-  @Override public boolean accept() {
-    return getOperands().size() == 1
-        && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
+  @Override
+  public boolean accept() {
+    return getOperands().size() == 1 && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     return REINTERPRETER.convert(
-            SqlTypeName.BIGINT,
-            operands.get(0).evaluate(inputRow, window));
+        SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window, correlateEnv));
   }
 }

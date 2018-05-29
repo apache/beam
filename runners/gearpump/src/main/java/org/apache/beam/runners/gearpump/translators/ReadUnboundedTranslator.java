@@ -22,7 +22,6 @@ import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.source.DataSource;
 

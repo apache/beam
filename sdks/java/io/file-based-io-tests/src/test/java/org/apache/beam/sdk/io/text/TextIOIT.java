@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.io.text;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
@@ -27,13 +27,13 @@ import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -48,16 +48,18 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.text.TextIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
+ *  --tests org.apache.beam.sdk.io.text.TextIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
- * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
@@ -75,7 +77,7 @@ public class TextIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
   }
 
@@ -95,8 +97,7 @@ public class TextIOIT {
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
             .apply("Write content to files", write)
             .getPerDestinationOutputFilenames()
-            .apply(Values.create())
-            .apply(Reshuffle.viaRandomKey());
+            .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", TextIO.readAll().withCompression(AUTO))
@@ -107,7 +108,7 @@ public class TextIOIT {
 
     testFilenames.apply(
         "Delete test files",
-        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+        ParDo.of(new DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();

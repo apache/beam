@@ -22,14 +22,22 @@ Only those coders listed in __all__ are part of the public API of this module.
 from __future__ import absolute_import
 
 import base64
-import cPickle as pickle
+from builtins import object
 
 import google.protobuf
+from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
+
+# This is for py2/3 compatibility. cPickle was renamed pickle in python 3.
+try:
+  import cPickle as pickle # Python 2
+except ImportError:
+  import pickle # Python 3
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -208,11 +216,15 @@ class Coder(object):
   def __repr__(self):
     return self.__class__.__name__
 
+  # pylint: disable=protected-access
   def __eq__(self, other):
-    # pylint: disable=protected-access
     return (self.__class__ == other.__class__
             and self._dict_without_impl() == other._dict_without_impl())
-    # pylint: enable=protected-access
+
+  def __hash__(self):
+    return hash((self.__class__,) +
+                tuple(sorted(self._dict_without_impl().items())))
+  # pylint: enable=protected-access
 
   _known_urns = {}
 
@@ -243,6 +255,8 @@ class Coder(object):
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
+            environment_id=(
+                context.default_environment_id() if context else None),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urn,
                 payload=typed_param.SerializeToString()
@@ -263,8 +277,8 @@ class Coder(object):
 
   def to_runner_api_parameter(self, context):
     return (
-        urns.PICKLED_CODER,
-        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        python_urns.PICKLED_CODER,
+        wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
 
   @staticmethod
@@ -284,7 +298,8 @@ class Coder(object):
         return cls()
 
 
-@Coder.register_urn(urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
+@Coder.register_urn(
+    python_urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
 def _pickle_from_runner_api_parameter(payload, components, context):
   return deserialize_coder(payload.value)
 
@@ -306,10 +321,11 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
-    if isinstance(value, unicode):
-      return value.encode('utf-8')
-    elif isinstance(value, str):
-      return value
+    try:               # Python 2
+      if isinstance(value, unicode):   # pylint: disable=unicode-builtin
+        return value.encode('utf-8')
+    except NameError:  # Python 3
+      pass
     return str(value)
 
   def decode(self, _):
@@ -363,7 +379,7 @@ class BytesCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(urns.BYTES_CODER, BytesCoder)
+Coder.register_structured_urn(common_urns.coders.BYTES.urn, BytesCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -382,7 +398,7 @@ class VarIntCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(urns.VAR_INT_CODER, VarIntCoder)
+Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
 
 
 class FloatCoder(FastCoder):
@@ -736,11 +752,11 @@ class TupleCoder(FastCoder):
 
   def to_runner_api_parameter(self, context):
     if self.is_kv_coder():
-      return urns.KV_CODER, None, self.coders()
+      return common_urns.coders.KV.urn, None, self.coders()
     else:
       return super(TupleCoder, self).to_runner_api_parameter(context)
 
-  @Coder.register_urn(urns.KV_CODER, None)
+  @Coder.register_urn(common_urns.coders.KV.urn, None)
   def from_runner_api_parameter(unused_payload, components, unused_context):
     return TupleCoder(components)
 
@@ -829,7 +845,7 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-Coder.register_structured_urn(urns.ITERABLE_CODER, IterableCoder)
+Coder.register_structured_urn(common_urns.coders.ITERABLE.urn, IterableCoder)
 
 
 class GlobalWindowCoder(SingletonCoder):
@@ -845,7 +861,8 @@ class GlobalWindowCoder(SingletonCoder):
     }
 
 
-Coder.register_structured_urn(urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
+Coder.register_structured_urn(
+    common_urns.coders.GLOBAL_WINDOW.urn, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -869,7 +886,8 @@ class IntervalWindowCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
+Coder.register_structured_urn(
+    common_urns.coders.INTERVAL_WINDOW.urn, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -928,7 +946,8 @@ class WindowedValueCoder(FastCoder):
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
 
 
-Coder.register_structured_urn(urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+Coder.register_structured_urn(
+    common_urns.coders.WINDOWED_VALUE.urn, WindowedValueCoder)
 
 
 class LengthPrefixCoder(FastCoder):
@@ -972,4 +991,5 @@ class LengthPrefixCoder(FastCoder):
     return hash((type(self), self._value_coder))
 
 
-Coder.register_structured_urn(urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
+Coder.register_structured_urn(
+    common_urns.coders.LENGTH_PREFIX.urn, LengthPrefixCoder)

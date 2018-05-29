@@ -29,17 +29,46 @@ from collections import namedtuple
 from apache_beam.transforms import cy_combiners
 
 # Information identifying the IO being measured by a counter.
+#
+# A CounterName with IOTarget helps identify the IO being measured by a
+# counter.
+#
+# It may represent the consumption of Shuffle IO, or the consumption of
+# side inputs. The way in which each is represented is explained in the
+# documentation of the side_input_id, and shuffle_id functions.
 IOTargetName = namedtuple('IOTargetName', ['requesting_step_name',
                                            'input_index'])
 
 
 def side_input_id(step_name, input_index):
-  """Create an IOTargetName that identifies the reading of a side input."""
+  """Create an IOTargetName that identifies the reading of a side input.
+
+  Given a step "s4" that receives two side inputs, then the CounterName
+  that represents the consumption of side input number 2 is:
+  * step_name: s4    <---|
+  * input_index: 2   <---|-- Identifying the side input itself
+  * requesting_step_name: s4   <-- Identifying the step that reads from it.
+
+  If "s4" emits the whole AsIter of the side input, down to a step, say "s5",
+  then the requesting_step_name of the subsequent consumption will be "s5".
+  """
   return IOTargetName(step_name, input_index)
 
 
 def shuffle_id(step_name):
-  """Create an IOTargetName that identifies a GBK step."""
+  """Create an IOTargetName that identifies a GBK step.
+
+  Given a step "s6" that is downstream from a GBK "s5", then "s6" will read
+  from shuffle. The CounterName that quantifies the consumption of data from
+  shuffle has:
+  * step_name: s5
+  * requesting_step_name: s6
+
+  If "s6" emits the whole iterable down to a step, say "s7", and "s7" continues
+  to consume data from the iterable, then a new CounterName will be:
+  * step_name: s5    <--- Identifying the GBK
+  * requesting_step_name: s6
+  """
   return IOTargetName(step_name, None)
 
 
@@ -68,6 +97,9 @@ class CounterName(_CounterName):
 
   def __repr__(self):
     return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
+
+  def __str__(self):
+    return self._str_internal()
 
   def _str_internal(self):
     if self.origin == CounterName.USER:
@@ -98,6 +130,10 @@ class Counter(object):
   # Handy references to common counters.
   SUM = cy_combiners.SumInt64Fn()
   MEAN = cy_combiners.MeanInt64Fn()
+
+  # Dataflow Distribution Accumulator Fn.
+  # TODO(BEAM-4045): Generalize distribution counter if necessary.
+  DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):
     """Creates a Counter object.

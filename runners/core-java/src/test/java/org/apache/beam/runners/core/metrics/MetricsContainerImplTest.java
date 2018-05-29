@@ -95,7 +95,7 @@ public class MetricsContainerImplTest {
         metricUpdate("name2", 4L)));
 
     CounterCell readC1 = container.tryGetCounter(MetricName.named("ns", "name1"));
-    assertEquals((long) readC1.getCumulative(), 13L);
+    assertEquals(13L, (long) readC1.getCumulative());
   }
 
   @Test

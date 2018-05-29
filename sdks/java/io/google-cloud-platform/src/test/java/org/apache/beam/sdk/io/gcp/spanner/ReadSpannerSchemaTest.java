@@ -53,7 +53,9 @@ public class ReadSpannerSchemaTest {
 
   private static Struct columnMetadata(String tableName, String columnName, String type) {
     return Struct.newBuilder().add("table_name", Value.string(tableName))
-        .add("column_name", Value.string(columnName)).add("spanner_type", Value.string(type))
+        .add("column_name", Value.string(columnName))
+        .add("spanner_type", Value.string(type))
+        .add("cells_mutated", Value.int64(3L))
         .build();
   }
 
@@ -66,7 +68,8 @@ public class ReadSpannerSchemaTest {
   private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type = Type.struct(Type.StructField.of("table_name", Type.string()),
         Type.StructField.of("column_name", Type.string()),
-        Type.StructField.of("spanner_type", Type.string()));
+        Type.StructField.of("spanner_type", Type.string()),
+        Type.StructField.of("cells_mutated", Type.int64()));
     when(tx.executeQuery(argThat(new ArgumentMatcher<Statement>() {
 
       @Override public boolean matches(Object argument) {

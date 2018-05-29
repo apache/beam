@@ -16,6 +16,7 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
+import threading
 from collections import namedtuple
 
 from apache_beam.utils.counters import Counter
@@ -29,9 +30,26 @@ except ImportError:
   FAST_SAMPLER = False
 
 
+_STATE_SAMPLERS = threading.local()
+
+
+def set_current_tracker(tracker):
+  _STATE_SAMPLERS.tracker = tracker
+
+
+def get_current_tracker():
+  try:
+    return _STATE_SAMPLERS.tracker
+  except AttributeError:
+    return None
+
+
 StateSamplerInfo = namedtuple(
     'StateSamplerInfo',
-    ['state_name', 'transition_count', 'time_since_transition'])
+    ['state_name',
+     'transition_count',
+     'time_since_transition',
+     'tracked_thread'])
 
 
 # Default period for sampling current state of pipeline execution.
@@ -47,20 +65,32 @@ class StateSampler(statesampler_impl.StateSampler):
     self._counter_factory = counter_factory
     self._states_by_name = {}
     self.sampling_period_ms = sampling_period_ms
+    self.tracked_thread = None
     super(StateSampler, self).__init__(sampling_period_ms)
 
   def stop_if_still_running(self):
     if self.started and not self.finished:
       self.stop()
 
+  def start(self):
+    self.tracked_thread = threading.current_thread()
+    set_current_tracker(self)
+    super(StateSampler, self).start()
+    self.started = True
+
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
         self.current_state().name,
         self.state_transition_count,
-        self.time_since_transition)
+        self.time_since_transition,
+        self.tracked_thread)
 
-  def scoped_state(self, step_name, state_name, io_target=None):
+  def scoped_state(self,
+                   step_name,
+                   state_name,
+                   io_target=None,
+                   metrics_container=None):
     counter_name = CounterName(state_name + '-msecs',
                                stage_name=self._prefix,
                                step_name=step_name,
@@ -71,7 +101,9 @@ class StateSampler(statesampler_impl.StateSampler):
       output_counter = self._counter_factory.get_counter(counter_name,
                                                          Counter.SUM)
       self._states_by_name[counter_name] = super(
-          StateSampler, self)._scoped_state(counter_name, output_counter)
+          StateSampler, self)._scoped_state(counter_name,
+                                            output_counter,
+                                            metrics_container)
       return self._states_by_name[counter_name]
 
   def commit_counters(self):

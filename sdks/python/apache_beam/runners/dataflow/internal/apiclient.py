@@ -25,13 +25,17 @@ import json
 import logging
 import os
 import re
+import tempfile
 import time
 from datetime import datetime
 from StringIO import StringIO
 
+import pkg_resources
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
+import six
 
+from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filesystems import FileSystems
@@ -40,12 +44,12 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
-from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import cy_combiners
+from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
 
@@ -167,11 +171,18 @@ class Environment(object):
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
       runner_harness_override = (
-          dependency.get_runner_harness_container_image())
+          get_runner_harness_container_image())
+      self.debug_options.experiments = self.debug_options.experiments or []
       if runner_harness_override:
-        self.debug_options.experiments = self.debug_options.experiments or []
         self.debug_options.experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
+      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # add the flag if 'no_use_multiple_sdk_containers' is present.
+      # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
+      # till version 2.4.
+      if ('use_multiple_sdk_containers' not in self.proto.experiments and
+          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+        self.debug_options.experiments.append('use_multiple_sdk_containers')
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
@@ -225,7 +236,7 @@ class Environment(object):
           self.worker_options.worker_harness_container_image)
     else:
       pool.workerHarnessContainerImage = (
-          dependency.get_default_container_image_for_current_sdk(job_type))
+          get_default_container_image_for_current_sdk(job_type))
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
@@ -287,7 +298,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return unicode(shortened), length
+      return six.text_type(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
@@ -423,6 +434,19 @@ class DataflowApplicationClient(object):
     with open(from_path, 'rb') as f:
       self.stage_file(to_folder, to_name, f)
 
+  def _stage_resources(self, options):
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    if google_cloud_options.staging_location is None:
+      raise RuntimeError('The --staging_location option must be specified.')
+    if google_cloud_options.temp_location is None:
+      raise RuntimeError('The --temp_location option must be specified.')
+
+    resource_stager = _LegacyDataflowStager(self)
+    return resource_stager.stage_job_resources(
+        options,
+        temp_dir=tempfile.mkdtemp(),
+        staging_location=google_cloud_options.staging_location)
+
   def stage_file(self, gcs_or_local_path, file_name, stream,
                  mime_type='application/octet-stream'):
     """Stages a file at a GCS or local path with stream-supplied contents."""
@@ -487,8 +511,7 @@ class DataflowApplicationClient(object):
                     StringIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
-    resources = dependency.stage_job_resources(
-        job.options, file_copy=self._gcs_file_copy)
+    resources = self._stage_resources(job.options)
 
     job.proto.environment = Environment(
         pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
@@ -722,6 +745,31 @@ class MetricUpdateTranslators(object):
     metric_update_proto.floatingPoint = accumulator.value
 
 
+class _LegacyDataflowStager(Stager):
+  def __init__(self, dataflow_application_client):
+    super(_LegacyDataflowStager, self).__init__()
+    self._dataflow_application_client = dataflow_application_client
+
+  def stage_artifact(self, local_path_to_artifact, artifact_name):
+    self._dataflow_application_client._gcs_file_copy(local_path_to_artifact,
+                                                     artifact_name)
+
+  def commit_manifest(self):
+    pass
+
+  @staticmethod
+  def get_sdk_package_name():
+    """For internal use only; no backwards-compatibility guarantees.
+
+          Returns the PyPI package name to be staged to Google Cloud Dataflow.
+    """
+    sdk_name, _ = get_sdk_name_and_version()
+    if sdk_name == names.GOOGLE_SDK_NAME:
+      return names.GOOGLE_PACKAGE_NAME
+    else:
+      return names.BEAM_PACKAGE_NAME
+
+
 def to_split_int(n):
   res = dataflow.SplitInt64()
   res.lowBits = n & 0xffffffff
@@ -730,12 +778,22 @@ def to_split_int(n):
 
 
 def translate_distribution(distribution_update, metric_update_proto):
-  """Translate metrics DistributionUpdate to dataflow distribution update."""
+  """Translate metrics DistributionUpdate to dataflow distribution update.
+
+  Args:
+    distribution_update: Instance of DistributionData or
+    DataflowDistributionCounter.
+    metric_update_proto: Used for report metrics.
+  """
   dist_update_proto = dataflow.DistributionUpdate()
   dist_update_proto.min = to_split_int(distribution_update.min)
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
+  # DatadflowDistributionCounter needs to translate histogram
+  if isinstance(distribution_update, DataflowDistributionCounter):
+    dist_update_proto.histogram = dataflow.Histogram()
+    distribution_update.translate_to_histogram(dist_update_proto.histogram)
   metric_update_proto.distribution = dist_update_proto
 
 
@@ -759,6 +817,71 @@ def _use_fnapi(pipeline_options):
 
   return standard_options.streaming or (
       debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
+
+
+def get_sdk_name_and_version():
+  """For internal use only; no backwards-compatibility guarantees.
+
+    Returns name and version of SDK reported to Google Cloud Dataflow."""
+  try:
+    pkg_resources.get_distribution(names.GOOGLE_PACKAGE_NAME)
+    return (names.GOOGLE_SDK_NAME, beam_version.__version__)
+  except pkg_resources.DistributionNotFound:
+    return (names.BEAM_SDK_NAME, beam_version.__version__)
+
+
+def get_default_container_image_for_current_sdk(job_type):
+  """For internal use only; no backwards-compatibility guarantees.
+
+    Args:
+      job_type (str): BEAM job type.
+
+    Returns:
+      str: Google Cloud Dataflow container image for remote execution.
+    """
+  # TODO(tvalentyn): Use enumerated type instead of strings for job types.
+  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python-fnapi'
+  else:
+    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
+  image_tag = _get_required_container_version(job_type)
+  return image_name + ':' + image_tag
+
+
+def _get_required_container_version(job_type=None):
+  """For internal use only; no backwards-compatibility guarantees.
+
+    Args:
+      job_type (str, optional): BEAM job type. Defaults to None.
+
+    Returns:
+      str: The tag of worker container images in GCR that corresponds to
+        current version of the SDK.
+    """
+  if 'dev' in beam_version.__version__:
+    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+      return names.BEAM_FNAPI_CONTAINER_VERSION
+    else:
+      return names.BEAM_CONTAINER_VERSION
+  else:
+    return beam_version.__version__
+
+
+def get_runner_harness_container_image():
+  """For internal use only; no backwards-compatibility guarantees.
+
+     Returns:
+       str: Runner harness container image that shall be used by default
+         for current SDK version or None if the runner harness container image
+         bundled with the service shall be used.
+    """
+  # Pin runner harness for released versions of the SDK.
+  if 'dev' not in beam_version.__version__:
+    return (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+            beam_version.__version__)
+  # Don't pin runner harness for dev versions so that we can notice
+  # potential incompatibility between runner and sdk harnesses.
+  return None
 
 
 # To enable a counter on the service, add it to this dictionary.
@@ -796,6 +919,9 @@ structured_counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
+    cy_combiners.DataflowDistributionCounterFn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution)
 }
 
 
@@ -833,4 +959,7 @@ counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
+    cy_combiners.DataflowDistributionCounterFn: (
+        dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution)
 }

@@ -20,7 +20,7 @@ package org.apache.beam.runners.core;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -139,8 +139,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
                       for (WindowedValue<V> value : unsortedValues) {
                         sortedValues.add(value);
                       }
-                      Collections.sort(
-                          sortedValues, (e1, e2) -> e1.getTimestamp().compareTo(e2.getTimestamp()));
+                      sortedValues.sort(Comparator.comparing(WindowedValue::getTimestamp));
                       c.output(KV.of(key, sortedValues));
                     }
                   }))

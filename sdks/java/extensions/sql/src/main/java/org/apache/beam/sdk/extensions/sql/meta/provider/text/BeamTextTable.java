@@ -18,19 +18,16 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
- */
-public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
+/** {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}). */
+public abstract class BeamTextTable extends BaseBeamTable {
   protected String filePattern;
 
-  protected BeamTextTable(BeamRecordSqlType beamRecordSqlType, String filePattern) {
-    super(beamRecordSqlType);
+  protected BeamTextTable(Schema schema, String filePattern) {
+    super(schema);
     this.filePattern = filePattern;
   }
 

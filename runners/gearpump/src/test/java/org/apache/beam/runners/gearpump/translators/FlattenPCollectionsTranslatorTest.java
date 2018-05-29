@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -49,7 +48,7 @@ public class FlattenPCollectionsTranslatorTest {
   private FlattenPCollectionsTranslator translator = new FlattenPCollectionsTranslator();
   private Flatten.PCollections transform = mock(Flatten.PCollections.class);
 
-  class UnboundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
+  private static class UnboundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
     @Override
     public boolean matches(Object o) {
       return o instanceof UnboundedSourceWrapper;

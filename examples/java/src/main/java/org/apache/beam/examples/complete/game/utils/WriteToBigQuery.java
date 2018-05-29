@@ -91,6 +91,7 @@ public class WriteToBigQuery<InputT>
       return this.fieldFn;
     }
   }
+
   /** Convert each key/score pair into a BigQuery TableRow as specified by fieldFn. */
   protected class BuildRowFn extends DoFn<InputT, TableRow> {
 

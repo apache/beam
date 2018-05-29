@@ -711,7 +711,7 @@ public class IsmFormat {
         throws Exception {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
-          + VarInt.getLength(value.getUnsharedKeySize());
+          + (long) VarInt.getLength(value.getUnsharedKeySize());
     }
   }
 

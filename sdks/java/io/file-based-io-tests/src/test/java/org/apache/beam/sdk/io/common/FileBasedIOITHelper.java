@@ -15,8 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.common;
+
+import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+
 
 /**
  * Contains helper methods for file based IO Integration tests.
@@ -51,24 +53,19 @@ public class FileBasedIOITHelper {
     return PipelineOptionsValidator.validate(IOTestPipelineOptions.class, options);
   }
 
-  public static String appendTimestampToPrefix(String filenamePrefix) {
-    return String.format("%s_%s", filenamePrefix, new Date().getTime());
+  public static String appendTimestampSuffix(String text) {
+    return String.format("%s_%s", text, new Date().getTime());
   }
 
   public static String getExpectedHashForLineCount(int lineCount) {
     Map<Integer, String> expectedHashes = ImmutableMap.of(
+        1000, "8604c70b43405ef9803cb49b77235ea2",
         100_000, "4c8bb3b99dcc59459b20fefba400d446",
         1_000_000, "9796db06e7a7960f974d5a91164afff1",
         100_000_000, "6ce05f456e2fdc846ded2abd0ec1de95"
     );
 
-    String hash = expectedHashes.get(lineCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-          String.format("No hash for that line count: %s", lineCount)
-      );
-    }
-    return hash;
+    return getHashForRecordCount(lineCount, expectedHashes);
   }
 
   /**

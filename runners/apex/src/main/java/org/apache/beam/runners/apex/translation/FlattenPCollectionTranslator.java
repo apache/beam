@@ -27,7 +27,6 @@ import java.util.Map;
 import org.apache.beam.runners.apex.translation.operators.ApexFlattenOperator;
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
 import org.apache.beam.runners.apex.translation.utils.ValuesSource;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -50,7 +49,7 @@ class FlattenPCollectionTranslator<T> implements
       // create a dummy source that never emits anything
       @SuppressWarnings("unchecked")
       UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(Collections.EMPTY_LIST,
-          (Coder<T>) VoidCoder.of());
+              VoidCoder.of());
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
           unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);

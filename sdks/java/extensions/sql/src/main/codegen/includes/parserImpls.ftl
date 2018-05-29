@@ -9,81 +9,278 @@
   OF ANY KIND, either express or implied. See the License for the specific
   language governing permissions and limitations under the License. -->
 
-
-private void ColumnDef(List<ColumnDefinition> list) :
+boolean IfNotExistsOpt() :
 {
-    SqlParserPos pos;
-    SqlIdentifier name;
-    SqlDataTypeSpec type;
-    ColumnConstraint constraint = null;
-    SqlNode comment = null;
 }
 {
-    name = SimpleIdentifier() { pos = getPos(); }
-    type = DataType()
+    <IF> <NOT> <EXISTS> { return true; }
+|
+    { return false; }
+}
+
+boolean IfExistsOpt() :
+{
+}
+{
+    <IF> <EXISTS> { return true; }
+|
+    { return false; }
+}
+
+SqlNodeList Options() :
+{
+    final Span s;
+    final List<SqlNode> list = Lists.newArrayList();
+}
+{
+    <OPTIONS> { s = span(); } <LPAREN>
     [
-      <PRIMARY> <KEY>
-      { constraint = new ColumnConstraint.PrimaryKey(getPos()); }
+        Option(list)
+        (
+            <COMMA>
+            Option(list)
+        )*
     ]
-    [
-      <COMMENT> comment = StringLiteral()
-    ]
-    {
-        list.add(new ColumnDefinition(name, type, constraint, comment, pos));
+    <RPAREN> {
+        return new SqlNodeList(list, s.end(this));
     }
 }
 
-SqlNodeList ColumnDefinitionList() :
+void Option(List<SqlNode> list) :
 {
-    SqlParserPos pos;
-    List<ColumnDefinition> list = Lists.newArrayList();
+    final SqlIdentifier id;
+    final SqlNode value;
 }
 {
-    <LPAREN> { pos = getPos(); }
-    ColumnDef(list)
-    ( <COMMA> ColumnDef(list) )*
-    <RPAREN> {
-        return new SqlNodeList(list, pos.plus(getPos()));
+    id = SimpleIdentifier()
+    value = Literal() {
+        list.add(id);
+        list.add(value);
+    }
+}
+
+List<Schema.Field> FieldListParens() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    <LPAREN>
+        fields = FieldListBody()
+    <RPAREN>
+    {
+        return fields;
+    }
+}
+
+List<Schema.Field> FieldListAngular() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    <LT>
+        fields = FieldListBody()
+    <GT>
+    {
+        return fields;
+    }
+}
+
+List<Schema.Field> FieldListBody() :
+{
+    final List<Schema.Field> fields = Lists.newArrayList();
+    Schema.Field field = null;
+}
+{
+    field = Field() { fields.add(field); }
+    (
+        <COMMA> field = Field() { fields.add(field); }
+    )*
+    {
+        return fields;
+    }
+}
+
+Schema.Field Field() :
+{
+    final String name;
+    final Schema.FieldType type;
+    final boolean nullable;
+    Schema.Field field = null;
+    SqlNode comment = null;
+}
+{
+    name = Identifier()
+    type = FieldType()
+    {
+        field = Schema.Field.of(name.toLowerCase(), type);
+    }
+    (
+        <NULL> { field = field.withNullable(true); }
+    |
+        <NOT> <NULL> { field = field.withNullable(false); }
+    |
+        { field = field.withNullable(true); }
+    )
+    [
+        <COMMENT> comment = StringLiteral()
+        {
+            if (comment != null) {
+                String commentString =
+                    ((NlsString) SqlLiteral.value(comment)).getValue();
+                field = field.withDescription(commentString);
+            }
+        }
+    ]
+    {
+        return field;
     }
 }
 
 /**
+ * Note: This example is probably out of sync with the code.
+ *
  * CREATE TABLE ( IF NOT EXISTS )?
- *   ( database_name '.' )? table_name ( '(' column_def ( ',' column_def )* ')'
- *   ( STORED AS INPUTFORMAT input_format_classname OUTPUTFORMAT output_format_classname )?
- *   LOCATION location_uri
+ *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
+ *   TYPE type_name
+ *   ( COMMENT comment_string )?
+ *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
- *   ( AS select_stmt )
  */
-SqlNode SqlCreateTable() :
+SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
-    SqlParserPos pos;
-    SqlIdentifier tblName;
-    SqlNodeList fieldList;
+    final boolean ifNotExists;
+    final SqlIdentifier id;
+    List<Schema.Field> fieldList = null;
     SqlNode type = null;
     SqlNode comment = null;
     SqlNode location = null;
-    SqlNode tbl_properties = null;
-    SqlNode select = null;
+    SqlNode tblProperties = null;
 }
 {
-    <CREATE> { pos = getPos(); }
-    <TABLE>
-    tblName = CompoundIdentifier()
-    fieldList = ColumnDefinitionList()
-    <TYPE>
-    type = StringLiteral()
-    [
-    <COMMENT>
-    comment = StringLiteral()
-    ]
-    [
-    <LOCATION>
-    location = StringLiteral()
-    ]
-    [ <TBLPROPERTIES> tbl_properties = StringLiteral() ]
-    [ <AS> select = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) ] {
-        return new SqlCreateTable(pos, tblName, fieldList, type, comment,
-        location, tbl_properties, select);
+    <TABLE> ifNotExists = IfNotExistsOpt()
+    id = CompoundIdentifier()
+    fieldList = FieldListParens()
+    <TYPE> type = StringLiteral()
+    [ <COMMENT> comment = StringLiteral() ]
+    [ <LOCATION> location = StringLiteral() ]
+    [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
+    {
+        return
+            new SqlCreateTable(
+                s.end(this),
+                replace,
+                ifNotExists,
+                id,
+                fieldList,
+                type,
+                comment,
+                location,
+                tblProperties);
     }
 }
+
+SqlDrop SqlDropTable(Span s, boolean replace) :
+{
+    final boolean ifExists;
+    final SqlIdentifier id;
+}
+{
+    <TABLE> ifExists = IfExistsOpt() id = CompoundIdentifier() {
+        return SqlDdlNodes.dropTable(s.end(this), ifExists, id);
+    }
+}
+
+Schema.FieldType FieldType() :
+{
+    final SqlTypeName collectionTypeName;
+    Schema.FieldType fieldType;
+    final Span s = Span.of();
+}
+{
+    (
+        fieldType = Map()
+    |
+        fieldType = Array()
+    |
+        fieldType = Row()
+    |
+        fieldType = SimpleType()
+    )
+    {
+        return fieldType;
+    }
+}
+
+Schema.FieldType Array() :
+{
+    final Schema.FieldType arrayElementType;
+}
+{
+    <ARRAY> <LT> arrayElementType = FieldType() <GT>
+    {
+        return Schema.TypeName.ARRAY.type()
+            .withCollectionElementType(arrayElementType);
+    }
+
+}
+
+Schema.FieldType Map() :
+{
+    final Schema.FieldType mapKeyType;
+    final Schema.FieldType mapValueType;
+}
+{
+    <MAP>
+        <LT>
+            mapKeyType = SimpleType()
+        <COMMA>
+            mapValueType = FieldType()
+        <GT>
+    {
+        return Schema.TypeName.MAP.type()
+            .withMapType(mapKeyType, mapValueType);
+    }
+}
+
+Schema.FieldType Row() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    <ROW> fields = RowFields()
+    {
+        Schema rowSchema = Schema.builder().addFields(fields).build();
+        return Schema.TypeName.ROW.type()
+            .withRowSchema(rowSchema);
+    }
+}
+
+List<Schema.Field> RowFields() :
+{
+    final List<Schema.Field> fields;
+}
+{
+    (
+        fields = FieldListParens()
+    |
+        fields = FieldListAngular()
+    )
+    {
+        return fields;
+    }
+}
+
+Schema.FieldType SimpleType() :
+{
+    final Span s = Span.of();
+    final SqlTypeName simpleTypeName;
+}
+{
+    simpleTypeName = SqlTypeName(s)
+    {
+        s.end(this);
+        return CalciteUtils.toFieldType(simpleTypeName);
+    }
+}
+
+// End parserImpls.ftl

@@ -96,7 +96,7 @@ def annotate(label, since, current, extra_message):
       message += '. Use %s instead.' % current if current else '.'
       if extra_message:
         message += '. ' + extra_message
-      warnings.warn(message, warning_type)
+      warnings.warn(message, warning_type, stacklevel=2)
       return fnc(*args, **kwargs)
     return inner
   return _annotate

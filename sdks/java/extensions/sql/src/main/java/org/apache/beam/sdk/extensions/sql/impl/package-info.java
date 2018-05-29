@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Implementation classes of BeamSql.
- */
+/** Implementation classes of BeamSql. */
 package org.apache.beam.sdk.extensions.sql.impl;

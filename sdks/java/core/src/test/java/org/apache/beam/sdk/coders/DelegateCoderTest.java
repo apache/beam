@@ -104,9 +104,6 @@ public class DelegateCoderTest implements Serializable {
     CoderProperties.coderSerializable(TEST_CODER);
   }
 
-  private static final String TEST_ENCODING_ID = "test-encoding-id";
-  private static final String TEST_ALLOWED_ENCODING = "test-allowed-encoding";
-
   @Test
   public void testCoderEquals() throws Exception {
     DelegateCoder.CodingFunction<Integer, Integer> identityFn = input -> input;
@@ -126,8 +123,8 @@ public class DelegateCoderTest implements Serializable {
     assertThat(
         DelegateCoder.of(
                 StringUtf8Coder.of(),
-                input -> String.valueOf(input),
-                input -> Integer.valueOf(input),
+                String::valueOf,
+                Integer::valueOf,
                 new TypeDescriptor<Integer>() {})
             .getEncodedTypeDescriptor(),
         equalTo(TypeDescriptor.of(Integer.class)));

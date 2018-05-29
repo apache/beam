@@ -17,13 +17,9 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.transform;
-
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
-import com.google.common.base.Function;
-
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
 
 /**
  * Represents the output of 'get' operation on Kinesis stream.
@@ -36,15 +32,10 @@ class GetKinesisRecordsResult {
 
   public GetKinesisRecordsResult(List<UserRecord> records, String nextShardIterator,
       long millisBehindLatest, final String streamName, final String shardId) {
-    this.records = transform(records, new Function<UserRecord, KinesisRecord>() {
-
-      @Nullable
-      @Override
-      public KinesisRecord apply(@Nullable UserRecord input) {
-        assert input != null;  // to make FindBugs happy
-        return new KinesisRecord(input, streamName, shardId);
-      }
-    });
+    this.records = records.stream().map(input -> {
+      assert input != null;  // to make FindBugs happy
+      return new KinesisRecord(input, streamName, shardId);
+    }).collect(Collectors.toList());
     this.nextShardIterator = nextShardIterator;
     this.millisBehindLatest = millisBehindLatest;
   }

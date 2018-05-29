@@ -45,7 +45,12 @@ public enum NexmarkSuite {
   /**
    * As for SMOKE, but with 1b/100m events.
    */
-  FULL_THROTTLE(fullThrottle());
+  FULL_THROTTLE(fullThrottle()),
+
+  /**
+   * Query 10, at high volume with no autoscaling.
+   */
+  LONG_RUNNING_LOGGER(longRunningLogger());
 
   private static List<NexmarkConfiguration> defaultConf() {
     List<NexmarkConfiguration> configurations = new ArrayList<>();
@@ -86,6 +91,30 @@ public enum NexmarkSuite {
         configuration.numEvents *= 1000;
       }
     }
+    return configurations;
+  }
+
+  private static List<NexmarkConfiguration> longRunningLogger() {
+    NexmarkConfiguration configuration = NexmarkConfiguration.DEFAULT.copy();
+    configuration.numEventGenerators = 10;
+
+    configuration.query = 10;
+    configuration.isRateLimited = true;
+    configuration.sourceType = NexmarkUtils.SourceType.PUBSUB;
+    configuration.numEvents = 0; // as many as possible without overflow.
+    configuration.avgPersonByteSize = 500;
+    configuration.avgAuctionByteSize = 500;
+    configuration.avgBidByteSize = 500;
+    configuration.windowSizeSec = 300;
+    configuration.occasionalDelaySec = 360;
+    configuration.probDelayedEvent = 0.001;
+    configuration.useWallclockEventTime = true;
+    configuration.firstEventRate = 60000;
+    configuration.nextEventRate = 60000;
+    configuration.maxLogEvents = 15000;
+
+    List<NexmarkConfiguration> configurations = new ArrayList<>();
+    configurations.add(configuration);
     return configurations;
   }
 

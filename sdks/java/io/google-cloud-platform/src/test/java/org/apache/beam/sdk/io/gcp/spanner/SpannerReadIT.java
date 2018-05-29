@@ -39,8 +39,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -108,32 +111,34 @@ public class SpannerReadIT {
                     + "  Value         STRING(MAX),"
                     + ") PRIMARY KEY (Key)"));
     op.waitFor();
+    makeTestData();
   }
 
   @Test
   public void testRead() throws Exception {
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(
-            DatabaseId.of(
-                project, options.getInstanceId(), databaseName));
 
-    List<Mutation> mutations = new ArrayList<>();
-    for (int i = 0; i < 5L; i++) {
-      mutations.add(
-          Mutation.newInsertOrUpdateBuilder(options.getTable())
-              .set("key")
-              .to((long) i)
-              .set("value")
-              .to(RandomUtils.randomAlphaNumeric(100))
-              .build());
-    }
+    SpannerConfig spannerConfig = createSpannerConfig();
 
-    databaseClient.writeAtLeastOnce(mutations);
+    PCollectionView<Transaction> tx =
+        p.apply(
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
 
-    SpannerConfig spannerConfig = SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(databaseName);
+    PCollection<Struct> output =
+        p.apply(
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withTable(options.getTable())
+                .withColumns("Key", "Value")
+                .withTransaction(tx));
+    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+    p.run();
+  }
+
+  @Test
+  public void testQuery() throws Exception {
+    SpannerConfig spannerConfig = createSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -149,6 +154,62 @@ public class SpannerReadIT {
                 .withTransaction(tx));
     PAssert.thatSingleton(output.apply("Count rows", Count.globally())).isEqualTo(5L);
     p.run();
+  }
+
+  @Test
+  public void testReadAllRecordsInDb() throws Exception {
+    SpannerConfig spannerConfig = createSpannerConfig();
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> allRecords = p.apply(SpannerIO.read()
+        .withSpannerConfig(spannerConfig)
+        .withBatching(false)
+        .withQuery("SELECT t.table_name FROM information_schema.tables AS t WHERE t"
+            + ".table_catalog = '' AND t.table_schema = ''")).apply(
+        MapElements.into(TypeDescriptor.of(ReadOperation.class))
+            .via((SerializableFunction<Struct, ReadOperation>) input -> {
+              String tableName = input.getString(0);
+              return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
+            })).apply(SpannerIO.readAll().withTransaction(tx).withSpannerConfig(spannerConfig));
+
+    PAssert.thatSingleton(allRecords.apply("Count rows", Count.globally())).isEqualTo(5L);
+    p.run();
+  }
+
+  private void makeTestData() {
+    DatabaseClient databaseClient = getDatabaseClient();
+
+    List<Mutation> mutations = new ArrayList<>();
+    for (int i = 0; i < 5L; i++) {
+      mutations.add(
+          Mutation.newInsertOrUpdateBuilder(options.getTable())
+              .set("key")
+              .to((long) i)
+              .set("value")
+              .to(RandomUtils.randomAlphaNumeric(100))
+              .build());
+    }
+
+    databaseClient.writeAtLeastOnce(mutations);
+  }
+
+  private SpannerConfig createSpannerConfig() {
+    return SpannerConfig.create()
+        .withProjectId(project)
+        .withInstanceId(options.getInstanceId())
+        .withDatabaseId(databaseName);
+  }
+
+
+  private DatabaseClient getDatabaseClient() {
+    return spanner.getDatabaseClient(
+        DatabaseId.of(
+            project, options.getInstanceId(), databaseName));
   }
 
   @After

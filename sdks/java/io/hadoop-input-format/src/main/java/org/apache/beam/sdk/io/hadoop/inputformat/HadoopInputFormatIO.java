@@ -19,12 +19,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -62,6 +63,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,6 +165,21 @@ import org.slf4j.LoggerFactory;
  *              .withValueTranslation(myOutputValueType);
  * }
  * </pre>
+ *
+ * <p>IMPORTANT! In case of using {@code DBInputFormat} to read data from RDBMS, Beam parallelizes
+ * the process by using LIMIT and OFFSET clauses of SQL query to fetch different ranges of records
+ * (as a split) by different workers. To guarantee the same order and proper split of results you
+ * need to order them by one or more keys (either PRIMARY or UNIQUE). It can be done during
+ * configuration step, for example:
+ *
+ * <pre>
+ * {@code
+ * Configuration conf = new Configuration();
+ * conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
+ * conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
+ * conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
+ * }
+ * </pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class HadoopInputFormatIO {
@@ -218,6 +235,7 @@ public class HadoopInputFormatIO {
     }
 
     /** Reads from the source using the options provided by the given configuration. */
+    @SuppressWarnings("unchecked")
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
       TypeDescriptor<?> inputFormatClass =
@@ -283,7 +301,9 @@ public class HadoopInputFormatIO {
 
     /**
      * Validates that the mandatory configuration properties such as InputFormat class, InputFormat
-     * key and value classes are provided in the Hadoop configuration.
+     * key and value classes are provided in the Hadoop configuration. In case of using {@code
+     * DBInputFormat} you need to order results by one or more keys. It can be done by setting
+     * configuration option "mapreduce.jdbc.input.orderby".
      */
     private void validateConfiguration(Configuration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
@@ -294,6 +314,13 @@ public class HadoopInputFormatIO {
           configuration.get("key.class") != null, "configuration must contain \"key.class\"");
       checkArgument(
           configuration.get("value.class") != null, "configuration must contain \"value.class\"");
+      if (configuration.get("mapreduce.job.inputformat.class").endsWith("DBInputFormat")) {
+        checkArgument(
+            configuration.get(DBConfiguration.INPUT_ORDER_BY_PROPERTY) != null,
+            "Configuration must contain \""
+                + DBConfiguration.INPUT_ORDER_BY_PROPERTY
+                + "\" when using DBInputFormat");
+      }
     }
 
     /**
@@ -316,11 +343,9 @@ public class HadoopInputFormatIO {
      */
     private void validateTranslationFunction(TypeDescriptor<?> inputType,
         SimpleFunction<?, ?> simpleFunction, String errorMsg) {
-      if (simpleFunction != null) {
-        if (!simpleFunction.getInputTypeDescriptor().equals(inputType)) {
-          throw new IllegalArgumentException(
-              String.format(errorMsg, getinputFormatClass().getRawType(), inputType.getRawType()));
-        }
+      if (simpleFunction != null && !simpleFunction.getInputTypeDescriptor().equals(inputType)) {
+        throw new IllegalArgumentException(
+            String.format(errorMsg, getinputFormatClass().getRawType(), inputType.getRawType()));
       }
     }
 
@@ -329,6 +354,7 @@ public class HadoopInputFormatIO {
      * coder, if not found in Coder Registry, then check if the type descriptor provided is of type
      * Writable, then WritableCoder is returned, else exception is thrown "Cannot find coder".
      */
+    @SuppressWarnings({"unchecked", "WeakerAccess"})
     public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
       Class classType = typeDesc.getRawType();
       try {
@@ -388,6 +414,7 @@ public class HadoopInputFormatIO {
           null);
     }
 
+    @SuppressWarnings("WeakerAccess")
     protected HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
         Coder<K> keyCoder,
@@ -403,6 +430,7 @@ public class HadoopInputFormatIO {
       this.valueTranslationFunction = valueTranslationFunction;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public SerializableConfiguration getConfiguration() {
       return conf;
     }
@@ -441,21 +469,23 @@ public class HadoopInputFormatIO {
         return ImmutableList.of((BoundedSource<KV<K, V>>) this);
       }
       computeSplitsIfNecessary();
-      LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(), inputSplits
-          .get(0).getSplit().getLength());
-      return Lists.transform(
-          inputSplits,
-          serializableInputSplit -> {
-            HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                new HadoopInputFormatBoundedSource<>(
+      LOG.info(
+          "Generated {} splits. Size of first split is {} ",
+          inputSplits.size(),
+          inputSplits.get(0).getSplit().getLength());
+      return inputSplits
+          .stream()
+          .map(
+              serializableInputSplit -> {
+                return new HadoopInputFormatBoundedSource<>(
                     conf,
                     keyCoder,
                     valueCoder,
                     keyTranslationFunction,
                     valueTranslationFunction,
                     serializableInputSplit);
-            return hifBoundedSource;
-          });
+              })
+          .collect(Collectors.toList());
     }
 
     @Override
@@ -504,6 +534,7 @@ public class HadoopInputFormatIO {
      * Creates instance of InputFormat class. The InputFormat class name is specified in the Hadoop
      * configuration.
      */
+    @SuppressWarnings("WeakerAccess")
     protected void createInputFormatInstance() throws IOException {
       if (inputFormatObj == null) {
         try {
@@ -514,6 +545,7 @@ public class HadoopInputFormatIO {
                   .get()
                   .getClassByName(
                       conf.get().get("mapreduce.job.inputformat.class"))
+                  .getConstructor()
                   .newInstance();
           /*
            * If InputFormat explicitly implements interface {@link Configurable}, then setConf()
@@ -525,14 +557,18 @@ public class HadoopInputFormatIO {
           if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
             ((Configurable) inputFormatObj).setConf(conf.get());
           }
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+        } catch (InstantiationException
+            | IllegalAccessException
+            | ClassNotFoundException
+            | NoSuchMethodException
+            | InvocationTargetException e) {
           throw new IOException("Unable to create InputFormat object: ", e);
         }
       }
     }
 
     @VisibleForTesting
-    InputFormat<?, ?> getInputFormat(){
+    InputFormat<?, ?> getInputFormat() {
       return inputFormatObj;
     }
 
@@ -577,13 +613,15 @@ public class HadoopInputFormatIO {
       private final SerializableSplit split;
       private RecordReader<T1, T2> recordReader;
       private volatile boolean doneReading = false;
-      private AtomicLong recordsReturned = new AtomicLong();
+      private final AtomicLong recordsReturned = new AtomicLong();
       // Tracks the progress of the RecordReader.
-      private AtomicDouble progressValue = new AtomicDouble();
-      private transient InputFormat<T1, T2> inputFormatObj;
-      private transient TaskAttemptContext taskAttemptContext;
+      private final AtomicDouble progressValue = new AtomicDouble();
+      private final transient InputFormat<T1, T2> inputFormatObj;
+      private final transient TaskAttemptContext taskAttemptContext;
 
-      private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
+      @SuppressWarnings("unchecked")
+      private HadoopInputFormatReader(
+          HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
           @Nullable SimpleFunction valueTranslationFunction,
           SerializableSplit split,
@@ -669,12 +707,14 @@ public class HadoopInputFormatIO {
 
       /**
        * Returns the serialized output of transformed key or value object.
+       *
        * @throws ClassCastException
        * @throws CoderException
        */
-      private <T, T3> T3 transformKeyOrValue(T input,
-          @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder) throws CoderException,
-          ClassCastException {
+      @SuppressWarnings("unchecked")
+      private <T, T3> T3 transformKeyOrValue(
+          T input, @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder)
+          throws CoderException, ClassCastException {
         T3 output;
         if (null != simpleFunction) {
           output = simpleFunction.apply(input);
@@ -750,9 +790,9 @@ public class HadoopInputFormatIO {
         if (doneReading) {
           return 0;
         }
-        /**
-         * This source does not currently support dynamic work rebalancing, so remaining parallelism
-         * is always 1.
+        /*
+          This source does not currently support dynamic work rebalancing, so remaining parallelism
+          is always 1.
          */
         return 1;
       }
@@ -775,11 +815,12 @@ public class HadoopInputFormatIO {
       this.inputSplit = split;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public InputSplit getSplit() {
       return inputSplit;
     }
 
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException {
       ObjectWritable ow = new ObjectWritable();
       ow.setConf(new Configuration(false));
       ow.readFields(in);

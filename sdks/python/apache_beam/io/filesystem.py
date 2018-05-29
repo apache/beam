@@ -14,17 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""File system abstraction for file-based sources and sinks."""
+"""File system abstraction for file-based sources and sinks.
+
+Note to implementors:
+  "path" arguments will be URLs in the form scheme://foo/bar. The exception is
+  LocalFileSystem, which gets unix-style paths in the form /foo/bar.
+"""
 
 from __future__ import absolute_import
 
 import abc
 import bz2
 import cStringIO
+import fnmatch
 import logging
 import os
+import posixpath
+import re
 import time
 import zlib
+
+from six import integer_types
+from six import string_types
 
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -371,8 +382,8 @@ class FileMetadata(object):
   """Metadata about a file path that is the output of FileSystem.match
   """
   def __init__(self, path, size_in_bytes):
-    assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+    assert isinstance(path, string_types) and path, "Path should be a string"
+    assert isinstance(size_in_bytes, integer_types) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
@@ -434,7 +445,8 @@ class FileSystem(BeamPlugin):
   def __init__(self, pipeline_options):
     """
     Args:
-      pipeline_options: Instance of ``PipelineOptions``.
+      pipeline_options: Instance of ``PipelineOptions`` or dict of options and
+        values (like ``RuntimeValueProvider.runtime_options``).
     """
 
   @staticmethod
@@ -494,8 +506,48 @@ class FileSystem(BeamPlugin):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def has_dirs(self):
+    """Whether this FileSystem supports directories."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def _list(self, dir_or_prefix):
+    """List files in a location.
+
+    Listing is non-recursive (for filesystems that support directories).
+
+    Args:
+      dir_or_prefix: (string) A directory or location prefix (for filesystems
+        that don't have directories).
+
+    Returns:
+      Generator of ``FileMetadata`` objects.
+
+    Raises:
+      ``BeamIOError`` if listing fails, but not if no files were found.
+    """
+    raise NotImplementedError
+
+  @staticmethod
+  def _url_dirname(url_or_path):
+    """Like posixpath.dirname, but preserves scheme:// prefix.
+
+    Args:
+      url_or_path: A string in the form of scheme://some/path OR /some/path.
+    """
+    match = re.match(r'([a-z]+://)(.*)', url_or_path)
+    if match is None:
+      return posixpath.dirname(url_or_path)
+    url_prefix, path = match.groups()
+    return url_prefix + posixpath.dirname(path)
+
   def match(self, patterns, limits=None):
     """Find all matching paths to the patterns provided.
+
+    Pattern matching is done using fnmatch.fnmatch.
+    For filesystems that have directories, matching is not recursive. Patterns
+    like scheme://path/*/foo will not match anything.
+    Patterns ending with '/' will be appended with '*'.
 
     Args:
       patterns: list of string for the file path pattern to match against
@@ -506,7 +558,52 @@ class FileSystem(BeamPlugin):
     Raises:
       ``BeamIOError`` if any of the pattern match operations fail
     """
-    raise NotImplementedError
+    if limits is None:
+      limits = [None] * len(patterns)
+    else:
+      err_msg = "Patterns and limits should be equal in length"
+      assert len(patterns) == len(limits), err_msg
+
+    def _match(pattern, limit):
+      """Find all matching paths to the pattern provided."""
+      if pattern.endswith('/'):
+        pattern += '*'
+      # Get the part of the pattern before the first globbing character.
+      # For example scheme://path/foo* will become scheme://path/foo for
+      # filesystems like GCS, or converted to scheme://path for filesystems with
+      # directories.
+      prefix_or_dir = re.match('^[^[*?]*', pattern).group(0)
+
+      file_metadatas = []
+      if prefix_or_dir == pattern:
+        # Short-circuit calling self.list() if there's no glob pattern to match.
+        if self.exists(pattern):
+          file_metadatas = [FileMetadata(pattern, self.size(pattern))]
+      else:
+        if self.has_dirs():
+          prefix_or_dir = self._url_dirname(prefix_or_dir)
+        file_metadatas = self._list(prefix_or_dir)
+
+      metadata_list = []
+      for file_metadata in file_metadatas:
+        if limit is not None and len(metadata_list) >= limit:
+          break
+        if fnmatch.fnmatch(file_metadata.path, pattern):
+          metadata_list.append(file_metadata)
+
+      return MatchResult(pattern, metadata_list)
+
+    exceptions = {}
+    result = []
+    for pattern, limit in zip(patterns, limits):
+      try:
+        result.append(_match(pattern, limit))
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[pattern] = e
+
+    if exceptions:
+      raise BeamIOError("Match operation failed", exceptions)
+    return result
 
   @abc.abstractmethod
   def create(self, path, mime_type='application/octet-stream',
@@ -571,6 +668,41 @@ class FileSystem(BeamPlugin):
       path: string path that needs to be checked.
 
     Returns: boolean flag indicating if path exists
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def size(self, path):
+    """Get size in bytes of a file on the FileSystem.
+
+    Args:
+      path: string filepath of file.
+
+    Returns: int size of file according to the FileSystem.
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    raise NotImplementedError
+
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns checksum metadata as stored in the underlying
+    FileSystem. It should not need to read file data to obtain this value.
+    Checksum type and format are FileSystem dependent and are not compatible
+    between FileSystems.
+    FileSystem implementations may return file size if a checksum isn't
+    available.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
     """
     raise NotImplementedError
 

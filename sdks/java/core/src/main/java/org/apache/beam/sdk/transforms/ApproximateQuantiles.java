@@ -420,7 +420,8 @@ public class ApproximateQuantiles {
       this.numQuantiles = numQuantiles;
       this.numBuffers = numBuffers;
       this.bufferSize = bufferSize;
-      this.buffers = new PriorityQueue<>(numBuffers + 1);
+      this.buffers = new PriorityQueue<>(numBuffers + 1,
+          (q1, q2) -> Integer.compare(q1.level, q2.level));
       this.min = min;
       this.max = max;
       this.unbufferedElements.addAll(unbufferedElements);
@@ -477,7 +478,7 @@ public class ApproximateQuantiles {
     private void addUnbuffered(T elem) {
       unbufferedElements.add(elem);
       if (unbufferedElements.size() == bufferSize) {
-        Collections.sort(unbufferedElements, compareFn);
+        unbufferedElements.sort(compareFn);
         buffers.add(new QuantileBuffer<>(unbufferedElements));
         unbufferedElements = Lists.newArrayListWithCapacity(bufferSize);
         collapseIfNeeded();
@@ -509,7 +510,7 @@ public class ApproximateQuantiles {
     }
 
     public boolean isEmpty() {
-      return unbufferedElements.size() == 0 && buffers.size() == 0;
+      return unbufferedElements.isEmpty() && buffers.isEmpty();
     }
 
     private void collapseIfNeeded() {
@@ -605,7 +606,7 @@ public class ApproximateQuantiles {
       }
       List<QuantileBuffer<T>> all = Lists.newArrayList(buffers);
       if (!unbufferedElements.isEmpty()) {
-        Collections.sort(unbufferedElements, compareFn);
+        unbufferedElements.sort(compareFn);
         all.add(new QuantileBuffer<>(unbufferedElements));
       }
       double step = 1.0 * totalCount / (numQuantiles - 1);
@@ -620,7 +621,7 @@ public class ApproximateQuantiles {
   /**
    * A single buffer in the sense of the referenced algorithm.
    */
-  private static class QuantileBuffer<T> implements Comparable<QuantileBuffer<T>> {
+  private static class QuantileBuffer<T> {
     private int level;
     private long weight;
     private List<T> elements;
@@ -633,11 +634,6 @@ public class ApproximateQuantiles {
       this.level = level;
       this.weight = weight;
       this.elements = elements;
-    }
-
-    @Override
-    public int compareTo(QuantileBuffer<T> other) {
-      return this.level - other.level;
     }
 
     @Override

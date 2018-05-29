@@ -210,7 +210,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     }
 
     @Override
-    public int write(ByteBuffer src) throws IOException {
+    public int write(ByteBuffer src) {
       throw new UnsupportedOperationException();
     }
 
@@ -240,7 +240,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     }
 
     @Override
-    public SeekableByteChannel truncate(long size) throws IOException {
+    public SeekableByteChannel truncate(long size) {
       throw new UnsupportedOperationException();
     }
 

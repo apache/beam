@@ -64,14 +64,17 @@ public class MergeOverlappingIntervalWindows {
   private static class MergeCandidate {
     @Nullable private IntervalWindow union;
     private final List<IntervalWindow> parts;
+
     public MergeCandidate() {
       union = null;
       parts = new ArrayList<>();
     }
+
     public MergeCandidate(IntervalWindow window) {
       union = window;
       parts = new ArrayList<>(Arrays.asList(window));
     }
+
     public boolean intersects(IntervalWindow window) {
       return union == null || union.intersects(window);
     }

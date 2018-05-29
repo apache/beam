@@ -19,18 +19,20 @@ package org.apache.beam.sdk.io.kinesis;
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-
+import com.amazonaws.services.kinesis.producer.IKinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import java.io.Serializable;
 
 /**
  * Provides instances of AWS clients.
  *
- * <p>Please note, that any instance of {@link AWSClientsProvider} must be
- * {@link Serializable} to ensure it can be sent to worker machines.
+ * <p>Please note, that any instance of {@link AWSClientsProvider} must be {@link Serializable} to
+ * ensure it can be sent to worker machines.
  */
 public interface AWSClientsProvider extends Serializable {
-
   AmazonKinesis getKinesisClient();
 
   AmazonCloudWatch getCloudWatchClient();
+
+  IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config);
 }

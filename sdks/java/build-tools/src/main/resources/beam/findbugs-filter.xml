@@ -39,47 +39,6 @@
           unapproved artifact license.
 	-->
   <Match>
-    <Class name="org.apache.beam.fn.harness.control.BeamFnControlClient$InboundObserver"/>
-    <Method name="onCompleted"/>
-    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
-    <!--
-    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
-    https://github.com/findbugsproject/findbugs/issues/79
-    -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver"/>
-    <Method name="receive"/>
-    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
-    <!--
-    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
-    https://github.com/findbugsproject/findbugs/issues/79
-    -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.fn.harness.logging.BeamFnLoggingClient$LogControlObserver"/>
-    <Method name="onCompleted"/>
-    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
-    <!--
-    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
-    https://github.com/findbugsproject/findbugs/issues/79
-    -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.fn.harness.data.CompletableFutureInboundDataClient"/>
-    <Method name="complete"/>
-    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
-    <!--
-    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
-    https://github.com/findbugsproject/findbugs/issues/79
-    -->
-  </Match>
-
-
-  <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
     <Field name="schema"/>
     <Bug pattern="SE_BAD_FIELD"/>
@@ -146,6 +105,13 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
+    <Method name="equals" />
+    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+    <!-- Comparing doubles directly since equals method is only used in coder test. -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
     <Method name="readAll" />
     <Bug pattern="EI_EXPOSE_REP"/>
@@ -175,6 +141,18 @@
 
   <Match>
     <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$QueueMessageReceiver" />
+    <Or>
+      <Method name="failed" />
+      <Method name="cancelled" />
+      <Method name="completed" />
+    </Or>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+    <!-- updates is a non-capacity-limited LinkedBlockingQueue, which
+      can never refuse an offered update -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.direct.portable.ExecutorServiceParallelExecutor$QueueMessageReceiver" />
     <Or>
       <Method name="failed" />
       <Method name="cancelled" />
@@ -337,16 +315,13 @@
     <!--[BEAM-407] Inconsistent synchronization -->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$QuantileBuffer"/>
-    <Method name="compareTo"/>
-    <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
-    <!--[BEAM-410] Class defines compareTo(...) and uses Object.equals()-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
-    <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
+    <!--
+      The class is not meant to be serializable, writeObject() just throws an exception. Therefore
+      it's reasonable for this field to also not be serializable.
+    -->
   </Match>
   <Match>
     <Class name="org.apache.beam.runners.core.WatermarkHold"/>
@@ -399,5 +374,12 @@
   Classes in this package is auto-generated, let's disable the findbugs for it.
   -->
     <Package name="org.apache.beam.sdk.extensions.sql.impl.parser.impl"/>
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory$SimpleStageBundleFactory"/>
+    <Field name="wrappedClient"/>
+    <Bug pattern="URF_UNREAD_FIELD"/>
+    <!-- Fix build. -->
   </Match>
 </FindBugsFilter>

@@ -228,7 +228,7 @@ public class MongoDbIO {
      * Sets the user defined number of splits.
      */
     public Read withNumSplits(int numSplits) {
-      checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %d", numSplits);
+      checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %s", numSplits);
       return builder().setNumSplits(numSplits).build();
     }
 
@@ -316,8 +316,8 @@ public class MongoDbIO {
         }
 
         // the desired batch size is small, using default chunk size of 1MB
-        if (desiredBundleSizeBytes < 1024 * 1024) {
-          desiredBundleSizeBytes = 1 * 1024 * 1024;
+        if (desiredBundleSizeBytes < 1024L * 1024L) {
+          desiredBundleSizeBytes = 1L * 1024L * 1024L;
         }
 
         // now we have the batch size (provided by user or provided by the runner)
@@ -597,7 +597,7 @@ public class MongoDbIO {
      * Define the size of the batch to group write operations.
      */
     public Write withBatchSize(long batchSize) {
-      checkArgument(batchSize >= 0, "Batch size must be >= 0, but was %d", batchSize);
+      checkArgument(batchSize >= 0, "Batch size must be >= 0, but was %s", batchSize);
       return builder().setBatchSize(batchSize).build();
     }
 

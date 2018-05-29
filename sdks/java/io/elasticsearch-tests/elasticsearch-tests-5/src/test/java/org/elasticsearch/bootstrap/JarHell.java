@@ -17,9 +17,6 @@
  */
 package org.elasticsearch.bootstrap;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-
 /**
  * We need a real Elasticsearch instance to properly test the IO
  * (split, slice API, scroll API, ...). Starting at ES 5, to have Elasticsearch embedded,
@@ -34,6 +31,7 @@ import java.net.URISyntaxException;
 class JarHell {
 
 
-  public static void checkJarHell() throws IOException, URISyntaxException {
+  @SuppressWarnings("EmptyMethod")
+  public static void checkJarHell() {
   }
 }

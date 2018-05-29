@@ -201,6 +201,11 @@ public class ReadTest implements Serializable{
     }
 
     @Override
+    public boolean requiresDeduping() {
+      return true;
+    }
+
+    @Override
     public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }

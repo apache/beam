@@ -18,94 +18,80 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
-/**
- * Tests for WHERE queries with BOUNDED PCollection.
- */
+/** Tests for WHERE queries with BOUNDED PCollection. */
 public class BeamSqlDslFilterTest extends BeamSqlDslBase {
-  /**
-   * single filter with bounded PCollection.
-   */
+  /** single filter with bounded PCollection. */
   @Test
   public void testSingleFilterWithBounded() throws Exception {
     runSingleFilter(boundedInput1);
   }
 
-  /**
-   * single filter with unbounded PCollection.
-   */
+  /** single filter with unbounded PCollection. */
   @Test
   public void testSingleFilterWithUnbounded() throws Exception {
     runSingleFilter(unboundedInput1);
   }
 
-  private void runSingleFilter(PCollection<BeamRecord> input) throws Exception {
+  private void runSingleFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
-    PCollection<BeamRecord> result =
-        input.apply("testSingleFilter", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("testSingleFilter", BeamSql.query(sql));
 
-    PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
+    PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * composite filters with bounded PCollection.
-   */
+  /** composite filters with bounded PCollection. */
   @Test
   public void testCompositeFilterWithBounded() throws Exception {
     runCompositeFilter(boundedInput1);
   }
 
-  /**
-   * composite filters with unbounded PCollection.
-   */
+  /** composite filters with unbounded PCollection. */
   @Test
   public void testCompositeFilterWithUnbounded() throws Exception {
     runCompositeFilter(unboundedInput1);
   }
 
-  private void runCompositeFilter(PCollection<BeamRecord> input) throws Exception {
-    String sql = "SELECT * FROM TABLE_A"
-        + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
+  private void runCompositeFilter(PCollection<Row> input) throws Exception {
+    String sql =
+        "SELECT * FROM TABLE_A"
+            + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testCompositeFilter", BeamSql.queryMulti(sql));
+            .apply("testCompositeFilter", BeamSql.query(sql));
 
-    PAssert.that(result).containsInAnyOrder(recordsInTableA.get(1), recordsInTableA.get(2));
+    PAssert.that(result).containsInAnyOrder(rowsInTableA.get(1), rowsInTableA.get(2));
 
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * nothing return with filters in bounded PCollection.
-   */
+  /** nothing return with filters in bounded PCollection. */
   @Test
   public void testNoReturnFilterWithBounded() throws Exception {
     runNoReturnFilter(boundedInput1);
   }
 
-  /**
-   * nothing return with filters in unbounded PCollection.
-   */
+  /** nothing return with filters in unbounded PCollection. */
   @Test
   public void testNoReturnFilterWithUnbounded() throws Exception {
     runNoReturnFilter(unboundedInput1);
   }
 
-  private void runNoReturnFilter(PCollection<BeamRecord> input) throws Exception {
+  private void runNoReturnFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A WHERE f_int < 1";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testNoReturnFilter", BeamSql.queryMulti(sql));
+            .apply("testNoReturnFilter", BeamSql.query(sql));
 
     PAssert.that(result).empty();
 
@@ -120,22 +106,8 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
 
-    PCollection<BeamRecord> result =
-        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testFromInvalidTableName1", BeamSql.queryMulti(sql));
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testFromInvalidTableName2() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Use fixed table name PCOLLECTION");
-    pipeline.enableAbandonedNodeEnforcement(false);
-
-    String sql = "SELECT * FROM PCOLLECTION_NA";
-
-    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.query(sql));
+    PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+        .apply("testFromInvalidTableName1", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -148,7 +120,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.query(sql));
+    boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

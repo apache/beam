@@ -40,7 +40,7 @@ public class DoubleCoderTest {
   private static final Coder<Double> TEST_CODER = DoubleCoder.of();
 
   private static final List<Double> TEST_VALUES = Arrays.asList(
-      0.0, -0.5, 0.5, 0.3, -0.3, 1.0, -43.89568740, 3.14159,
+      0.0, -0.5, 0.5, 0.3, -0.3, 1.0, -43.89568740, Math.PI,
       Double.MAX_VALUE,
       Double.MIN_VALUE,
       Double.POSITIVE_INFINITY,
@@ -66,7 +66,7 @@ public class DoubleCoderTest {
       "v9MzMzMzMzM",
       "P_AAAAAAAAA",
       "wEXypeJ9ODo",
-      "QAkh-fAbhm4",
+      "QAkh-1RELRg",
       "f-________8",
       "AAAAAAAAAAE",
       "f_AAAAAAAAA",

@@ -76,6 +76,7 @@ public class NameUtilsTest {
   /**
    * Inner class for simple name test.
    */
+  @SuppressWarnings("ClassCanBeStatic")
   private class EmbeddedDoFn {
 
     private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
@@ -85,12 +86,13 @@ public class NameUtilsTest {
     }
   }
 
-  private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
+  private static class EmbeddedPTransform extends PTransform<PBegin, PDone> {
     @Override
     public PDone expand(PBegin begin) {
       throw new IllegalArgumentException("Should never be applied");
     }
 
+    @SuppressWarnings("ClassCanBeStatic")
     private class Bound extends PTransform<PBegin, PDone> {
       @Override
       public PDone expand(PBegin begin) {

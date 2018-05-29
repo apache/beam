@@ -19,7 +19,6 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.SellerPrice;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -41,8 +41,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
- * Query 6, 'Average Selling Price by Seller'. Select the average selling price over the
- * last 10 closed auctions by the same seller. In CQL syntax:
+ * Query 6, 'Average Selling Price by Seller'. Select the average selling price over the last 10
+ * closed auctions by the same seller. In CQL syntax:
  *
  * <pre>{@code
  * SELECT Istream(AVG(Q.final), Q.seller)
@@ -75,7 +75,7 @@ public class Query6 extends NexmarkQuery {
     @Override
     public List<Bid> addInput(List<Bid> accumulator, Bid input) {
       accumulator.add(input);
-      Collections.sort(accumulator, Bid.ASCENDING_TIME_THEN_PRICE);
+      accumulator.sort(Bid.ASCENDING_TIME_THEN_PRICE);
       if (accumulator.size() > maxNumBids) {
         accumulator.remove(0);
       }
@@ -88,7 +88,7 @@ public class Query6 extends NexmarkQuery {
       for (List<Bid> accumulator : accumulators) {
         result.addAll(accumulator);
       }
-      Collections.sort(result, Bid.ASCENDING_TIME_THEN_PRICE);
+      result.sort(Bid.ASCENDING_TIME_THEN_PRICE);
       if (result.size() > maxNumBids) {
         result = Lists.newArrayList(result.listIterator(result.size() - maxNumBids));
       }
@@ -114,6 +114,7 @@ public class Query6 extends NexmarkQuery {
 
   private PCollection<SellerPrice> applyTyped(PCollection<Event> events) {
     return events
+        .apply(Filter.by(new AuctionOrBid()))
         // Find the winning bid for each closed auction.
         .apply(new WinningBids(name + ".WinningBids", configuration))
 

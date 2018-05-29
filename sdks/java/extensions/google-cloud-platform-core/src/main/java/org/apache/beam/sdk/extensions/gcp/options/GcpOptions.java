@@ -157,7 +157,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           Matcher matcher = sectionPattern.matcher(line);
           if (matcher.matches()) {
             section = matcher.group(1);
-          } else if (section == null || section.equals("core")) {
+          } else if (section == null || "core".equals(section)) {
             matcher = projectPattern.matcher(line);
             if (matcher.matches()) {
               String project = matcher.group(1).trim();

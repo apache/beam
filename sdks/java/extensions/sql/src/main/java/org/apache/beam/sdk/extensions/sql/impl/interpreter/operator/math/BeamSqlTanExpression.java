@@ -24,17 +24,16 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'TAN' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'TAN' function. */
 public class BeamSqlTanExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlTanExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DOUBLE);
   }
 
-  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
-    return BeamSqlPrimitive
-        .of(SqlTypeName.DOUBLE, SqlFunctions.tan(SqlFunctions.toDouble(op.getValue())));
+  @Override
+  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+    return BeamSqlPrimitive.of(
+        SqlTypeName.DOUBLE, SqlFunctions.tan(SqlFunctions.toDouble(op.getValue())));
   }
 }

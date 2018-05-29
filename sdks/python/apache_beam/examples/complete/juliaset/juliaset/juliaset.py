@@ -37,7 +37,7 @@ def get_julia_set_point_color(element, c, n, max_iterations):
   """Given an pixel, convert it into a point in our julia set."""
   x, y = element
   z = from_pixel(x, y, n)
-  for i in xrange(max_iterations):
+  for i in range(max_iterations):
     if z.real * z.real + z.imag * z.imag > 2.0:
       break
     z = z * z + c

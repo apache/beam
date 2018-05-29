@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
@@ -33,11 +32,9 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -517,7 +514,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable project
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable project
      * indicated by given parameter, requires {@link #withInstanceId}
      * to be called to determine the instance.
      *
@@ -529,7 +526,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable project
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable project
      * indicated by given parameter, requires {@link #withInstanceId}
      * to be called to determine the instance.
      *
@@ -540,7 +537,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable instance
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable instance
      * indicated by given parameter, requires {@link #withProjectId} to be called to
      * determine the project.
      *
@@ -552,7 +549,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable instance
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable instance
      * indicated by given parameter, requires {@link #withProjectId} to be called to
      * determine the project.
      *
@@ -705,10 +702,14 @@ public class BigtableIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         checkForFailures();
-        Futures.addCallback(
-            bigtableWriter.writeRecord(c.element()),
-            new WriteExceptionCallback(c.element()),
-            MoreExecutors.directExecutor());
+        bigtableWriter
+            .writeRecord(c.element())
+            .whenComplete(
+                (mutationResult, exception) -> {
+                  if (exception != null) {
+                    failures.add(new BigtableWriteException(c.element(), exception));
+                  }
+                });
         ++recordsWritten;
       }
 
@@ -716,7 +717,7 @@ public class BigtableIO {
       public void finishBundle() throws Exception {
         bigtableWriter.flush();
         checkForFailures();
-        LOG.info("Wrote {} records", recordsWritten);
+        LOG.debug("Wrote {} records", recordsWritten);
       }
 
       @Teardown
@@ -771,22 +772,6 @@ public class BigtableIO {
           exception.addSuppressed(e);
         }
         throw exception;
-      }
-
-      private class WriteExceptionCallback implements FutureCallback<MutateRowResponse> {
-        private final KV<ByteString, Iterable<Mutation>> value;
-
-        public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
-          this.value = value;
-        }
-
-        @Override
-        public void onFailure(Throwable cause) {
-          failures.add(new BigtableWriteException(value, cause));
-        }
-
-        @Override
-        public void onSuccess(MutateRowResponse produced) {}
       }
     }
   }
@@ -852,6 +837,8 @@ public class BigtableIO {
       return config.getBigtableService(pipelineOptions).getSampleRowKeys(this);
     }
 
+    private static final long MAX_SPLIT_COUNT = 15_360L;
+
     @Override
     public List<BigtableSource> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
@@ -863,7 +850,103 @@ public class BigtableIO {
           Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
 
       // Delegate to testable helper.
-      return splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      List<BigtableSource> splits =
+          splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      return reduceSplits(splits, options, MAX_SPLIT_COUNT);
+    }
+
+    @VisibleForTesting
+    protected List<BigtableSource> reduceSplits(
+        List<BigtableSource> splits, PipelineOptions options, long maxSplitCounts)
+        throws IOException {
+      int numberToCombine =
+          (int) ((splits.size() + maxSplitCounts - 1) / maxSplitCounts);
+      if (splits.size() < maxSplitCounts || numberToCombine < 2) {
+        return splits;
+      }
+      ImmutableList.Builder<BigtableSource> reducedSplits = ImmutableList.builder();
+      List<ByteKeyRange> previousSourceRanges = new ArrayList<ByteKeyRange>();
+      int counter = 0;
+      long size = 0;
+      for (BigtableSource source : splits) {
+        if (counter == numberToCombine
+            || !checkRangeAdjacency(previousSourceRanges, source.getRanges())) {
+          reducedSplits.add(
+              new BigtableSource(
+                  config,
+                  filter,
+                  previousSourceRanges,
+                  size));
+          counter = 0;
+          size = 0;
+          previousSourceRanges = new ArrayList<ByteKeyRange>();
+        }
+        previousSourceRanges.addAll(source.getRanges());
+        previousSourceRanges = mergeRanges(previousSourceRanges);
+        size += source.getEstimatedSizeBytes(options);
+        counter++;
+      }
+      if (size > 0) {
+        reducedSplits.add(
+            new BigtableSource(
+                config,
+                filter,
+                previousSourceRanges,
+                size));
+      }
+      return reducedSplits.build();
+    }
+
+    /** Helper to validate range Adjacency.
+     * Ranges are considered adjacent if [1..100][100..200][200..300]
+     **/
+    private static boolean checkRangeAdjacency(List<ByteKeyRange> ranges,
+        List<ByteKeyRange> otherRanges) {
+      checkArgument(ranges != null || otherRanges != null, "Both ranges cannot be null.");
+      ImmutableList.Builder<ByteKeyRange> mergedRanges = ImmutableList.builder();
+      if (ranges != null) {
+        mergedRanges.addAll(ranges);
+      }
+      if (otherRanges != null) {
+        mergedRanges.addAll(otherRanges);
+      }
+      return checkRangeAdjacency(mergedRanges.build());
+    }
+
+    /** Helper to validate range Adjacency.
+     * Ranges are considered adjacent if [1..100][100..200][200..300]
+     **/
+    private static boolean checkRangeAdjacency(List<ByteKeyRange> ranges) {
+      int index = 0;
+      if (ranges.size() < 2) {
+        return true;
+      }
+      ByteKey lastEndKey = ranges.get(index++).getEndKey();
+      while (index < ranges.size()) {
+        ByteKeyRange currentKeyRange = ranges.get(index++);
+        if (!lastEndKey.equals(currentKeyRange.getStartKey())) {
+          return false;
+        }
+        lastEndKey = currentKeyRange.getEndKey();
+      }
+      return true;
+    }
+
+    /** Helper to combine/merge ByteKeyRange
+     * Ranges should only be merged if they are adjacent
+     * ex. [1..100][100..200][200..300] will result in [1..300]
+     * Note: this method will not check for adjacency see {@link #checkRangeAdjacency(List)}
+     **/
+    private static List<ByteKeyRange> mergeRanges(List<ByteKeyRange> ranges) {
+      List<ByteKeyRange> response = new ArrayList<ByteKeyRange>();
+      if (ranges.size() < 2) {
+        response.add(ranges.get(0));
+      } else {
+        response.add(ByteKeyRange.of(
+            ranges.get(0).getStartKey(),
+            ranges.get(ranges.size() - 1).getEndKey()));
+      }
+      return response;
     }
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
@@ -1099,8 +1182,8 @@ public class BigtableIO {
     public boolean start() throws IOException {
       reader = service.createReader(getCurrentSource());
       boolean hasRecord =
-          reader.start()
-              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey()))
+          (reader.start()
+              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey())))
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
@@ -1116,8 +1199,8 @@ public class BigtableIO {
     @Override
     public boolean advance() throws IOException {
       boolean hasRecord =
-          reader.advance()
-              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey()))
+          (reader.advance()
+              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey())))
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;

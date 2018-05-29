@@ -20,9 +20,9 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -45,7 +45,7 @@ public class ListCoderTest {
           Collections.emptyList(),
           Collections.singletonList(43),
           Arrays.asList(1, 2, 3, 4),
-          new LinkedList<>(Arrays.asList(7, 6, 5)));
+          new ArrayList<>(Arrays.asList(7, 6, 5)));
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {

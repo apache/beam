@@ -17,6 +17,8 @@
 
 """Unit tests for the pickler module."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.internal import module_test
@@ -79,6 +81,10 @@ class PicklerTest(unittest.TestCase):
   def test_generators(self):
     with self.assertRaises(TypeError):
       dumps((_ for _ in range(10)))
+
+  def test_recursive_class(self):
+    self.assertEquals('RecursiveClass:abc',
+                      loads(dumps(module_test.RecursiveClass('abc').datum)))
 
 
 if __name__ == '__main__':

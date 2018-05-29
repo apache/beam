@@ -336,7 +336,7 @@ public class ByteKeyRangeTest {
     ByteKey[] testKeys = ByteKeyTest.TEST_KEYS;
     for (int i = 0; i < testKeys.length; ++i) {
       for (int j = i; j < testKeys.length; ++j) {
-        if (testKeys[i].isEmpty() || testKeys[j].isEmpty()) {
+        if (testKeys[i].isEmpty() || testKeys[j].isEmpty() || testKeys[j].equals(testKeys[i])) {
           continue; // these are valid ranges.
         }
         try {

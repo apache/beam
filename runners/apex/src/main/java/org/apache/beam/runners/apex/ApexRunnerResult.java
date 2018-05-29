@@ -48,6 +48,7 @@ public class ApexRunnerResult implements PipelineResult {
   @Override
   public State cancel() throws IOException {
     apexApp.shutdown(ShutdownMode.KILL);
+    cleanupOnCancelOrFinish();
     state = State.CANCELLED;
     return state;
   }
@@ -64,7 +65,11 @@ public class ApexRunnerResult implements PipelineResult {
         }
         Thread.sleep(500);
       }
-      return apexApp.isFinished() ? State.DONE : null;
+      if (apexApp.isFinished()) {
+        cleanupOnCancelOrFinish();
+        return State.DONE;
+      }
+      return null;
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -86,6 +91,14 @@ public class ApexRunnerResult implements PipelineResult {
    */
   public DAG getApexDAG() {
     return apexDAG;
+  }
+
+
+  /**
+   * Opportunity for a subclass to perform cleanup, such as removing temporary files.
+   */
+  protected void cleanupOnCancelOrFinish() {
+
   }
 
 }

@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -83,13 +84,14 @@ class WriteTables<DestinationT>
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
-  private final PCollectionView<String> jobIdToken;
+  private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
+  private final ValueProvider<String> loadJobProjectId;
 
 
   private class WriteTablesDoFn
@@ -138,14 +140,13 @@ class WriteTables<DestinationT>
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(
             c.getPipelineOptions().as(BigQueryOptions.class).getProject());
-        tableDestination = new TableDestination(
-            tableReference, tableDestination.getTableDescription());
+        tableDestination = tableDestination.withTableReference(tableReference);
       }
 
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
       String jobIdPrefix = BigQueryHelpers.createJobId(
-          c.sideInput(jobIdToken), tableDestination, partition, c.pane().getIndex());
+          c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (!singlePartition) {
         tableReference.setTableId(jobIdPrefix);
@@ -174,7 +175,7 @@ class WriteTables<DestinationT>
     }
   }
 
-  private class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
+  private static class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       removeTemporaryFiles(c.element());
@@ -184,20 +185,22 @@ class WriteTables<DestinationT>
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
-      PCollectionView<String> jobIdToken,
+      PCollectionView<String> loadJobIdPrefixView,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      @Nullable ValueProvider<String> loadJobProjectId) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
-    this.jobIdToken = jobIdToken;
+    this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
     this.sideInputs = sideInputs;
     this.dynamicDestinations = dynamicDestinations;
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
+    this.loadJobProjectId = loadJobProjectId;
   }
 
   @Override
@@ -229,8 +232,6 @@ class WriteTables<DestinationT>
     return writeTablesOutputs.get(mainOutputTag);
   }
 
-
-
   private void load(
       JobService jobService,
       DatasetService datasetService,
@@ -254,16 +255,27 @@ class WriteTables<DestinationT>
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
-    String projectId = ref.getProjectId();
+    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
     Job lastFailedLoadJob = null;
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
-      JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
+
+      JobReference jobRef =
+          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+
+      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
       jobService.startLoadJob(jobRef, loadConfig);
+      LOG.info("Load job {} started", jobRef);
+
       Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
         case SUCCEEDED:
+          LOG.info(
+              "Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
           if (tableDescription != null) {
             datasetService.patchTableDescription(
                 ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
@@ -271,18 +283,25 @@ class WriteTables<DestinationT>
           }
           return;
         case UNKNOWN:
+          LOG.info(
+              "Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
           throw new RuntimeException(
               String.format(
                   "UNKNOWN status of load job [%s]: %s.",
                   jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
         case FAILED:
+          LOG.info(
+              "Load job {} failed, {}: {}",
+              jobRef,
+              (i < BatchLoads.MAX_RETRY_JOBS - 1) ? "will retry" : "will not retry",
+              loadJob.getStatus());
           lastFailedLoadJob = loadJob;
           continue;
         default:
           throw new IllegalStateException(
               String.format(
                   "Unexpected status [%s] of load job: %s.",
-                  jobStatus, BigQueryHelpers.jobToPrettyString(loadJob)));
+                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
       }
     }
     throw new RuntimeException(

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -187,6 +188,23 @@ public class CombineFns {
       } else {
         return (V) value;
       }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      CoCombineResult that = (CoCombineResult) o;
+      return Objects.equal(valuesMap, that.valuesMap);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(valuesMap);
     }
   }
 

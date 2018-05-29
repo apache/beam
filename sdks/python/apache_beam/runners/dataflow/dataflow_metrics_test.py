@@ -205,7 +205,7 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
-    mock_job_result._is_in_terminal_state.return_value = False
+    mock_job_result.is_in_terminal_state.return_value = False
     return mock_client, mock_job_result
 
   def test_cache_functions(self):
@@ -221,7 +221,7 @@ class TestDataflowMetrics(unittest.TestCase):
     self.assertTrue(dm._cached_metrics is None)
 
     # The job has ended. The query should not run again after this.
-    mock_job_result._is_in_terminal_state.return_value = True
+    mock_job_result.is_in_terminal_state.return_value = True
     dm.query()
     self.assertTrue(dm._cached_metrics)
 

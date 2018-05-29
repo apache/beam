@@ -46,7 +46,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
     if (value == null) {
       throw new CoderException("cannot encode a null Byte");
     }
-    outStream.write(value.byteValue());
+    outStream.write(value);
   }
 
   @Override

@@ -301,7 +301,7 @@ public class RedisIO {
         }
 
         cursor = scanResult.getStringCursor();
-        if (cursor.equals("0")) {
+        if ("0".equals(cursor)) {
           finished = true;
         }
       }

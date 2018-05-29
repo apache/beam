@@ -20,12 +20,12 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.joda.time.DurationFieldType;
@@ -35,9 +35,9 @@ import org.joda.time.PeriodType;
 /**
  * Infix '-' operation for timestamps.
  *
- * <p>Currently this implementation is specific to how Calcite parses 'TIMESTAMPDIFF(..)'.
- * It converts the TIMESTAMPDIFF() call into infix minus and normalizes it
- * with corresponding TimeUnit's multiplier.
+ * <p>Currently this implementation is specific to how Calcite parses 'TIMESTAMPDIFF(..)'. It
+ * converts the TIMESTAMPDIFF() call into infix minus and normalizes it with corresponding
+ * TimeUnit's multiplier.
  *
  * <p>See {@link BeamSqlDatetimeMinusExpression} for other kinds of datetime types subtraction.
  */
@@ -50,9 +50,7 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
     this.intervalType = intervalType;
   }
 
-  /**
-   * Requires exactly 2 operands. One should be a timestamp, another an interval
-   */
+  /** Requires exactly 2 operands. One should be a timestamp, another an interval */
   @Override
   public boolean accept() {
     return accept(operands, intervalType);
@@ -70,9 +68,12 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
    * Calcite deals with all intervals this way. Whenever there is an interval, its value is always
    * multiplied by the corresponding TimeUnit.multiplier
    */
-  public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    DateTime timestampStart = new DateTime((Object) opValueEvaluated(1, inputRow, window));
-    DateTime timestampEnd = new DateTime((Object) opValueEvaluated(0, inputRow, window));
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    DateTime timestampStart =
+        new DateTime((Object) opValueEvaluated(1, inputRow, window, correlateEnv));
+    DateTime timestampEnd =
+        new DateTime((Object) opValueEvaluated(0, inputRow, window, correlateEnv));
 
     long numberOfIntervals = numberOfIntervalsBetweenDates(timestampStart, timestampEnd);
     long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalType).longValue();
@@ -81,15 +82,18 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
   }
 
   private long numberOfIntervalsBetweenDates(DateTime timestampStart, DateTime timestampEnd) {
-    Period period = new Period(timestampStart, timestampEnd,
-        PeriodType.forFields(new DurationFieldType[] { durationFieldType(intervalType) }));
+    Period period =
+        new Period(
+            timestampStart,
+            timestampEnd,
+            PeriodType.forFields(new DurationFieldType[] {durationFieldType(intervalType)}));
     return period.get(durationFieldType(intervalType));
   }
 
   private static DurationFieldType durationFieldType(SqlTypeName intervalTypeToCount) {
     if (!INTERVALS_DURATIONS_TYPES.containsKey(intervalTypeToCount)) {
-      throw new IllegalArgumentException("Counting "
-          + intervalTypeToCount.getName() + "s between dates is not supported");
+      throw new IllegalArgumentException(
+          "Counting " + intervalTypeToCount.getName() + "s between dates is not supported");
     }
 
     return INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);

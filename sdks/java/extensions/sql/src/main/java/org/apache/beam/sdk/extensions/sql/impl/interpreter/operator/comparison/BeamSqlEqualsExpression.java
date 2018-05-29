@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 
-/**
- * {@code BeamSqlExpression} for {@code =} operation.
- */
+/** {@code BeamSqlExpression} for {@code =} operation. */
 public class BeamSqlEqualsExpression extends BeamSqlCompareExpression {
 
   public BeamSqlEqualsExpression(List<BeamSqlExpression> operands) {
@@ -42,8 +40,8 @@ public class BeamSqlEqualsExpression extends BeamSqlCompareExpression {
   @Override
   public Boolean compare(Number leftValue, Number rightValue) {
     return (leftValue == null && rightValue == null)
-        || (leftValue != null && rightValue != null
-              && leftValue.floatValue() == (rightValue).floatValue());
+        || (leftValue != null
+            && rightValue != null
+            && leftValue.floatValue() == (rightValue).floatValue());
   }
-
 }

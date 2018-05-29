@@ -78,7 +78,7 @@ public class CombinePerKeyExamples {
     private final Counter smallerWords = Metrics.counter(ExtractLargeWordsFn.class, "smallerWords");
 
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       String playName = (String) row.get("corpus");
       String word = (String) row.get("word");

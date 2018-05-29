@@ -16,10 +16,13 @@
 #
 
 """Tests for the stream implementations."""
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import math
 import unittest
+from builtins import range
 
 from apache_beam.coders import slow_stream
 

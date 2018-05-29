@@ -121,7 +121,7 @@ transcript:
     - input: [4]    # no output
     - input: [5]
     - expect:
-        - {window: [1, 14], values: [1, 2, 3, 4, 5], timestamp: 14, early: true}
+        - {window: [1, 14], values: [1, 2, 3, 4, 5], timestamp: 15, early: true}
     - input: [6]
     - watermark: 100
     - expect:

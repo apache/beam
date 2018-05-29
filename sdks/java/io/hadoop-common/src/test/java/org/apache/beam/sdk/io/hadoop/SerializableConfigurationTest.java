@@ -39,13 +39,13 @@ public class SerializableConfigurationTest {
           new SerializableConfiguration(new Configuration());
 
   @Test
-  public void testSerializationDeserialization() throws Exception {
+  public void testSerializationDeserialization() {
     Configuration conf = new Configuration();
     conf.set("hadoop.silly.test", "test-value");
     byte[] object = SerializationUtils.serialize(new SerializableConfiguration(conf));
     SerializableConfiguration serConf = SerializationUtils.deserialize(object);
     assertNotNull(serConf);
-    assertEquals(serConf.get().get("hadoop.silly.test"), "test-value");
+    assertEquals("test-value", serConf.get().get("hadoop.silly.test"));
   }
 
   @Test
@@ -57,7 +57,7 @@ public class SerializableConfigurationTest {
   }
 
   @Test
-  public void testCreateNewConfiguration() throws Exception {
+  public void testCreateNewConfiguration() {
     Configuration confFromNull = SerializableConfiguration.newConfiguration(null);
     assertNotNull(confFromNull);
     Configuration conf =

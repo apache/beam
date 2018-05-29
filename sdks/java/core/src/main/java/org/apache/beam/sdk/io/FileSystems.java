@@ -161,15 +161,16 @@ public class FileSystems {
   private static MatchResult maybeAdjustEmptyMatchResult(
       String spec, MatchResult res, EmptyMatchTreatment emptyMatchTreatment)
       throws IOException {
-    if (res.status() != Status.NOT_FOUND) {
-      return res;
-    }
-    boolean notFoundAllowed =
-        emptyMatchTreatment == EmptyMatchTreatment.ALLOW
-            || (FileSystems.hasGlobWildcard(spec)
-                && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
-    if (notFoundAllowed) {
-      return MatchResult.create(Status.OK, Collections.emptyList());
+    if (res.status() == Status.NOT_FOUND
+        || (res.status() == Status.OK && res.metadata().isEmpty())) {
+      boolean notFoundAllowed =
+          emptyMatchTreatment == EmptyMatchTreatment.ALLOW
+              || (hasGlobWildcard(spec)
+                  && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
+      return notFoundAllowed
+          ? MatchResult.create(Status.OK, Collections.emptyList())
+          : MatchResult.create(
+              Status.NOT_FOUND, new FileNotFoundException("No files matched spec: " + spec));
     }
     return res;
   }
@@ -219,7 +220,7 @@ public class FileSystems {
    */
   public static List<MatchResult> matchResources(List<ResourceId> resourceIds) throws IOException {
     return match(
-        FluentIterable.from(resourceIds).transform(resourceId -> resourceId.toString()).toList());
+        FluentIterable.from(resourceIds).transform(ResourceId::toString).toList());
   }
 
   /**
@@ -431,7 +432,7 @@ public class FileSystems {
     Set<String> schemes =
         FluentIterable.from(srcResourceIds)
             .append(destResourceIds)
-            .transform(resourceId -> resourceId.getScheme())
+            .transform(ResourceId::getScheme)
             .toSet();
     checkArgument(
         schemes.size() == 1,
@@ -442,7 +443,7 @@ public class FileSystems {
 
   private static String getOnlyScheme(List<String> specs) {
     checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
-    Set<String> schemes = FluentIterable.from(specs).transform(spec -> parseScheme(spec)).toSet();
+    Set<String> schemes = FluentIterable.from(specs).transform(FileSystems::parseScheme).toSet();
     return Iterables.getOnlyElement(schemes);
   }
 
