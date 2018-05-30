@@ -22,6 +22,7 @@ applyJavaNature()
 dependencies {
     compile project(':beam-sdks-java-extensions-euphoria-core')
     compileOnly library.java.findbugs_jsr305
+    testCompile "org.apache.beam:beam-runners-direct-java:2.4.0"
     testCompile project(':beam-sdks-java-extensions-euphoria-testing')
     testCompile project(':beam-sdks-java-extensions-euphoria-beam')
     shadow 'com.google.code.findbugs:annotations:3.0.1'
