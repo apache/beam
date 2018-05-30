@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
- * {@link TestPipelineOptions} for {@link BigQueryWriteIT}.
+ * {@link TestPipelineOptions} for {@link TestBigQuery}.
  */
 public interface TestBigQueryOptions extends TestPipelineOptions, BigQueryOptions, GcpOptions {
 
   @Description("Dataset used in the integration tests. Default is integ_test")
   @Default.String("integ_test")
-  String getIntegrationTestDataset();
-  void setIntegrationTestDataset(String value);
+  String getTargetDataset();
+  void setTargetDataset(String value);
 }

@@ -154,31 +154,36 @@ public class BigQueryUtils {
   private static class ToTableRow implements SerializableFunction<Row, TableRow> {
     @Override
     public TableRow apply(Row input) {
-      TableRow output = new TableRow();
-      for (int i = 0; i < input.getFieldCount(); i++) {
-        Object value = input.getValue(i);
-
-        Field schemaField = input.getSchema().getField(i);
-        TypeName type = schemaField.getType().getTypeName();
-        if (TypeName.ARRAY == type) {
-          type = schemaField.getType().getCollectionElementType().getTypeName();
-          if (TypeName.ROW == type) {
-            List<Row> rows = (List<Row>) value;
-            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
-            for (int j = 0; j < rows.size(); j++) {
-              tableRows.add(apply(rows.get(j)));
-            }
-            value = tableRows;
-          }
-        } else if (TypeName.ROW == type) {
-          value = apply((Row) value);
-        }
-
-        output = output.set(
-            schemaField.getName(),
-            value);
-      }
-      return output;
+      return toTableRow(input);
     }
+  }
+
+  public static TableRow toTableRow(Row row) {
+    TableRow output = new TableRow();
+    for (int i = 0; i < row.getFieldCount(); i++) {
+      Object value = row.getValue(i);
+
+      Field schemaField = row.getSchema().getField(i);
+      TypeName type = schemaField.getType().getTypeName();
+
+      if (TypeName.ARRAY == type) {
+        type = schemaField.getType().getCollectionElementType().getTypeName();
+        if (TypeName.ROW == type) {
+          List<Row> rows = (List<Row>) value;
+          List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+          for (int j = 0; j < rows.size(); j++) {
+            tableRows.add(toTableRow(rows.get(j)));
+          }
+          value = tableRows;
+        }
+      } else if (TypeName.ROW == type) {
+        value = toTableRow((Row) value);
+      }
+
+      output = output.set(
+          schemaField.getName(),
+          value);
+    }
+    return output;
   }
 }
