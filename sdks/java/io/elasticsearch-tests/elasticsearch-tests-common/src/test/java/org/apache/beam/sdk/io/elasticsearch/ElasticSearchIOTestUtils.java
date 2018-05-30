@@ -56,10 +56,14 @@ class ElasticSearchIOTestUtils {
   }
 
   /** Deletes the given index synchronously. */
-  static void deleteIndex(ConnectionConfiguration connectionConfiguration,
-      RestClient restClient) throws IOException {
+  static void deleteIndex(ConnectionConfiguration connectionConfiguration, RestClient restClient)
+      throws IOException {
+    deleteIndex(restClient, connectionConfiguration.getIndex());
+  }
+
+  private static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
-      restClient.performRequest("DELETE", String.format("/%s", connectionConfiguration.getIndex()));
+      restClient.performRequest("DELETE", String.format("/%s", index));
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
@@ -67,6 +71,21 @@ class ElasticSearchIOTestUtils {
         throw e;
       }
     }
+  }
+
+  /**
+   * Synchronously deletes the target if it exists and then (re)creates it as a copy of source
+   * synchronously.
+   */
+  static void copyIndex(RestClient restClient, String source, String target) throws IOException {
+    deleteIndex(restClient, target);
+    HttpEntity entity =
+        new NStringEntity(
+            String.format(
+                "{\"source\" : { \"index\" : \"%s\" }, \"dest\" : { \"index\" : \"%s\" } }",
+                source, target),
+            ContentType.APPLICATION_JSON);
+    restClient.performRequest("POST", "/_reindex", Collections.EMPTY_MAP, entity);
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
@@ -173,10 +192,29 @@ class ElasticSearchIOTestUtils {
   static int countByScientistName(
       ConnectionConfiguration connectionConfiguration, RestClient restClient, String scientistName)
       throws IOException {
+    return countByMatch(connectionConfiguration, restClient, "scientist", scientistName);
+  }
+
+  /**
+   * Executes a match query for given field/value and returns the count of results.
+   *
+   * @param connectionConfiguration Specifies the index and type
+   * @param restClient To use to execute the call
+   * @param field The field to query
+   * @param value The value to match
+   * @return The count of documents in the search result
+   * @throws IOException On error communicating with Elasticsearch
+   */
+  static int countByMatch(
+      ConnectionConfiguration connectionConfiguration,
+      RestClient restClient,
+      String field,
+      String value)
+      throws IOException {
     String requestBody =
-            "{\n"
+        "{\n"
             + "  \"query\" : {\"match\": {\n"
-            + "    \"scientist\": \"" + scientistName + "\"\n"
+            + "    \"" + field + "\": \"" + value + "\"\n"
             + "  }}\n"
             + "}\n";
     String endPoint =
