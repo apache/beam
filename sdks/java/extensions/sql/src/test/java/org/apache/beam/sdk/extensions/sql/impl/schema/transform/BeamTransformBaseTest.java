@@ -18,7 +18,6 @@ package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
 import java.text.ParseException;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
@@ -36,16 +35,16 @@ public class BeamTransformBaseTest {
   @BeforeClass
   public static void prepareInput() throws NumberFormatException, ParseException {
     inputSchema =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withBigIntField("f_long")
-            .withSmallIntField("f_short")
-            .withTinyIntField("f_byte")
-            .withFloatField("f_float")
-            .withDoubleField("f_double")
-            .withVarcharField("f_string")
-            .withTimestampField("f_timestamp")
-            .withIntegerField("f_int2")
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addInt64Field("f_long")
+            .addInt16Field("f_short")
+            .addByteField("f_byte")
+            .addFloatField("f_float")
+            .addDoubleField("f_double")
+            .addStringField("f_string")
+            .addDateTimeField("f_timestamp")
+            .addInt32Field("f_int2")
             .build();
 
     inputRows =

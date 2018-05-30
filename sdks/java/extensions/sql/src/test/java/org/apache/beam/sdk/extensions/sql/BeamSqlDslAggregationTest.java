@@ -58,11 +58,11 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Before
   public void setUp() {
     Schema schemaInTableB =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withDoubleField("f_double")
-            .withIntegerField("f_int2")
-            .withDecimalField("f_decimal")
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addDoubleField("f_double")
+            .addInt32Field("f_int2")
+            .addDecimalField("f_decimal")
             .build();
 
     List<Row> rowsInTableB =
@@ -121,8 +121,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> result = input.apply("testAggregationWithoutWindow", BeamSql.query(sql));
 
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int2").withBigIntField("size").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int2").addInt64Field("size").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 4L).build();
 
@@ -166,35 +165,35 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .apply("testAggregationFunctions", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int2")
-            .withBigIntField("size")
-            .withBigIntField("sum1")
-            .withBigIntField("avg1")
-            .withBigIntField("max1")
-            .withBigIntField("min1")
-            .withSmallIntField("sum2")
-            .withSmallIntField("avg2")
-            .withSmallIntField("max2")
-            .withSmallIntField("min2")
-            .withTinyIntField("sum3")
-            .withTinyIntField("avg3")
-            .withTinyIntField("max3")
-            .withTinyIntField("min3")
-            .withFloatField("sum4")
-            .withFloatField("avg4")
-            .withFloatField("max4")
-            .withFloatField("min4")
-            .withDoubleField("sum5")
-            .withDoubleField("avg5")
-            .withDoubleField("max5")
-            .withDoubleField("min5")
-            .withTimestampField("max6")
-            .withTimestampField("min6")
-            .withDoubleField("varpop1")
-            .withDoubleField("varsamp1")
-            .withIntegerField("varpop2")
-            .withIntegerField("varsamp2")
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addInt64Field("size")
+            .addInt64Field("sum1")
+            .addInt64Field("avg1")
+            .addInt64Field("max1")
+            .addInt64Field("min1")
+            .addInt16Field("sum2")
+            .addInt16Field("avg2")
+            .addInt16Field("max2")
+            .addInt16Field("min2")
+            .addByteField("sum3")
+            .addByteField("avg3")
+            .addByteField("max3")
+            .addByteField("min3")
+            .addFloatField("sum4")
+            .addFloatField("avg4")
+            .addFloatField("max4")
+            .addFloatField("min4")
+            .addDoubleField("sum5")
+            .addDoubleField("avg5")
+            .addDoubleField("max5")
+            .addDoubleField("min5")
+            .addDateTimeField("max6")
+            .addDateTimeField("min6")
+            .addDoubleField("varpop1")
+            .addDoubleField("varsamp1")
+            .addInt32Field("varpop2")
+            .addInt32Field("varsamp2")
             .build();
 
     Row row =
@@ -288,8 +287,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> result = input.apply("testDistinct", BeamSql.query(sql));
 
-    Schema resultType =
-        RowSqlTypes.builder().withIntegerField("f_int").withBigIntField("f_long").build();
+    Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
     List<Row> expectedRows =
         TestUtils.RowsBuilder.of(resultType)
@@ -328,10 +326,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .apply("testTumbleWindow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int2")
-            .withBigIntField("size")
-            .withTimestampField("window_start")
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addInt64Field("size")
+            .addDateTimeField("window_start")
             .build();
 
     List<Row> expectedRows =
@@ -358,7 +356,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Category(UsesTestStream.class)
   public void testTriggeredTumble() throws Exception {
     Schema inputSchema =
-        RowSqlTypes.builder().withIntegerField("f_int").withTimestampField("f_timestamp").build();
+        Schema.builder().addInt32Field("f_int").addDateTimeField("f_timestamp").build();
 
     PCollection<Row> input =
         pipeline.apply(
@@ -384,7 +382,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         "SELECT SUM(f_int) AS f_int_sum FROM PCOLLECTION"
             + " GROUP BY TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
 
-    Schema outputSchema = RowSqlTypes.builder().withIntegerField("fn_int_sum").build();
+    Schema outputSchema = Schema.builder().addInt32Field("fn_int_sum").build();
 
     PCollection<Row> result =
         input
@@ -429,10 +427,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> result = input.apply("testHopWindow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int2")
-            .withBigIntField("size")
-            .withTimestampField("window_start")
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addInt64Field("size")
+            .addDateTimeField("window_start")
             .build();
 
     List<Row> expectedRows =
@@ -480,10 +478,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .apply("testSessionWindow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int2")
-            .withBigIntField("size")
-            .withTimestampField("window_start")
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addInt64Field("size")
+            .addDateTimeField("window_start")
             .build();
 
     List<Row> expectedRows =
@@ -555,10 +553,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
     Schema type =
-        RowSqlTypes.builder()
-            .withIntegerField("f_intGroupingKey")
-            .withIntegerField("f_intValue")
-            .withTimestampField("f_timestamp")
+        Schema.builder()
+            .addInt32Field("f_intGroupingKey")
+            .addInt32Field("f_intValue")
+            .addDateTimeField("f_timestamp")
             .build();
 
     Object[] rows =
@@ -594,10 +592,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
     Schema type =
-        RowSqlTypes.builder()
-            .withIntegerField("f_intGroupingKey")
-            .withIntegerField("f_intValue")
-            .withTimestampField("f_timestamp")
+        Schema.builder()
+            .addInt32Field("f_intGroupingKey")
+            .addInt32Field("f_intValue")
+            .addDateTimeField("f_timestamp")
             .build();
 
     Object[] rows =
@@ -633,7 +631,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private List<Row> rowsWithSingleIntField(String fieldName, List<Integer> values) {
-    return TestUtils.rowsBuilderOf(RowSqlTypes.builder().withIntegerField(fieldName).build())
+    return TestUtils.rowsBuilderOf(Schema.builder().addInt32Field(fieldName).build())
         .addRows(values)
         .getRows();
   }

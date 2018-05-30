@@ -20,9 +20,9 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 import static com.google.common.collect.Iterables.size;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -56,14 +55,13 @@ public class PubsubMessageToRowTest implements Serializable {
 
   @Test
   public void testConvertsMessages() {
-    Schema payloadSchema =
-        RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build();
+    Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
 
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withTimestampField("event_timestamp")
-            .withMapField("attributes", VARCHAR, VARCHAR)
-            .withRowField("payload", payloadSchema)
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addRowField("payload", payloadSchema)
             .build();
 
     PCollection<Row> rows =
@@ -103,14 +101,13 @@ public class PubsubMessageToRowTest implements Serializable {
 
   @Test
   public void testSendsInvalidToDLQ() {
-    Schema payloadSchema =
-        RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build();
+    Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
 
     Schema messageSchema =
-        RowSqlTypes.builder()
-            .withTimestampField("event_timestamp")
-            .withMapField("attributes", VARCHAR, VARCHAR)
-            .withRowField("payload", payloadSchema)
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addRowField("payload", payloadSchema)
             .build();
 
     PCollectionTuple outputs =

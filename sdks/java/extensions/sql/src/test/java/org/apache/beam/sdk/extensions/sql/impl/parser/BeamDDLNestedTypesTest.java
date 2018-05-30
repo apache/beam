@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators;
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.AnyFieldType;
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.PrimitiveTypes;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.runner.RunWith;
@@ -92,7 +91,7 @@ public class BeamDDLNestedTypesTest {
   }
 
   private Schema newSimpleSchemaWith(FieldType fieldType) {
-    return Schema.builder().addField(Field.of("fieldname", fieldType).withNullable(true)).build();
+    return Schema.builder().addNullableField("fieldname", fieldType).build();
   }
 
   private String unparse(FieldType fieldType) {

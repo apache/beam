@@ -63,17 +63,17 @@ public class BeamSqlDslBase {
   @BeforeClass
   public static void prepareClass() throws ParseException {
     schemaInTableA =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withBigIntField("f_long")
-            .withSmallIntField("f_short")
-            .withTinyIntField("f_byte")
-            .withFloatField("f_float")
-            .withDoubleField("f_double")
-            .withVarcharField("f_string")
-            .withTimestampField("f_timestamp")
-            .withIntegerField("f_int2")
-            .withDecimalField("f_decimal")
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addInt64Field("f_long")
+            .addInt16Field("f_short")
+            .addByteField("f_byte")
+            .addFloatField("f_float")
+            .addDoubleField("f_double")
+            .addStringField("f_string")
+            .addDateTimeField("f_timestamp")
+            .addInt32Field("f_int2")
+            .addDecimalField("f_decimal")
             .build();
 
     rowsInTableA =

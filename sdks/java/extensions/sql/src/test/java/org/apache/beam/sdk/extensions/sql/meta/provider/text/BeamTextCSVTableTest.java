@@ -30,7 +30,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,12 +54,12 @@ public class BeamTextCSVTableTest {
    * <p>The types of the csv fields are: integer,bigint,float,double,string
    */
   private static Schema schema =
-      RowSqlTypes.builder()
-          .withIntegerField("id")
-          .withBigIntField("order_id")
-          .withFloatField("price")
-          .withDoubleField("amount")
-          .withVarcharField("user_name")
+      Schema.builder()
+          .addInt32Field("id")
+          .addInt64Field("order_id")
+          .addFloatField("price")
+          .addDoubleField("amount")
+          .addStringField("user_name")
           .build();
 
   private static Object[] data1 = new Object[] {1, 1L, 1.1F, 1.1, "james"};
