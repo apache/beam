@@ -73,6 +73,16 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addField(String name, FieldType type) {
+      fields.add(Field.of(name, type));
+      return this;
+    }
+
+    public Builder addNullableField(String name, FieldType type) {
+      fields.add(Field.nullable(name, type));
+      return this;
+    }
+
     public Builder addByteField(String name) {
       fields.add(Field.of(name, TypeName.BYTE.type()));
       return this;
