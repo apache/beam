@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -53,7 +52,7 @@ import org.junit.runners.JUnit4;
 public class PubsubJsonIT implements Serializable {
 
   private static final Schema PAYLOAD_SCHEMA =
-      RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build();
+      Schema.builder().addInt32Field("id").addStringField("name").build();
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();

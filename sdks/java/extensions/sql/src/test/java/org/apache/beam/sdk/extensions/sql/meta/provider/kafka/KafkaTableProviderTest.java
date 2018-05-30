@@ -27,7 +27,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -69,8 +68,8 @@ public class KafkaTableProviderTest {
         .location("kafka://localhost:2181/brokers?topic=test")
         .schema(
             Stream.of(
-                    Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
-                    Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
+                    Schema.Field.nullable("id", TypeName.INT32.type()),
+                    Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type("kafka")
         .properties(properties)

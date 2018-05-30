@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.example;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -53,11 +52,7 @@ class BeamSqlExample {
 
     //define the input row format
     Schema type =
-        RowSqlTypes.builder()
-            .withIntegerField("c1")
-            .withVarcharField("c2")
-            .withDoubleField("c3")
-            .build();
+        Schema.builder().addInt32Field("c1").addStringField("c2").addDoubleField("c3").build();
 
     Row row1 = Row.withSchema(type).addValues(1, "row", 1.0).build();
     Row row2 = Row.withSchema(type).addValues(2, "row", 2.0).build();

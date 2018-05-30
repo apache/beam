@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.BOOLEAN;
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ARRAY;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.calcite.tools.ValidationException;
 import org.junit.Test;
@@ -164,18 +165,18 @@ public class BeamSqlCliTest {
                         "address",
                         ROW.type()
                             .withRowSchema(
-                                RowSqlTypes.builder()
-                                    .withVarcharField("street")
-                                    .withVarcharField("country")
+                                Schema.builder()
+                                    .addNullableField("street", Schema.FieldType.STRING)
+                                    .addNullableField("country", Schema.FieldType.STRING)
                                     .build()))
                     .withNullable(true),
                 Field.of(
                         "addressangular",
                         ROW.type()
                             .withRowSchema(
-                                RowSqlTypes.builder()
-                                    .withVarcharField("street")
-                                    .withVarcharField("country")
+                                Schema.builder()
+                                    .addNullableField("street", Schema.FieldType.STRING)
+                                    .addNullableField("country", Schema.FieldType.STRING)
                                     .build()))
                     .withNullable(true),
                 Field.of("isrobot", BOOLEAN).withNullable(true))
