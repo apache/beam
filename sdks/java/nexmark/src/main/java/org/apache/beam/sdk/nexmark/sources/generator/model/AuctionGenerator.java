@@ -127,7 +127,7 @@ public class AuctionGenerator {
     long currentEventNumber = config.nextAdjustedEventNumber(eventsCountSoFar);
     // How many events till we've generated numInFlightAuctions?
     long numEventsForAuctions =
-        (config.getNumInFlightAuctions() * GeneratorConfig.PROPORTION_DENOMINATOR)
+        ((long) config.getNumInFlightAuctions() * GeneratorConfig.PROPORTION_DENOMINATOR)
             / GeneratorConfig.AUCTION_PROPORTION;
     // When will the auction numInFlightAuctions beyond now be generated?
     long futureAuction = config
