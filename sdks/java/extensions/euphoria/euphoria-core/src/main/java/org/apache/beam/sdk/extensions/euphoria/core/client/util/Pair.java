@@ -29,19 +29,25 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * @param <V> the type of the second element of the pair
  */
 @Audience(Audience.Type.CLIENT)
-public final class Pair<K, V> implements Serializable {
+public abstract class Pair<K, V> implements Serializable{
 
   private static final Comparator<Pair> CMP_BY_FIRST =
       (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());
 
   private static final Comparator<Pair> CMP_BY_SECOND =
       (o1, o2) -> doCompare(o1.getSecond(), o2.getSecond());
-  final K first;
-  final V second;
 
-  private Pair(K first, V second) {
+  protected K first;
+  protected V second;
+
+  protected Pair(K first, V second) {
     this.first = first;
     this.second = second;
+  }
+
+  protected Pair(){
+    this.first = null;
+    this.second = null;
   }
 
   // ~ -----------------------------------------------------------------------------
@@ -68,7 +74,7 @@ public final class Pair<K, V> implements Serializable {
    *
    * @param <K> the type of key of the pairs to compare
    * @param <V> type of the value of the pairs - can be anything since the returned comparator does
-   *     not used it at all
+   * not used it at all
    * @return a comparator based on the {@link #getFirst()} property of pairs
    */
   @SuppressWarnings({"unchecked", "UnusedDeclaration"})
@@ -80,7 +86,7 @@ public final class Pair<K, V> implements Serializable {
    * Retrieves a comparator which compares pairs by their {@link #getSecond()} member.
    *
    * @param <K> the type of key of the pairs - can be anything since the returned comparator does
-   *     not used it at all
+   * not used it at all
    * @param <V> type of the value of the pairs to compare
    * @return a comparator based on the {@link #getSecond()} ()} property of pairs
    */
@@ -99,7 +105,21 @@ public final class Pair<K, V> implements Serializable {
    * @return a newly constructed pair
    */
   public static <K, V> Pair<K, V> of(K first, V second) {
-    return new Pair<>(first, second);
+    return new SimplePair<>(first, second);
+  }
+
+  /**
+   * Construct the serializable pair.
+   *
+   * @param <K> serializable type of the key of the pair
+   * @param <V> serializable type of the value of the pair
+   * @param first the first element of the pair
+   * @param second the second element of the pair
+   * @return a newly constructed pair
+   */
+  public static <K extends Serializable, V extends Serializable> Pair<K, V> ofSerializable(K first,
+      V second) {
+    return new SerializablePair<>(first, second);
   }
 
   public K getFirst() {
@@ -110,10 +130,6 @@ public final class Pair<K, V> implements Serializable {
     return second;
   }
 
-  @Override
-  public String toString() {
-    return "Pair{first='" + first + "', second='" + second + "'}";
-  }
 
   @Override
   public boolean equals(Object obj) {
@@ -141,5 +157,34 @@ public final class Pair<K, V> implements Serializable {
       return getSecond().hashCode();
     }
     return 0;
+  }
+
+  private static final class SimplePair<K, V> extends Pair<K, V> {
+
+    private SimplePair(K first, V second) {
+      super(first, second);
+    }
+
+    @Override
+    public String toString() {
+      return "SimplePair{first='" + first + "', second='" + second + "'}";
+    }
+  }
+
+  private static class SerializablePair<K extends Serializable, V extends Serializable> extends
+      Pair<K, V> implements Serializable {
+
+    private SerializablePair(K first, V second) {
+      super(first, second);
+    }
+
+    protected SerializablePair(){
+      super();
+    }
+
+    @Override
+    public String toString() {
+      return "SerializablePair{first='" + first + "', second='" + second + "'}";
+    }
   }
 }
