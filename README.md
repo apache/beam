@@ -78,7 +78,8 @@ in your system. In a Debian-based distribution:
 sudo apt-get install \
     openjdk-8-jdk \
     python-setuptools \
-    python-pip
+    python-pip \
+    virtualenv
 ```
 
 Then please use the standard `./gradlew build` command.
