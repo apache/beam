@@ -330,6 +330,32 @@ public class PTransformMatchersTest implements Serializable {
   }
 
   @Test
+  public void parDoRequiresStableInput() {
+    DoFn<Object, Object> doFnRSI = new DoFn<Object, Object>() {
+      @RequiresStableInput
+      @ProcessElement
+      public void process(ProcessContext ctxt) {
+      }
+    };
+
+    AppliedPTransform<?, ?, ?> single = getAppliedTransform(ParDo.of(doFn));
+    AppliedPTransform<?, ?, ?> singleRSI = getAppliedTransform(ParDo.of(doFnRSI));
+    AppliedPTransform<?, ?, ?> multi = getAppliedTransform(ParDo.of(doFn)
+        .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+    AppliedPTransform<?, ?, ?> multiRSI = getAppliedTransform(ParDo.of(doFnRSI)
+        .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(single), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(singleRSI), is(true));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(multi), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(multiRSI), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(single), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(singleRSI), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(multi), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(multiRSI), is(true));
+  }
+
+  @Test
   public void parDoWithFnTypeWithMatchingType() {
     DoFn<Object, Object> fn = new DoFn<Object, Object>() {
       @ProcessElement

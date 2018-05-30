@@ -33,6 +33,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 public interface PTransformMatcher {
   boolean matches(AppliedPTransform<?, ?, ?> application);
 
+  default boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+    return matches(application);
+  }
+
   default PTransformMatcher and(PTransformMatcher matcher) {
     return application -> this.matches(application) && matcher.matches(application);
   }
