@@ -55,21 +55,17 @@ class DirectExecutionContext {
     return new DirectStepContext();
   }
 
-  /**
-   * Returns the {@link StepContext} associated with the given step.
-   */
+  /** Returns the {@link StepContext} associated with the given step. */
   public DirectStepContext getStepContext(String stepName) {
     return cachedStepContexts.computeIfAbsent(stepName, k -> createStepContext());
   }
 
-  /**
-   * Step Context for the {@code DirectRunner}.
-   */
+  /** Step Context for the {@code DirectRunner}. */
   public class DirectStepContext implements StepContext {
     private CopyOnAccessInMemoryStateInternals<?> stateInternals;
     private DirectTimerInternals timerInternals;
 
-    public DirectStepContext() { }
+    public DirectStepContext() {}
 
     @Override
     public CopyOnAccessInMemoryStateInternals<?> stateInternals() {
@@ -82,15 +78,14 @@ class DirectExecutionContext {
     @Override
     public DirectTimerInternals timerInternals() {
       if (timerInternals == null) {
-        timerInternals =
-            DirectTimerInternals.create(clock, watermarks, TimerUpdate.builder(key));
+        timerInternals = DirectTimerInternals.create(clock, watermarks, TimerUpdate.builder(key));
       }
       return timerInternals;
     }
 
     /**
-     * Commits the state of this step, and returns the committed state. If the step has not
-     * accessed any state, return null.
+     * Commits the state of this step, and returns the committed state. If the step has not accessed
+     * any state, return null.
      */
     public CopyOnAccessInMemoryStateInternals commitState() {
       if (stateInternals != null) {
@@ -100,8 +95,8 @@ class DirectExecutionContext {
     }
 
     /**
-     * Gets the timer update of the {@link TimerInternals} of this {@link DirectStepContext},
-     * which is empty if the {@link TimerInternals} were never accessed.
+     * Gets the timer update of the {@link TimerInternals} of this {@link DirectStepContext}, which
+     * is empty if the {@link TimerInternals} were never accessed.
      */
     public TimerUpdate getTimerUpdate() {
       if (timerInternals == null) {

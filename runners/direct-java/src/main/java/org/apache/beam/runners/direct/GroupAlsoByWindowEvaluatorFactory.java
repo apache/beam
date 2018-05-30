@@ -55,27 +55,24 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link DirectGroupAlsoByWindow} {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link
+ * DirectGroupAlsoByWindow} {@link PTransform}.
  */
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
 
-  GroupAlsoByWindowEvaluatorFactory(
-      EvaluationContext evaluationContext, PipelineOptions options) {
+  GroupAlsoByWindowEvaluatorFactory(EvaluationContext evaluationContext, PipelineOptions options) {
     this.evaluationContext = evaluationContext;
     this.options = options;
   }
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle) {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
-        createEvaluator(
-            (AppliedPTransform) application, (CommittedBundle) inputBundle);
+        createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
     return evaluator;
   }
 
@@ -84,13 +81,11 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<K, V>>,
-              PCollection<KV<K, Iterable<V>>>,
+              PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
               DirectGroupAlsoByWindow<K, V>>
           application,
       CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
-    return new GroupAlsoByWindowEvaluator<>(
-        evaluationContext, options, inputBundle, application);
+    return new GroupAlsoByWindowEvaluator<>(evaluationContext, options, inputBundle, application);
   }
 
   /**
@@ -105,8 +100,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
     private final AppliedPTransform<
-        PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
-        DirectGroupAlsoByWindow<K, V>>
+            PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+            DirectGroupAlsoByWindow<K, V>>
         application;
 
     private final DirectStepContext stepContext;
@@ -125,8 +120,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         PipelineOptions options,
         CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
         final AppliedPTransform<
-                PCollection<KeyedWorkItem<K, V>>,
-                PCollection<KV<K, Iterable<V>>>,
+                PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
                 DirectGroupAlsoByWindow<K, V>>
             application) {
       this.evaluationContext = evaluationContext;
@@ -134,10 +128,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       this.application = application;
 
       structuralKey = inputBundle.getKey();
-      stepContext = evaluationContext
-          .getExecutionContext(application, inputBundle.getKey())
-          .getStepContext(
-              evaluationContext.getStepName(application));
+      stepContext =
+          evaluationContext
+              .getExecutionContext(application, inputBundle.getKey())
+              .getStepContext(evaluationContext.getStepName(application));
       windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>)
               application.getTransform().getInputWindowingStrategy();
@@ -148,8 +142,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       Coder<V> valueCoder =
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
       reduceFn = SystemReduceFn.buffering(valueCoder);
-      droppedDueToLateness = Metrics.counter(GroupAlsoByWindowEvaluator.class,
-          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
+      droppedDueToLateness =
+          Metrics.counter(
+              GroupAlsoByWindowEvaluator.class,
+              GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
     }
 
     @Override

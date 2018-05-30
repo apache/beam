@@ -67,9 +67,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WriteWithShardingFactory}.
- */
+/** Tests for {@link WriteWithShardingFactory}. */
 @RunWith(JUnit4.class)
 public class WriteWithShardingFactoryTest implements Serializable {
 
@@ -167,8 +165,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
     DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
     List<Integer> outputs = fnTester.processBundle(0L);
-    assertThat(
-        outputs, containsInAnyOrder(1));
+    assertThat(outputs, containsInAnyOrder(1));
   }
 
   @Test
@@ -177,8 +174,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
     DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
     List<Integer> outputs = fnTester.processBundle(1L);
-    assertThat(
-        outputs, containsInAnyOrder(1));
+    assertThat(outputs, containsInAnyOrder(1));
   }
 
   @Test
@@ -212,8 +208,8 @@ public class WriteWithShardingFactoryTest implements Serializable {
   public void keyBasedOnCountFnFewElementsExtraShards() throws Exception {
     long countValue = (long) WriteWithShardingFactory.MIN_SHARDS_FOR_LOG + 3;
     PCollection<Long> inputCount = p.apply(Create.of(countValue));
-    PCollectionView<Long> elementCountView = inputCount.apply(
-        View.<Long>asSingleton().withDefaultValue(countValue));
+    PCollectionView<Long> elementCountView =
+        inputCount.apply(View.<Long>asSingleton().withDefaultValue(countValue));
     CalculateShardsFn fn = new CalculateShardsFn(3);
     DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
@@ -248,9 +244,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
     @Nullable
     @Override
     public ResourceId unwindowedFilename(
-        int shardNumber,
-        int numShards,
-        FileBasedSink.OutputFileHints outputFileHints) {
+        int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
       throw new IllegalArgumentException("Should not be used");
     }
   }

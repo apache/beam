@@ -101,10 +101,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
                 .build());
     PCollectionNode groupedKvs =
         PipelineNode.pCollection(
-            "groupedKvs",
-            RunnerApi.PCollection.newBuilder()
-                .setUniqueName("groupedKvs")
-                .build());
+            "groupedKvs", RunnerApi.PCollection.newBuilder().setUniqueName("groupedKvs").build());
     PTransformNode groupByKeyOnly =
         PipelineNode.pTransform(
             "gbko",

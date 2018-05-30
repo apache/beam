@@ -50,9 +50,10 @@ class DoFnLifecycleManager {
   private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
   private DoFnLifecycleManager(DoFn<?, ?> original) {
-    this.outstanding = CacheBuilder.newBuilder()
-        .removalListener(new TeardownRemovedFnListener())
-        .build(new DeserializingCacheLoader(original));
+    this.outstanding =
+        CacheBuilder.newBuilder()
+            .removalListener(new TeardownRemovedFnListener())
+            .build(new DeserializingCacheLoader(original));
     thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
@@ -97,8 +98,10 @@ class DoFnLifecycleManager {
 
     @Override
     public DoFn<?, ?> load(Thread key) throws Exception {
-      DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
-          "DoFn Copy in thread " + key.getName());
+      DoFn<?, ?> fn =
+          (DoFn<?, ?>)
+              SerializableUtils.deserializeFromByteArray(
+                  original, "DoFn Copy in thread " + key.getName());
       DoFnInvokers.invokerFor(fn).invokeSetup();
       return fn;
     }

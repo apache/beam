@@ -31,9 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
-/**
- * An immutable {@link TransformResult}.
- */
+/** An immutable {@link TransformResult}. */
 @AutoValue
 abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
@@ -42,8 +40,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     return new Builder(transform, watermarkHold);
   }
 
-  public static <InputT> Builder<InputT> withoutHold(
-      AppliedPTransform<?, ?, ?> transform) {
+  public static <InputT> Builder<InputT> withoutHold(AppliedPTransform<?, ?, ?> transform) {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
@@ -60,9 +57,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
         getOutputTypes());
   }
 
-  /**
-   * A builder for creating instances of {@link StepTransformResult}.
-   */
+  /** A builder for creating instances of {@link StepTransformResult}. */
   public static class Builder<InputT> {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
@@ -128,8 +123,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       return this;
     }
 
-    public Builder<InputT> addOutput(
-        Collection<UncommittedBundle<?>> outputBundles) {
+    public Builder<InputT> addOutput(Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
       return this;
     }

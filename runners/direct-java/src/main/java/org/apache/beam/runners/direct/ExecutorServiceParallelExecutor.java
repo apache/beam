@@ -306,7 +306,7 @@ final class ExecutorServiceParallelExecutor
       errors.add(re);
     }
     try {
-        metricsExecutor.shutdown();
+      metricsExecutor.shutdown();
     } catch (final RuntimeException re) {
       errors.add(re);
     }
@@ -317,10 +317,15 @@ final class ExecutorServiceParallelExecutor
     }
     pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
     if (!errors.isEmpty()) {
-      final IllegalStateException exception = new IllegalStateException(
-        "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
-        + errors.stream().map(Exception::getMessage)
-          .collect(Collectors.joining("\n- ", "- ", "")));
+      final IllegalStateException exception =
+          new IllegalStateException(
+              "Error"
+                  + (errors.size() == 1 ? "" : "s")
+                  + " during executor shutdown:\n"
+                  + errors
+                      .stream()
+                      .map(Exception::getMessage)
+                      .collect(Collectors.joining("\n- ", "- ", "")));
       visibleUpdates.failed(exception);
       throw exception;
     }
@@ -384,9 +389,7 @@ final class ExecutorServiceParallelExecutor
       updates.offer(VisibleExecutorUpdate.finished());
     }
 
-    /**
-     * Try to get the next unconsumed message in this {@link QueueMessageReceiver}.
-     */
+    /** Try to get the next unconsumed message in this {@link QueueMessageReceiver}. */
     @Nullable
     private VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
       return updates.poll(timeout.getMillis(), TimeUnit.MILLISECONDS);
