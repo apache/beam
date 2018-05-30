@@ -28,7 +28,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link DefaultRowTypeFactory}.
+ * Unit tests for {@link DefaultSchemaFactory}.
  */
 public class DefaultSchemaFactoryTest {
 
@@ -53,9 +53,9 @@ public class DefaultSchemaFactoryTest {
 
   @Test
   public void testContainsCorrectFields() throws Exception {
-    DefaultRowTypeFactory factory = new DefaultRowTypeFactory();
+    DefaultSchemaFactory factory = new DefaultSchemaFactory();
 
-    Schema schema = factory.createRowType(GETTERS);
+    Schema schema = factory.createSchema(GETTERS);
 
     assertEquals(GETTERS.size(), schema.getFieldCount());
     assertEquals(
@@ -73,9 +73,9 @@ public class DefaultSchemaFactoryTest {
   public void testThrowsForUnsupportedTypes() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
 
-    DefaultRowTypeFactory factory = new DefaultRowTypeFactory();
+    DefaultSchemaFactory factory = new DefaultSchemaFactory();
 
-    factory.createRowType(
+    factory.createSchema(
         Arrays.<FieldValueGetter>asList(getter("unsupportedGetter", UnsupportedClass.class)));
   }
 

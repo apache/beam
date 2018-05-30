@@ -58,7 +58,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedUnboundedTable of(final Object... args) {
-    return new MockedUnboundedTable(TestUtils.buildBeamSqlRowType(args));
+    return new MockedUnboundedTable(TestUtils.buildBeamSqlSchema(args));
   }
 
   public MockedUnboundedTable timestampColumnIndex(int idx) {

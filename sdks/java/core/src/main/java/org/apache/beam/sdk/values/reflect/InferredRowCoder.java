@@ -67,10 +67,10 @@ public abstract class InferredRowCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a {@link InferredRowCoder} with row type factory overridden by {@code rowTypeFactory}.
+   * Returns a {@link InferredRowCoder} with row type factory overridden by {@code schemaFactory}.
    */
-  public InferredRowCoder<T> withRowTypeFactory(RowTypeFactory rowTypeFactory) {
-    return toBuilder().setRowFactory(RowFactory.withRowTypeFactory(rowTypeFactory)).build();
+  public InferredRowCoder<T> withSchemaFactory(SchemaFactory schemaFactory) {
+    return toBuilder().setRowFactory(RowFactory.withSchemaFactory(schemaFactory)).build();
   }
 
   static <W> Builder<W> builder() {
@@ -79,12 +79,12 @@ public abstract class InferredRowCoder<T> extends CustomCoder<T> {
 
   abstract Builder<T> toBuilder();
 
-  public Schema rowType() {
-    return rowFactory().getRowType(elementType());
+  public Schema schema() {
+    return rowFactory().getSchema(elementType());
   }
 
   public RowCoder rowCoder() {
-    return rowType().getRowCoder();
+    return schema().getRowCoder();
   }
 
   public Row createRow(T element) {
