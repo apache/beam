@@ -163,7 +163,7 @@ public class RowSqlTypes {
     }
 
     public Builder withRowField(String fieldName, Schema schema) {
-      builder.addRowField(fieldName, schema, true);
+      builder.addField(Field.nullable(fieldName, FieldType.row(schema)));
       return this;
     }
 

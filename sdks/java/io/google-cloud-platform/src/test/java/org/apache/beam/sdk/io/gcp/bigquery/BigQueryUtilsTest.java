@@ -43,11 +43,11 @@ import org.junit.Test;
 public class BigQueryUtilsTest {
   private static final Schema FLAT_TYPE = Schema
       .builder()
-      .addInt64Field("id", true)
-      .addDoubleField("value", true)
-      .addStringField("name", true)
-      .addDateTimeField("timestamp", true)
-      .addBooleanField("valid", true)
+      .addField(Schema.Field.nullable("id", Schema.FieldType.INT64))
+      .addField(Schema.Field.nullable("value", Schema.FieldType.DOUBLE))
+      .addField(Schema.Field.nullable("name", Schema.FieldType.STRING))
+      .addField(Schema.Field.nullable("timestamp", Schema.FieldType.DATETIME))
+      .addField(Schema.Field.nullable("valid", Schema.FieldType.BOOLEAN))
       .build();
 
   private static final Schema ARRAY_TYPE = Schema
@@ -57,15 +57,13 @@ public class BigQueryUtilsTest {
 
   private static final Schema ROW_TYPE = Schema
       .builder()
-      .addRowField("row", FLAT_TYPE, true)
+      .addField(Schema.Field.nullable("row", Schema.FieldType.row(FLAT_TYPE)))
       .build();
 
-  private static final Schema ARRAY_ROW_TYPE = Schema
-      .builder()
-      .addArrayField("rows", Schema.FieldType
-          .of(Schema.TypeName.ROW)
-          .withRowSchema(FLAT_TYPE))
-      .build();
+  private static final Schema ARRAY_ROW_TYPE =
+      Schema.builder()
+          .addArrayField("rows", Schema.FieldType.of(Schema.TypeName.ROW).withRowSchema(FLAT_TYPE))
+          .build();
 
   private static final TableFieldSchema ID =
       new TableFieldSchema().setName("id")

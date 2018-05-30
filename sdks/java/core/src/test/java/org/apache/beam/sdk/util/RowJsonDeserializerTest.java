@@ -50,9 +50,6 @@ import org.junit.rules.ExpectedException;
  * Unit tests for {@link RowJsonDeserializer}.
  */
 public class RowJsonDeserializerTest {
-  private static final boolean NOT_NULLABLE = false;
-  private static final boolean NULLABLE = true;
-
   private static final Boolean BOOLEAN_TRUE_VALUE = true;
   private static final String BOOLEAN_TRUE_STRING = "true";
   private static final Byte BYTE_VALUE = 126;
@@ -76,14 +73,14 @@ public class RowJsonDeserializerTest {
     Schema schema =
         Schema
             .builder()
-            .addByteField("f_byte", NOT_NULLABLE)
-            .addInt16Field("f_int16", NOT_NULLABLE)
-            .addInt32Field("f_int32", NOT_NULLABLE)
-            .addInt64Field("f_int64", NOT_NULLABLE)
-            .addFloatField("f_float", NOT_NULLABLE)
-            .addDoubleField("f_double", NOT_NULLABLE)
-            .addBooleanField("f_boolean", NOT_NULLABLE)
-            .addStringField("f_string", NOT_NULLABLE)
+            .addByteField("f_byte")
+            .addInt16Field("f_int16")
+            .addInt32Field("f_int32")
+            .addInt64Field("f_int64")
+            .addFloatField("f_float")
+            .addDoubleField("f_double")
+            .addBooleanField("f_boolean")
+            .addStringField("f_string")
             .build();
 
     String rowString = "{\n"
@@ -115,7 +112,7 @@ public class RowJsonDeserializerTest {
     Schema schema =
         Schema
             .builder()
-            .addInt32Field("f_int32", NOT_NULLABLE)
+            .addInt32Field("f_int32")
             .addArrayField("f_intArray", INT32.type())
             .build();
 
@@ -194,15 +191,15 @@ public class RowJsonDeserializerTest {
     Schema nestedRowSchema =
         Schema
             .builder()
-            .addInt32Field("f_nestedInt32", NOT_NULLABLE)
-            .addStringField("f_nestedString", NOT_NULLABLE)
+            .addInt32Field("f_nestedInt32")
+            .addStringField("f_nestedString")
             .build();
 
     Schema schema =
         Schema
             .builder()
-            .addInt32Field("f_int32", NOT_NULLABLE)
-            .addRowField("f_row", nestedRowSchema, NOT_NULLABLE)
+            .addInt32Field("f_int32")
+            .addRowField("f_row", nestedRowSchema)
             .build();
 
     String rowString = "{\n"
@@ -231,15 +228,15 @@ public class RowJsonDeserializerTest {
     Schema nestedRowSchema =
         Schema
             .builder()
-            .addInt32Field("f_nestedInt32", NOT_NULLABLE)
-            .addStringField("f_nestedString", NOT_NULLABLE)
+            .addInt32Field("f_nestedInt32")
+            .addStringField("f_nestedString")
             .build();
 
     Schema schema =
         Schema
             .builder()
-            .addInt32Field("f_int32", NOT_NULLABLE)
-            .addRowField("f_row", nestedRowSchema, NOT_NULLABLE)
+            .addInt32Field("f_int32")
+            .addRowField("f_row", nestedRowSchema)
             .build();
 
     String rowString = "{\n"
@@ -261,19 +258,19 @@ public class RowJsonDeserializerTest {
     Schema doubleNestedRowSchema =
         Schema
             .builder()
-            .addStringField("f_doubleNestedString", NOT_NULLABLE)
+            .addStringField("f_doubleNestedString")
             .build();
 
     Schema nestedRowSchema =
         Schema
             .builder()
-            .addRowField("f_nestedRow", doubleNestedRowSchema, NOT_NULLABLE)
+            .addRowField("f_nestedRow", doubleNestedRowSchema)
             .build();
 
     Schema schema =
         Schema
             .builder()
-            .addRowField("f_row", nestedRowSchema, NOT_NULLABLE)
+            .addRowField("f_row", nestedRowSchema)
             .build();
 
     String rowString = "{\n"
@@ -310,7 +307,7 @@ public class RowJsonDeserializerTest {
     Schema schema =
         Schema
             .builder()
-            .addDateTimeField("f_dateTime", NOT_NULLABLE)
+            .addDateTimeField("f_dateTime")
             .build();
 
     thrown.expect(UnsupportedRowJsonException.class);
@@ -344,7 +341,7 @@ public class RowJsonDeserializerTest {
     Schema schema =
         Schema
             .builder()
-            .addRowField("f_nestedRow", nestedSchema, NOT_NULLABLE)
+            .addRowField("f_nestedRow", nestedSchema)
             .build();
 
     thrown.expect(UnsupportedRowJsonException.class);
@@ -358,8 +355,8 @@ public class RowJsonDeserializerTest {
     Schema schema =
         Schema
             .builder()
-            .addByteField("f_byte", NOT_NULLABLE)
-            .addStringField("f_string", NULLABLE)
+            .addByteField("f_byte")
+            .addField(Schema.Field.nullable("f_string", FieldType.STRING))
             .build();
 
     String rowString = "{\n"
@@ -385,8 +382,8 @@ public class RowJsonDeserializerTest {
     Schema schema =
         Schema
             .builder()
-            .addByteField("f_byte", NOT_NULLABLE)
-            .addStringField("f_string", NOT_NULLABLE)
+            .addByteField("f_byte")
+            .addStringField("f_string")
             .build();
 
     String rowString = "{\n"
