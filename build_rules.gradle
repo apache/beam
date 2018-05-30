@@ -421,7 +421,7 @@ ext.applyJavaNature = {
     if (configuration.enableErrorProne) {
       options.compilerArgs += [
         "-XepDisableWarningsInGeneratedCode",
-        "-XepExcludedPaths:.*/build/generated.*avro-java/.*",
+        "-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*",
         "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
       ]
     }
