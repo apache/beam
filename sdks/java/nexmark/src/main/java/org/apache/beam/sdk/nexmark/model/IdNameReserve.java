@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,7 +56,13 @@ public class IdNameReserve implements KnownSize, Serializable {
       long reserve = LONG_CODER.decode(inStream);
       return new IdNameReserve(id, name, reserve);
     }
+
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(IdNameReserve v) {
+      return v;
+    }
   };
 
   @JsonProperty
@@ -94,5 +101,22 @@ public class IdNameReserve implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    IdNameReserve that = (IdNameReserve) o;
+    return id == that.id && reserve == that.reserve && Objects.equal(name, that.name);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id, name, reserve);
   }
 }
