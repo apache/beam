@@ -78,7 +78,8 @@ public class WriteFilesTranslation {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> view :
                 transform.getSink().getDynamicDestinations().getSideInputs()) {
-              sideInputs.put(view.getTagInternal().getId(), ParDoTranslation.translateView(view));
+              sideInputs.put(
+                  view.getTagInternal().getId(), ParDoTranslation.translateView(view, components));
             }
             return sideInputs;
           }
@@ -293,6 +294,7 @@ public class WriteFilesTranslation {
       return new RawWriteFiles(protoTransform, rehydratedComponents);
     }
   }
+
   /** Registers {@link WriteFilesTranslator}. */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {

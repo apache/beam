@@ -71,7 +71,6 @@ import com.google.rpc.Code;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -128,9 +127,8 @@ public class DatastoreV1Test {
     V_1_OPTIONS = V1Options.from(PROJECT_ID, NAMESPACE, null);
   }
 
-  private DatastoreV1.Read initialRead;
-
   @Mock
+  private
   Datastore mockDatastore;
   @Mock
   QuerySplitter mockQuerySplitter;
@@ -144,7 +142,7 @@ public class DatastoreV1Test {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    initialRead = DatastoreIO.v1().read()
+    DatastoreV1.Read initialRead = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
     when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class),
@@ -449,7 +447,7 @@ public class DatastoreV1Test {
    * Test that valid keys are transformed to delete mutations.
    */
   @Test
-  public void testDeleteKeys() throws Exception {
+  public void testDeleteKeys() {
     Key key = makeKey("bird", "finch").build();
     DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
 
@@ -665,7 +663,7 @@ public class DatastoreV1Test {
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Query> queries = doFnTester.processBundle(QUERY);
 
-    assertEquals(queries.size(), expectedNumSplits);
+    assertEquals(expectedNumSplits, queries.size());
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
     verify(mockDatastore, times(1)).runQuery(latestTimestampRequest);
@@ -686,7 +684,7 @@ public class DatastoreV1Test {
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Query> queries = doFnTester.processBundle(queryWithLimit);
 
-    assertEquals(queries.size(), 1);
+    assertEquals(1, queries.size());
     verifyNoMoreInteractions(mockDatastore);
     verifyNoMoreInteractions(mockQuerySplitter);
   }
@@ -728,7 +726,7 @@ public class DatastoreV1Test {
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<Entity> entities = doFnTester.processBundle(query);
+    doFnTester.processBundle(query);
   }
 
   @Test
@@ -990,7 +988,7 @@ public class DatastoreV1Test {
 
   /** Generate dummy query splits. */
   private List<Query> splitQuery(Query query, int numSplits) {
-    List<Query> queries = new LinkedList<>();
+    List<Query> queries = new ArrayList<>();
     int offsetOfOriginal = query.getOffset();
     for (int i = 0; i < numSplits; i++) {
       Query.Builder q = Query.newBuilder();

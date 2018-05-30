@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Arithmetic operators.
- */
+/** Arithmetic operators. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic;

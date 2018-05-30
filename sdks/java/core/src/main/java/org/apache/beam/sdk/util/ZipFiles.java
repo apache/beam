@@ -125,31 +125,26 @@ public final class ZipFiles {
         targetDirectory.isDirectory(),
         "%s is not a valid directory",
         targetDirectory.getAbsolutePath());
-    final ZipFile zipFileObj = new ZipFile(zipFile);
-    try {
+    try (ZipFile zipFileObj = new ZipFile(zipFile)) {
       for (ZipEntry entry : entries(zipFileObj)) {
         checkName(entry.getName());
         File targetFile = new File(targetDirectory, entry.getName());
         if (entry.isDirectory()) {
           if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
             throw new IOException(
-                "Failed to create directory: " + targetFile.getAbsolutePath());
+                    "Failed to create directory: " + targetFile.getAbsolutePath());
           }
         } else {
           File parentFile = targetFile.getParentFile();
-          if (!parentFile.isDirectory()) {
-            if (!parentFile.mkdirs()) {
-              throw new IOException(
-                  "Failed to create directory: "
-                  + parentFile.getAbsolutePath());
-            }
+          if (!parentFile.isDirectory() && !parentFile.mkdirs()) {
+            throw new IOException(
+                    "Failed to create directory: "
+                            + parentFile.getAbsolutePath());
           }
           // Write the file to the destination.
           asByteSource(zipFileObj, entry).copyTo(Files.asByteSink(targetFile));
         }
       }
-    } finally {
-      zipFileObj.close();
     }
   }
 
@@ -170,7 +165,7 @@ public final class ZipFiles {
       // name like "foo..bar" or even "foo..", which should be fine.
       File file = new File(name);
       while (file != null) {
-        if (file.getName().equals("..")) {
+        if ("..".equals(file.getName())) {
           throw new IOException("Cannot unzip file containing an entry with "
               + "\"..\" in the name: " + name);
         }

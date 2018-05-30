@@ -29,7 +29,7 @@ import javax.jms.Destination;
  */
 public class JmsRecord implements Serializable {
 
-  private final String jmsMessageID;
+  @Nullable private final String jmsMessageID;
   private final long jmsTimestamp;
   private final String jmsCorrelationID;
   @Nullable private final Destination jmsReplyTo;
@@ -43,7 +43,7 @@ public class JmsRecord implements Serializable {
   private final String text;
 
   public JmsRecord(
-      String jmsMessageID,
+      @Nullable String jmsMessageID,
       long jmsTimestamp,
       String jmsCorrelationID,
       @Nullable Destination jmsReplyTo,
@@ -137,8 +137,7 @@ public class JmsRecord implements Serializable {
   public boolean equals(Object obj) {
     if (obj instanceof JmsRecord) {
       JmsRecord other = (JmsRecord) obj;
-      return jmsMessageID.equals(other.jmsMessageID)
-          && jmsDestination.equals(other.jmsDestination)
+      return jmsDestination.equals(other.jmsDestination)
           && jmsDeliveryMode == other.jmsDeliveryMode
           && jmsRedelivered == other.jmsRedelivered
           && jmsExpiration == other.jmsExpiration

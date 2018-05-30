@@ -18,23 +18,24 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * 'INITCAP' operator.
- */
+/** 'INITCAP' operator. */
 public class BeamSqlInitCapExpression extends BeamSqlStringUnaryExpression {
   public BeamSqlInitCapExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
 
     StringBuilder ret = new StringBuilder(str);
     boolean isInit = true;

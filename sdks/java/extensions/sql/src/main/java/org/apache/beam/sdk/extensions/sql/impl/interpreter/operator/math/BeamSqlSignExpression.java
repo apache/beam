@@ -24,45 +24,52 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'SIGN' function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'SIGN' function. */
 public class BeamSqlSignExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlSignExpression(List<BeamSqlExpression> operands) {
     super(operands, operands.get(0).getOutputType());
   }
 
-  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+  @Override
+  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
     BeamSqlPrimitive result = null;
     switch (op.getOutputType()) {
       case TINYINT:
-        result = BeamSqlPrimitive
-          .of(SqlTypeName.TINYINT, (byte) SqlFunctions.sign(SqlFunctions.toByte(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.TINYINT, (byte) SqlFunctions.sign(SqlFunctions.toByte(op.getValue())));
         break;
       case SMALLINT:
-        result = BeamSqlPrimitive
-          .of(SqlTypeName.SMALLINT, (short) SqlFunctions.sign(SqlFunctions.toShort(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.SMALLINT,
+                (short) SqlFunctions.sign(SqlFunctions.toShort(op.getValue())));
         break;
       case INTEGER:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.INTEGER, SqlFunctions.sign(SqlFunctions.toInt(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.INTEGER, SqlFunctions.sign(SqlFunctions.toInt(op.getValue())));
         break;
       case BIGINT:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.BIGINT, SqlFunctions.sign(SqlFunctions.toLong(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.BIGINT, SqlFunctions.sign(SqlFunctions.toLong(op.getValue())));
         break;
       case FLOAT:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.FLOAT, (float) SqlFunctions.sign(SqlFunctions.toFloat(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.FLOAT, (float) SqlFunctions.sign(SqlFunctions.toFloat(op.getValue())));
         break;
       case DOUBLE:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.sign(SqlFunctions.toDouble(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.DOUBLE, SqlFunctions.sign(SqlFunctions.toDouble(op.getValue())));
         break;
       case DECIMAL:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DECIMAL, SqlFunctions.sign(SqlFunctions.toBigDecimal(op.getValue())));
+        result =
+            BeamSqlPrimitive.of(
+                SqlTypeName.DECIMAL, SqlFunctions.sign(SqlFunctions.toBigDecimal(op.getValue())));
         break;
       default:
         break;

@@ -133,7 +133,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected GcsResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
     if (isDirectory) {
       if (!singleResourceSpec.endsWith("/")) {
-        singleResourceSpec += '/';
+        singleResourceSpec += "/";
       }
     } else {
       checkArgument(
@@ -253,6 +253,6 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private List<GcsPath> toGcsPaths(Collection<String> specs) {
-    return FluentIterable.from(specs).transform(spec -> GcsPath.fromUri(spec)).toList();
+    return FluentIterable.from(specs).transform(GcsPath::fromUri).toList();
   }
 }

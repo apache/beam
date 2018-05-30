@@ -20,20 +20,22 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test for BeamSqlLocalTimestampExpression.
- */
+/** Test for BeamSqlLocalTimestampExpression. */
 public class BeamSqlCurrentTimestampExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test
   public void test() {
     List<BeamSqlExpression> operands = new ArrayList<>();
-    assertEquals(SqlTypeName.TIMESTAMP,
-        new BeamSqlCurrentTimestampExpression(operands).evaluate(record, null).getOutputType());
+    assertEquals(
+        SqlTypeName.TIMESTAMP,
+        new BeamSqlCurrentTimestampExpression(operands)
+            .evaluate(row, null, ImmutableMap.of())
+            .getOutputType());
   }
 }

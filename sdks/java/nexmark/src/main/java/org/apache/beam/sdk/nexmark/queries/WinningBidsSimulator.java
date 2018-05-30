@@ -25,7 +25,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -133,11 +132,8 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
     Map<Long, List<Long>> toBeRetired = new TreeMap<>();
     for (Map.Entry<Long, Auction> entry : openAuctions.entrySet()) {
       if (entry.getValue().expires <= timestamp) {
-        List<Long> idsAtTime = toBeRetired.get(entry.getValue().expires);
-        if (idsAtTime == null) {
-          idsAtTime = new ArrayList<>();
-          toBeRetired.put(entry.getValue().expires, idsAtTime);
-        }
+        List<Long> idsAtTime =
+            toBeRetired.computeIfAbsent(entry.getValue().expires, k -> new ArrayList<>());
         idsAtTime.add(entry.getKey());
       }
     }

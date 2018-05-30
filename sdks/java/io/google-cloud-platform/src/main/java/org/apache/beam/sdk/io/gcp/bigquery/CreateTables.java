@@ -26,9 +26,10 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import java.io.IOException;
+import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -84,88 +85,105 @@ public class CreateTables<DestinationT>
     List<PCollectionView<?>> sideInputs = Lists.newArrayList();
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
-    return input.apply(
-        ParDo.of(
-                new DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context)
-                      throws InterruptedException, IOException {
-                    dynamicDestinations.setSideInputAccessorFromProcessContext(context);
-                    TableDestination tableDestination =
-                        dynamicDestinations.getTable(context.element().getKey());
-                    checkArgument(
-                        tableDestination != null,
-                        "DynamicDestinations.getTable() may not return null, "
-                            + "but %s returned null for destination %s",
-                        dynamicDestinations,
-                        context.element().getKey());
-                    checkArgument(
-                        tableDestination.getTableSpec() != null,
-                        "DynamicDestinations.getTable() must return a TableDestination "
-                            + "with a non-null table spec, but %s returned %s for destination %s,"
-                            + "which has a null table spec",
-                        dynamicDestinations,
-                        tableDestination,
-                        context.element().getKey());
-                    TableReference tableReference = tableDestination.getTableReference();
-                    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-                      tableReference.setProjectId(
-                          context.getPipelineOptions().as(BigQueryOptions.class).getProject());
-                      tableDestination =
-                          new TableDestination(
-                              tableReference, tableDestination.getTableDescription());
-                    }
-                    TableSchema tableSchema =
-                        dynamicDestinations.getSchema(context.element().getKey());
-                    if (createDisposition != CreateDisposition.CREATE_NEVER) {
-                      checkArgument(
-                          tableSchema != null,
-                          "Unless create disposition is %s, a schema must be specified, i.e. "
-                              + "DynamicDestinations.getSchema() may not return null. "
-                              + "However, create disposition is %s, and "
-                              + " %s returned null for destination %s",
-                          CreateDisposition.CREATE_NEVER,
-                          createDisposition,
-                          dynamicDestinations,
-                          context.element().getKey());
-                    }
-                    BigQueryOptions options =
-                        context.getPipelineOptions().as(BigQueryOptions.class);
-                    possibleCreateTable(options, tableDestination, tableSchema);
-                    context.output(KV.of(tableDestination, context.element().getValue()));
-                  }
-                })
-            .withSideInputs(sideInputs));
+    return input.apply(ParDo.of(new CreateTablesFn()).withSideInputs(sideInputs));
   }
 
-  private void possibleCreateTable(
-      BigQueryOptions options, TableDestination tableDestination, TableSchema tableSchema)
-      throws InterruptedException, IOException {
-    String tableSpec = BigQueryHelpers.stripPartitionDecorator(tableDestination.getTableSpec());
-    if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
-      synchronized (createdTables) {
+  private class CreateTablesFn
+      extends DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>> {
+    private Map<DestinationT, TableDestination> destinations;
+
+    @StartBundle
+    public void startBundle() {
+      destinations = Maps.newHashMap();
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      dynamicDestinations.setSideInputAccessorFromProcessContext(context);
+      context.output(
+          KV.of(
+              destinations.computeIfAbsent(
+                  context.element().getKey(), dest -> getTableDestination(context, dest)),
+              context.element().getValue()));
+    }
+
+    private TableDestination getTableDestination(ProcessContext context, DestinationT destination) {
+      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      checkArgument(
+          tableDestination != null,
+          "DynamicDestinations.getTable() may not return null, "
+              + "but %s returned null for destination %s",
+          dynamicDestinations,
+          destination);
+      checkArgument(
+          tableDestination.getTableSpec() != null,
+          "DynamicDestinations.getTable() must return a TableDestination "
+              + "with a non-null table spec, but %s returned %s for destination %s,"
+              + "which has a null table spec",
+          dynamicDestinations,
+          tableDestination,
+          destination);
+      TableReference tableReference = tableDestination.getTableReference().clone();
+      if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+        tableReference.setProjectId(
+            context.getPipelineOptions().as(BigQueryOptions.class).getProject());
+        tableDestination = tableDestination.withTableReference(tableReference);
+      }
+      if (createDisposition == CreateDisposition.CREATE_NEVER) {
+        return tableDestination;
+      }
+
+      String tableSpec = BigQueryHelpers.stripPartitionDecorator(tableDestination.getTableSpec());
+      if (!createdTables.contains(tableSpec)) {
         // Another thread may have succeeded in creating the table in the meanwhile, so
         // check again. This check isn't needed for correctness, but we add it to prevent
         // every thread from attempting a create and overwhelming our BigQuery quota.
-        DatasetService datasetService = bqServices.getDatasetService(options);
-        if (!createdTables.contains(tableSpec)) {
-          TableReference tableReference = tableDestination.getTableReference();
-          String tableDescription = tableDestination.getTableDescription();
-          tableReference.setTableId(
-              BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
-          if (datasetService.getTable(tableReference) == null) {
-            Table table = new Table()
-                .setTableReference(tableReference)
-                .setSchema(tableSchema)
-                .setDescription(tableDescription);
-            if (tableDestination.getTimePartitioning() != null) {
-              table.setTimePartitioning(tableDestination.getTimePartitioning());
-            }
-            datasetService.createTable(table);
+        synchronized (createdTables) {
+          if (!createdTables.contains(tableSpec)) {
+            tryCreateTable(context, destination, tableDestination, tableSpec);
           }
-          createdTables.add(tableSpec);
         }
       }
+      return tableDestination;
+    }
+
+    private void tryCreateTable(
+        ProcessContext context,
+        DestinationT destination,
+        TableDestination tableDestination,
+        String tableSpec) {
+      DatasetService datasetService =
+          bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
+      TableReference tableReference = tableDestination.getTableReference().clone();
+      tableReference.setTableId(
+          BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
+      try {
+        if (datasetService.getTable(tableReference) == null) {
+          TableSchema tableSchema = dynamicDestinations.getSchema(destination);
+          checkArgument(
+              tableSchema != null,
+              "Unless create disposition is %s, a schema must be specified, i.e. "
+                  + "DynamicDestinations.getSchema() may not return null. "
+                  + "However, create disposition is %s, and "
+                  + " %s returned null for destination %s",
+              CreateDisposition.CREATE_NEVER,
+              createDisposition,
+              dynamicDestinations,
+              destination);
+          Table table =
+              new Table()
+                  .setTableReference(tableReference)
+                  .setSchema(tableSchema)
+                  .setDescription(tableDestination.getTableDescription());
+          if (tableDestination.getTimePartitioning() != null) {
+            table.setTimePartitioning(tableDestination.getTimePartitioning());
+          }
+          datasetService.createTable(table);
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      createdTables.add(tableSpec);
     }
   }
 

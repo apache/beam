@@ -74,7 +74,7 @@ public class ProxyInvocationHandlerTest {
   @Rule public TestRule resetPipelineOptionsRegistry = new ExternalResource() {
     @Override
     protected void before() {
-      PipelineOptionsFactory.resetRegistry();
+      PipelineOptionsFactory.resetCache();
     }
   };
 
@@ -253,9 +253,9 @@ public class ProxyInvocationHandlerTest {
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
-    assertEquals("Current Settings:\n"
-            + "  long: 57\n"
-            + "  string: stringValue\n",
+    assertEquals(String.format("Current Settings:%n"
+            + "  long: 57%n"
+            + "  string: stringValue%n"),
         proxy.toString());
   }
 
@@ -267,10 +267,10 @@ public class ProxyInvocationHandlerTest {
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
-    assertEquals(String.format("Current Settings:\n"
-            + "  long: 57\n"
-            + "  optionsId: %d\n"
-            + "  string: \"stringValue\"\n", optionsId),
+    assertEquals(String.format("Current Settings:%n"
+            + "  long: 57%n"
+            + "  optionsId: %d%n"
+            + "  string: \"stringValue\"%n", optionsId),
         serializeDeserialize(PipelineOptions.class, proxy2).toString());
   }
 
@@ -284,10 +284,10 @@ public class ProxyInvocationHandlerTest {
     proxy2.setLong(57L);
     Simple deserializedOptions = serializeDeserialize(Simple.class, proxy2);
     deserializedOptions.setString("overriddenValue");
-    assertEquals(String.format("Current Settings:\n"
-            + "  long: 57\n"
-            + "  optionsId: %d\n"
-            + "  string: overriddenValue\n", optionsId),
+    assertEquals(String.format("Current Settings:%n"
+            + "  long: 57%n"
+            + "  optionsId: %d%n"
+            + "  string: overriddenValue%n", optionsId),
         deserializedOptions.toString());
   }
 
@@ -468,7 +468,7 @@ public class ProxyInvocationHandlerTest {
     PipelineOptionsFactory.register(FooOptions.class);
     assertThat(PipelineOptionsFactory.getRegisteredOptions(), hasItem(FooOptions.class));
 
-    PipelineOptionsFactory.resetRegistry();
+    PipelineOptionsFactory.resetCache();
     assertEquals(defaultRegistry, PipelineOptionsFactory.getRegisteredOptions());
   }
 

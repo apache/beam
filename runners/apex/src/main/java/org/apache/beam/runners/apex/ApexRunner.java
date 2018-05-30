@@ -23,6 +23,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -69,6 +70,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -143,11 +145,18 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
     final AtomicReference<DAG> apexDAG = new AtomicReference<>();
+    final AtomicReference<File> tempDir = new AtomicReference<>();
 
     StreamingApplication apexApp =
         (dag, conf) -> {
           apexDAG.set(dag);
           dag.setAttribute(DAGContext.APPLICATION_NAME, options.getApplicationName());
+          if (options.isEmbeddedExecution()) {
+            // set unique path for application state to allow for parallel execution of unit tests
+            // (the embedded cluster would set it to a fixed location under ./target)
+            tempDir.set(Files.createTempDir());
+            dag.setAttribute(DAGContext.APPLICATION_PATH, tempDir.get().toURI().toString());
+          }
           translator.translate(pipeline, dag);
         };
 
@@ -193,7 +202,14 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         }
         ApexRunner.ASSERTION_ERROR.set(null);
         AppHandle apexAppResult = launcher.launchApp(apexApp, conf, launchAttributes);
-        return new ApexRunnerResult(apexDAG.get(), apexAppResult);
+        return new ApexRunnerResult(apexDAG.get(), apexAppResult) {
+          @Override
+          protected void cleanupOnCancelOrFinish() {
+            if (tempDir.get() != null) {
+              FileUtils.deleteQuietly(tempDir.get());
+            }
+          }
+        };
       } catch (Exception e) {
         Throwables.throwIfUnchecked(e);
         throw new RuntimeException(e);

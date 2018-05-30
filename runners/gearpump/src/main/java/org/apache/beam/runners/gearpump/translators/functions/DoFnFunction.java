@@ -19,18 +19,14 @@
 package org.apache.beam.runners.gearpump.translators.functions;
 
 import com.google.common.collect.Iterables;
-
-import com.google.common.collect.Lists;
-
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -45,7 +41,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -106,7 +101,7 @@ public class DoFnFunction<InputT, OutputT> extends
 
     doFnRunner = doFnRunnerFactory.createRunner(sideInputReader);
 
-    pushedBackValues = new LinkedList<>();
+    pushedBackValues = new ArrayList<>();
     outputManager.setup(mainOutput, sideOutputs);
   }
 
@@ -123,7 +118,7 @@ public class DoFnFunction<InputT, OutputT> extends
 
     for (RawUnionValue unionValue: inputs) {
       final String tag = unionValue.getUnionTag();
-      if (tag.equals("0")) {
+      if ("0".equals(tag)) {
         // main input
         pushedBackValues.add((WindowedValue<InputT>) unionValue.getValue());
       } else {
@@ -142,14 +137,14 @@ public class DoFnFunction<InputT, OutputT> extends
               sideInput.getWindowMappingFn().getSideInputWindow(win);
           if (!sideInputReader.isReady(sideInput, sideInputWindow)) {
             Object emptyValue = WindowedValue.of(
-                Lists.newArrayList(), value.getTimestamp(), sideInputWindow, value.getPane());
+                new ArrayList<>(), value.getTimestamp(), sideInputWindow, value.getPane());
             sideInputReader.addSideInputValue(sideInput, (WindowedValue<Iterable<?>>) emptyValue);
           }
         }
       }
     }
 
-    List<WindowedValue<InputT>> nextPushedBackValues = new LinkedList<>();
+    List<WindowedValue<InputT>> nextPushedBackValues = new ArrayList<>();
     for (WindowedValue<InputT> value : pushedBackValues) {
       Iterable<WindowedValue<InputT>> values = doFnRunner.processElementInReadyWindows(value);
       Iterables.addAll(nextPushedBackValues, values);
@@ -176,7 +171,7 @@ public class DoFnFunction<InputT, OutputT> extends
     }
 
     void setup(TupleTag<?> mainOutput, List<TupleTag<?>> sideOutputs) {
-      outputs = new LinkedList<>();
+      outputs = new ArrayList<>();
       outputTags = new HashSet<>();
       outputTags.add(mainOutput);
       outputTags.addAll(sideOutputs);

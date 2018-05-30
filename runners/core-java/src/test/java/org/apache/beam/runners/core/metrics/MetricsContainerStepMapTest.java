@@ -41,11 +41,14 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests for {@link MetricsContainerStepMap}.
  */
 public class MetricsContainerStepMapTest {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 
   private static final String NAMESPACE = MetricsContainerStepMapTest.class.getName();
   private static final String STEP1 = "myStep1";
@@ -73,7 +76,7 @@ public class MetricsContainerStepMapTest {
       distribution.update(VALUE * 2);
       gauge.set(VALUE);
     } catch (IOException e) {
-      e.printStackTrace();
+      LOG.error(e.getMessage(), e);
     }
   }
 
@@ -93,9 +96,9 @@ public class MetricsContainerStepMapTest {
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
 
-    assertIterableSize(step1res.counters(), 1);
-    assertIterableSize(step1res.distributions(), 1);
-    assertIterableSize(step1res.gauges(), 1);
+    assertIterableSize(step1res.getCounters(), 1);
+    assertIterableSize(step1res.getDistributions(), 1);
+    assertIterableSize(step1res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, false);
     assertDistribution(DISTRIBUTION_NAME,
@@ -106,9 +109,9 @@ public class MetricsContainerStepMapTest {
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
 
-    assertIterableSize(step2res.counters(), 1);
-    assertIterableSize(step2res.distributions(), 1);
-    assertIterableSize(step2res.gauges(), 1);
+    assertIterableSize(step2res.getCounters(), 1);
+    assertIterableSize(step2res.getDistributions(), 1);
+    assertIterableSize(step2res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, false);
     assertDistribution(
@@ -120,9 +123,9 @@ public class MetricsContainerStepMapTest {
     MetricQueryResults allres =
         metricResults.queryMetrics(MetricsFilter.builder().build());
 
-    assertIterableSize(allres.counters(), 2);
-    assertIterableSize(allres.distributions(), 2);
-    assertIterableSize(allres.gauges(), 2);
+    assertIterableSize(allres.getCounters(), 2);
+    assertIterableSize(allres.getDistributions(), 2);
+    assertIterableSize(allres.getGauges(), 2);
   }
 
   @Test
@@ -154,7 +157,8 @@ public class MetricsContainerStepMapTest {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
-    assertDistribution(DISTRIBUTION_NAME, step1res, STEP1, DistributionResult.ZERO, true);
+    assertDistribution(
+        DISTRIBUTION_NAME, step1res, STEP1, DistributionResult.IDENTITY_ELEMENT, true);
   }
 
   @Test
@@ -193,9 +197,9 @@ public class MetricsContainerStepMapTest {
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
 
-    assertIterableSize(step1res.counters(), 1);
-    assertIterableSize(step1res.distributions(), 1);
-    assertIterableSize(step1res.gauges(), 1);
+    assertIterableSize(step1res.getCounters(), 1);
+    assertIterableSize(step1res.getDistributions(), 1);
+    assertIterableSize(step1res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE * 2, false);
     assertDistribution(
@@ -211,9 +215,9 @@ public class MetricsContainerStepMapTest {
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
 
-    assertIterableSize(step2res.counters(), 1);
-    assertIterableSize(step2res.distributions(), 1);
-    assertIterableSize(step2res.gauges(), 1);
+    assertIterableSize(step2res.getCounters(), 1);
+    assertIterableSize(step2res.getDistributions(), 1);
+    assertIterableSize(step2res.getGauges(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 3, false);
     assertDistribution(DISTRIBUTION_NAME, step2res, STEP2,
@@ -228,9 +232,9 @@ public class MetricsContainerStepMapTest {
     MetricQueryResults allres =
         metricResults.queryMetrics(MetricsFilter.builder().build());
 
-    assertIterableSize(allres.counters(), 2);
-    assertIterableSize(allres.distributions(), 2);
-    assertIterableSize(allres.gauges(), 2);
+    assertIterableSize(allres.getCounters(), 2);
+    assertIterableSize(allres.getDistributions(), 2);
+    assertIterableSize(allres.getGauges(), 2);
   }
 
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {
@@ -244,7 +248,7 @@ public class MetricsContainerStepMapTest {
       Long expected,
       boolean isCommitted) {
     assertThat(
-        metricQueryResults.counters(),
+        metricQueryResults.getCounters(),
         hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
   }
 
@@ -255,7 +259,7 @@ public class MetricsContainerStepMapTest {
       DistributionResult expected,
       boolean isCommitted) {
     assertThat(
-        metricQueryResults.distributions(),
+        metricQueryResults.getDistributions(),
         hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
   }
 
@@ -266,7 +270,7 @@ public class MetricsContainerStepMapTest {
       GaugeResult expected,
       boolean isCommitted) {
     assertThat(
-        metricQueryResults.gauges(),
+        metricQueryResults.getGauges(),
         hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
   }
 }

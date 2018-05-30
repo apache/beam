@@ -19,25 +19,22 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import org.junit.Test;
 
-/**
- * Integration test for logical functions.
- */
+/** Integration test for logical functions. */
 public class BeamSqlLogicalFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Test
   public void testStringFunctions() throws Exception {
-    ExpressionChecker checker = new ExpressionChecker()
-        .addExpr("c_integer = 1 AND c_bigint = 1", true)
-        .addExpr("c_integer = 1 OR c_bigint = 2", true)
-        .addExpr("NOT c_bigint = 2", true)
-        .addExpr("(NOT c_bigint = 2) AND (c_integer = 1 OR c_bigint = 3)", true)
-        .addExpr("c_integer = 2 AND c_bigint = 1", false)
-        .addExpr("c_integer = 2 OR c_bigint = 2", false)
-        .addExpr("NOT c_bigint = 1", false)
-        .addExpr("(NOT c_bigint = 2) AND (c_integer = 2 OR c_bigint = 3)", false)
-        ;
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("c_integer = 1 AND c_bigint = 1", true)
+            .addExpr("c_integer = 1 OR c_bigint = 2", true)
+            .addExpr("NOT c_bigint = 2", true)
+            .addExpr("(NOT c_bigint = 2) AND (c_integer = 1 OR c_bigint = 3)", true)
+            .addExpr("c_integer = 2 AND c_bigint = 1", false)
+            .addExpr("c_integer = 2 OR c_bigint = 2", false)
+            .addExpr("NOT c_bigint = 1", false)
+            .addExpr("(NOT c_bigint = 2) AND (c_integer = 2 OR c_bigint = 3)", false);
 
     checker.buildRunAndCheck();
   }
-
 }

@@ -55,13 +55,11 @@ import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -73,6 +71,9 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
@@ -99,6 +100,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
+import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -403,17 +405,18 @@ public class BigtableIOTest {
 
   private static List<Row> filterToRanges(List<Row> rows, final List<ByteKeyRange> ranges) {
     return Lists.newArrayList(
-        Iterables.filter(
-            rows,
-            input -> {
-              verifyNotNull(input, "input");
-              for (ByteKeyRange range : ranges) {
-                if (range.containsKey(makeByteKey(input.getKey()))) {
-                  return true;
-                }
-              }
-              return false;
-            }));
+        rows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  for (ByteKeyRange range : ranges) {
+                    if (range.containsKey(makeByteKey(input.getKey()))) {
+                      return true;
+                    }
+                  }
+                  return false;
+                })
+            .collect(Collectors.toList()));
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {
@@ -431,8 +434,8 @@ public class BigtableIOTest {
     final String table = "TEST-KEY-RANGE-TABLE";
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
-    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes());
-    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes());
+    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes(StandardCharsets.UTF_8));
 
     service.setupSampleRowKeys(table, numRows / 10, "key000000100".length());
     // Test prefix: [beginning, startKey).
@@ -474,12 +477,12 @@ public class BigtableIOTest {
     final String table = "TEST-KEY-RANGE-TABLE";
     final int numRows = 11;
     List<Row> testRows = makeTableData(table, numRows);
-    ByteKey startKey1 = ByteKey.copyFrom("key000000001".getBytes());
-    ByteKey endKey1 = ByteKey.copyFrom("key000000003".getBytes());
-    ByteKey startKey2 = ByteKey.copyFrom("key000000004".getBytes());
-    ByteKey endKey2 = ByteKey.copyFrom("key000000007".getBytes());
-    ByteKey startKey3 = ByteKey.copyFrom("key000000008".getBytes());
-    ByteKey endKey3 = ByteKey.copyFrom("key000000009".getBytes());
+    ByteKey startKey1 = ByteKey.copyFrom("key000000001".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey1 = ByteKey.copyFrom("key000000003".getBytes(StandardCharsets.UTF_8));
+    ByteKey startKey2 = ByteKey.copyFrom("key000000004".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey2 = ByteKey.copyFrom("key000000007".getBytes(StandardCharsets.UTF_8));
+    ByteKey startKey3 = ByteKey.copyFrom("key000000008".getBytes(StandardCharsets.UTF_8));
+    ByteKey endKey3 = ByteKey.copyFrom("key000000009".getBytes(StandardCharsets.UTF_8));
 
     service.setupSampleRowKeys(table, numRows / 10, "key000000001".length());
 
@@ -503,12 +506,14 @@ public class BigtableIOTest {
     String regex = ".*17.*";
     final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
     Iterable<Row> filteredRows =
-        Iterables.filter(
-            testRows,
-            input -> {
-              verifyNotNull(input, "input");
-              return keyPredicate.apply(input.getKey());
-            });
+        testRows
+            .stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
 
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();
@@ -592,6 +597,180 @@ public class BigtableIOTest {
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
+  private void assertAllSourcesHaveSingleAdjacentRanges(List<BigtableSource> sources) {
+    if (sources.size() > 0) {
+      assertThat(sources.get(0).getRanges(), hasSize(1));
+      for (int i = 1; i < sources.size(); i++) {
+        assertThat(sources.get(i).getRanges(), hasSize(1));
+        ByteKey lastEndKey = sources.get(i - 1).getRanges().get(0).getEndKey();
+        ByteKey currentStartKey = sources.get(i).getRanges().get(0).getStartKey();
+        assertEquals(lastEndKey, currentStartKey);
+      }
+    }
+  }
+
+  private void assertAllSourcesHaveSingleRanges(List<BigtableSource> sources) {
+    for (BigtableSource source : sources) {
+      assertThat(source.getRanges(), hasSize(1));
+    }
+  }
+
+  private ByteKey createByteKey(int key) {
+    return ByteKey.copyFrom(String.format("key%09d", key).getBytes(StandardCharsets.UTF_8));
+  }
+
+  /** Tests reduce splits with few non adjacent ranges. */
+  @Test
+  public void testReduceSplitsWithSomeNonAdjacentRanges() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 3;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    //Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
+    List<ByteKeyRange> keyRanges = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+        ByteKeyRange.of(createByteKey(1), createByteKey(2)),
+        ByteKeyRange.of(createByteKey(3), createByteKey(4)),
+        ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+        ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+        ByteKeyRange.of(createByteKey(8), createByteKey(9)));
+
+    //Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
+    List<ByteKeyRange> expectedKeyRangesAfterReducedSplits = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(2)),
+        ByteKeyRange.of(createByteKey(3), createByteKey(5)),
+        ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+        ByteKeyRange.of(createByteKey(8), createByteKey(9)));
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            keyRanges,
+            null /*size*/);
+
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    assertThat(splits, hasSize(keyRanges.size()));
+
+    List<BigtableSource> reducedSplits =
+        source.reduceSplits(splits, null, maxSplit);
+
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+
+    for (BigtableSource splitSource : reducedSplits) {
+      actualRangesAfterSplit.addAll(splitSource.getRanges());
+    }
+
+    assertAllSourcesHaveSingleRanges(reducedSplits);
+
+    assertThat(actualRangesAfterSplit,
+        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+  }
+
+  /** Tests reduce split with all non adjacent ranges. */
+  @Test
+  public void testReduceSplitsWithAllNonAdjacentRange() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 3;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    //Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
+    List<ByteKeyRange> keyRanges = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+        ByteKeyRange.of(createByteKey(2), createByteKey(3)),
+        ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+        ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+        ByteKeyRange.of(createByteKey(8), createByteKey(9)));
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            keyRanges,
+            null /*size*/);
+
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    assertThat(splits, hasSize(keyRanges.size()));
+
+    List<BigtableSource> reducedSplits =
+        source.reduceSplits(splits, null, maxSplit);
+
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+
+    for (BigtableSource splitSource : reducedSplits) {
+      actualRangesAfterSplit.addAll(splitSource.getRanges());
+    }
+
+    assertAllSourcesHaveSingleRanges(reducedSplits);
+
+    //The expected split source ranges are exactly same as original
+    assertThat(actualRangesAfterSplit,
+        IsIterableContainingInOrder.contains(keyRanges.toArray()));
+  }
+
+  /** Tests reduce Splits with all adjacent ranges. */
+  @Test
+  public void tesReduceSplitsWithAdjacentRanges() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 3;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            null /*size*/);
+
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    assertThat(splits, hasSize(numSamples));
+
+    //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
+    //expected reduced Split source ranges are [..4][4..8][8..]
+    List<ByteKeyRange> expectedKeyRangesAfterReducedSplits = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(4)),
+        ByteKeyRange.of(createByteKey(4), createByteKey(8)),
+        ByteKeyRange.of(createByteKey(8), ByteKey.EMPTY));
+
+    List<BigtableSource> reducedSplits =
+        source.reduceSplits(splits, null, maxSplit);
+
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+
+    for (BigtableSource splitSource : reducedSplits) {
+      actualRangesAfterSplit.addAll(splitSource.getRanges());
+    }
+
+    assertThat(actualRangesAfterSplit,
+        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+    assertAllSourcesHaveSingleAdjacentRanges(reducedSplits);
+    assertSourcesEqualReferenceSource(source, reducedSplits, null /* options */);
+  }
+
   /** Tests reading all rows from a split table with several key ranges. */
   @Test
   public void testReadingWithSplitsWithSeveralKeyRanges() throws Exception {
@@ -607,8 +786,8 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    ByteKey splitKey1 = ByteKey.copyFrom("key000000500".getBytes());
-    ByteKey splitKey2 = ByteKey.copyFrom("key000001000".getBytes());
+    ByteKey splitKey1 = ByteKey.copyFrom("key000000500".getBytes(StandardCharsets.UTF_8));
+    ByteKey splitKey2 = ByteKey.copyFrom("key000001000".getBytes(StandardCharsets.UTF_8));
 
     ByteKeyRange tableRange = service.getTableRange(table);
     List<ByteKeyRange> keyRanges = Arrays.asList(
@@ -680,8 +859,8 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    ByteKey splitKey1 = ByteKey.copyFrom("key000000330".getBytes());
-    ByteKey splitKey2 = ByteKey.copyFrom("key000000730".getBytes());
+    ByteKey splitKey1 = ByteKey.copyFrom("key000000330".getBytes(StandardCharsets.UTF_8));
+    ByteKey splitKey2 = ByteKey.copyFrom("key000000730".getBytes(StandardCharsets.UTF_8));
 
     ByteKeyRange tableRange = service.getTableRange(table);
     List<ByteKeyRange> keyRanges = Arrays.asList(
@@ -822,7 +1001,7 @@ public class BigtableIOTest {
         .apply("write", defaultWrite.withTableId(table));
     p.run();
 
-    logged.verifyInfo("Wrote 1 records");
+    logged.verifyDebug("Wrote 1 records");
 
     assertEquals(1, service.tables.size());
     assertNotNull(service.getTable(table));
@@ -1145,7 +1324,7 @@ public class BigtableIOTest {
       return true;
     }
 
-    private boolean rangesContainsKey(List<ByteKeyRange> ranges, ByteKey key){
+    private boolean rangesContainsKey(List<ByteKeyRange> ranges, ByteKey key) {
       for (ByteKeyRange range : ranges) {
         if (range.containsKey(key)) {
           return true;
@@ -1177,7 +1356,7 @@ public class BigtableIOTest {
    * entries. The column family in the {@link SetCell} is ignored; only the value is used.
    *
    * <p>When no {@link SetCell} is provided, the write will fail and this will be exposed via an
-   * exception on the returned {@link ListenableFuture}.
+   * exception on the returned {@link CompletionStage}.
    */
   private static class FakeBigtableWriter implements BigtableService.Writer {
     private final String tableId;
@@ -1187,7 +1366,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public ListenableFuture<MutateRowResponse> writeRecord(
+    public CompletionStage<MutateRowResponse> writeRecord(
         KV<ByteString, Iterable<Mutation>> record) {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
@@ -1195,11 +1374,13 @@ public class BigtableIOTest {
       for (Mutation m : record.getValue()) {
         SetCell cell = m.getSetCell();
         if (cell.getValue().isEmpty()) {
-          return Futures.immediateFailedCheckedFuture(new IOException("cell value missing"));
+          CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+          result.completeExceptionally(new IOException("cell value missing"));
+          return result;
         }
         table.put(key, cell.getValue());
       }
-      return Futures.immediateFuture(MutateRowResponse.getDefaultInstance());
+      return CompletableFuture.completedFuture(MutateRowResponse.getDefaultInstance());
     }
 
     @Override

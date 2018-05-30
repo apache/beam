@@ -38,17 +38,20 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import itertools
 import operator
 import os
 import sys
+import threading
 from functools import reduce
 
-from google.protobuf import wrappers_pb2
+from google.protobuf import message
 
 from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.portability import python_urns
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import typehints
@@ -58,7 +61,6 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 
 __all__ = [
     'PTransform',
@@ -97,29 +99,116 @@ class _SetInputPValues(_PValueishTransform):
       return self.visit_nested(node, replacements)
 
 
+# Caches to allow for materialization of values when executing a pipeline
+# in-process, in eager mode.  This cache allows the same _MaterializedResult
+# object to be accessed and used despite Runner API round-trip serialization.
+_pipeline_materialization_cache = {}
+_pipeline_materialization_lock = threading.Lock()
+
+
+def _allocate_materialized_pipeline(pipeline):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    _pipeline_materialization_cache[(pid, pipeline_id)] = {}
+
+
+def _allocate_materialized_result(pipeline):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    if (pid, pipeline_id) not in _pipeline_materialization_cache:
+      raise ValueError('Materialized pipeline is not allocated for result '
+                       'cache.')
+    result_id = len(_pipeline_materialization_cache[(pid, pipeline_id)])
+    result = _MaterializedResult(pipeline_id, result_id)
+    _pipeline_materialization_cache[(pid, pipeline_id)][result_id] = result
+    return result
+
+
+def _get_materialized_result(pipeline_id, result_id):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    if (pid, pipeline_id) not in _pipeline_materialization_cache:
+      raise Exception(
+          'Materialization in out-of-process and remote runners is not yet '
+          'supported.')
+    return _pipeline_materialization_cache[(pid, pipeline_id)][result_id]
+
+
+def _release_materialized_pipeline(pipeline):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    del _pipeline_materialization_cache[(pid, pipeline_id)]
+
+
+class _MaterializedResult(object):
+  def __init__(self, pipeline_id, result_id):
+    self._pipeline_id = pipeline_id
+    self._result_id = result_id
+    self.elements = []
+
+  def __reduce__(self):
+    # When unpickled (during Runner API roundtrip serailization), get the
+    # _MaterializedResult object from the cache so that values are written
+    # to the original _MaterializedResult when run in eager mode.
+    return (_get_materialized_result, (self._pipeline_id, self._result_id))
+
+
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
-  def __init__(self, deferred, pvalue_cache):
+  def __init__(self, deferred, results_by_tag):
     super(_MaterializedDoOutputsTuple, self).__init__(
         None, None, deferred._tags, deferred._main_tag)
     self._deferred = deferred
-    self._pvalue_cache = pvalue_cache
+    self._results_by_tag = results_by_tag
 
   def __getitem__(self, tag):
-    # Simply accessing the value should not use it up.
-    return self._pvalue_cache.get_unwindowed_pvalue(
-        self._deferred[tag], decref=False)
+    if tag not in self._results_by_tag:
+      raise KeyError(
+          'Tag %r is not a a defined output tag of %s.' % (
+              tag, self._deferred))
+    return self._results_by_tag[tag].elements
 
 
-class _MaterializePValues(_PValueishTransform):
-  def __init__(self, pvalue_cache):
-    self._pvalue_cache = pvalue_cache
+class _AddMaterializationTransforms(_PValueishTransform):
+
+  def _materialize_transform(self, pipeline):
+    result = _allocate_materialized_result(pipeline)
+
+    # Need to define _MaterializeValuesDoFn here to avoid circular
+    # dependencies.
+    from apache_beam import DoFn
+    from apache_beam import ParDo
+
+    class _MaterializeValuesDoFn(DoFn):
+      def process(self, element):
+        result.elements.append(element)
+
+    materialization_label = '_MaterializeValues%d' % result._result_id
+    return (materialization_label >> ParDo(_MaterializeValuesDoFn()),
+            result)
 
   def visit(self, node):
     if isinstance(node, pvalue.PValue):
-      # Simply accessing the value should not use it up.
-      return self._pvalue_cache.get_unwindowed_pvalue(node, decref=False)
+      transform, result = self._materialize_transform(node.pipeline)
+      node | transform
+      return result
     elif isinstance(node, pvalue.DoOutputsTuple):
-      return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
+      results_by_tag = {}
+      for tag in itertools.chain([node._main_tag], node._tags):
+        results_by_tag[tag] = self.visit(node[tag])
+      return _MaterializedDoOutputsTuple(node, results_by_tag)
+    else:
+      return self.visit_nested(node)
+
+
+class _FinalizeMaterialization(_PValueishTransform):
+  def visit(self, node):
+    if isinstance(node, _MaterializedResult):
+      return node.elements
+    elif isinstance(node, _MaterializedDoOutputsTuple):
+      return node
     else:
       return self.visit_nested(node)
 
@@ -399,11 +488,11 @@ class PTransform(WithTypeHints, HasDisplayData):
     result = p.apply(self, pvalueish, label)
     if deferred:
       return result
-    # Get a reference to the runners internal cache, otherwise runner may
-    # clean it after run.
-    cache = p.runner.cache
+    _allocate_materialized_pipeline(p)
+    materialized_result = _AddMaterializationTransforms().visit(result)
     p.run().wait_until_finish()
-    return _MaterializePValues(cache).visit(result)
+    _release_materialized_pipeline(p)
+    return _FinalizeMaterialization().visit(materialized_result)
 
   def _extract_input_pvalues(self, pvalueish):
     """Extract all the pvalues contained in the input pvalueish.
@@ -448,13 +537,17 @@ class PTransform(WithTypeHints, HasDisplayData):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context):
+  def to_runner_api(self, context, has_parts=False):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
+    if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
+      # TODO(BEAM-3812): Remove this fallback.
+      urn, typed_param = self.to_runner_api_pickled(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
         payload=typed_param.SerializeToString()
-        if typed_param is not None else None)
+        if isinstance(typed_param, message.Message)
+        else typed_param)
 
   @classmethod
   def from_runner_api(cls, proto, context):
@@ -465,19 +558,26 @@ class PTransform(WithTypeHints, HasDisplayData):
         proto_utils.parse_Bytes(proto.payload, parameter_type),
         context)
 
-  def to_runner_api_parameter(self, context):
-    return (urns.PICKLED_TRANSFORM,
-            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
+  def to_runner_api_parameter(self, unused_context):
+    # The payload here is just to ease debugging.
+    return (python_urns.GENERIC_COMPOSITE_TRANSFORM,
+            getattr(self, '_fn_api_payload', str(self)))
 
-  @staticmethod
-  def from_runner_api_parameter(spec_parameter, unused_context):
-    return pickler.loads(spec_parameter.value)
+  def to_runner_api_pickled(self, unused_context):
+    return (python_urns.PICKLED_TRANSFORM,
+            pickler.dumps(self))
 
 
-PTransform.register_urn(
-    urns.PICKLED_TRANSFORM,
-    wrappers_pb2.BytesValue,
-    PTransform.from_runner_api_parameter)
+@PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
+def _create_transform(payload, unused_context):
+  empty_transform = PTransform()
+  empty_transform._fn_api_payload = payload
+  return empty_transform
+
+
+@PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
+def _unpickle_transform(pickled_bytes, unused_context):
+  return pickler.loads(pickled_bytes)
 
 
 class _ChainedPTransform(PTransform):
@@ -598,7 +698,7 @@ class PTransformWithSideInputs(PTransform):
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
       for arg, hint in hints.items():
-        if arg.startswith('%unknown%'):
+        if arg.startswith('__unknown__'):
           continue
         if hint is None:
           continue

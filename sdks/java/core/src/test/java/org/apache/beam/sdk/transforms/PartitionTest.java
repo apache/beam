@@ -25,10 +25,10 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -65,7 +65,7 @@ public class PartitionTest implements Serializable {
 
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEvenOddPartition() {
 
     PCollectionList<Integer> outputs = pipeline
@@ -147,5 +147,35 @@ public class PartitionTest implements Serializable {
 
     assertThat(displayData, hasDisplayItem("numPartitions", 123));
     assertThat(displayData, hasDisplayItem("partitionFn", IdentityFn.class));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testModPartitionWithLambda() {
+
+    PCollectionList<Integer> outputs = pipeline
+        .apply(Create.of(1, 2, 4, 5))
+        .apply(Partition.of(3, (element, numPartitions) -> element % numPartitions));
+    assertEquals(3, outputs.size());
+    PAssert.that(outputs.get(0)).empty();
+    PAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
+    PAssert.that(outputs.get(2)).containsInAnyOrder(2, 5);
+    pipeline.run();
+  }
+
+  /**
+   * Confirms that in Java 8 style, where a lambda results in a rawtype, the output type token is
+   * not useful. If this test ever fails there may be simplifications available to us.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testPartitionFnOutputTypeDescriptorRaw() throws Exception {
+
+    PCollectionList<String> output = pipeline
+        .apply(Create.of("hello"))
+        .apply(Partition.of(1, (element, numPartitions) -> 0));
+
+    thrown.expect(CannotProvideCoderException.class);
+    pipeline.getCoderRegistry().getCoder(output.get(0).getTypeDescriptor());
   }
 }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -28,21 +27,19 @@ import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.rel.RelNode;
 
 /**
- * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel}
- * and {@code BeamMinusRel}.
+ * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
+ * BeamMinusRel}.
  */
 public class BeamSetOperatorRelBase {
-  /**
-   * Set operator type.
-   */
+  /** Set operator type. */
   public enum OpType implements Serializable {
     UNION,
     INTERSECT,
@@ -54,35 +51,40 @@ public class BeamSetOperatorRelBase {
   private boolean all;
   private OpType opType;
 
-  public BeamSetOperatorRelBase(BeamRelNode beamRelNode, OpType opType,
-      List<RelNode> inputs, boolean all) {
+  public BeamSetOperatorRelBase(
+      BeamRelNode beamRelNode, OpType opType, List<RelNode> inputs, boolean all) {
     this.beamRelNode = beamRelNode;
     this.opType = opType;
     this.inputs = inputs;
     this.all = all;
   }
 
-  public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<BeamRecord> leftRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(0))
-        .buildBeamPipeline(inputPCollections, sqlEnv);
-    PCollection<BeamRecord> rightRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(1))
-        .buildBeamPipeline(inputPCollections, sqlEnv);
+  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections) {
+    PCollection<Row> leftRows =
+        inputPCollections.apply(
+            "left", BeamSqlRelUtils.getBeamRelInput(inputs.get(0)).toPTransform());
+    PCollection<Row> rightRows =
+        inputPCollections.apply(
+            "right", BeamSqlRelUtils.getBeamRelInput(inputs.get(1)).toPTransform());
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
     if (!leftWindow.isCompatible(rightWindow)) {
       throw new IllegalArgumentException(
-          "inputs of " + opType + " have different window strategy: "
-          + leftWindow + " VS " + rightWindow);
+          "inputs of "
+              + opType
+              + " have different window strategy: "
+              + leftWindow
+              + " VS "
+              + rightWindow);
     }
 
-    final TupleTag<BeamRecord> leftTag = new TupleTag<>();
-    final TupleTag<BeamRecord> rightTag = new TupleTag<>();
+    final TupleTag<Row> leftTag = new TupleTag<>();
+    final TupleTag<Row> rightTag = new TupleTag<>();
 
     // co-group
     String stageName = BeamSqlRelUtils.getStageName(beamRelNode);
-    PCollection<KV<BeamRecord, CoGbkResult>> coGbkResultCollection =
+    PCollection<KV<Row, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(
                 leftTag,
                 leftRows.apply(
@@ -94,9 +96,11 @@ public class BeamSetOperatorRelBase {
                     stageName + "_CreateRightIndex",
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
             .apply(CoGroupByKey.create());
-    PCollection<BeamRecord> ret = coGbkResultCollection
-        .apply(ParDo.of(new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(leftTag, rightTag,
-            opType, all)));
+    PCollection<Row> ret =
+        coGbkResultCollection.apply(
+            ParDo.of(
+                new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                    leftTag, rightTag, opType, all)));
     return ret;
   }
 }

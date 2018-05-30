@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.ByteStreams;
@@ -174,8 +175,8 @@ public class TFRecordIOTest {
   public void testReadInvalidRecord() throws Exception {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
-    System.out.println("abr".getBytes().length);
-    runTestRead("bar".getBytes(), new String[0]);
+    System.out.println("abr".getBytes(Charsets.UTF_8).length);
+    runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
   }
 
   @Test
@@ -184,7 +185,7 @@ public class TFRecordIOTest {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Mismatch of length mask");
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
-    data[9] += 1;
+    data[9] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
   }
 
@@ -194,7 +195,7 @@ public class TFRecordIOTest {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Mismatch of data mask");
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
-    data[16] += 1;
+    data[16] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
   }
 
@@ -357,14 +358,14 @@ public class TFRecordIOTest {
   static class ByteArrayToString extends DoFn<byte[], String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(new String(c.element()));
+      c.output(new String(c.element(), Charsets.UTF_8));
     }
   }
 
   static class StringToByteArray extends DoFn<String, byte[]> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(c.element().getBytes());
+      c.output(c.element().getBytes(Charsets.UTF_8));
     }
   }
 

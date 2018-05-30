@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -36,6 +36,8 @@
     <!-- build-tools inherits from the Beam root pom to enable checkstyle
          and other project configuration to be used in all modules.
     <module>build-tools</module> -->
+    <module>harness</module>
+    <module>container</module>
     <module>core</module>
     <module>io</module>
     <module>maven-archetypes</module>
@@ -46,18 +48,4 @@
     <module>javadoc</module> -->
     <module>nexmark</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>java8-tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>harness</module>
-        <module>container</module>
-        <module>java8tests</module>
-      </modules>
-    </profile>
-  </profiles>
 </project>

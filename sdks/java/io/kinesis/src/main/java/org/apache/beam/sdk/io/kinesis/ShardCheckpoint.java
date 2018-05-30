@@ -26,9 +26,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-
 import java.io.Serializable;
-
 import org.joda.time.Instant;
 
 /**

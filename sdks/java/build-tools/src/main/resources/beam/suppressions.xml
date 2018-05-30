@@ -17,13 +17,13 @@
 "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 
 <suppressions>
-  <suppress checks="JavadocPackage" files=".*[\\/]src[\\/]test[\\/].*"/>
-  <suppress checks="JavadocPackage" files=".*[\\/]maven-archetypes[\\/].*"/>
-  <suppress checks="JavadocPackage" files=".*[\\/]examples[\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]maven-archetypes[\\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]examples[\\\/].*"/>
   
   <!-- suppress all checks in the generated directories -->
-  <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java" />
-  <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java" />
-  <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-sources[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-test-sources[\\\/].+\.java" />
 </suppressions>
 

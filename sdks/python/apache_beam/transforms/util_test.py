@@ -17,6 +17,7 @@
 
 """Unit tests for the transform.util classes."""
 
+import logging
 import time
 import unittest
 
@@ -328,3 +329,8 @@ class ReshuffleTest(unittest.TestCase):
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle')
     pipeline.run()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

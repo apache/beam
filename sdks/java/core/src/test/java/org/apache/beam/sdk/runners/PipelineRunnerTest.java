@@ -102,7 +102,7 @@ public class PipelineRunnerTest {
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.inNamespace(namespace))
                 .build()
-        ).counters(),
+        ).getCounters(),
         hasItem(metricsResult(namespace, "count", "ScaleByTwo", 4L, true))
     );
   }

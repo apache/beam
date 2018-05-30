@@ -418,7 +418,7 @@ public class Create<T> {
 
       @Override
       public long getBytesPerOffset() {
-        if (allElementsBytes.size() == 0) {
+        if (allElementsBytes.isEmpty()) {
           return 1L;
         }
         return Math.max(1, totalSize / allElementsBytes.size());
@@ -565,8 +565,7 @@ public class Create<T> {
           coder = input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
         } else {
           Iterable<T> rawElements =
-              Iterables.transform(
-                  timestampedElements, timestampedValue -> timestampedValue.getValue());
+              Iterables.transform(timestampedElements, TimestampedValue::getValue);
           coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
         }
 

@@ -126,7 +126,7 @@ public final class TranslationUtils {
 
   /** Transform a pair stream into a value stream. */
   public static <T1, T2> JavaDStream<T2> dStreamValues(JavaPairDStream<T1, T2> pairDStream) {
-    return pairDStream.map(v1 -> v1._2());
+    return pairDStream.map(Tuple2::_2);
   }
 
   /** {@link KV} to pair function. */
@@ -385,11 +385,9 @@ public final class TranslationUtils {
   /**
    * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
    * @param level StorageLevel required
-   * @return
+   * @return true if the level is memory only
    */
   public static boolean avoidRddSerialization(StorageLevel level) {
     return level.equals(StorageLevel.MEMORY_ONLY()) || level.equals(StorageLevel.MEMORY_ONLY_2());
   }
-
-
 }

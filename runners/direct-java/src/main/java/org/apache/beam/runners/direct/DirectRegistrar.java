@@ -30,6 +30,7 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
  */
 public class DirectRegistrar {
   private DirectRegistrar() {}
+
   /**
    * Registers the {@link DirectRunner}.
    */

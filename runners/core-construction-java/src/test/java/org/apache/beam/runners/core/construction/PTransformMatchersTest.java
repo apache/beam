@@ -132,6 +132,7 @@ public class PTransformMatchersTest implements Serializable {
             input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), VarIntCoder.of());
       }
     }
+
     PTransformMatcher matcher = PTransformMatchers.classEqualTo(MyPTransform.class);
     MyPTransform subclass = new MyPTransform() {};
 
@@ -160,7 +161,9 @@ public class PTransformMatchersTest implements Serializable {
           ctxt.output(ctxt.element().getValue() + 1);
         }
       };
-  private abstract static class SomeTracker implements RestrictionTracker<Void> {}
+
+  private abstract static class SomeTracker extends RestrictionTracker<Void, Void> {}
+
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement
@@ -523,7 +526,7 @@ public class PTransformMatchersTest implements Serializable {
         WriteFiles.to(
             new FileBasedSink<Integer, Void, Integer>(
                 StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(new FakeFilenamePolicy())) {
+                DynamicFileDestinations.constant(policy)) {
               @Override
               public WriteOperation<Void, Integer> createWriteOperation() {
                 return null;

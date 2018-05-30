@@ -37,7 +37,6 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -82,11 +81,6 @@ class SparkStateInternals<K> implements StateInternals {
   @Override
   public K getKey() {
     return key;
-  }
-
-  @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return state(namespace, address, StateContexts.nullContext());
   }
 
   @Override

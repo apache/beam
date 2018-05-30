@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.KeySet;
+import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Statement;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -30,7 +31,8 @@ import javax.annotation.Nullable;
 public abstract class ReadOperation implements Serializable {
 
   public static ReadOperation create() {
-    return new AutoValue_ReadOperation.Builder().setKeySet(KeySet.all()).build();
+    return new AutoValue_ReadOperation.Builder()
+        .setPartitionOptions(PartitionOptions.getDefaultInstance()).setKeySet(KeySet.all()).build();
   }
 
   @Nullable
@@ -48,6 +50,9 @@ public abstract class ReadOperation implements Serializable {
   @Nullable
   public abstract KeySet getKeySet();
 
+  @Nullable
+  abstract PartitionOptions getPartitionOptions();
+
   @AutoValue.Builder
   abstract static class Builder {
 
@@ -60,6 +65,8 @@ public abstract class ReadOperation implements Serializable {
     abstract Builder setColumns(List<String> columns);
 
     abstract Builder setKeySet(KeySet keySet);
+
+    abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
     abstract ReadOperation build();
   }
@@ -92,5 +99,9 @@ public abstract class ReadOperation implements Serializable {
 
   public ReadOperation withIndex(String index) {
     return toBuilder().setIndex(index).build();
+  }
+
+  public ReadOperation withPartitionOptions(PartitionOptions partitionOptions) {
+    return toBuilder().setPartitionOptions(partitionOptions).build();
   }
 }

@@ -17,18 +17,12 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format"
-
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":sdks:java:io:common")
+ext.summary = "IO to read data from sources that implement Hadoop Input Format."
 
 def log4j_version = "2.6.2"
 def elastic_search_version = "5.0.0"
@@ -45,42 +39,44 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
-  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
   testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
   testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+    // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
+    // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
+    exclude group: "cascading", module: "cascading-local"
+    exclude group: "cascading", module: "cascading-hadoop"
+    exclude group: "org.apache.hive", module: "hive-service"
+    exclude group: "org.apache.pig", module: "pig"
     exclude group: "org.apache.spark", module: "spark-core_2.10"
     exclude group: "org.apache.spark", module: "spark-streaming_2.10"
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
+    exclude group: "org.apache.storm", module: "storm-core"
   }
   testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
   testCompile "org.apache.cassandra:cassandra-all:3.9"
   testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
-  testCompile project(path: ":sdks:java:io:jdbc", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
   shadow library.java.commons_io_2x
+  testCompileOnly library.java.findbugs_annotations
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
 
 // The cassandra.yaml file currently assumes "target/..." exists.
 // TODO: Update cassandra.yaml to inject new properties representing

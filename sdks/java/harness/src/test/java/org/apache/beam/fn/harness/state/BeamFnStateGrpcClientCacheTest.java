@@ -38,11 +38,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import org.apache.beam.fn.harness.IdGenerator;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -92,11 +92,12 @@ public class BeamFnStateGrpcClientCacheTest {
 
     testChannel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
 
-    clientCache = new BeamFnStateGrpcClientCache(
-        PipelineOptionsFactory.create(),
-        IdGenerator::generate,
-        (Endpoints.ApiServiceDescriptor descriptor) -> testChannel,
-        this::createStreamForTest);
+    clientCache =
+        new BeamFnStateGrpcClientCache(
+            PipelineOptionsFactory.create(),
+            IdGenerators.decrementingLongs(),
+            (Endpoints.ApiServiceDescriptor descriptor) -> testChannel,
+            this::createStreamForTest);
   }
 
   @After

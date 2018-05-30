@@ -17,9 +17,12 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
+ext.summary = "Library to read Kinesis streams."
 
 test {
   // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
@@ -30,7 +33,8 @@ def aws_version = "1.11.255"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
@@ -39,19 +43,14 @@ dependencies {
   shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
   shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
+  shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
   shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:2.5.0"
+  testCompileOnly library.java.findbugs_annotations
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

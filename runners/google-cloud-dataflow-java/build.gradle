@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(enableFindbugs: false /* BEAM-925 */)
 
@@ -25,18 +27,16 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:io:google-cloud-platform")
-evaluationDependsOn(":sdks:java:extensions:google-cloud-platform-core")
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
+evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":beam-examples-java")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '1',
-    'dataflow.container_version' : 'beam-master-20180122'
+    'dataflow.container_version' : 'beam-master-20180410'
   ]
 }
 
@@ -46,13 +46,19 @@ test {
   systemProperty "beamUseDummyRunner", "true"
 }
 
+configurations {
+  validatesRunner
+  examplesJavaIntegrationTest
+  googleCloudPlatformIntegrationTest
+}
+
 dependencies {
   compile library.java.guava
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2
@@ -69,27 +75,125 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile project(":sdks:java:io:google-cloud-platform").sourceSets.test.output
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
-  testCompile project(":model:fn-execution").sourceSets.test.output
-  testCompile library.java.guava_testlib
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.mockito_core
-  testCompile library.java.google_cloud_dataflow_java_proto_library_all
-  testCompile library.java.datastore_v1_protos
-  testCompile library.java.jackson_dataformat_yaml
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
+  shadowTest library.java.guava_testlib
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.mockito_core
+  shadowTest library.java.google_cloud_dataflow_java_proto_library_all
+  shadowTest library.java.datastore_v1_protos
+  shadowTest library.java.jackson_dataformat_yaml
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+  examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
+  examplesJavaIntegrationTest project(path: ":beam-examples-java", configuration: "shadowTest")
+  googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
+  googleCloudPlatformIntegrationTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
 }
 
 test {
   systemProperties = [ "beamUseDummyRunner" : "true" ]
 }
 
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
+task validatesRunnerTest(type: Test) {
+  group = "Verification"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+  ])
+
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+  }
 }
 
-artifacts.archives packageTests
+task validatesRunner {
+  group = "Verification"
+  description "Validates Dataflow runner"
+  dependsOn validatesRunnerTest
+}
+
+task googleCloudPlatformIntegrationTest(type: Test) {
+  group = "Verification"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+  ])
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task examplesJavaIntegrationTest(type: Test) {
+  group = "Verification"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+  ])
+
+  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // this postCommit integration test excludes them.
+  include '**/*IT.class'
+  exclude '**/WordCountIT.class'
+  exclude '**/WindowedWordCountIT.class'
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests using the Dataflow runner."
+  dependsOn googleCloudPlatformIntegrationTest
+  dependsOn examplesJavaIntegrationTest
+}
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
+def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
+def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+
+// Generates :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
+  runner: 'Dataflow',
+  gcpProject: gcpProject,
+  gcsBucket: gcsBucket)
+
+// Generates :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+  runner: 'Dataflow',
+  gcpProject: gcpProject,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)

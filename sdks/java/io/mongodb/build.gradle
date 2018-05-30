@@ -17,28 +17,28 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: MongoDB"
+ext.summary = "IO to read and write on MongoDB."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
   shadow library.java.joda_time
   shadow "org.mongodb:mongo-java-driver:3.2.2"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
+  testCompileOnly library.java.findbugs_annotations
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

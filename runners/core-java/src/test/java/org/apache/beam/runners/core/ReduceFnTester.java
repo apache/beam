@@ -25,7 +25,6 @@ import com.google.common.base.Equivalence;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
@@ -173,9 +173,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           throws Exception {
 
     CoderRegistry registry = CoderRegistry.createDefault();
-    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.withInputCoder(
-            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    // Ensure that the CombineFn can be converted into an AppliedCombineFn
+    AppliedCombineFn.withInputCoder(
+        combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
@@ -222,9 +222,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           SideInputReader sideInputReader)
           throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.withInputCoder(
-            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    // Ensure that the CombineFn can be converted into an AppliedCombineFn
+    AppliedCombineFn.withInputCoder(
+        combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
@@ -533,25 +533,30 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   @SafeVarargs
   public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
+    injectElements(Arrays.asList(values));
+  }
+
+  public final void injectElements(List<TimestampedValue<InputT>> values) throws Exception {
     for (TimestampedValue<InputT> value : values) {
       WindowTracing.trace("TriggerTester.injectElements: {}", value);
     }
 
-    Iterable<WindowedValue<InputT>> inputs =
-        Iterables.transform(
-            Arrays.asList(values),
-            input -> {
-              try {
-                InputT value = input.getValue();
-                Instant timestamp = input.getTimestamp();
-                Collection<W> windows =
-                    windowFn.assignWindows(
-                        new TestAssignContext<>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
-                return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            });
+    Iterable<WindowedValue<InputT>> inputs = values.stream()
+            .map(
+                input -> {
+                  try {
+                    InputT value = input.getValue();
+                    Instant timestamp = input.getTimestamp();
+                    Collection<W> windows =
+                        windowFn.assignWindows(
+                            new TestAssignContext<W>(
+                                windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                    return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList());
 
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     runner.processElements(

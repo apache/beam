@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -51,15 +51,6 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <configuration>
-            <!-- Set testSourceDirectory in order to exclude generated-test-sources -->
-            <testSourceDirectory>${project.basedir}/src/test/</testSourceDirectory>
-          </configuration>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <executions>
             <execution>
@@ -73,6 +64,7 @@
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
+                    <include>com.google.guava:guava-testlib</include>
                     <include>com.google.protobuf:protobuf-java</include>
                     <include>com.google.protobuf:protobuf-java-util</include>
                     <include>net.bytebuddy:byte-buddy</include>
@@ -92,10 +84,6 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
-                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.beam.sdk.repackaged.com.google.common
@@ -210,11 +198,8 @@
     </dependency>
 
     <dependency>
-      <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
-           excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -309,19 +294,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-model-fn-execution</artifactId>
-      <type>test-jar</type>
       <scope>test</scope>
-      <exclusions>
-        <!-- We only rely on the standard_coders.yaml -->
-        <exclusion>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-model-pipeline</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-model-construction</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
@@ -332,7 +305,13 @@
 
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -350,10 +329,17 @@
 
     <dependency>
       <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
-
+    
+    <dependency>
+      <groupId>org.objenesis</groupId> 
+      <artifactId>objenesis</artifactId>  
+      <version>1.0</version>
+      <scope>test</scope> 
+    </dependency>
+    
     <dependency>
       <groupId>com.esotericsoftware.kryo</groupId>
       <artifactId>kryo</artifactId>

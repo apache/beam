@@ -25,17 +25,21 @@ import org.apache.beam.sdk.annotations.Experimental;
  *
  * <p>A static method {@code eval} is required. Here is an example:
  *
- * <blockquote><pre>
+ * <blockquote>
+ *
+ * <pre>
  * public static class MyLeftFunction {
  *   public String eval(
  *       &#64;Parameter(name = "s") String s,
  *       &#64;Parameter(name = "n", optional = true) Integer n) {
  *     return s.substring(0, n == null ? 1 : n);
  *   }
- * }</pre></blockquote>
+ * }</pre>
  *
- * <p>The first parameter is named "s" and is mandatory,
- * and the second parameter is named "n" and is optional.
+ * </blockquote>
+ *
+ * <p>The first parameter is named "s" and is mandatory, and the second parameter is named "n" and
+ * is optional(always NULL if not specified).
  */
 @Experimental
 public interface BeamSqlUdf extends Serializable {

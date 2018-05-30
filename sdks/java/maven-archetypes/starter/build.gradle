@@ -20,15 +20,10 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
+ext.summary = """A Maven archetype to create a simple starter pipeline to
+get started using the Apache Beam Java SDK."""
 
 dependencies {
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

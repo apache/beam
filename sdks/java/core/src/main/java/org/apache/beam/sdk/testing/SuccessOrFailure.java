@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -70,5 +71,23 @@ public final class SuccessOrFailure implements Serializable {
         .addValue(throwable)
         .omitNullValues()
         .toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SuccessOrFailure that = (SuccessOrFailure) o;
+    return isSuccess == that.isSuccess && Objects.equal(site, that.site) && Objects
+        .equal(throwable, that.throwable);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(isSuccess, site, throwable);
   }
 }

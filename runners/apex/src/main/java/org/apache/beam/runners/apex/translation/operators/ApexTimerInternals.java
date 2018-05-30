@@ -45,7 +45,6 @@ import org.joda.time.Instant;
  * <p>Assumes that the current key is set prior to accessing the state.<br>
  * This implementation stores timer data in heap memory and is serialized
  * during checkpointing, it will only work with a small number of timers.
- * @param <K>
  */
 @DefaultSerializer(JavaSerializer.class)
 class ApexTimerInternals<K> implements TimerInternals, Serializable {

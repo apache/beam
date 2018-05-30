@@ -26,28 +26,26 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
-/**
- * {@code ConverterRule} to replace {@code Join} with {@code BeamJoinRel}.
- */
+/** {@code ConverterRule} to replace {@code Join} with {@code BeamJoinRel}. */
 public class BeamJoinRule extends ConverterRule {
   public static final BeamJoinRule INSTANCE = new BeamJoinRule();
+
   private BeamJoinRule() {
-    super(LogicalJoin.class, Convention.NONE,
-        BeamLogicalConvention.INSTANCE, "BeamJoinRule");
+    super(LogicalJoin.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamJoinRule");
   }
 
-  @Override public RelNode convert(RelNode rel) {
+  @Override
+  public RelNode convert(RelNode rel) {
     Join join = (Join) rel;
     return new BeamJoinRel(
         join.getCluster(),
         join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        convert(join.getLeft(),
-            join.getLeft().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        convert(join.getRight(),
-            join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        convert(
+            join.getLeft(), join.getLeft().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        convert(
+            join.getRight(), join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         join.getCondition(),
         join.getVariablesSet(),
-        join.getJoinType()
-    );
+        join.getJoinType());
   }
 }

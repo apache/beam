@@ -66,6 +66,7 @@ public class WordCountTest {
     private static final long serialVersionUID = 1L;
     private final Counter emptyLines = Metrics.counter("main", "emptyLines");
 
+    @SuppressWarnings("StringSplitter")
     @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
@@ -99,9 +100,7 @@ public class WordCountTest {
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
+  static void runWordCount(WordCountOptions options) {
     Pipeline p = Pipeline.create(options);
     p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
         .apply(ParDo.of(new ExtractWordsFn()))
@@ -109,6 +108,13 @@ public class WordCountTest {
         .apply(ParDo.of(new FormatAsStringFn()))
         .apply("WriteCounts", TextIO.write().to(options.getOutput()));
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+      .as(WordCountOptions.class);
+
+    runWordCount(options);
   }
 
   @Test
@@ -127,7 +133,7 @@ public class WordCountTest {
     Assert.assertTrue(!outFile1.exists() || outFile1.delete());
     Assert.assertTrue(!outFile2.exists() || outFile2.delete());
 
-    WordCountTest.main(TestPipeline.convertToArgs(options));
+    WordCountTest.runWordCount(options);
 
     Assert.assertTrue("result files exist", outFile1.exists() && outFile2.exists());
     HashSet<String> results = new HashSet<>();

@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -27,21 +28,23 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamSqlNotExpression}.
- */
+/** Test for {@code BeamSqlNotExpression}. */
 public class BeamSqlNotExpressionTest extends BeamSqlFnExecutorTestBase {
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
-    Assert.assertTrue(new BeamSqlNotExpression(operands).evaluate(record, null).getBoolean());
+    Assert.assertTrue(
+        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getBoolean());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
-    Assert.assertFalse(new BeamSqlNotExpression(operands).evaluate(record, null).getBoolean());
+    Assert.assertFalse(
+        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getBoolean());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, null));
-    Assert.assertNull(new BeamSqlNotExpression(operands).evaluate(record, null).getValue());
+    Assert.assertNull(
+        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
 }

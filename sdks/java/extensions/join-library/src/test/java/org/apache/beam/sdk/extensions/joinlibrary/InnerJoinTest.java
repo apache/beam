@@ -35,10 +35,9 @@ import org.junit.Test;
  * This test Inner Join functionality.
  */
 public class InnerJoinTest {
-
-  List<KV<String, Long>> leftListOfKv;
-  List<KV<String, String>> listRightOfKv;
-  List<KV<String, KV<Long, String>>> expectedResult;
+  private List<KV<String, Long>> leftListOfKv;
+  private List<KV<String, String>> listRightOfKv;
+  private List<KV<String, KV<Long, String>>> expectedResult;
 
   @Rule
   public final transient TestPipeline p = TestPipeline.create();

@@ -184,7 +184,7 @@ import org.joda.time.Duration;
  * custom file naming policy.
  *
  * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
- * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
+ * org.apache.avro.file.Codec CodecFactory.snappyCodec()}. This default can be changed or
  * overridden using {@link AvroIO.Write#withCodec}.
  *
  * <h3>Writing specific or generic records</h3>
@@ -848,7 +848,7 @@ public class AvroIO {
   @AutoValue
   public abstract static class TypedWrite<UserT, DestinationT, OutputT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
-    static final CodecFactory DEFAULT_CODEC = CodecFactory.deflateCodec(6);
+    static final CodecFactory DEFAULT_CODEC = CodecFactory.snappyCodec();
     static final SerializableAvroCodecFactory DEFAULT_SERIALIZABLE_CODEC =
         new SerializableAvroCodecFactory(DEFAULT_CODEC);
 
@@ -1409,7 +1409,7 @@ public class AvroIO {
 
     /**
      * Specifies to use the given {@link CodecFactory} for each generated file. By default, {@code
-     * CodecFactory.deflateCodec(6)}.
+     * CodecFactory.snappyCodec()}.
      */
     public Sink<ElementT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();

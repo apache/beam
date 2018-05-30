@@ -36,7 +36,7 @@ public class BeamFnDataInboundObserver<T>
   public static <T> BeamFnDataInboundObserver<T> forConsumer(
       Coder<WindowedValue<T>> coder, FnDataReceiver<WindowedValue<T>> receiver) {
     return new BeamFnDataInboundObserver<>(
-        coder, receiver, SettableFutureInboundDataClient.create());
+        coder, receiver, CompletableFutureInboundDataClient.create());
   }
 
   private final FnDataReceiver<WindowedValue<T>> consumer;

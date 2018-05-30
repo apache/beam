@@ -21,10 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-
 import java.io.Serializable;
 import java.util.Objects;
-
 import org.joda.time.Instant;
 
 /**

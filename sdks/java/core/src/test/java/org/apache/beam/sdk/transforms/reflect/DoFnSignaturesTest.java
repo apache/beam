@@ -44,16 +44,25 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -67,7 +76,7 @@ public class DoFnSignaturesTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testBasicDoFn() throws Exception {
+  public void testBasicDoFnProcessContext() throws Exception {
     DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
       @ProcessElement
       public void process(ProcessContext c) {}
@@ -76,6 +85,75 @@ public class DoFnSignaturesTest {
     assertThat(sig.processElement().extraParameters().size(), equalTo(1));
     assertThat(
         sig.processElement().extraParameters().get(0), instanceOf(ProcessContextParameter.class));
+  }
+
+  @Test
+  public void testBasicDoFnAllParameters() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Element String element, @Timestamp Instant timestamp,
+                          BoundedWindow window, PaneInfo paneInfo,
+                          OutputReceiver<String> receiver,
+                          PipelineOptions options) {}
+    }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(6));
+    assertThat(
+        sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(1), instanceOf(TimestampParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(3), instanceOf(PaneInfoParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(4), instanceOf(OutputReceiverParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(5), instanceOf(PipelineOptionsParameter.class));
+  }
+
+  @Test
+  public void testBasicDoFnMultiOutputReceiver() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(MultiOutputReceiver receiver) {}
+    }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.processElement().extraParameters().get(0),
+        instanceOf(TaggedOutputReceiverParameter.class));
+  }
+
+
+  @Test
+  public void testWrongElementType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("@Element argument must have type java.lang.String");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Element Integer element) {}
+    }.getClass());
+  }
+
+  @Test
+  public void testWrongTimestampType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("@Timestamp argument must have type org.joda.time.Instant");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Timestamp String timestamp) {}
+    }.getClass());
+  }
+
+  @Test
+  public void testWrongOutputReceiverType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("OutputReceiver should be parameterized by java.lang.String");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(OutputReceiver<Integer> receiver) {}
+    }.getClass());
   }
 
   @Test
@@ -201,15 +279,14 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("my-id");
     thrown.expectMessage(not(mentionsState()));
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @TimerId("my-id")
-              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @TimerId("my-id")
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-              @ProcessElement
-              public void foo(ProcessContext context) {}
-            }.getClass());
+          @ProcessElement
+          public void foo(ProcessContext context) {}
+        }.getClass());
   }
 
   @Test
@@ -221,15 +298,14 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("my-id");
     thrown.expectMessage(not(mentionsState()));
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @OnTimer("my-id")
-              public void onFoo() {}
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @OnTimer("my-id")
+          public void onFoo() {}
 
-              @ProcessElement
-              public void foo(ProcessContext context) {}
-            }.getClass());
+          @ProcessElement
+          public void foo(ProcessContext context) {}
+        }.getClass());
   }
 
   @Test
@@ -257,7 +333,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage(fn.getClass().getSimpleName());
     thrown.expectMessage(not(mentionsState()));
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignatures.getSignature(fn.getClass());
   }
 
   @Test
@@ -268,14 +344,13 @@ public class DoFnSignaturesTest {
     thrown.expectMessage(DoFnDeclaringTimerAndCallback.TIMER_ID);
     thrown.expectMessage(not(mentionsState()));
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFnDeclaringTimerAndCallback() {
-              @ProcessElement
-              public void process(
-                  ProcessContext context,
-                  @TimerId(DoFnDeclaringTimerAndCallback.TIMER_ID) Timer timer) {}
-            }.getClass());
+    DoFnSignatures.getSignature(
+        new DoFnDeclaringTimerAndCallback() {
+          @ProcessElement
+          public void process(
+              ProcessContext context,
+              @TimerId(DoFnDeclaringTimerAndCallback.TIMER_ID) Timer timer) {}
+        }.getClass());
   }
 
   @Test
@@ -286,21 +361,20 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 2");
     thrown.expectMessage(not(mentionsState()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @TimerId("my-id")
-              private final TimerSpec myfield = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @TimerId("my-id")
+          private final TimerSpec myfield = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-              @ProcessElement
-              public void myProcessElement(
-                  ProcessContext context,
-                  @TimerId("my-id") Timer one,
-                  @TimerId("my-id") Timer two) {}
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context,
+              @TimerId("my-id") Timer one,
+              @TimerId("my-id") Timer two) {}
 
-              @OnTimer("my-id")
-              public void onWhatever() {}
-            }.getClass());
+          @OnTimer("my-id")
+          public void onWhatever() {}
+        }.getClass());
   }
 
   @Test
@@ -311,15 +385,15 @@ public class DoFnSignaturesTest {
     thrown.expectMessage(DoFnWithOnlyCallback.TIMER_ID);
     thrown.expectMessage(not(mentionsState()));
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFnWithOnlyCallback() {
-              @TimerId(DoFnWithOnlyCallback.TIMER_ID)
-              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    DoFnSignatures.getSignature(
+        new DoFnWithOnlyCallback() {
+          @TimerId(DoFnWithOnlyCallback.TIMER_ID)
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-              @ProcessElement
-              public void foo(ProcessContext context) {}
-            }.getClass());
+          @ProcessElement
+          @Override
+          public void foo(ProcessContext context) {}
+        }.getClass());
   }
 
   @Test
@@ -341,6 +415,35 @@ public class DoFnSignaturesTest {
     assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(1));
     assertThat(
         sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        instanceOf(WindowParameter.class));
+  }
+
+  @Test
+  public void testAllParamsOnTimer() throws Exception {
+    final String timerId = "some-timer-id";
+
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(new DoFn<String, String>() {
+          @TimerId(timerId)
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void process(ProcessContext c) {}
+
+          @OnTimer(timerId)
+          public void onTimer(@Timestamp Instant timestamp, TimeDomain timeDomain,
+                              BoundedWindow w) {}
+        }.getClass());
+
+    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(3));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        instanceOf(TimestampParameter.class));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(1),
+        instanceOf(TimeDomainParameter.class));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(2),
         instanceOf(WindowParameter.class));
   }
 
@@ -416,18 +519,17 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myfield2");
     thrown.expectMessage(not(containsString("State"))); // lowercase "state" is in the package name
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @TimerId("my-id")
-              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @TimerId("my-id")
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-              @TimerId("my-id")
-              private final TimerSpec myfield2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+          @TimerId("my-id")
+          private final TimerSpec myfield2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-              @ProcessElement
-              public void foo(ProcessContext context) {}
-            }.getClass());
+          @ProcessElement
+          public void foo(ProcessContext context) {}
+        }.getClass());
   }
 
   @Test
@@ -438,15 +540,14 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myfield");
     thrown.expectMessage(not(containsString("State"))); // lowercase "state" is in the package name
     thrown.expectMessage(mentionsTimers());
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @TimerId("my-timer-id")
-              private TimerSpec myfield = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @TimerId("my-timer-id")
+          private TimerSpec myfield = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-              @ProcessElement
-              public void foo(ProcessContext context) {}
-            }.getClass());
+          @ProcessElement
+          public void foo(ProcessContext context) {}
+        }.getClass());
   }
 
   @Test
@@ -504,18 +605,17 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("@" + DoFn.ProcessElement.class.getSimpleName());
     thrown.expectMessage(DoFn.OnTimerContext.class.getSimpleName());
 
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @TimerId("foo")
-              private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @TimerId("foo")
+          private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-              @ProcessElement
-              public void foo(ProcessContext context, OnTimerContext bogus) {}
+          @ProcessElement
+          public void foo(ProcessContext context, OnTimerContext bogus) {}
 
-              @OnTimer("foo")
-              public void onFoo() {}
-            }.getClass());
+          @OnTimer("foo")
+          public void onFoo() {}
+        }.getClass());
   }
 
   @Test
@@ -591,16 +691,15 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("Non-final field");
     thrown.expectMessage("myfield");
     thrown.expectMessage(not(mentionsTimers()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @StateId("my-id")
-              private StateSpec<ValueState<Integer>> myfield =
-                  StateSpecs.value(VarIntCoder.of());
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @StateId("my-id")
+          private StateSpec<ValueState<Integer>> myfield =
+              StateSpecs.value(VarIntCoder.of());
 
-              @ProcessElement
-              public void foo(ProcessContext context) {}
-            }.getClass());
+          @ProcessElement
+          public void foo(ProcessContext context) {}
+        }.getClass());
   }
 
   @Test
@@ -610,13 +709,12 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");
     thrown.expectMessage(not(mentionsTimers()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @ProcessElement
-              public void myProcessElement(
-                  ProcessContext context, ValueState<Integer> noAnnotation) {}
-            }.getClass());
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context, ValueState<Integer> noAnnotation) {}
+        }.getClass());
   }
 
   @Test
@@ -627,13 +725,12 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");
     thrown.expectMessage(not(mentionsTimers()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @ProcessElement
-              public void myProcessElement(
-                  ProcessContext context, @StateId("my-id") ValueState<Integer> undeclared) {}
-            }.getClass());
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context, @StateId("my-id") ValueState<Integer> undeclared) {}
+        }.getClass());
   }
 
   @Test
@@ -644,19 +741,18 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 2");
     thrown.expectMessage(not(mentionsTimers()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @StateId("my-id")
-              private final StateSpec<ValueState<Integer>> myfield =
-                  StateSpecs.value(VarIntCoder.of());
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @StateId("my-id")
+          private final StateSpec<ValueState<Integer>> myfield =
+              StateSpecs.value(VarIntCoder.of());
 
-              @ProcessElement
-              public void myProcessElement(
-                  ProcessContext context,
-                  @StateId("my-id") ValueState<Integer> one,
-                  @StateId("my-id") ValueState<Integer> two) {}
-            }.getClass());
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context,
+              @StateId("my-id") ValueState<Integer> one,
+              @StateId("my-id") ValueState<Integer> two) {}
+        }.getClass());
   }
 
   @Test
@@ -670,17 +766,16 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");
     thrown.expectMessage(not(mentionsTimers()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @StateId("my-id")
-              private final StateSpec<ValueState<Integer>> myfield =
-                  StateSpecs.value(VarIntCoder.of());
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @StateId("my-id")
+          private final StateSpec<ValueState<Integer>> myfield =
+              StateSpecs.value(VarIntCoder.of());
 
-              @ProcessElement
-              public void myProcessElement(
-                  ProcessContext context, @StateId("my-id") WatermarkHoldState watermark) {}
-            }.getClass());
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context, @StateId("my-id") WatermarkHoldState watermark) {}
+        }.getClass());
   }
 
   @Test
@@ -694,17 +789,16 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");
     thrown.expectMessage(not(mentionsTimers()));
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<KV<String, Integer>, Long>() {
-              @StateId("my-id")
-              private final StateSpec<ValueState<Integer>> myfield =
-                  StateSpecs.value(VarIntCoder.of());
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @StateId("my-id")
+          private final StateSpec<ValueState<Integer>> myfield =
+              StateSpecs.value(VarIntCoder.of());
 
-              @ProcessElement
-              public void myProcessElement(
-                  ProcessContext context, @StateId("my-id") ValueState<String> stringState) {}
-            }.getClass());
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context, @StateId("my-id") ValueState<String> stringState) {}
+        }.getClass());
   }
 
   @Test
@@ -758,7 +852,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("declared in a different class");
     thrown.expectMessage(DoFnDeclaringState.STATE_ID);
     thrown.expectMessage(fn.getClass().getSimpleName());
-    DoFnSignature sig = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignatures.getSignature(fn.getClass());
   }
 
   @Test
@@ -767,13 +861,12 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("process");
     thrown.expectMessage("declared in a different class");
     thrown.expectMessage(DoFnUsingState.STATE_ID);
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFnUsingState() {
-              @StateId(DoFnUsingState.STATE_ID)
-              private final StateSpec<ValueState<Integer>> spec =
-                  StateSpecs.value(VarIntCoder.of());
-            }.getClass());
+    DoFnSignatures.getSignature(
+        new DoFnUsingState() {
+          @StateId(DoFnUsingState.STATE_ID)
+          private final StateSpec<ValueState<Integer>> spec =
+              StateSpecs.value(VarIntCoder.of());
+        }.getClass());
   }
 
   @Test
@@ -983,6 +1076,7 @@ public class DoFnSignaturesTest {
     public void onMyTimer() {}
 
     @ProcessElement
+    @Override
     public void foo(ProcessContext context) {}
   }
 

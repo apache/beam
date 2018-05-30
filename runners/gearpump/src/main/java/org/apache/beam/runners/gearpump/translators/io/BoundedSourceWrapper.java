@@ -19,7 +19,6 @@
 package org.apache.beam.runners.gearpump.translators.io;
 
 import java.io.IOException;
-
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;

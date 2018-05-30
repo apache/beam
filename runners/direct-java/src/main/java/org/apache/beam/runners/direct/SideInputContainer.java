@@ -132,11 +132,8 @@ class SideInputContainer {
     Map<BoundedWindow, Collection<WindowedValue<?>>> valuesPerWindow = new HashMap<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow window : value.getWindows()) {
-        Collection<WindowedValue<?>> windowValues = valuesPerWindow.get(window);
-        if (windowValues == null) {
-          windowValues = new ArrayList<>();
-          valuesPerWindow.put(window, windowValues);
-        }
+        Collection<WindowedValue<?>> windowValues =
+            valuesPerWindow.computeIfAbsent(window, k -> new ArrayList<>());
         windowValues.add(value);
       }
     }
@@ -262,7 +259,7 @@ class SideInputContainer {
           Iterables.transform(
               (Iterable<WindowedValue<KV<?, ?>>>)
                   viewContents.getUnchecked(PCollectionViewWindow.of(view, window)).get(),
-              windowedValue -> windowedValue.getValue());
+                  WindowedValue::getValue);
 
       ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
       Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();

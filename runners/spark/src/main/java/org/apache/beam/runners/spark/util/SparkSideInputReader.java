@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
@@ -66,16 +68,21 @@ public class SparkSideInputReader implements SideInputReader {
     Iterable<WindowedValue<KV<?, ?>>> availableSideInputs =
         (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<KV<?, ?>> sideInputForWindow =
-        Iterables.transform(
-            Iterables.filter(
-                availableSideInputs,
-                sideInputCandidate -> {
-                  if (sideInputCandidate == null) {
-                    return false;
-                  }
-                  return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
-                }),
-            windowedValue -> windowedValue.getValue());
+        StreamSupport.stream(
+                StreamSupport.stream(availableSideInputs.spliterator(), false)
+                    .filter(
+                        sideInputCandidate -> {
+                          if (sideInputCandidate == null) {
+                            return false;
+                          }
+                          return Iterables.contains(
+                              sideInputCandidate.getWindows(), sideInputWindow);
+                        })
+                    .collect(Collectors.toList())
+                    .spliterator(),
+                false)
+            .map(WindowedValue::getValue)
+            .collect(Collectors.toList());
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();

@@ -19,14 +19,13 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Union;
@@ -40,49 +39,53 @@ import org.apache.calcite.rel.core.Union;
  * <p>1) Do not use {@code grouped window function}:
  *
  * <pre>{@code
- *   select * from person UNION select * from person
+ * select * from person UNION select * from person
  * }</pre>
  *
  * <p>2) Use the same {@code grouped window function}, with the same param:
+ *
  * <pre>{@code
- *   select id, count(*) from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
- *   UNION
- *   select * from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * select id, count(*) from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * UNION
+ * select * from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
  * }</pre>
  *
  * <p>Inputs with different group functions are NOT supported:
+ *
  * <pre>{@code
- *   select id, count(*) from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
- *   UNION
- *   select * from person
- *   group by id, TUMBLE(order_time, INTERVAL '2' HOUR)
+ * select id, count(*) from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * UNION
+ * select * from person
+ * group by id, TUMBLE(order_time, INTERVAL '2' HOUR)
  * }</pre>
  */
 public class BeamUnionRel extends Union implements BeamRelNode {
   private BeamSetOperatorRelBase delegate;
-  public BeamUnionRel(RelOptCluster cluster,
-      RelTraitSet traits,
-      List<RelNode> inputs,
-      boolean all) {
+
+  public BeamUnionRel(
+      RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
     super(cluster, traits, inputs, all);
-    this.delegate = new BeamSetOperatorRelBase(this,
-        BeamSetOperatorRelBase.OpType.UNION,
-        inputs, all);
+    this.delegate =
+        new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, inputs, all);
   }
 
-  public BeamUnionRel(RelInput input) {
-    super(input);
-  }
-
-  @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
+  @Override
+  public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
   }
 
-  @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
+  @Override
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      return delegate.buildBeamPipeline(inputPCollections);
+    }
   }
 }

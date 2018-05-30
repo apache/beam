@@ -49,17 +49,11 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.Suite;
 
 /**
  * Tests for {@link FlinkKeyGroupStateInternals}. This is based on the tests for
  * {@code StateInternalsTest}.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    FlinkKeyGroupStateInternalsTest.StandardStateInternalsTests.class,
-    FlinkKeyGroupStateInternalsTest.OtherTests.class
-})
 public class FlinkKeyGroupStateInternalsTest {
 
   /**
@@ -129,14 +123,6 @@ public class FlinkKeyGroupStateInternalsTest {
     @Override
     @Ignore
     public void testWatermarkStateIsEmpty() {}
-
-    @Override
-    @Ignore
-    public void testMergeEarliestWatermarkIntoSource() {}
-
-    @Override
-    @Ignore
-    public void testMergeLatestWatermarkIntoSource() {}
 
     @Override
     @Ignore

@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +31,6 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -544,7 +544,7 @@ public class MqttIO {
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         byte[] payload = context.element();
-        LOG.debug("Sending message {}", new String(payload));
+        LOG.debug("Sending message {}", new String(payload, StandardCharsets.UTF_8));
         connection.publish(spec.connectionConfiguration().getTopic(), payload, QoS.AT_LEAST_ONCE,
             false);
       }

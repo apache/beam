@@ -235,14 +235,13 @@ public class DataflowPipelineJob implements PipelineResult {
     // the run method (which produces the job) could fail or be Ctrl-C'd before it had returned a
     // job. The display of the command to cancel the job is best-effort anyways -- RPC's could fail,
     // etc. If the user wants to verify the job was cancelled they should look at the job status.
-    Thread shutdownHook = new Thread() {
-      @Override
-      public void run() {
-        LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
-            + "To cancel the job in the cloud, run:\n> {}",
-            MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId()));
-      }
-    };
+    Thread shutdownHook =
+        new Thread(
+            () ->
+                LOG.warn(
+                    "Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
+                        + "To cancel the job in the cloud, run:\n> {}",
+                    MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId())));
 
     try {
       Runtime.getRuntime().addShutdownHook(shutdownHook);

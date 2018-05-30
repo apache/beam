@@ -17,12 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
+ext.summary = "Library to add shared Hadoop classes among Beam IOs."
 
 dependencies {
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   provided library.java.hadoop_client
   provided library.java.hadoop_common
@@ -30,11 +32,5 @@ dependencies {
   testCompile library.java.commons_lang3
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
+  testCompileOnly library.java.findbugs_annotations
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

@@ -22,15 +22,14 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Base class for all string unary operators.
- */
+/** Base class for all string unary operators. */
 public abstract class BeamSqlStringUnaryExpression extends BeamSqlExpression {
   public BeamSqlStringUnaryExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() != 1) {
       return false;
     }

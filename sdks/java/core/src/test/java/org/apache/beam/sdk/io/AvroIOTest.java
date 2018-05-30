@@ -30,6 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -672,13 +673,13 @@ public class AvroIOTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWriteWindowed() throws Throwable {
     testWindowedAvroIOWriteUsingMethod(WriteMethod.AVROIO_WRITE);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWindowedAvroIOWriteViaSink() throws Throwable {
     testWindowedAvroIOWriteUsingMethod(WriteMethod.AVROIO_SINK);
   }
@@ -692,7 +693,7 @@ public class AvroIOTest implements Serializable {
     ArrayList<TimestampedValue<GenericClass>> firstWindowElements = new ArrayList<>();
     ArrayList<Instant> firstWindowTimestamps =
         Lists.newArrayList(
-            base.plus(Duration.standardSeconds(0)), base.plus(Duration.standardSeconds(10)),
+            base.plus(Duration.ZERO), base.plus(Duration.standardSeconds(10)),
             base.plus(Duration.standardSeconds(20)), base.plus(Duration.standardSeconds(30)));
 
     Random random = new Random();
@@ -1055,7 +1056,7 @@ public class AvroIOTest implements Serializable {
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
     AvroIO.Write<String> write = AvroIO.write(String.class).to("/tmp/foo/baz");
-    assertEquals(CodecFactory.deflateCodec(6).toString(), write.inner.getCodec().toString());
+    assertEquals(CodecFactory.snappyCodec().toString(), write.inner.getCodec().toString());
   }
 
   @Test
@@ -1108,14 +1109,15 @@ public class AvroIOTest implements Serializable {
                         "longKey",
                         100L,
                         "bytesKey",
-                        "bytesValue".getBytes())));
+                        "bytesValue".getBytes(Charsets.UTF_8))));
     writePipeline.run();
 
     try (DataFileStream dataFileStream =
         new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader())) {
       assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
       assertEquals(100L, dataFileStream.getMetaLong("longKey"));
-      assertArrayEquals("bytesValue".getBytes(), dataFileStream.getMeta("bytesKey"));
+      assertArrayEquals("bytesValue".getBytes(Charsets.UTF_8),
+          dataFileStream.getMeta("bytesKey"));
     }
   }
 
@@ -1222,7 +1224,7 @@ public class AvroIOTest implements Serializable {
             .withShardNameTemplate("-SS-of-NN-")
             .withSuffix("bar")
             .withNumShards(100)
-            .withCodec(CodecFactory.snappyCodec());
+            .withCodec(CodecFactory.deflateCodec(6));
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -1237,6 +1239,6 @@ public class AvroIOTest implements Serializable {
                 + ".AvroIOTest$\",\"fields\":[{\"name\":\"intField\",\"type\":\"int\"},"
                 + "{\"name\":\"stringField\",\"type\":\"string\"}]}"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
-    assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
+    assertThat(displayData, hasDisplayItem("codec", CodecFactory.deflateCodec(6).toString()));
   }
 }

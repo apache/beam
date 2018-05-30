@@ -20,15 +20,18 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.ToBeamRecord;
+import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * Query 2, 'Filtering. Find bids with specific auction ids and show their bid price.
@@ -44,13 +47,13 @@ import org.apache.beam.sdk.values.PCollection;
  * arbitrary size. To make it more interesting we instead choose bids for every
  * {@code skipFactor}'th auction.
  */
-public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<BeamRecord>> {
+public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<AuctionPrice>> {
 
   private static final String QUERY_TEMPLATE =
       "SELECT auction, bidder, price, dateTime, extra  FROM PCOLLECTION "
           + " WHERE MOD(auction, %d) = 0";
 
-  private final BeamSql.SimpleQueryTransform query;
+  private final PTransform<PInput, PCollection<Row>> query;
 
   public SqlQuery2(long skipFactor) {
     super("SqlQuery2");
@@ -60,18 +63,26 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<BeamRe
   }
 
   @Override
-  public PCollection<BeamRecord> expand(PCollection<Event> allEvents) {
-    BeamRecordCoder bidRecordCoder = getBidRecordCoder();
+  public PCollection<AuctionPrice> expand(PCollection<Event> allEvents) {
+    RowCoder bidRecordCoder = getBidRowCoder();
 
-    PCollection<BeamRecord> bidEventsRecords = allEvents
+    PCollection<Row> bidEventsRows = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToBeamRecord.parDo())
+        .apply(getName() + ".ToRow", ToRow.parDo())
         .setCoder(bidRecordCoder);
 
-    return bidEventsRecords.apply(query);
+    PCollection<Row> queryResultsRows = bidEventsRows.apply(query);
+
+    return queryResultsRows
+        .apply(auctionPriceParDo())
+        .setCoder(AuctionPrice.CODER);
   }
 
-  private BeamRecordCoder getBidRecordCoder() {
-    return ADAPTERS.get(Bid.class).getRecordType().getRecordCoder();
+  private RowCoder getBidRowCoder() {
+    return ADAPTERS.get(Bid.class).getSchema().getRowCoder();
+  }
+
+  private ParDo.SingleOutput<Row, AuctionPrice> auctionPriceParDo() {
+    return ADAPTERS.get(AuctionPrice.class).parDo();
   }
 }

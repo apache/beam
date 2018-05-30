@@ -25,7 +25,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -177,12 +177,12 @@ public class InstanceBuilder<T> {
    *
    * @see Class#getDeclaredMethod(String, Class[])
    */
-  private final List<Class<?>> parameterTypes = new LinkedList<>();
+  private final List<Class<?>> parameterTypes = new ArrayList<>();
 
   /**
    * Arguments to factory method {@link Method#invoke(Object, Object...)}.
    */
-  private final List<Object> arguments = new LinkedList<>();
+  private final List<Object> arguments = new ArrayList<>();
 
   /**
    * Name of factory method, or null to invoke the constructor.

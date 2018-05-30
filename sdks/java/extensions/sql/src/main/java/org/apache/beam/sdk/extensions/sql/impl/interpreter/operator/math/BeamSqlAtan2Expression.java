@@ -24,19 +24,19 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@link BeamSqlMathBinaryExpression} for 'ATAN2' function.
- */
+/** {@link BeamSqlMathBinaryExpression} for 'ATAN2' function. */
 public class BeamSqlAtan2Expression extends BeamSqlMathBinaryExpression {
 
   public BeamSqlAtan2Expression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DOUBLE);
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
-      BeamSqlPrimitive rightOp) {
-    return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions
-        .atan2(SqlFunctions.toDouble(leftOp.getValue()),
-            SqlFunctions.toDouble(rightOp.getValue())));
+  @Override
+  public BeamSqlPrimitive<? extends Number> calculate(
+      BeamSqlPrimitive leftOp, BeamSqlPrimitive rightOp) {
+    return BeamSqlPrimitive.of(
+        SqlTypeName.DOUBLE,
+        SqlFunctions.atan2(
+            SqlFunctions.toDouble(leftOp.getValue()), SqlFunctions.toDouble(rightOp.getValue())));
   }
 }

@@ -148,8 +148,8 @@ public class Person implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + name.length() + 1 + emailAddress.length() + 1 + creditCard.length() + 1
-        + city.length() + 1 + state.length() + 8 + 1 + extra.length() + 1;
+    return 8L + name.length() + 1L + emailAddress.length() + 1L + creditCard.length() + 1L
+        + city.length() + 1L + state.length() + 8L + 1L + extra.length() + 1L;
   }
 
   @Override

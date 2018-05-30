@@ -233,7 +233,7 @@ class TextSource extends FileBasedSource<String> {
 
       // If we have reached EOF file and consumed all of the buffer then we know
       // that there are no more records.
-      if (eof && buffer.size() == 0) {
+      if (eof && buffer.isEmpty()) {
         elementIsPresent = false;
         return false;
       }

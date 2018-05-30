@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
@@ -35,6 +36,8 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -51,27 +54,37 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class PTransformTranslation {
 
-  public static final String PAR_DO_TRANSFORM_URN = "urn:beam:transform:pardo:v1";
-  public static final String FLATTEN_TRANSFORM_URN = "urn:beam:transform:flatten:v1";
-  public static final String GROUP_BY_KEY_TRANSFORM_URN = "urn:beam:transform:groupbykey:v1";
-  public static final String READ_TRANSFORM_URN = "urn:beam:transform:read:v1";
-  public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
-  public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
+  public static final String PAR_DO_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.PAR_DO);
+  public static final String FLATTEN_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.FLATTEN);
+  public static final String GROUP_BY_KEY_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.GROUP_BY_KEY);
+  public static final String IMPULSE_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.IMPULSE);
+  public static final String ASSIGN_WINDOWS_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS);
+  public static final String TEST_STREAM_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.TEST_STREAM);
 
-  // Not strictly a primitive transform
-  public static final String COMBINE_TRANSFORM_URN = "urn:beam:transform:combine:v1";
-
-  public static final String RESHUFFLE_URN = "urn:beam:transform:reshuffle:v1";
-
-  // Less well-known. And where shall these live?
-  public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
-
+  public static final String READ_TRANSFORM_URN = getUrn(
+      StandardPTransforms.DeprecatedPrimitives.READ);
   /**
    * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
    *     part of the translation for a `ParDo` side input.
    */
   @Deprecated
-  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
+  public static final String CREATE_VIEW_TRANSFORM_URN =
+      getUrn(StandardPTransforms.DeprecatedPrimitives.CREATE_VIEW);
+
+  public static final String COMBINE_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+  public static final String RESHUFFLE_URN = getUrn(
+      StandardPTransforms.Composites.RESHUFFLE);
+  public static final String WRITE_FILES_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Composites.WRITE_FILES);
+  public static final String SPLITTABLE_PROCESS_KEYED_URN =
+      getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS);
 
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
@@ -187,10 +200,13 @@ public class PTransformTranslation {
         transformBuilder.setSpec(spec);
       }
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
-      transformBuilder.setSpec(
+      FunctionSpec spec =
           KNOWN_PAYLOAD_TRANSLATORS
               .get(transform.getClass())
-              .translate(appliedPTransform, components));
+              .translate(appliedPTransform, components);
+      if (spec != null) {
+        transformBuilder.setSpec(spec);
+      }
     }
 
     return transformBuilder.build();
@@ -260,6 +276,12 @@ public class PTransformTranslation {
     return urn;
   }
 
+  /** Returns the URN for the transform if it is known, otherwise {@code null}. */
+  @Nullable
+  public static String urnForTransformOrNull(RunnerApi.PTransform transform) {
+    return transform.getSpec() == null ? null : transform.getSpec().getUrn();
+  }
+
   /**
    * A bi-directional translator between a Java-based {@link PTransform} and a protobuf payload for
    * that transform.
@@ -275,6 +297,7 @@ public class PTransformTranslation {
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
 
+    @Nullable
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
 
@@ -390,6 +413,7 @@ public class PTransformTranslation {
     }
 
     @Nullable
+    @Override
     public abstract RunnerApi.FunctionSpec getSpec();
 
     public static UnknownRawPTransform forSpec(RunnerApi.FunctionSpec spec) {

@@ -102,6 +102,7 @@ public abstract class NexmarkQueryModel implements Serializable {
   /** Return assertion to use on results of pipeline for this query. */
   public SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void> assertionFor() {
     final Collection<String> expectedStrings = toCollection(simulator().results());
+    Assert.assertFalse(expectedStrings.isEmpty());
 
     return new SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void>() {
       @Override

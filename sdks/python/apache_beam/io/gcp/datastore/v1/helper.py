@@ -26,6 +26,8 @@ import sys
 import time
 from socket import error as SocketError
 
+import six
+
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
@@ -252,7 +254,8 @@ def make_kind_stats_query(namespace, kind, latest_timestamp):
     kind_stat_query.kind.add().name = '__Stat_Ns_Kind__'
 
   kind_filter = datastore_helper.set_property_filter(
-      query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL, unicode(kind))
+      query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL,
+      six.text_type(kind))
   timestamp_filter = datastore_helper.set_property_filter(
       query_pb2.Filter(), 'timestamp', PropertyFilter.EQUAL,
       latest_timestamp)

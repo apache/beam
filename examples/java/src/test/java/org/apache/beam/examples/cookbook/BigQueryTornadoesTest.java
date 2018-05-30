@@ -63,7 +63,7 @@ public class BigQueryTornadoesTest {
         DoFnTester.of(new FormatCountsFn());
     KV empty[] = {};
     List<TableRow> results = formatCountsFn.processBundle(empty);
-    Assert.assertTrue(results.size() == 0);
+    Assert.assertTrue(results.isEmpty());
     KV input[] = { KV.of(3, 0L),
                    KV.of(4, Long.MAX_VALUE),
                    KV.of(5, Long.MIN_VALUE) };

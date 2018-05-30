@@ -77,7 +77,7 @@ public class WindowEvaluatorFactoryTest {
   private final PaneInfo intervalWindowPane = PaneInfo.createPane(false, false, Timing.LATE, 3, 2);
   private WindowedValue<Long> valueInIntervalWindow =
       WindowedValue.of(
-          Long.valueOf(2L),
+              2L,
           new Instant(-10L),
           new IntervalWindow(new Instant(-100), EPOCH), intervalWindowPane);
 
@@ -91,7 +91,7 @@ public class WindowEvaluatorFactoryTest {
   private final PaneInfo multiWindowPane = PaneInfo.createPane(false, true, Timing.ON_TIME, 3, 0);
   private WindowedValue<Long> valueInGlobalAndTwoIntervalWindows =
       WindowedValue.of(
-          Long.valueOf(1L),
+              1L,
           EPOCH.plus(Duration.standardDays(3)),
           ImmutableList.of(GlobalWindow.INSTANCE, intervalWindow1, intervalWindow2),
           multiWindowPane);

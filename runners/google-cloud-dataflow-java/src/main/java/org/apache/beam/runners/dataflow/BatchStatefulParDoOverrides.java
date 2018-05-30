@@ -120,6 +120,7 @@ public class BatchStatefulParDoOverrides {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
+
   private static class MultiOutputOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
           PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.MultiOutput<KV<K, InputT>, OutputT>> {

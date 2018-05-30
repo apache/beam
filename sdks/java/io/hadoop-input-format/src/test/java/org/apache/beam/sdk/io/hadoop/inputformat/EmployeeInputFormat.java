@@ -14,6 +14,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import com.google.common.base.Splitter;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -37,18 +38,18 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * {@linkplain HadoopInputFormatIO } source returns immutable records in the scenario when
  * RecordReader creates new key and value objects every time it reads data.
  */
-public class EmployeeInputFormat extends InputFormat<Text, Employee> {
+class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
   public EmployeeInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
-      TaskAttemptContext context) throws IOException, InterruptedException {
+      TaskAttemptContext context) {
     return new EmployeeRecordReader();
   }
 
   @Override
-  public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
+  public List<InputSplit> getSplits(JobContext arg0) {
     List<InputSplit> inputSplitList = new ArrayList<>();
     for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj =
@@ -79,16 +80,16 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
      * Returns number of records in each split.
      */
     @Override
-    public long getLength() throws IOException, InterruptedException {
+    public long getLength() {
       return this.endIndex - this.startIndex + 1;
     }
 
     @Override
-    public String[] getLocations() throws IOException, InterruptedException {
+    public String[] getLocations() {
       return null;
     }
 
-    public long getStartIndex() {
+    long getStartIndex() {
       return startIndex;
     }
 
@@ -112,7 +113,7 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
   /**
    * RecordReader for EmployeeInputFormat.
    */
-  public class EmployeeRecordReader extends RecordReader<Text, Employee> {
+  public static class EmployeeRecordReader extends RecordReader<Text, Employee> {
 
     private NewObjectsEmployeeInputSplit split;
     private Text currentKey;
@@ -124,26 +125,25 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     public EmployeeRecordReader() {}
 
     @Override
-    public void close() throws IOException {}
+    public void close() {}
 
     @Override
-    public Text getCurrentKey() throws IOException, InterruptedException {
+    public Text getCurrentKey() {
       return currentKey;
     }
 
     @Override
-    public Employee getCurrentValue() throws IOException, InterruptedException {
+    public Employee getCurrentValue() {
       return currentValue;
     }
 
     @Override
-    public float getProgress() throws IOException, InterruptedException {
+    public float getProgress() {
       return (float) recordsRead / split.getLength();
     }
 
     @Override
-    public void initialize(InputSplit split, TaskAttemptContext arg1) throws IOException,
-        InterruptedException {
+    public void initialize(InputSplit split, TaskAttemptContext arg1) {
       this.split = (NewObjectsEmployeeInputSplit) split;
       employeeListIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
@@ -152,19 +152,20 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     }
 
     @Override
-    public boolean nextKeyValue() throws IOException, InterruptedException {
+    public boolean nextKeyValue() {
       if ((recordsRead++) >= split.getLength()) {
         return false;
       }
       employeeListIndex++;
       KV<String, String> employeeDetails = employeeDataList.get((int) employeeListIndex);
-      String empData[] = employeeDetails.getValue().split("_");
+
+      List<String> empData = Splitter.on('_').splitToList(employeeDetails.getValue());
       /*
        * New objects must be returned every time for key and value in order to test the scenario as
        * discussed the in the class' javadoc.
        */
       currentKey = new Text(employeeDetails.getKey());
-      currentValue = new Employee(empData[0], empData[1]);
+      currentValue = new Employee(empData.get(0), empData.get(1));
       return true;
     }
   }

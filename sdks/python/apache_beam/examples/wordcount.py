@@ -23,6 +23,8 @@ import argparse
 import logging
 import re
 
+import six
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
@@ -57,7 +59,7 @@ class WordExtractingDoFn(beam.DoFn):
     text_line = element.strip()
     if not text_line:
       self.empty_line_counter.inc(1)
-    words = re.findall(r'[A-Za-z\']+', text_line)
+    words = re.findall(r'[A-Za-z0-9\']+', text_line)
     for w in words:
       self.words_counter.inc()
       self.word_lengths_counter.inc(len(w))
@@ -94,7 +96,7 @@ def run(argv=None):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
+                          .with_output_types(six.text_type))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(count_ones))
@@ -102,7 +104,7 @@ def run(argv=None):
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
     (word, count) = word_count
-    return '%s: %s' % (word, count)
+    return '%s: %d' % (word, count)
 
   output = counts | 'format' >> beam.Map(format_result)
 

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Created by xumingmingv on 16/06/2017.
- */
+/** Beam SQL parsing additions to Calcite SQL. */
 package org.apache.beam.sdk.extensions.sql.impl.parser;

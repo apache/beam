@@ -68,6 +68,8 @@ import copy
 import sys
 import types
 
+import six
+
 __all__ = [
     'Any',
     'Union',
@@ -403,6 +405,8 @@ class AnyTypeConstraint(TypeConstraint):
   function arguments or return types. All other TypeConstraint's are equivalent
   to 'Any', and its 'type_check' method is a no-op.
   """
+  def __eq__(self, other):
+    return type(self) == type(other)
 
   def __repr__(self):
     return 'Any'
@@ -412,6 +416,9 @@ class AnyTypeConstraint(TypeConstraint):
 
 
 class TypeVariable(AnyTypeConstraint):
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.name == other.name
 
   def __init__(self, name):
     self.name = name
@@ -802,7 +809,7 @@ class DictHint(CompositeTypeHint):
             'type dict. %s is of type %s.'
             % (dict_instance, dict_instance.__class__.__name__))
 
-      for key, value in dict_instance.iteritems():
+      for key, value in dict_instance.items():
         try:
           check_constraint(self.key_type, key)
         except CompositeTypeHintError as e:
@@ -985,6 +992,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
+@six.add_metaclass(GetitemConstructor)
 class WindowedTypeConstraint(TypeConstraint):
   """A type constraint for WindowedValue objects.
 
@@ -993,7 +1001,6 @@ class WindowedTypeConstraint(TypeConstraint):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
-  __metaclass__ = GetitemConstructor
 
   def __init__(self, inner_type):
     self.inner_type = inner_type
@@ -1091,3 +1098,35 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   return issubclass(sub, base)
+
+
+def coerce_to_kv_type(element_type, label=None):
+  """Attempts to coerce element_type to a compatible kv type.
+
+  Raises an error on failure.
+  """
+  # If element_type is not specified, then treat it as `Any`.
+  if not element_type:
+    return KV[Any, Any]
+  elif isinstance(element_type, TupleHint.TupleConstraint):
+    if len(element_type.tuple_types) == 2:
+      return element_type
+    else:
+      raise ValueError(
+          "Tuple input to %r must be have two components. "
+          "Found %s." % (label, element_type))
+  elif isinstance(element_type, AnyTypeConstraint):
+    # `Any` type needs to be replaced with a KV[Any, Any] to
+    # satisfy the KV form.
+    return KV[Any, Any]
+  elif isinstance(element_type, UnionConstraint):
+    union_types = [
+        coerce_to_kv_type(t) for t in element_type.union_types]
+    return KV[
+        Union[tuple(t.tuple_types[0] for t in union_types)],
+        Union[tuple(t.tuple_types[1] for t in union_types)]]
+  else:
+    # TODO: Possibly handle other valid types.
+    raise ValueError(
+        "Input to %r must be compatible with KV[Any, Any]. "
+        "Found %s." % (label, element_type))

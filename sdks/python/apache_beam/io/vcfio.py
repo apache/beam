@@ -26,6 +26,8 @@ import logging
 import traceback
 from collections import namedtuple
 
+from six import string_types
+
 import vcf
 
 from apache_beam.coders import coders
@@ -34,6 +36,12 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
+
+try:
+  long        # Python 2
+except NameError:
+  long = int  # Python 3
+
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
            'MalformedVcfRecord']
@@ -398,7 +406,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, long, basestring, bool))):
+              isinstance(data, (int, float, long, string_types, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)

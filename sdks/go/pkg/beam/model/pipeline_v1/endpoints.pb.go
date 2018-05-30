@@ -29,9 +29,7 @@ func (m *ApiServiceDescriptor) String() string            { return proto.Compact
 func (*ApiServiceDescriptor) ProtoMessage()               {}
 func (*ApiServiceDescriptor) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
-type isApiServiceDescriptor_Authentication interface {
-	isApiServiceDescriptor_Authentication()
-}
+type isApiServiceDescriptor_Authentication interface{ isApiServiceDescriptor_Authentication() }
 
 type ApiServiceDescriptor_Oauth2ClientCredentialsGrant struct {
 	Oauth2ClientCredentialsGrant *OAuth2ClientCredentialsGrant `protobuf:"bytes,3,opt,name=oauth2_client_credentials_grant,json=oauth2ClientCredentialsGrant,oneof"`

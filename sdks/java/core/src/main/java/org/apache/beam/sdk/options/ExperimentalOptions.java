@@ -35,4 +35,18 @@ public interface ExperimentalOptions extends PipelineOptions {
   @Nullable
   List<String> getExperiments();
   void setExperiments(@Nullable List<String> value);
+
+  /**
+   * Returns true iff the provided pipeline options has the specified experiment
+   * enabled.
+   */
+  static boolean hasExperiment(PipelineOptions options, String experiment) {
+    if (options == null) {
+      return false;
+    }
+
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    return experiments != null
+        && experiments.contains(experiment);
+  }
 }

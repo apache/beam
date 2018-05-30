@@ -117,6 +117,7 @@ class common_job_properties {
       }
       credentialsBinding {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
     }
   }
@@ -165,24 +166,31 @@ class common_job_properties {
     }
   }
 
-  // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
-    context.mavenInstallation(mavenInstallation)
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
-    // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
-    // tiered compilation to make the JVM startup times faster during the tests.
-    context.mavenOpts('-XX:+TieredCompilation')
-    context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM(checkoutDir + '/pom.xml')
-    // Use a repository local to the workspace for better isolation of jobs.
-    context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
-    // Disable archiving the built artifacts by default, as this is slow and flaky.
-    // We can usually recreate them easily, and we can also opt-in individual jobs
-    // to artifact archiving.
-    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
-      context.archivingDisabled(true)
+  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
+    def defaultSwitches = [
+      // Gradle log verbosity enough to diagnose basic build issues
+      "--info",
+      // Continue the build even if there is a failure to show as many potential failures as possible.
+      '--continue',
+    ]
+
+    for (String gradle_switch : defaultSwitches) {
+      context.switches(gradle_switch)
     }
+    context.switches("--max-workers=${maxWorkers}")
+
+    // Ensure that parallel workers don't exceed total available memory.
+
+    // TODO(BEAM-4230): OperatingSystemMXBeam incorrectly reports total memory; hard-code for now
+    // Jenkins machines are GCE n1-highmem-16, with 104 GB of memory
+    // def os = (com.sun.management.OperatingSystemMXBean)java.lang.management.ManagementFactory.getOperatingSystemMXBean()
+    // def totalMemoryMb = os.getTotalPhysicalMemorySize() / (1024*1024)
+    def totalMemoryMb = 104 * 1024
+    // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
+    // machine memory.
+    def totalExecutorMemoryMb = totalMemoryMb / 2
+    def perWorkerMemoryMb = totalExecutorMemoryMb / maxWorkers
+    context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
   }
 
   // Sets common config for PreCommit jobs.
@@ -206,6 +214,13 @@ class common_job_properties {
       prTriggerPhrase,
       true,
       '--none--')
+  }
+
+  // Sets this as a cron job, running on a schedule.
+  static void setCronJob(context, String buildSchedule) {
+    context.triggers {
+      cron(buildSchedule)
+    }
   }
 
   // Sets common config for PostCommit jobs.
@@ -246,12 +261,43 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
+      k8s_get_wait_interval: 10,
+      temp_dir: '$WORKSPACE',
+      // Use source cloned by Jenkins and not clone it second time (redundantly).
+      beam_location: '$WORKSPACE/src',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
     // Note: in case of key collision, keys present in ArgMap win.
     LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
     return mapToArgString(joinedArgs)
+  }
+
+  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
+    context.steps {
+      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
+      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
+
+      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
+      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
+    }
+  }
+
+  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
+    context.steps {
+      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
+      shell("rm ${kubeconfigLocation}")
+    }
+  }
+
+  // Namespace must contain lower case alphanumeric characters or '-'
+  static String getKubernetesNamespace(def testName) {
+    return "${testName}-\${BUILD_ID}"
+  }
+
+  static String getKubeconfigLocationForNamespace(def namespace) {
+    return '"$WORKSPACE/' + "config-${namespace}" + '"'
   }
 
   // Adds the standard performance test job steps.
@@ -265,6 +311,9 @@ class common_job_properties {
         // create new VirtualEnv, inherit already existing packages
         shell('virtualenv .env --system-site-packages')
 
+        // update setuptools and pip
+        shell('.env/bin/pip install --upgrade setuptools pip')
+
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
         // Install Perfkit benchmark requirements.
@@ -277,104 +326,25 @@ class common_job_properties {
   }
 
   /**
-   * Sets properties for all jobs which are run by a pipeline top-level (maven) job.
-   * @param context    The delegate from the top level of a MavenJob.
-   * @param jobTimeout How long (in minutes) to wait for the job to finish.
-   * @param descriptor A short string identifying the job, e.g. "Java Unit Test".
+   * Transforms pipeline options to a string of format like below:
+   * ["--pipelineOption=123", "--pipelineOption2=abc", ...]
+   *
+   * @param pipelineOptions A map of pipeline options.
    */
-  static def setPipelineJobProperties(def context, int jobTimeout, String descriptor) {
-    context.parameters {
-      stringParam(
-              'ghprbGhRepository',
-              'N/A',
-              'Repository name for use by ghprb plugin.')
-      stringParam(
-              'ghprbActualCommit',
-              'N/A',
-              'Commit ID for use by ghprb plugin.')
-      stringParam(
-              'ghprbPullId',
-              'N/A',
-              'PR # for use by ghprb plugin.')
-
-    }
-
-    // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
-
-    // Restrict this project to run only on Jenkins executors as specified
-    context.label('beam')
-
-    // Execute concurrent builds if necessary.
-    context.concurrentBuild()
-
-    context.wrappers {
-      timeout {
-        absolute(jobTimeout)
-        abortBuild()
-      }
-      credentialsBinding {
-        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-      }
-      downstreamCommitStatus {
-        delegate.context("Jenkins: ${descriptor}")
-        triggeredStatus("${descriptor} Pending")
-        startedStatus("Running ${descriptor}")
-        statusUrl()
-        completedStatus('SUCCESS', "${descriptor} Passed")
-        completedStatus('FAILURE', "${descriptor} Failed")
-        completedStatus('ERROR', "Error Executing ${descriptor}")
-      }
-      // Set SPARK_LOCAL_IP for spark tests.
-      environmentVariables {
-        env('SPARK_LOCAL_IP', '127.0.0.1')
-      }
-    }
-
-    // Set Maven parameters.
-    setMavenConfig(context)
+  static String joinPipelineOptions(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({
+      key, value -> pipelineArgList.add("\"--$key=$value\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
   }
 
-  /**
-   * Sets job properties common to pipeline jobs which are responsible for being the root of a
-   * build tree. Downstream jobs should pull artifacts from these jobs.
-   * @param context The delegate from the top level of a MavenJob.
-   */
-  static def setPipelineBuildJobProperties(def context) {
-    context.properties {
-      githubProjectUrl('https://github.com/apache/beam/')
-    }
-
-    context.parameters {
-      stringParam(
-              'sha1',
-              'master',
-              'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
-    }
-
-    // Source code management.
-    setSCM(context, 'beam')
-  }
 
   /**
-   * Sets common job parameters for jobs which consume artifacts built for them by an upstream job.
-   * @param context The delegate from the top level of a MavenJob.
-   * @param jobName The job from which to copy artifacts.
+   * Returns absolute path to beam project's files.
+   * @param path A relative path to project resource.
    */
-  static def setPipelineDownstreamJobProperties(def context, String jobName) {
-    context.parameters {
-      stringParam(
-              'buildNum',
-              'N/A',
-              "Build number of ${jobName} to copy from.")
-    }
-
-    context.preBuildSteps {
-      copyArtifacts(jobName) {
-        buildSelector {
-          buildNumber('${buildNum}')
-        }
-      }
-    }
+  static String makePathAbsolute(String path) {
+    return '"$WORKSPACE/' + path + '"'
   }
 }

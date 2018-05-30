@@ -21,11 +21,12 @@ import mock
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.runners.dataflow.internal import dependency
+from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
+from apache_beam.transforms import DataflowDistributionCounter
 
 # Protect against environments where apitools library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
@@ -133,6 +134,27 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(metric_update.distribution.count.lowBits,
                      distribution_update.count)
 
+  def test_translate_distribution_counter(self):
+    counter_update = DataflowDistributionCounter()
+    counter_update.add_input(1)
+    counter_update.add_input(3)
+    metric_proto = dataflow.CounterUpdate()
+    apiclient.translate_distribution(counter_update, metric_proto)
+    histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
+    counter_update.translate_to_histogram(histogram)
+    self.assertEqual(metric_proto.distribution.min.lowBits,
+                     counter_update.min)
+    self.assertEqual(metric_proto.distribution.max.lowBits,
+                     counter_update.max)
+    self.assertEqual(metric_proto.distribution.sum.lowBits,
+                     counter_update.sum)
+    self.assertEqual(metric_proto.distribution.count.lowBits,
+                     counter_update.count)
+    self.assertEqual(metric_proto.distribution.histogram.bucketCounts,
+                     histogram.bucketCounts)
+    self.assertEqual(metric_proto.distribution.histogram.firstBucketOffset,
+                     histogram.firstBucketOffset)
+
   def test_translate_means(self):
     metric_update = dataflow.CounterUpdate()
     accumulator = mock.Mock()
@@ -184,14 +206,14 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
 
-  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0')
   def test_harness_override_present_in_released_sdks(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
     override = ''.join(
         ['runner_harness_container_image=',
-         dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+         names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
          '/harness:2.2.0'])
     env = apiclient.Environment([], #packages
                                 pipeline_options,
@@ -199,7 +221,7 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertIn(override, env.proto.experiments)
 
-  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0.dev')
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
@@ -212,7 +234,7 @@ class UtilTest(unittest.TestCase):
       for experiment in env.proto.experiments:
         self.assertNotIn('runner_harness_container_image=', experiment)
 
-  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0.dev')
   def test_pinned_worker_harness_image_tag_used_in_dev_sdk(self):
     # streaming, fnapi pipeline.
@@ -224,8 +246,8 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
-        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python-fnapi:' + dependency.BEAM_FNAPI_CONTAINER_VERSION))
+        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+         '/python-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -236,10 +258,10 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
-        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python:' + dependency.BEAM_CONTAINER_VERSION))
+        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+         '/python:' + names.BEAM_CONTAINER_VERSION))
 
-  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0')
   def test_worker_harness_image_tag_matches_released_sdk_version(self):
     # streaming, fnapi pipeline.
@@ -251,7 +273,7 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
-        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
          '/python-fnapi:2.2.0'))
 
     # batch, legacy pipeline.
@@ -263,7 +285,7 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
-        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
          '/python:2.2.0'))
 
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):

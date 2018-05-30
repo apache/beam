@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
@@ -39,6 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -297,6 +299,39 @@ public class DirectRunnerTest implements Serializable {
     // Must time out, otherwise this test will never complete
     result.waitUntilFinish(Duration.millis(1L));
     assertThat(result.getState(), is(State.RUNNING));
+  }
+
+  private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);
+
+  @Test
+  public void tearsDownFnsBeforeFinishing() {
+    TEARDOWN_CALL.set(-1);
+    final Pipeline pipeline = getPipeline();
+    pipeline.apply(Create.of("a"))
+      .apply(ParDo.of(new DoFn<String, String>() {
+        @ProcessElement
+        public void onElement(final ProcessContext ctx) {
+            // no-op
+        }
+
+        @Teardown
+        public void teardown() {
+          // just to not have a fast execution hiding an issue until we have a shutdown callback
+          try {
+            Thread.sleep(1000);
+          } catch (final InterruptedException e) {
+            fail();
+          }
+          TEARDOWN_CALL.set(System.nanoTime());
+        }
+      }));
+    final PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish();
+
+    final long doneTs = System.nanoTime();
+    final long tearDownTs = TEARDOWN_CALL.get();
+    assertThat(tearDownTs, greaterThan(0L));
+    assertThat(doneTs, greaterThan(tearDownTs));
   }
 
   @Test

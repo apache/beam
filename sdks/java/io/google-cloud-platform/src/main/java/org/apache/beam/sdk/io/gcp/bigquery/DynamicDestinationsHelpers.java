@@ -135,6 +135,7 @@ class DynamicDestinationsHelpers {
     DelegatingDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {
       this.inner = inner;
     }
+
     @Override
     public DestinationT getDestination(ValueInSingleWindow<T> element) {
       return inner.getDestination(element);

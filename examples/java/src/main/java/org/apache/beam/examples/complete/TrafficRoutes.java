@@ -193,7 +193,7 @@ public class TrafficRoutes {
       String[] items = c.element().split(",");
       String stationType = tryParseStationType(items);
       // For this analysis, use only 'main line' station types
-      if (stationType != null && stationType.equals("ML")) {
+      if ("ML".equals(stationType)) {
         Double avgSpeed = tryParseAvgSpeed(items);
         String stationId = tryParseStationId(items);
         // For this simple example, filter out everything but some hardwired routes.

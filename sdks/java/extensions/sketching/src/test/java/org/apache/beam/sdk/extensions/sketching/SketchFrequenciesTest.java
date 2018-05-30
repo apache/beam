@@ -25,7 +25,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -79,7 +78,7 @@ public class SketchFrequenciesTest implements Serializable {
     Coder<Long> coder = stream.getCoder();
 
     PAssert.thatSingleton("Verify number of hits", sketch)
-            .satisfies(new VerifyStreamFrequencies<Long>(coder, distinctElems, frequencies));
+            .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
 
     tp.run();
   }
@@ -98,7 +97,7 @@ public class SketchFrequenciesTest implements Serializable {
     Coder<Long> coder = stream.getCoder();
 
     PAssert.thatSingleton("Verify number of hits", sketch)
-            .satisfies(new VerifyStreamFrequencies<Long>(coder, distinctElems, frequencies));
+            .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
 
     tp.run();
   }
@@ -162,7 +161,7 @@ public class SketchFrequenciesTest implements Serializable {
     }
 
     CoderProperties.<Sketch<Integer>>coderDecodeEncodeEqual(
-            new SketchFrequencies.CountMinSketchCoder<Integer>(), cMSketch);
+            new SketchFrequencies.CountMinSketchCoder<>(), cMSketch);
   }
 
   @Test

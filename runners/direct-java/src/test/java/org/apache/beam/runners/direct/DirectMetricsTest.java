@@ -26,6 +26,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,11 +63,19 @@ public class DirectMetricsTest {
   private static final MetricName NAME3 = MetricName.named("ns2", "name1");
   private static final MetricName NAME4 = MetricName.named("ns2", "name2");
 
-  private DirectMetrics metrics = new DirectMetrics();
+  private DirectMetrics metrics;
+  private ExecutorService executor;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    executor = Executors.newSingleThreadExecutor();
+    metrics = new DirectMetrics(executor);
+  }
+
+  @After
+  public void tearDown() {
+    executor.shutdownNow();
   }
 
   @SuppressWarnings("unchecked")
@@ -92,22 +103,22 @@ public class DirectMetricsTest {
     ));
 
     MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
-    assertThat(results.counters(), containsInAnyOrder(
+    assertThat(results.getCounters(), containsInAnyOrder(
         attemptedMetricsResult("ns1", "name1", "step1", 0L),
         attemptedMetricsResult("ns1", "name2", "step1", 0L),
         attemptedMetricsResult("ns1", "name1", "step2", 0L)));
-    assertThat(results.counters(), containsInAnyOrder(
+    assertThat(results.getCounters(), containsInAnyOrder(
         committedMetricsResult("ns1", "name1", "step1", 5L),
         committedMetricsResult("ns1", "name2", "step1", 12L),
         committedMetricsResult("ns1", "name1", "step2", 7L)));
-    assertThat(results.distributions(), contains(
-        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.ZERO)));
-    assertThat(results.distributions(), contains(
+    assertThat(results.getDistributions(), contains(
+        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.IDENTITY_ELEMENT)));
+    assertThat(results.getDistributions(), contains(
         committedMetricsResult("ns1", "name1", "step1", DistributionResult.create(12, 3, 3, 5))));
-    assertThat(results.gauges(), contains(
+    assertThat(results.getGauges(), contains(
         attemptedMetricsResult("ns2", "name2", "step1", GaugeResult.empty())
     ));
-    assertThat(results.gauges(), contains(
+    assertThat(results.getGauges(), contains(
         committedMetricsResult("ns2", "name2", "step1", GaugeResult.create(27L, Instant.now()))
     ));
   }
@@ -135,12 +146,12 @@ public class DirectMetricsTest {
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "step1", 5L),
             attemptedMetricsResult("ns1", "name1", "step2", 7L)));
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             committedMetricsResult("ns1", "name1", "step1", 0L),
             committedMetricsResult("ns1", "name1", "step2", 0L)));
@@ -169,12 +180,12 @@ public class DirectMetricsTest {
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Outer1").build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "Outer1/Inner1", 12L),
             attemptedMetricsResult("ns1", "name1", "Outer1/Inner2", 8L)));
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             committedMetricsResult("ns1", "name1", "Outer1/Inner1", 0L),
             committedMetricsResult("ns1", "name1", "Outer1/Inner2", 0L)));
@@ -204,7 +215,7 @@ public class DirectMetricsTest {
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Top1/Outer1").build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner1", 5L),
             attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner2", 8L)));
@@ -212,7 +223,7 @@ public class DirectMetricsTest {
     results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Inner2").build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner2", 8L),
             attemptedMetricsResult("ns1", "name1", "Top1/Outer2/Inner2", 18L)));

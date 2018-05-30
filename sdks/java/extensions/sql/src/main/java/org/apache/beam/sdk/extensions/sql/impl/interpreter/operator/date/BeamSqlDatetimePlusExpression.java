@@ -21,43 +21,40 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 
 /**
- * DATETIME_PLUS operation.
- * Calcite converts 'TIMESTAMPADD(..)' or 'DATE + INTERVAL' from the user input
- * into DATETIME_PLUS.
+ * DATETIME_PLUS operation. Calcite converts 'TIMESTAMPADD(..)' or 'DATE + INTERVAL' from the user
+ * input into DATETIME_PLUS.
  *
  * <p>Input and output are expected to be of type TIMESTAMP.
  */
 public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
 
-  private static final Set<SqlTypeName> SUPPORTED_INTERVAL_TYPES = ImmutableSet.of(
-      SqlTypeName.INTERVAL_SECOND,
-      SqlTypeName.INTERVAL_MINUTE,
-      SqlTypeName.INTERVAL_HOUR,
-      SqlTypeName.INTERVAL_DAY,
-      SqlTypeName.INTERVAL_MONTH,
-      SqlTypeName.INTERVAL_YEAR);
+  private static final Set<SqlTypeName> SUPPORTED_INTERVAL_TYPES =
+      ImmutableSet.of(
+          SqlTypeName.INTERVAL_SECOND,
+          SqlTypeName.INTERVAL_MINUTE,
+          SqlTypeName.INTERVAL_HOUR,
+          SqlTypeName.INTERVAL_DAY,
+          SqlTypeName.INTERVAL_MONTH,
+          SqlTypeName.INTERVAL_YEAR);
 
   public BeamSqlDatetimePlusExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.TIMESTAMP);
   }
 
-  /**
-   * Requires exactly 2 operands. One should be a timestamp, another an interval
-   */
+  /** Requires exactly 2 operands. One should be a timestamp, another an interval */
   @Override
   public boolean accept() {
     return operands.size() == 2
@@ -70,43 +67,49 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
    *
    * <p>Interval has a value of 'multiplier * TimeUnit.multiplier'.
    *
-   * <p>For example, '3 years' is going to have a type of INTERVAL_YEAR, and a value of 36.
-   * And '2 minutes' is going to be an INTERVAL_MINUTE with a value of 120000. This is the way
-   * Calcite handles interval expressions, and {@link BeamSqlIntervalMultiplyExpression} also works
-   * the same way.
+   * <p>For example, '3 years' is going to have a type of INTERVAL_YEAR, and a value of 36. And '2
+   * minutes' is going to be an INTERVAL_MINUTE with a value of 120000. This is the way Calcite
+   * handles interval expressions, and {@link BeamSqlIntervalMultiplyExpression} also works the same
+   * way.
    */
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    DateTime timestamp = getTimestampOperand(inputRow, window);
-    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window);
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    DateTime timestamp = getTimestampOperand(inputRow, window, correlateEnv);
+    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window, correlateEnv);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
     int intervalMultiplier = getIntervalMultiplier(intervalOperandPrimitive);
 
     DateTime newDate = addInterval(timestamp, intervalOperandType, intervalMultiplier);
-    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, newDate.toDate());
+    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, newDate);
   }
 
   private int getIntervalMultiplier(BeamSqlPrimitive intervalOperandPrimitive) {
     BigDecimal intervalOperandValue = intervalOperandPrimitive.getDecimal();
-    BigDecimal multiplier = intervalOperandValue.divide(
-        timeUnitInternalMultiplier(intervalOperandPrimitive.getOutputType()),
-        BigDecimal.ROUND_CEILING);
+    BigDecimal multiplier =
+        intervalOperandValue.divide(
+            timeUnitInternalMultiplier(intervalOperandPrimitive.getOutputType()),
+            BigDecimal.ROUND_CEILING);
     return multiplier.intValueExact();
   }
 
-  private BeamSqlPrimitive getIntervalOperand(BeamRecord inputRow, BoundedWindow window) {
-    return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES).get()
-        .evaluate(inputRow, window);
+  private BeamSqlPrimitive getIntervalOperand(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES)
+        .get()
+        .evaluate(inputRow, window, correlateEnv);
   }
 
-  private DateTime getTimestampOperand(BeamRecord inputRow, BoundedWindow window) {
+  private DateTime getTimestampOperand(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     BeamSqlPrimitive timestampOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.TIMESTAMP).get().evaluate(inputRow, window);
+        findExpressionOfType(operands, SqlTypeName.TIMESTAMP)
+            .get()
+            .evaluate(inputRow, window, correlateEnv);
     return new DateTime(timestampOperandPrimitive.getDate());
   }
 
-  private DateTime addInterval(
-      DateTime dateTime, SqlTypeName intervalType, int numberOfIntervals) {
+  private DateTime addInterval(DateTime dateTime, SqlTypeName intervalType, int numberOfIntervals) {
 
     switch (intervalType) {
       case INTERVAL_SECOND:
@@ -122,8 +125,8 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
       case INTERVAL_YEAR:
         return dateTime.plusYears(numberOfIntervals);
       default:
-        throw new IllegalArgumentException("Adding "
-            + intervalType.getName() + " to date is not supported");
+        throw new IllegalArgumentException(
+            "Adding " + intervalType.getName() + " to date is not supported");
     }
   }
 }

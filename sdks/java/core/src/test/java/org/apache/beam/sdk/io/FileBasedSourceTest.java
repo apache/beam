@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -440,7 +439,8 @@ public class FileBasedSourceTest {
     try {
       reader.close();
     } catch (Exception e) {
-      fail("Closing an unstarted FilePatternReader should not throw an exception");
+      throw new AssertionError(
+          "Closing an unstarted FilePatternReader should not throw an exception", e);
     }
   }
 
@@ -450,7 +450,7 @@ public class FileBasedSourceTest {
     String missingFilePath = tempFolder.newFolder().getAbsolutePath() + "/missing.txt";
     TestFileBasedSource source = new TestFileBasedSource(missingFilePath, Long.MAX_VALUE, null);
     thrown.expect(FileNotFoundException.class);
-    thrown.expectMessage(String.format("No files found for spec: %s", missingFilePath));
+    thrown.expectMessage(missingFilePath);
     source.split(1234, options);
   }
 

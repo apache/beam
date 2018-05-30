@@ -25,6 +25,7 @@ cdef type Timestamp
 cdef class WindowedValue(object):
   cdef public object value
   cdef public object windows
+  cdef public object pane_info
   cdef public int64_t timestamp_micros
   cdef object timestamp_object
 
@@ -35,4 +36,4 @@ cdef class WindowedValue(object):
 
 @cython.locals(wv=WindowedValue)
 cpdef WindowedValue create(
-  object value, int64_t timestamp_micros, object windows)
+  object value, int64_t timestamp_micros, object windows, object pane_info=*)

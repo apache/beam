@@ -75,7 +75,7 @@ public class SellerPrice implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + 8;
+    return 8L + 8L;
   }
 
   @Override
