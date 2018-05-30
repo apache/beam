@@ -32,13 +32,13 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -104,6 +104,8 @@ public class CoderRegistry {
           CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class,
           CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
+      builder.put(FloatCoder.class,
+          CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
       builder.put(Double.class,
           CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(Instant.class,
@@ -198,7 +200,7 @@ public class CoderRegistry {
   }
 
   private CoderRegistry() {
-    coderProviders = new LinkedList<>(REGISTERED_CODER_FACTORIES);
+    coderProviders = new ArrayDeque<>(REGISTERED_CODER_FACTORIES);
   }
 
   /**
@@ -564,8 +566,9 @@ public class CoderRegistry {
       }
       for (int i = 0; i < typeArgumentCoders.size(); i++) {
         try {
+          Coder<?> typeArgumentCoder = typeArgumentCoders.get(i);
           verifyCompatible(
-              typeArgumentCoders.get(i),
+              typeArgumentCoder,
               candidateDescriptor.resolveType(typeArguments[i]).getType());
         } catch (IncompatibleCoderException exn) {
           throw new IncompatibleCoderException(
@@ -579,13 +582,13 @@ public class CoderRegistry {
   }
 
   private static boolean isNullOrEmpty(Collection<?> c) {
-    return c == null || c.size() == 0;
+    return c == null || c.isEmpty();
   }
 
   /**
    * The list of {@link CoderProvider coder providers} to use to provide Coders.
    */
-  private LinkedList<CoderProvider> coderProviders;
+  private ArrayDeque<CoderProvider> coderProviders;
 
   /**
    * Returns a {@link Coder} to use for values of the given type,

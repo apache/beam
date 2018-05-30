@@ -69,12 +69,11 @@ import org.joda.time.Instant;
  * GROUP BY A.id
  * }</pre>
  *
- * <p>We will also check that the winning bid is above the auction reserve. Note that
- * we ignore the auction opening bid value since it has no impact on which bid eventually wins,
- * if any.
+ * <p>We will also check that the winning bid is above the auction reserve. Note that we ignore the
+ * auction opening bid value since it has no impact on which bid eventually wins, if any.
  *
- * <p>Our implementation will use a custom windowing function in order to bring bids and
- * auctions together without requiring global state.
+ * <p>Our implementation will use a custom windowing function in order to bring bids and auctions
+ * together without requiring global state.
  */
 public class WinningBids extends PTransform<PCollection<Event>, PCollection<AuctionBid>> {
   /** Windows for open auctions and bids. */
@@ -83,9 +82,9 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     public final long auction;
 
     /**
-     * True if this window represents an actual auction, and thus has a start/end
-     * time matching that of the auction. False if this window represents a bid, and
-     * thus has an unbounded start/end time.
+     * True if this window represents an actual auction, and thus has a start/end time matching that
+     * of the auction. False if this window represents a bid, and thus has an unbounded start/end
+     * time.
      */
     public final boolean isAuctionWindow;
 
@@ -109,10 +108,9 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     /**
-     * Return a bid window for {@code bid}. It should later be merged into
-     * the corresponding auction window. However, it is possible this bid is for an already
-     * expired auction, or for an auction which the system has not yet seen. So we
-     * give the bid a bit of wiggle room in its interval.
+     * Return a bid window for {@code bid}. It should later be merged into the corresponding auction
+     * window. However, it is possible this bid is for an already expired auction, or for an auction
+     * which the system has not yet seen. So we give the bid a bit of wiggle room in its interval.
      */
     public static AuctionOrBidWindow forBid(
         long expectedAuctionDurationMs, Instant timestamp, Bid bid) {
@@ -137,11 +135,13 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     @Override
     public String toString() {
-      return String.format("AuctionOrBidWindow{start:%s; end:%s; auction:%d; isAuctionWindow:%s}",
+      return String.format(
+          "AuctionOrBidWindow{start:%s; end:%s; auction:%d; isAuctionWindow:%s}",
           start(), end(), auction, isAuctionWindow);
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
       }
@@ -155,14 +155,13 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       return (isAuctionWindow == that.isAuctionWindow) && (auction == that.auction);
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return Objects.hash(super.hashCode(), isAuctionWindow, auction);
     }
   }
 
-  /**
-   * Encodes an {@link AuctionOrBidWindow} as an {@link IntervalWindow} and an auction id long.
-   */
+  /** Encodes an {@link AuctionOrBidWindow} as an {@link IntervalWindow} and an auction id long. */
   private static class AuctionOrBidWindowCoder extends CustomCoder<AuctionOrBidWindow> {
     private static final AuctionOrBidWindowCoder INSTANCE = new AuctionOrBidWindowCoder();
     private static final Coder<IntervalWindow> SUPER_CODER = IntervalWindow.getCoder();
@@ -183,8 +182,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override
-    public AuctionOrBidWindow decode(InputStream inStream)
-        throws IOException, CoderException {
+    public AuctionOrBidWindow decode(InputStream inStream) throws IOException, CoderException {
       IntervalWindow superWindow = SUPER_CODER.decode(inStream);
       long auction = ID_CODER.decode(inStream);
       boolean isAuctionWindow = INT_CODER.decode(inStream) != 0;
@@ -192,7 +190,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
           superWindow.start(), superWindow.end(), auction, isAuctionWindow);
     }
 
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
 
     @Override
     public Object structuralValue(AuctionOrBidWindow value) {
@@ -214,16 +213,18 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       Event event = c.element();
       if (event.newAuction != null) {
         // Assign auctions to an auction window which expires at the auction's close.
-        return Collections
-            .singletonList(AuctionOrBidWindow.forAuction(c.timestamp(), event.newAuction));
+        return Collections.singletonList(
+            AuctionOrBidWindow.forAuction(c.timestamp(), event.newAuction));
       } else if (event.bid != null) {
         // Assign bids to a temporary bid window which will later be merged into the appropriate
         // auction window.
         return Collections.singletonList(
             AuctionOrBidWindow.forBid(expectedAuctionDurationMs, c.timestamp(), event.bid));
       } else {
-        // Don't assign people to any window. They will thus be dropped.
-        return Collections.emptyList();
+        throw new IllegalArgumentException(
+            String.format(
+                "%s can only assign windows to auctions and bids, but received %s",
+                getClass().getSimpleName(), c.element()));
       }
     }
 
@@ -236,11 +237,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
         if (window.isAuctionWindow()) {
           idToTrueAuctionWindow.put(window.auction, window);
         } else {
-          List<AuctionOrBidWindow> bidWindows = idToBidAuctionWindows.get(window.auction);
-          if (bidWindows == null) {
-            bidWindows = new ArrayList<>();
-            idToBidAuctionWindows.put(window.auction, bidWindows);
-          }
+          List<AuctionOrBidWindow> bidWindows =
+              idToBidAuctionWindows.computeIfAbsent(window.auction, k -> new ArrayList<>());
           bidWindows.add(window);
         }
       }
@@ -284,27 +282,25 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     /**
-     * Below we will GBK auctions and bids on their auction ids. Then we will reduce those
-     * per id to emit {@code (auction, winning bid)} pairs for auctions which have expired with at
-     * least one valid bid. We would like those output pairs to have a timestamp of the auction's
-     * expiry (since that's the earliest we know for sure we have the correct winner). We would
-     * also like to make that winning results are available to following stages at the auction's
-     * expiry.
+     * Below we will GBK auctions and bids on their auction ids. Then we will reduce those per id to
+     * emit {@code (auction, winning bid)} pairs for auctions which have expired with at least one
+     * valid bid. We would like those output pairs to have a timestamp of the auction's expiry
+     * (since that's the earliest we know for sure we have the correct winner). We would also like
+     * to make that winning results are available to following stages at the auction's expiry.
      *
      * <p>Each result of the GBK will have a timestamp of the min of the result of this object's
      * assignOutputTime over all records which end up in one of its iterables. Thus we get the
      * desired behavior if we ignore each record's timestamp and always return the auction window's
      * 'maxTimestamp', which will correspond to the auction's expiry.
      *
-     * <p>In contrast, if this object's assignOutputTime were to return 'inputTimestamp'
-     * (the usual implementation), then each GBK record will take as its timestamp the minimum of
-     * the timestamps of all bids and auctions within it, which will always be the auction's
-     * timestamp. An auction which expires well into the future would thus hold up the watermark
-     * of the GBK results until that auction expired. That in turn would hold up all winning pairs.
+     * <p>In contrast, if this object's assignOutputTime were to return 'inputTimestamp' (the usual
+     * implementation), then each GBK record will take as its timestamp the minimum of the
+     * timestamps of all bids and auctions within it, which will always be the auction's timestamp.
+     * An auction which expires well into the future would thus hold up the watermark of the GBK
+     * results until that auction expired. That in turn would hold up all winning pairs.
      */
     @Override
-    public Instant getOutputTime(
-        Instant inputTimestamp, AuctionOrBidWindow window) {
+    public Instant getOutputTime(Instant inputTimestamp, AuctionOrBidWindow window) {
       return window.maxTimestamp();
     }
   }
@@ -314,9 +310,10 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
   public WinningBids(String name, NexmarkConfiguration configuration) {
     super(name);
     // What's the expected auction time (when the system is running at the lowest event rate).
-    long[] interEventDelayUs = configuration.rateShape.interEventDelayUs(
-        configuration.firstEventRate, configuration.nextEventRate,
-        configuration.rateUnit, configuration.numEventGenerators);
+    long[] interEventDelayUs =
+        configuration.rateShape.interEventDelayUs(
+            configuration.firstEventRate, configuration.nextEventRate,
+            configuration.rateUnit, configuration.numEventGenerators);
     long longestDelayUs = 0;
     for (long interEventDelayU : interEventDelayUs) {
       longestDelayUs = Math.max(longestDelayUs, interEventDelayU);
@@ -324,7 +321,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     // Adjust for proportion of auction events amongst all events.
     longestDelayUs =
         (longestDelayUs * GeneratorConfig.PROPORTION_DENOMINATOR)
-        / GeneratorConfig.AUCTION_PROPORTION;
+            / GeneratorConfig.AUCTION_PROPORTION;
     // Adjust for number of in-flight auctions.
     longestDelayUs = longestDelayUs * configuration.numInFlightAuctions;
     long expectedAuctionDurationMs = (longestDelayUs + 999) / 1000;
@@ -341,8 +338,9 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     // Key auctions by their id.
     PCollection<KV<Long, Auction>> auctionsById =
-        events.apply(NexmarkQuery.JUST_NEW_AUCTIONS)
-              .apply("AuctionById:", NexmarkQuery.AUCTION_BY_ID);
+        events
+            .apply(NexmarkQuery.JUST_NEW_AUCTIONS)
+            .apply("AuctionById:", NexmarkQuery.AUCTION_BY_ID);
 
     // Key bids by their auction id.
     PCollection<KV<Long, Bid>> bidsByAuctionId =
@@ -406,7 +404,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     return Objects.hash(auctionOrBidWindowFn);
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }

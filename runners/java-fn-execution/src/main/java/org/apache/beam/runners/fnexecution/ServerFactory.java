@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.net.HostAndPort;
 import io.grpc.BindableService;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -31,27 +32,31 @@ import java.net.SocketAddress;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
 
-/**
- * A {@link Server gRPC server} factory.
- */
+/** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {
-  /**
-   * Create a default {@link ServerFactory}.
-   */
+  /** Create a default {@link ServerFactory}. */
   public static ServerFactory createDefault() {
-    return new InetSocketAddressServerFactory();
+    return new InetSocketAddressServerFactory(UrlFactory.createDefault());
+  }
+
+  /** Create a {@link ServerFactory} that uses the given url factory. */
+  public static ServerFactory createWithUrlFactory(UrlFactory urlFactory) {
+    return new InetSocketAddressServerFactory(urlFactory);
   }
 
   /**
    * Creates an instance of this server using an ephemeral port chosen automatically. The chosen
    * port is accessible to the caller from the URL set in the input {@link
-   * Endpoints.ApiServiceDescriptor.Builder}.
+   * Endpoints.ApiServiceDescriptor.Builder}. Server applies {@link
+   * GrpcContextHeaderAccessorProvider#interceptor()} to all incoming requests.
    */
   public abstract Server allocatePortAndCreate(
       BindableService service, Endpoints.ApiServiceDescriptor.Builder builder) throws IOException;
 
   /**
    * Creates an instance of this server at the address specified by the given service descriptor.
+   * Server applies {@link GrpcContextHeaderAccessorProvider#interceptor()} to all incoming
+   * requests.
    */
   public abstract Server create(
       BindableService service, Endpoints.ApiServiceDescriptor serviceDescriptor) throws IOException;
@@ -62,7 +67,11 @@ public abstract class ServerFactory {
    * <p>The server is created listening any open port on "localhost".
    */
   public static class InetSocketAddressServerFactory extends ServerFactory {
-    private InetSocketAddressServerFactory() {}
+    private final UrlFactory urlFactory;
+
+    private InetSocketAddressServerFactory(UrlFactory urlFactory) {
+      this.urlFactory = urlFactory;
+    }
 
     @Override
     public Server allocatePortAndCreate(
@@ -70,8 +79,7 @@ public abstract class ServerFactory {
         throws IOException {
       InetSocketAddress address = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
       Server server = createServer(service, address);
-      apiServiceDescriptor.setUrl(
-          HostAndPort.fromParts(address.getHostName(), server.getPort()).toString());
+      apiServiceDescriptor.setUrl(urlFactory.createUrl(address.getHostName(), server.getPort()));
       return server;
     }
 
@@ -82,16 +90,20 @@ public abstract class ServerFactory {
       checkArgument(
           socketAddress instanceof InetSocketAddress,
           "%s %s requires a host:port socket address, got %s",
-          getClass().getSimpleName(), ServerFactory.class.getSimpleName(),
+          getClass().getSimpleName(),
+          ServerFactory.class.getSimpleName(),
           serviceDescriptor.getUrl());
       return createServer(service, (InetSocketAddress) socketAddress);
     }
 
     private static Server createServer(BindableService service, InetSocketAddress socket)
         throws IOException {
+      // Note: Every ServerFactory should apply GrpcContextHeaderAccessorProvider to the service.
       Server server =
           NettyServerBuilder.forPort(socket.getPort())
-              .addService(service)
+              .addService(
+                  ServerInterceptors.intercept(
+                      service, GrpcContextHeaderAccessorProvider.interceptor()))
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
               .maxMessageSize(Integer.MAX_VALUE)
@@ -99,6 +111,18 @@ public abstract class ServerFactory {
       server.start();
       return server;
     }
+  }
 
+  /**
+   * Factory that constructs client-accessible URLs from a local server address and port. Necessary
+   * when clients access server from a different networking context.
+   */
+  @FunctionalInterface
+  public interface UrlFactory {
+    String createUrl(String address, int port);
+
+    static UrlFactory createDefault() {
+      return (host, port) -> HostAndPort.fromParts(host, port).toString();
+    }
   }
 }

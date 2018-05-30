@@ -29,6 +29,7 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +74,8 @@ public class BeamFnDataBufferingOutboundObserver<T>
     this.outputLocation = outputLocation;
     this.coder = coder;
     this.outboundObserver = outboundObserver;
-    this.bufferedElements = ByteString.newOutput();
+    this.bufferedElements = ByteString.newOutput(
+        BufferedElementCountingOutputStream.DEFAULT_BUFFER_SIZE);
   }
 
   /**

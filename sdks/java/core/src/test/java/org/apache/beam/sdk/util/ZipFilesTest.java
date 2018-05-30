@@ -142,8 +142,7 @@ public class ZipFilesTest {
 
     ZipFiles.zipDirectory(tmpDir, zipFile);
 
-    ZipFile zip = new ZipFile(zipFile);
-    try {
+    try (ZipFile zip = new ZipFile(zipFile)) {
       Enumeration<? extends ZipEntry> entries = zip.entries();
       for (ZipEntry entry : ZipFiles.entries(zip)) {
         assertTrue(entries.hasMoreElements());
@@ -151,8 +150,6 @@ public class ZipFilesTest {
         assertEquals(entry.getName(), entries.nextElement().getName());
       }
       assertFalse(entries.hasMoreElements());
-    } finally {
-      zip.close();
     }
   }
 

@@ -61,6 +61,11 @@ class TimerFiring(object):
     self.time_domain = time_domain
     self.timestamp = timestamp
 
+  def __repr__(self):
+    return 'TimerFiring(%r, %r, %s, %s)' % (self.encoded_key,
+                                            self.name, self.time_domain,
+                                            self.timestamp)
+
 
 class KeyedWorkItem(object):
   """A keyed item that can either be a timer firing or a list of elements."""

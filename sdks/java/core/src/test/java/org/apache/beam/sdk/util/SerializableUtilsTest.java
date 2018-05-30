@@ -20,8 +20,8 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -96,7 +96,7 @@ public class SerializableUtilsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("unable to deserialize a bogus string");
     SerializableUtils.deserializeFromByteArray(
-        "this isn't legal".getBytes(),
+        "this isn't legal".getBytes(Charsets.UTF_8),
         "a bogus string");
   }
 

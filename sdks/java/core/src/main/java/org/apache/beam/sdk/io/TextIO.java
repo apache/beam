@@ -21,19 +21,23 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.commons.compress.utils.CharsetNames.UTF_8;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -161,7 +165,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  *   PCollection<Event> events = ...;
  *   events.apply(FileIO.<EventType, Event>writeDynamic()
- *         .by(Event::getType)
+ *         .by(Event::getTypeName)
  *         .via(TextIO.sink(), Event::toString)
  *         .to(type -> nameFilesUsingWindowPaneAndShard(".../events/" + type + "/data", ".txt")));
  * }</pre>
@@ -688,7 +692,7 @@ public class TextIO {
     public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
       return toResource(
           NestedValueProvider.of(
-              outputPrefix, input -> FileBasedSink.convertToFileResourceIfPossible(input)));
+              outputPrefix, FileBasedSink::convertToFileResourceIfPossible));
     }
 
     /**
@@ -911,7 +915,12 @@ public class TextIO {
               getFilenamePrefix(),
               getDestinationFunction());
       checkArgument(
-          1 == Iterables.size(Iterables.filter(allToArgs, Predicates.notNull())),
+          1
+              == Iterables.size(
+                  allToArgs
+                      .stream()
+                      .filter(Predicates.notNull()::apply)
+                      .collect(Collectors.toList())),
           "Exactly one of filename policy, dynamic destinations, filename prefix, or destination "
               + "function must be set");
 
@@ -1148,7 +1157,7 @@ public class TextIO {
     /** @see Compression#ZIP */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -1198,7 +1207,8 @@ public class TextIO {
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
-      writer = new PrintWriter(Channels.newOutputStream(channel));
+      writer = new PrintWriter(new BufferedWriter(
+          new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
       if (getHeader() != null) {
         writer.println(getHeader());
       }

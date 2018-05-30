@@ -511,7 +511,9 @@ public class Combine {
   public static class Holder<V> {
     @Nullable private V value;
     private boolean present;
+
     private Holder() { }
+
     private Holder(V value) {
       set(value);
     }

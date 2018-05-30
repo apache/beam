@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Spanner;
 
@@ -26,14 +28,27 @@ import com.google.cloud.spanner.Spanner;
 public class SpannerAccessor implements AutoCloseable {
   private final Spanner spanner;
   private final DatabaseClient databaseClient;
+  private final BatchClient batchClient;
+  private final DatabaseAdminClient databaseAdminClient;
 
-  SpannerAccessor(Spanner spanner, DatabaseClient databaseClient) {
+  SpannerAccessor(Spanner spanner, DatabaseClient databaseClient,
+      DatabaseAdminClient databaseAdminClient, BatchClient batchClient) {
     this.spanner = spanner;
     this.databaseClient = databaseClient;
+    this.databaseAdminClient = databaseAdminClient;
+    this.batchClient = batchClient;
   }
 
   public DatabaseClient getDatabaseClient() {
+
     return databaseClient;
+  }
+  public BatchClient getBatchClient() {
+    return batchClient;
+  }
+
+  public DatabaseAdminClient getDatabaseAdminClient() {
+    return databaseAdminClient;
   }
 
   @Override

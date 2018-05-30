@@ -283,7 +283,11 @@ public final class ByteKeyRange implements Serializable {
   private ByteKeyRange(ByteKey startKey, ByteKey endKey) {
     this.startKey = checkNotNull(startKey, "startKey");
     this.endKey = checkNotNull(endKey, "endKey");
-    checkArgument(endsAfterKey(startKey), "Start %s must be less than end %s", startKey, endKey);
+    checkArgument(
+        endKey.isEmpty() || startKey.compareTo(endKey) <= 0,
+        "Start %s must be less than or equal to end %s",
+        startKey,
+        endKey);
   }
 
   @Override

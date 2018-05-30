@@ -19,32 +19,28 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import org.junit.Test;
 
-/**
- * Integration test for string functions.
- */
+/** Integration test for string functions. */
 public class BeamSqlStringFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Test
   public void testStringFunctions() throws Exception {
-    ExpressionChecker checker = new ExpressionChecker()
-        .addExpr("'hello' || ' world'", "hello world")
-        .addExpr("CHAR_LENGTH('hello')", 5)
-        .addExpr("CHARACTER_LENGTH('hello')", 5)
-        .addExpr("UPPER('hello')", "HELLO")
-        .addExpr("LOWER('HELLO')", "hello")
-
-        .addExpr("POSITION('world' IN 'helloworld')", 5)
-        .addExpr("POSITION('world' IN 'helloworldworld' FROM 7)", 10)
-        .addExpr("TRIM(' hello ')", "hello")
-        .addExpr("TRIM(LEADING ' ' FROM ' hello ')", "hello ")
-        .addExpr("TRIM(TRAILING ' ' FROM ' hello ')", " hello")
-
-        .addExpr("TRIM(BOTH ' ' FROM ' hello ')", "hello")
-        .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3)", "w3resou3rce")
-        .addExpr("SUBSTRING('hello' FROM 2)", "ello")
-        .addExpr("SUBSTRING('hello' FROM 2 FOR 2)", "el")
-        .addExpr("INITCAP('hello world')", "Hello World")
-        ;
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("'hello' || ' world'", "hello world")
+            .addExpr("CHAR_LENGTH('hello')", 5)
+            .addExpr("CHARACTER_LENGTH('hello')", 5)
+            .addExpr("UPPER('hello')", "HELLO")
+            .addExpr("LOWER('HELLO')", "hello")
+            .addExpr("POSITION('world' IN 'helloworld')", 5)
+            .addExpr("POSITION('world' IN 'helloworldworld' FROM 7)", 10)
+            .addExpr("TRIM(' hello ')", "hello")
+            .addExpr("TRIM(LEADING ' ' FROM ' hello ')", "hello ")
+            .addExpr("TRIM(TRAILING ' ' FROM ' hello ')", " hello")
+            .addExpr("TRIM(BOTH ' ' FROM ' hello ')", "hello")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3)", "w3resou3rce")
+            .addExpr("SUBSTRING('hello' FROM 2)", "ello")
+            .addExpr("SUBSTRING('hello' FROM 2 FOR 2)", "el")
+            .addExpr("INITCAP('hello world')", "Hello World");
 
     checker.buildRunAndCheck();
   }

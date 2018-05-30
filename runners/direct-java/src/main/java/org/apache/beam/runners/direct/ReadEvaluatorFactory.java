@@ -21,6 +21,7 @@ import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -35,9 +36,10 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
   final BoundedReadEvaluatorFactory boundedFactory;
   final UnboundedReadEvaluatorFactory unboundedFactory;
 
-  public ReadEvaluatorFactory(EvaluationContext context) {
-    boundedFactory = new BoundedReadEvaluatorFactory(context);
-    unboundedFactory = new UnboundedReadEvaluatorFactory(context);
+  public ReadEvaluatorFactory(
+      EvaluationContext context, PipelineOptions options) {
+    boundedFactory = new BoundedReadEvaluatorFactory(context, options);
+    unboundedFactory = new UnboundedReadEvaluatorFactory(context, options);
   }
 
   @Nullable
@@ -60,8 +62,9 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
     unboundedFactory.cleanup();
   }
 
-  static <T> InputProvider<T> inputProvider(EvaluationContext context) {
-    return new InputProvider(context);
+  static <T> InputProvider<T> inputProvider(
+      EvaluationContext context, PipelineOptions options) {
+    return new InputProvider<>(context, options);
   }
 
   private static class InputProvider<T> implements RootInputProvider<T, SourceShard<T>, PBegin> {
@@ -69,9 +72,10 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final UnboundedReadEvaluatorFactory.InputProvider<T> unboundedInputProvider;
     private final BoundedReadEvaluatorFactory.InputProvider<T> boundedInputProvider;
 
-    InputProvider(EvaluationContext context) {
-      this.unboundedInputProvider = new UnboundedReadEvaluatorFactory.InputProvider<>(context);
-      this.boundedInputProvider = new BoundedReadEvaluatorFactory.InputProvider<>(context);
+    InputProvider(EvaluationContext context, PipelineOptions options) {
+      this.unboundedInputProvider =
+          new UnboundedReadEvaluatorFactory.InputProvider<>(context, options);
+      this.boundedInputProvider = new BoundedReadEvaluatorFactory.InputProvider<>(context, options);
     }
 
     @Override

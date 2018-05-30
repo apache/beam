@@ -69,7 +69,7 @@ class InMemorySorter implements Sorter {
   private static final long RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
 
   /** Maximum size of the buffer in bytes. */
-  private long maxBufferSize;
+  private final long maxBufferSize;
 
   /** Current number of stored bytes. Including estimated overhead bytes. */
   private long numBytes;
@@ -78,7 +78,7 @@ class InMemorySorter implements Sorter {
   private boolean sortCalled;
 
   /** The stored records to be sorted. */
-  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
+  private final ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
 
   /** Private constructor. */
   private InMemorySorter(Options options) {
@@ -100,7 +100,7 @@ class InMemorySorter implements Sorter {
     checkState(!sortCalled, "Records can only be added before sort()");
 
     long recordBytes = estimateRecordBytes(record);
-    if (roomInBuffer(numBytes + recordBytes, records.size() + 1)) {
+    if (roomInBuffer(numBytes + recordBytes, records.size() + 1L)) {
       records.add(record);
       numBytes += recordBytes;
       return true;
@@ -117,7 +117,7 @@ class InMemorySorter implements Sorter {
 
     Comparator<KV<byte[], byte[]>> kvComparator =
         (o1, o2) -> COMPARATOR.compare(o1.getKey(), o2.getKey());
-    Collections.sort(records, kvComparator);
+    records.sort(kvComparator);
     return Collections.unmodifiableList(records);
   }
 

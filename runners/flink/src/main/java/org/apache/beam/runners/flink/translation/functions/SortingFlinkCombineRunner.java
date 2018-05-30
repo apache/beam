@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.core.SideInputReader;
@@ -65,12 +65,8 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         sortedInput.add(exploded);
       }
     }
-    Collections.sort(
-        sortedInput,
-        (o1, o2) ->
-            Iterables.getOnlyElement(o1.getWindows())
-                .maxTimestamp()
-                .compareTo(Iterables.getOnlyElement(o2.getWindows()).maxTimestamp()));
+    sortedInput.sort(
+        Comparator.comparing(o -> Iterables.getOnlyElement(o.getWindows()).maxTimestamp()));
 
     if (!windowingStrategy.getWindowFn().isNonMerging()) {
       // merge windows, we have to do it in an extra pre-processing step and

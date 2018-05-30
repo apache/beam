@@ -21,14 +21,16 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -61,8 +63,11 @@ public class FilterTest implements Serializable {
   @Rule
   public final TestPipeline p = TestPipeline.create();
 
+  @Rule
+  public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testIdentityFilterByPredicate() {
     PCollection<Integer> output = p
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
@@ -73,7 +78,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testNoFilterByPredicate() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 4, 5))
@@ -84,7 +89,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterByPredicate() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -95,7 +100,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterLessThan() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -106,7 +111,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterGreaterThan() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -117,7 +122,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterLessThanEq() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -128,7 +133,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterGreaterThanEq() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -139,7 +144,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFilterEqual() {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -160,5 +165,75 @@ public class FilterTest implements Serializable {
     assertThat(DisplayData.from(Filter.greaterThanEq(456)), hasDisplayItem("predicate", "x ≥ 456"));
 
     assertThat(DisplayData.from(Filter.equal(567)), hasDisplayItem("predicate", "x == 567"));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testIdentityFilterByPredicateWithLambda() {
+
+    PCollection<Integer> output = p
+        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
+        .apply(Filter.by(i -> true));
+
+    PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testNoFilterByPredicateWithLambda() {
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 4, 5))
+        .apply(Filter.by(i -> false));
+
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFilterByPredicateWithLambda() {
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.by(i -> i % 2 == 0));
+
+    PAssert.that(output).containsInAnyOrder(2, 4, 6);
+    p.run();
+  }
+
+  /**
+   * Confirms that in Java 8 style, where a lambda results in a rawtype, the output type token is
+   * not useful. If this test ever fails there may be simplifications available to us.
+   */
+  @Test
+  public void testFilterParDoOutputTypeDescriptorRawWithLambda() throws Exception {
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    PCollection<String> output = p
+        .apply(Create.of("hello"))
+        .apply(Filter.by(s -> true));
+
+    thrown.expect(CannotProvideCoderException.class);
+    p.getCoderRegistry().getCoder(output.getTypeDescriptor());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFilterByMethodReferenceWithLambda() {
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.by(new EvenFilter()::isEven));
+
+    PAssert.that(output).containsInAnyOrder(2, 4, 6);
+    p.run();
+  }
+
+  private static class EvenFilter implements Serializable {
+    public boolean isEven(int i) {
+      return i % 2 == 0;
+    }
   }
 }

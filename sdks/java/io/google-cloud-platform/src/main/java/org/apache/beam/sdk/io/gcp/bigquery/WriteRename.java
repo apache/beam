@@ -90,7 +90,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
         (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
     List<String> tempTablesJson = Lists.newArrayList(tempTableNames);
     // Do not copy if no temp tables are provided
-    if (tempTablesJson.size() == 0) {
+    if (tempTablesJson.isEmpty()) {
       return;
     }
 

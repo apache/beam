@@ -23,8 +23,13 @@ import (
 	"io/ioutil"
 	"net/url"
 
+	"net/http"
+
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 	"google.golang.org/api/storage/v1"
+	ghttp "google.golang.org/api/transport/http"
 )
 
 // NewClient creates a new GCS client with default application credentials.
@@ -34,6 +39,52 @@ func NewClient(ctx context.Context, scope string) (*storage.Service, error) {
 		return nil, err
 	}
 	return storage.New(cl)
+}
+
+// NewUnauthenticatedClient creates a new GCS client without authentication.
+func NewUnauthenticatedClient(ctx context.Context) (*storage.Service, error) {
+	cl, _, err := ghttp.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		return nil, fmt.Errorf("dialing: %v", err)
+	}
+	return storage.New(cl)
+}
+
+// Upload writes the given content to GCS. If the specified bucket does not
+// exist, it is created first. Returns the full path of the object.
+func Upload(client *storage.Service, project, bucket, object string, r io.Reader) (string, error) {
+	exists, err := BucketExists(client, bucket)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		if err = CreateBucket(client, project, bucket); err != nil {
+			return "", err
+		}
+	}
+
+	if err := WriteObject(client, bucket, object, r); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("gs://%s/%s", bucket, object), nil
+}
+
+// CreateBucket creates a bucket in GCS.
+func CreateBucket(client *storage.Service, project, bucket string) error {
+	b := &storage.Bucket{
+		Name: bucket,
+	}
+	_, err := client.Buckets.Insert(project, b).Do()
+	return err
+}
+
+// BucketExists returns true iff the given bucket exists.
+func BucketExists(client *storage.Service, bucket string) (bool, error) {
+	_, err := client.Buckets.Get(bucket).Do()
+	if e, ok := err.(*googleapi.Error); ok && e.Code == http.StatusNotFound {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // WriteObject writes the given content to the specified object. If the object

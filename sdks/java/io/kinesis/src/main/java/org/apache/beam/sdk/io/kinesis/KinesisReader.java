@@ -21,10 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -49,6 +47,11 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
 
   /**
+   * Constant representing the maximum Kinesis stream retention period.
+   */
+  static final Duration MAX_KINESIS_STREAM_RETENTION_PERIOD = Duration.standardDays(7);
+
+  /**
    * Minimum number of unread messages required before considering updating watermark.
    */
   static final int MIN_WATERMARK_MESSAGES = 10;
@@ -64,7 +67,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final CheckpointGenerator initialCheckpointGenerator;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private MovingFunction minReadTimestampMsSinceEpoch;
-  private Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private Instant lastWatermark = Instant.now().minus(MAX_KINESIS_STREAM_RETENTION_PERIOD);
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
   private Duration upToDateThreshold;
@@ -115,9 +118,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * Moves to the next record in one of the shards.
-   * If current shard iterator can be moved forward (i.e. there's a record present) then we do it.
-   * If not, we iterate over shards in a round-robin manner.
+   * Retrieves next record from internal buffer.
    */
   @Override
   public boolean advance() throws IOException {

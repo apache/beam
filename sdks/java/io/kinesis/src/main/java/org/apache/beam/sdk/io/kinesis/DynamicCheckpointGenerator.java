@@ -18,7 +18,12 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Lists.transform;
+
+import com.amazonaws.services.kinesis.model.Shard;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Creates {@link KinesisReaderCheckpoint}, which spans over all shards in given stream.
@@ -26,21 +31,38 @@ import static com.google.common.collect.Lists.transform;
  */
 class DynamicCheckpointGenerator implements CheckpointGenerator {
 
+  private static final Logger LOG = LoggerFactory.getLogger(DynamicCheckpointGenerator.class);
   private final String streamName;
   private final StartingPoint startingPoint;
+  private final StartingPointShardsFinder startingPointShardsFinder;
 
-  public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
+  public DynamicCheckpointGenerator(String streamName,
+      StartingPoint startingPoint) {
+    this.streamName = streamName;
+    this.startingPoint = startingPoint;
+    this.startingPointShardsFinder = new StartingPointShardsFinder();
+  }
+
+  public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint,
+      StartingPointShardsFinder startingPointShardsFinder) {
     this.streamName = checkNotNull(streamName, "streamName");
     this.startingPoint = checkNotNull(startingPoint, "startingPoint");
+    this.startingPointShardsFinder = checkNotNull(startingPointShardsFinder,
+        "startingPointShardsFinder");
   }
 
   @Override
   public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
       throws TransientKinesisException {
+    Set<Shard> shardsAtStartingPoint = startingPointShardsFinder
+        .findShardsAtStartingPoint(kinesis, streamName, startingPoint);
+    LOG.info("Creating a checkpoint with following shards {} at {}", shardsAtStartingPoint,
+        startingPoint.getTimestamp());
     return new KinesisReaderCheckpoint(
-        transform(
-            kinesis.listShards(streamName),
-            shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint)));
+        shardsAtStartingPoint
+            .stream()
+            .map(shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint))
+            .collect(Collectors.toList()));
   }
 
   @Override

@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -97,7 +98,7 @@ public class BigQueryAvroUtilsTest {
       // Test type conversion for:
       // INTEGER, FLOAT, TIMESTAMP, BOOLEAN, BYTES, DATE, DATETIME, TIME.
       GenericRecord record = new GenericData.Record(avroSchema);
-      byte[] soundBytes = "chirp,chirp".getBytes();
+      byte[] soundBytes = "chirp,chirp".getBytes(StandardCharsets.UTF_8);
       ByteBuffer soundByteBuffer = ByteBuffer.wrap(soundBytes);
       soundByteBuffer.rewind();
       record.put("number", 5L);

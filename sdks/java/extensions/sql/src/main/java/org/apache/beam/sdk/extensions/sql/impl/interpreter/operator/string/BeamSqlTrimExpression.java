@@ -18,27 +18,27 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Trim operator.
  *
- * <p>
- * TRIM( { BOTH | LEADING | TRAILING } string1 FROM string2)
- * </p>
+ * <p>TRIM( { BOTH | LEADING | TRAILING } string1 FROM string2)
  */
 public class BeamSqlTrimExpression extends BeamSqlExpression {
   public BeamSqlTrimExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() != 1 && operands.size() != 3) {
       return false;
     }
@@ -48,25 +48,26 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
     }
 
     if (operands.size() == 3
-        && (
-        SqlTypeName.SYMBOL != opType(0)
+        && (SqlTypeName.SYMBOL != opType(0)
             || !SqlTypeName.CHAR_TYPES.contains(opType(1))
-            || !SqlTypeName.CHAR_TYPES.contains(opType(2)))
-        ) {
+            || !SqlTypeName.CHAR_TYPES.contains(opType(2)))) {
       return false;
     }
 
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     if (operands.size() == 1) {
-      return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-          opValueEvaluated(0, inputRow, window).toString().trim());
+      return BeamSqlPrimitive.of(
+          SqlTypeName.VARCHAR,
+          opValueEvaluated(0, inputRow, window, correlateEnv).toString().trim());
     } else {
-      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window);
-      String targetStr = opValueEvaluated(1, inputRow, window);
-      String containingStr = opValueEvaluated(2, inputRow, window);
+      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window, correlateEnv);
+      String targetStr = opValueEvaluated(1, inputRow, window, correlateEnv);
+      String containingStr = opValueEvaluated(2, inputRow, window, correlateEnv);
 
       switch (type) {
         case LEADING:
@@ -75,8 +76,8 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
           return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, trailingTrim(containingStr, targetStr));
         case BOTH:
         default:
-          return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-              trailingTrim(leadingTrim(containingStr, targetStr), targetStr));
+          return BeamSqlPrimitive.of(
+              SqlTypeName.VARCHAR, trailingTrim(leadingTrim(containingStr, targetStr), targetStr));
       }
     }
   }

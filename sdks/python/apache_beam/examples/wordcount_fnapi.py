@@ -28,6 +28,8 @@ import argparse
 import logging
 import re
 
+import six
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 # TODO(BEAM-2887): Enable after the issue is fixed.
@@ -102,7 +104,7 @@ def run(argv=None):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
+                          .with_output_types(six.text_type))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group_and_sum' >> beam.CombinePerKey(sum))
 

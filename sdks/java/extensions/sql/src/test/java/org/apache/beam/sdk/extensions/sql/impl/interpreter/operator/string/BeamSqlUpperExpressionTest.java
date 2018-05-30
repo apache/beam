@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -28,17 +29,16 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Test of BeamSqlUpperExpression.
- */
+/** Test of BeamSqlUpperExpression. */
 public class BeamSqlUpperExpressionTest extends BeamSqlFnExecutorTestBase {
 
-  @Test public void evaluate() throws Exception {
+  @Test
+  public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
-    assertEquals("HELLO",
-        new BeamSqlUpperExpression(operands).evaluate(record, null).getValue());
+    assertEquals(
+        "HELLO",
+        new BeamSqlUpperExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
-
 }

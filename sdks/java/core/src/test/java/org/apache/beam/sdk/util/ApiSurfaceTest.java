@@ -45,7 +45,7 @@ public class ApiSurfaceTest {
     final ImmutableSet<Matcher<Class<?>>> allowed =
         FluentIterable.from(
                 Iterables.concat(Sets.newHashSet(classToExamine), Sets.newHashSet(exposedClasses)))
-            .transform(input -> Matchers.<Class<?>>equalTo(input))
+            .transform(Matchers::<Class<?>>equalTo)
             .toSet();
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowed));

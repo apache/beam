@@ -32,9 +32,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimi
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Tests for {@link SqlTypeUtils}.
- */
+/** Tests for {@link SqlTypeUtils}. */
 public class SqlTypeUtilsTest {
   private static final BigDecimal DECIMAL_THREE = new BigDecimal(3);
   private static final BigDecimal DECIMAL_FOUR = new BigDecimal(4);
@@ -46,27 +44,31 @@ public class SqlTypeUtilsTest {
           BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4),
           BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
 
-  @Test public void testFindExpressionOfType_success() {
+  @Test
+  public void testFindExpressionOfType_success() {
     Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INTEGER);
 
     assertTrue(typeName.isPresent());
     assertEquals(SqlTypeName.INTEGER, typeName.get().getOutputType());
   }
 
-  @Test public void testFindExpressionOfType_failure() {
+  @Test
+  public void testFindExpressionOfType_failure() {
     Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.VARCHAR);
 
     assertFalse(typeName.isPresent());
   }
 
-  @Test public void testFindExpressionOfTypes_success() {
+  @Test
+  public void testFindExpressionOfTypes_success() {
     Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INT_TYPES);
 
     assertTrue(typeName.isPresent());
     assertEquals(SqlTypeName.INTEGER, typeName.get().getOutputType());
   }
 
-  @Test public void testFindExpressionOfTypes_failure() {
+  @Test
+  public void testFindExpressionOfTypes_failure() {
     Optional<BeamSqlExpression> typeName =
         findExpressionOfType(EXPRESSIONS, SqlTypeName.CHAR_TYPES);
 

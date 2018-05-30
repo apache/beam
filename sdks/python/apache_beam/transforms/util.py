@@ -35,7 +35,7 @@ from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
-from apache_beam.transforms.core import WindowInto
+from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.trigger import AccumulationMode
@@ -63,22 +63,31 @@ T = typehints.TypeVariable('T')
 class CoGroupByKey(PTransform):
   """Groups results across several PCollections by key.
 
-  Given an input dict mapping serializable keys (called "tags") to 0 or more
-  PCollections of (key, value) tuples, e.g.::
+  Given an input dict of serializable keys (called "tags") to 0 or more
+  PCollections of (key, value) tuples, it creates a single output PCollection
+  of (key, value) tuples whose keys are the unique input keys from all inputs,
+  and whose values are dicts mapping each tag to an iterable of whatever values
+  were under the key in the corresponding PCollection, in this manner::
 
-     {'pc1': pcoll1, 'pc2': pcoll2, 33333: pcoll3}
+      ('some key', {'tag1': ['value 1 under "some key" in pcoll1',
+                             'value 2 under "some key" in pcoll1',
+                             ...],
+                    'tag2': ... ,
+                    ... })
 
-  creates a single output PCollection of (key, value) tuples whose keys are the
-  unique input keys from all inputs, and whose values are dicts mapping each
-  tag to an iterable of whatever values were under the key in the corresponding
-  PCollection::
+  For example, given:
 
-    ('some key', {'pc1': ['value 1 under "some key" in pcoll1',
-                          'value 2 under "some key" in pcoll1'],
-                  'pc2': [],
-                  33333: ['only value under "some key" in pcoll3']})
+      {'tag1': pc1, 'tag2': pc2, 333: pc3}
 
-  Note that pcoll2 had no values associated with "some key".
+  where:
+      pc1 = [(k1, v1)]
+      pc2 = []
+      pc3 = [(k1, v31), (k1, v32), (k2, v33)]
+
+  The output PCollection would be:
+
+      [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
+       (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
 
   CoGroupByKey also works for tuples, lists, or other flat iterables of
   PCollections, in which case the values of the resulting PCollections
@@ -86,18 +95,14 @@ class CoGroupByKey(PTransform):
   PCollection---conceptually, the "tags" are the indices into the input.
   Thus, for this input::
 
-     (pcoll1, pcoll2, pcoll3)
+     (pc1, pc2, pc3)
 
-  the output PCollection's value for "some key" is::
+  the output would be::
 
-    ('some key', (['value 1 under "some key" in pcoll1',
-                   'value 2 under "some key" in pcoll1'],
-                  [],
-                  ['only value under "some key" in pcoll3']))
+      [(k1, ([v1], [], [v31, v32]),
+       (k2, ([], [], [v33]))]
 
-  Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
+  Attributes:
     **kwargs: Accepts a single named argument "pipeline", which specifies the
       pipeline that "owns" this PTransform. Ordinarily CoGroupByKey can obtain
       this information from one of the input PCollections, but if there are none
@@ -149,7 +154,7 @@ class CoGroupByKey(PTransform):
       # pairs. The result value constructor makes tuples with len(pcolls) slots.
       pcolls = list(enumerate(pcolls))
       result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in xrange(size))
+      result_ctor = lambda size: tuple([] for _ in range(size))
 
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.
@@ -221,6 +226,7 @@ class _BatchSizeEstimator(object):
     self._clock = clock
     self._data = []
     self._ignore_next_timing = False
+
     self._size_distribution = Metrics.distribution(
         'BatchElements', 'batch_size')
     self._time_distribution = Metrics.distribution(
@@ -259,8 +265,13 @@ class _BatchSizeEstimator(object):
     sorted_data = sorted(self._data)
     odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
     # Sort the pairs by how different they are.
+
+    def div_keys(kv1_kv2):
+      (x1, _), (x2, _) = kv1_kv2
+      return x2 / x1
+
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=lambda ((x1, _1), (x2, _2)): x2 / x1)
+                   key=div_keys)
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
     threshold = 2 * len(pairs) / 3
     self._data = (
@@ -410,9 +421,10 @@ class BatchElements(PTransform):
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
+
   def __init__(self,
                min_batch_size=1,
-               max_batch_size=1000,
+               max_batch_size=10000,
                target_batch_overhead=.05,
                target_batch_duration_secs=1,
                clock=time.time):
@@ -479,33 +491,58 @@ class ReshufflePerKey(PTransform):
   """
 
   def expand(self, pcoll):
-    class ReifyTimestamps(DoFn):
-      def process(self, element, timestamp=DoFn.TimestampParam):
-        yield element[0], TimestampedValue(element[1], timestamp)
+    windowing_saved = pcoll.windowing
+    if windowing_saved.is_default():
+      # In this (common) case we can use a trivial trigger driver
+      # and avoid the (expensive) window param.
+      globally_windowed = window.GlobalWindows.windowed_value(None)
+      window_fn = window.GlobalWindows()
+      MIN_TIMESTAMP = window.MIN_TIMESTAMP
 
-    class RestoreTimestamps(DoFn):
-      def process(self, element, window=DoFn.WindowParam):
+      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+        key, value = element
+        if timestamp == MIN_TIMESTAMP:
+          timestamp = None
+        return key, (value, timestamp)
+
+      def restore_timestamps(element):
+        key, values = element
+        return [
+            globally_windowed.with_value((key, value))
+            if timestamp is None
+            else window.GlobalWindows.windowed_value((key, value), timestamp)
+            for (value, timestamp) in values]
+
+    else:
+      # The linter is confused.
+      # hash(1) is used to force "runtime" selection of _IdentityWindowFn
+      # pylint: disable=abstract-class-instantiated
+      cls = hash(1) and _IdentityWindowFn
+      window_fn = cls(
+          windowing_saved.windowfn.get_window_coder())
+
+      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+        key, value = element
+        return key, TimestampedValue(value, timestamp)
+
+      def restore_timestamps(element, window=DoFn.WindowParam):
         # Pass the current window since _IdentityWindowFn wouldn't know how
         # to generate it.
-        yield windowed_value.WindowedValue(
-            (element[0], element[1].value), element[1].timestamp, [window])
+        key, values = element
+        return [
+            windowed_value.WindowedValue(
+                (key, value.value), value.timestamp, [window])
+            for value in values]
 
-    windowing_saved = pcoll.windowing
-    # The linter is confused.
-    # pylint: disable=abstract-class-instantiated
-    result = (pcoll
-              | ParDo(ReifyTimestamps())
-              | 'IdentityWindow' >> WindowInto(
-                  _IdentityWindowFn(
-                      windowing_saved.windowfn.get_window_coder()),
-                  trigger=AfterCount(1),
-                  accumulation_mode=AccumulationMode.DISCARDING,
-                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST,
-                  )
+    ungrouped = pcoll | Map(reify_timestamps)
+    ungrouped._windowing = Windowing(
+        window_fn,
+        triggerfn=AfterCount(1),
+        accumulation_mode=AccumulationMode.DISCARDING,
+        timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+    result = (ungrouped
               | GroupByKey()
-              | 'ExpandIterable' >> FlatMap(
-                  lambda e: [(e[0], value) for value in e[1]])
-              | ParDo(RestoreTimestamps()))
+              | FlatMap(restore_timestamps))
     result._windowing = windowing_saved
     return result
 

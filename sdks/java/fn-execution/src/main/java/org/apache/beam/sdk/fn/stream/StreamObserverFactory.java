@@ -97,7 +97,7 @@ public abstract class StreamObserverFactory {
   }
 
   private static Runnable arriveAtPhaserHandler(final AdvancingPhaser phaser) {
-    return () -> phaser.arrive();
+    return phaser::arrive;
   }
 
   /**

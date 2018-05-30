@@ -70,14 +70,14 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getTransformExtractsFromResult() {
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.absent(),
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
+    assertThat(result.getExecutable(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
   }
 
   @Test
@@ -86,7 +86,7 @@ public class CommittedResultTest implements Serializable {
         bundleFactory.createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.of(bundle),
@@ -98,7 +98,7 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getUncommittedElementsNull() {
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.absent(),
@@ -128,7 +128,7 @@ public class CommittedResultTest implements Serializable {
                         PCollection.IsBounded.UNBOUNDED,
                         VarIntCoder.of()))
                 .commit(Instant.now()));
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.absent(),

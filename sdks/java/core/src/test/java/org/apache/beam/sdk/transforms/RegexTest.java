@@ -330,8 +330,6 @@ public class RegexTest implements Serializable {
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
             .apply(Regex.split("\\s", true));
 
-    String[] outputStr = "The  quick   brown fox jumps over    the lazy dog".split("\\s");
-
     PAssert.that(output)
         .containsInAnyOrder(
             "The", "", "quick", "brown", "", "", "fox", "jumps", "over", "", "", "", "the", "lazy",

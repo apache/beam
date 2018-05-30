@@ -24,6 +24,11 @@ from __future__ import absolute_import
 
 from apache_beam.transforms import core
 
+try:
+  from apache_beam.transforms.cy_dataflow_distribution_counter import DataflowDistributionCounter
+except ImportError:
+  from apache_beam.transforms.py_dataflow_distribution_counter import DataflowDistributionCounter
+
 
 class AccumulatorCombineFn(core.CombineFn):
   # singleton?
@@ -77,6 +82,7 @@ class SumInt64Accumulator(object):
     self.value = 0
 
   def add_input(self, element):
+    global INT64_MAX, INT64_MIN  # pylint: disable=global-variable-not-assigned
     element = int(element)
     if not INT64_MIN <= element <= INT64_MAX:
       raise OverflowError(element)
@@ -307,3 +313,16 @@ class AnyCombineFn(AccumulatorCombineFn):
 
 class AllCombineFn(AccumulatorCombineFn):
   _accumulator_type = AllAccumulator
+
+
+class DataflowDistributionCounterFn(AccumulatorCombineFn):
+  """A subclass of cy_combiners.AccumulatorCombineFn.
+
+  Make DataflowDistributionCounter able to report to Dataflow service via
+  CounterFactory.
+
+  When cythonized DataflowDistributinoCounter available, make
+  CounterFn combine with cythonized module, otherwise, combine with python
+  version.
+  """
+  _accumulator_type = DataflowDistributionCounter

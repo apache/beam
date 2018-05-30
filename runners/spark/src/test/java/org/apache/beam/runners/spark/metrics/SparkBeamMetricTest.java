@@ -34,22 +34,22 @@ public class SparkBeamMetricTest {
   public void testRenderName() throws Exception {
     MetricResult<Object> metricResult = new MetricResult<Object>() {
       @Override
-      public MetricName name() {
+      public MetricName getName() {
         return MetricName.named("myNameSpace//", "myName()");
       }
 
       @Override
-      public String step() {
+      public String getStep() {
         return "myStep.one.two(three)";
       }
 
       @Override
-      public Object committed() {
+      public Object getCommitted() {
         return null;
       }
 
       @Override
-      public Object attempted() {
+      public Object getAttempted() {
         return null;
       }
     };

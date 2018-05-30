@@ -19,55 +19,46 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code BeamTextCSVTable} is a {@code BeamTextTable} which formatted in CSV.
  *
- * <p>
- * {@link CSVFormat} itself has many dialects, check its javadoc for more info.
- * </p>
+ * <p>{@link CSVFormat} itself has many dialects, check its javadoc for more info.
  */
 public class BeamTextCSVTable extends BeamTextTable {
-  private static final Logger LOG = LoggerFactory
-      .getLogger(BeamTextCSVTable.class);
 
   private String filePattern;
   private CSVFormat csvFormat;
 
-  /**
-   * CSV table with {@link CSVFormat#DEFAULT DEFAULT} format.
-   */
-  public BeamTextCSVTable(BeamRecordSqlType beamSqlRowType, String filePattern)  {
-    this(beamSqlRowType, filePattern, CSVFormat.DEFAULT);
+  /** CSV table with {@link CSVFormat#DEFAULT DEFAULT} format. */
+  public BeamTextCSVTable(Schema beamSchema, String filePattern) {
+    this(beamSchema, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(BeamRecordSqlType beamRecordSqlType, String filePattern,
-      CSVFormat csvFormat) {
-    super(beamRecordSqlType, filePattern);
+  public BeamTextCSVTable(Schema schema, String filePattern, CSVFormat csvFormat) {
+    super(schema, filePattern);
     this.filePattern = filePattern;
     this.csvFormat = csvFormat;
   }
 
   @Override
-  public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
-        .apply("parseCSVLine",
-            new BeamTextCSVTableIOReader(beamRecordSqlType, filePattern, csvFormat));
+  public PCollection<Row> buildIOReader(Pipeline pipeline) {
+    return PBegin.in(pipeline)
+        .apply("decodeRecord", TextIO.read().from(filePattern))
+        .apply("parseCSVLine", new BeamTextCSVTableIOReader(schema, filePattern, csvFormat));
   }
 
   @Override
-  public PTransform<? super PCollection<BeamRecord>, PDone> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(beamRecordSqlType, filePattern, csvFormat);
+  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+    return new BeamTextCSVTableIOWriter(schema, filePattern, csvFormat);
   }
 
   public CSVFormat getCsvFormat() {

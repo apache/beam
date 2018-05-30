@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -115,15 +116,15 @@ public class EvaluationContextTest {
     graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
-            runner.getPipelineOptions(),
             NanosOffsetClock.create(),
             bundleFactory,
             graph,
-            keyedPValueTrackingVisitor.getKeyedPValues());
+            keyedPValueTrackingVisitor.getKeyedPValues(),
+            Executors.newSingleThreadExecutor());
 
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
-    viewProducer = graph.getWriter(view);
+    viewProducer = graph.getProducer(view);
     unboundedProducer = graph.getProducer(unbounded);
   }
 
@@ -296,7 +297,7 @@ public class EvaluationContextTest {
   @Test
   public void callAfterOutputMustHaveBeenProducedAfterEndOfWatermarkCallsback() throws Exception {
     final CountDownLatch callLatch = new CountDownLatch(1);
-    Runnable callback = () -> callLatch.countDown();
+    Runnable callback = callLatch::countDown;
 
     // Should call back after the end of the global window
     context.scheduleAfterOutputWouldBeProduced(
@@ -327,7 +328,7 @@ public class EvaluationContextTest {
 
     final CountDownLatch callLatch = new CountDownLatch(1);
     context.extractFiredTimers();
-    Runnable callback = () -> callLatch.countDown();
+    Runnable callback = callLatch::countDown;
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
     assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));
@@ -364,10 +365,10 @@ public class EvaluationContextTest {
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.of(), advanceResult);
 
-    Collection<FiredTimers> fired = context.extractFiredTimers();
+    Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> fired = context.extractFiredTimers();
     assertThat(Iterables.getOnlyElement(fired).getKey(), Matchers.equalTo(key));
 
-    FiredTimers firedForKey = Iterables.getOnlyElement(fired);
+    FiredTimers<AppliedPTransform<?, ?, ?>> firedForKey = Iterables.getOnlyElement(fired);
     // Contains exclusively the fired timer
     assertThat(firedForKey.getTimers(), contains(toFire));
 

@@ -18,18 +18,16 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * {@code BeamSqlMathUnaryExpression} for 'RAND_INTEGER([seed, ] numeric)'
- * function.
- */
+/** {@code BeamSqlMathUnaryExpression} for 'RAND_INTEGER([seed, ] numeric)' function. */
 public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
   private Random rand = new Random();
   private Integer seed = null;
@@ -44,16 +42,18 @@ public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord inputRecord, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     int numericIdx = 0;
     if (operands.size() == 2) {
-      int rowSeed = opValueEvaluated(0, inputRecord, window);
+      int rowSeed = opValueEvaluated(0, inputRow, window, correlateEnv);
       if (seed == null || seed != rowSeed) {
         rand.setSeed(rowSeed);
       }
       numericIdx = 1;
     }
-    return BeamSqlPrimitive.of(SqlTypeName.INTEGER,
-        rand.nextInt((int) opValueEvaluated(numericIdx, inputRecord, window)));
+    return BeamSqlPrimitive.of(
+        SqlTypeName.INTEGER,
+        rand.nextInt((int) opValueEvaluated(numericIdx, inputRow, window, correlateEnv)));
   }
 }

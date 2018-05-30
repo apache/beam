@@ -40,7 +40,7 @@ class SdkWorkerMainTest(unittest.TestCase):
     wrapped_method_for_test()
 
   def test_work_count_default_value(self):
-    self._check_worker_count('{}', 1)
+    self._check_worker_count('{}', 12)
 
   def test_work_count_custom_value(self):
     self._check_worker_count(

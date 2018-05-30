@@ -143,6 +143,6 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       throw new CoderException("cannot encode a null String");
     }
     int size = Utf8.encodedLength(value);
-    return VarInt.getLength(size) + size;
+    return (long) VarInt.getLength(size) + size;
   }
 }

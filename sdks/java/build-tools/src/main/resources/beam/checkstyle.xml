@@ -24,6 +24,7 @@ what the following rules do, please see the checkstyle configuration
 page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
+  <property name="severity" value="error"/>
 
   <module name="FileTabCharacter">
     <!-- Checks that there are no tab characters in the file. -->
@@ -58,18 +59,12 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="fileNamePattern" value=".*Tests\.java$" />
   </module>
 
-  <!-- Allow use of comment to suppress javadocstyle -->
-  <module name="SuppressionCommentFilter">
-    <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
-    <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
-    <property name="checkFormat" value="$1"/>
-  </module>
+  <!-- Check that every module has a package-info.java -->
+  <module name="JavadocPackage"/>
+
   <module name="SuppressionFilter">
     <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
   </module>
-
-  <!-- Check that every module has a package-info.java -->
-  <module name="JavadocPackage"/>
 
   <!-- All Java AST specific tests live under TreeWalker module. -->
   <module name="TreeWalker">
@@ -107,6 +102,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="option" value="top"/>
       <property name="sortStaticImportsAlphabetically" value="true"/>
       <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
+      <property name="separated" value="true"/>
       <message key="import.ordering"
                value="Import {0} appears after other imports that it should precede"/>
     </module>
@@ -383,6 +379,15 @@ page at http://checkstyle.sourceforge.net/config.html -->
     WHITESPACE CHECKS
 
     -->
+    <module name="EmptyLineSeparator">
+      <property name="allowNoEmptyLineBetweenFields" value="false"/>
+      <property name="allowMultipleEmptyLines" value="true"/>
+      <property name="allowMultipleEmptyLinesInsideClassMembers" value="true"/>
+      <property name="tokens" value="IMPORT,CLASS_DEF,INTERFACE_DEF,STATIC_INIT,
+                                     INSTANCE_INIT,ENUM_DEF,CTOR_DEF" />
+           <!-- we don't want blank lines between member variables, so don't use VARIABLE_DEF -->
+           <!-- eventually add: METHOD_DEF -->
+    </module>
 
     <module name="WhitespaceAround">
       <!-- Checks that various tokens are surrounded by whitespace.
@@ -448,8 +453,12 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
-    <!-- Required to support SuppressWarningsComment -->
-    <module name="FileContentsHolder"/>
+    <!-- Allow use of comment to suppress javadocstyle -->
+    <module name="SuppressionCommentFilter">
+      <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+      <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+      <property name="checkFormat" value="$1"/>
+    </module>
 
   </module>
 </module>

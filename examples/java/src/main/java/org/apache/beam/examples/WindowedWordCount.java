@@ -165,8 +165,7 @@ public class WindowedWordCount {
     void setNumShards(Integer numShards);
   }
 
-  public static void main(String[] args) throws IOException {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+  static void runWindowedWordCount(Options options) throws IOException {
     final String output = options.getOutput();
     final Instant minTimestamp = new Instant(options.getMinTimestampMillis());
     final Instant maxTimestamp = new Instant(options.getMaxTimestampMillis());
@@ -215,6 +214,12 @@ public class WindowedWordCount {
     } catch (Exception exc) {
       result.cancel();
     }
+  }
+
+  public static void main(String[] args) throws IOException {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runWindowedWordCount(options);
   }
 
 }

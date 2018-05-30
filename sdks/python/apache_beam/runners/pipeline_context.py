@@ -29,6 +29,22 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
 
 
+class Environment(object):
+  """A wrapper around the environment proto.
+
+  Provides consistency with how the other componentes are accessed.
+  """
+  def __init__(self, proto):
+    self._proto = proto
+
+  def to_runner_api(self, context):
+    return self._proto
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return Environment(proto)
+
+
 class _PipelineContextMap(object):
   """This is a bi-directional map between objects and ids.
 
@@ -60,6 +76,9 @@ class _PipelineContextMap(object):
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
     return self._obj_to_id[obj]
 
+  def get_proto(self, obj, label=None):
+    return self._id_to_proto[self.get_id(obj, label)]
+
   def get_by_id(self, id):
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(
@@ -84,10 +103,10 @@ class PipelineContext(object):
       'pcollections': pvalue.PCollection,
       'coders': coders.Coder,
       'windowing_strategies': core.Windowing,
-      # TODO: environment
+      'environments': Environment,
   }
 
-  def __init__(self, proto=None):
+  def __init__(self, proto=None, default_environment_url=None):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -97,6 +116,13 @@ class PipelineContext(object):
       setattr(
           self, name, _PipelineContextMap(
               self, cls, getattr(proto, name, None)))
+    if default_environment_url:
+      self._default_environment_id = self.environments.get_id(
+          Environment(
+              beam_runner_api_pb2.Environment(
+                  url=default_environment_url)))
+    else:
+      self._default_environment_id = None
 
   @staticmethod
   def from_runner_api(proto):
@@ -107,3 +133,6 @@ class PipelineContext(object):
     for name in self._COMPONENT_TYPES:
       getattr(self, name).populate_map(getattr(context_proto, name))
     return context_proto
+
+  def default_environment_id(self):
+    return self._default_environment_id

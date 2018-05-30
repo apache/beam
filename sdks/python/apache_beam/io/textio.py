@@ -23,6 +23,8 @@ from __future__ import absolute_import
 import logging
 from functools import partial
 
+from six import integer_types
+
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
@@ -72,7 +74,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     @position.setter
     def position(self, value):
-      assert isinstance(value, (int, long))
+      assert isinstance(value, integer_types)
       if value > len(self._data):
         raise ValueError('Cannot set position to %d since it\'s larger than '
                          'size of data %d.', value, len(self._data))

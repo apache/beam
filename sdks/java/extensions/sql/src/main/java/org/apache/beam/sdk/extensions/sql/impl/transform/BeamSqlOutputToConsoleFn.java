@@ -18,13 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 
-/**
- * A test PTransform to display output in console.
- *
- */
-public class BeamSqlOutputToConsoleFn extends DoFn<BeamRecord, Void> {
+/** A test PTransform to display output in console. */
+public class BeamSqlOutputToConsoleFn extends DoFn<Row, Void> {
 
   private String stepName;
 
@@ -35,7 +32,6 @@ public class BeamSqlOutputToConsoleFn extends DoFn<BeamRecord, Void> {
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    System.out.println("Output: " + c.element().getDataValues());
+    System.out.println("Output: " + c.element().getValues());
   }
-
 }

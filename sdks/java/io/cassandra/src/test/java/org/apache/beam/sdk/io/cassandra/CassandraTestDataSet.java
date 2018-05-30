@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
-
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.slf4j.Logger;
@@ -59,7 +58,7 @@ public class CassandraTestDataSet {
   public static final String TABLE_READ_NAME = "BEAM_READ_TEST";
   public static final String TABLE_WRITE_NAME = "BEAM_WRITE_TEST";
 
-  public static void createDataTable(IOTestPipelineOptions options) {
+  private static void createDataTable(IOTestPipelineOptions options) {
     createTable(options, TABLE_READ_NAME);
     insertTestData(options, TABLE_READ_NAME);
     createTable(options, TABLE_WRITE_NAME);
@@ -73,80 +72,45 @@ public class CassandraTestDataSet {
   }
 
   private static void createTable(IOTestPipelineOptions options, String tableName) {
-    Cluster cluster = null;
-    Session session = null;
-    try {
-      cluster = getCluster(options);
-      session = cluster.connect();
-
+    try (Cluster cluster = getCluster(options); Session session = cluster.connect()) {
       LOG.info("Create {} keyspace if not exists", KEYSPACE);
       session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = "
-          + "{'class':'SimpleStrategy', 'replication_factor':3};");
+              + "{'class':'SimpleStrategy', 'replication_factor':3};");
 
       session.execute("USE " + KEYSPACE);
 
       LOG.info("Create {} table if not exists", tableName);
       session.execute("CREATE TABLE IF NOT EXISTS " + tableName + "(id int, name text, PRIMARY "
-          + "KEY(id))");
-    } finally {
-      if (session != null) {
-        session.close();
-      }
-      if (cluster != null) {
-        cluster.close();
-      }
+              + "KEY(id))");
     }
   }
 
   private static void insertTestData(IOTestPipelineOptions options, String tableName) {
-    Cluster cluster = null;
-    Session session = null;
-    try {
-      cluster = getCluster(options);
-      session = cluster.connect();
-
+    try (Cluster cluster = getCluster(options); Session session = cluster.connect()) {
       LOG.info("Insert test dataset");
       String[] scientists = {
-          "Lovelace",
-          "Franklin",
-          "Meitner",
-          "Hopper",
-          "Curie",
-          "Faraday",
-          "Newton",
-          "Bohr",
-          "Galilei",
-          "Maxwell"
+        "Lovelace",
+        "Franklin",
+        "Meitner",
+        "Hopper",
+        "Curie",
+        "Faraday",
+        "Newton",
+        "Bohr",
+        "Galilei",
+        "Maxwell"
       };
       for (int i = 0; i < 1000; i++) {
         int index = i % scientists.length;
         session.execute("INSERT INTO " + KEYSPACE + "." + tableName + "(id, name) values("
-            + i + ",'" + scientists[index] + "');");
-      }
-    } finally {
-      if (session != null) {
-        session.close();
-      }
-      if (cluster != null) {
-        cluster.close();
+                + i + ",'" + scientists[index] + "');");
       }
     }
   }
 
   public static void cleanUpDataTable(IOTestPipelineOptions options) {
-      Cluster cluster = null;
-      Session session = null;
-      try {
-        cluster = getCluster(options);
-        session = cluster.connect();
-        session.execute("TRUNCATE TABLE " + KEYSPACE + "." + TABLE_WRITE_NAME);
-      } finally {
-        if (session != null) {
-          session.close();
-        }
-        if (cluster != null) {
-          cluster.close();
-        }
+    try (Cluster cluster = getCluster(options); Session session = cluster.connect()) {
+      session.execute("TRUNCATE TABLE " + KEYSPACE + "." + TABLE_WRITE_NAME);
     }
   }
 

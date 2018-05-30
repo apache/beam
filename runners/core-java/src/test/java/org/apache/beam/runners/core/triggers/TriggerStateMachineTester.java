@@ -266,7 +266,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
         Instant timestamp = input.getTimestamp();
         Collection<W> assignedWindows =
             windowFn.assignWindows(
-                new TestAssignContext<>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                new TestAssignContext<W>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
 
         for (W window : assignedWindows) {
           activeWindows.addActiveForTesting(window);
@@ -368,12 +368,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   }
 
   private FinishedTriggers getFinishedSet(W window) {
-    FinishedTriggers finishedSet = finishedSets.get(window);
-    if (finishedSet == null) {
-      finishedSet = FinishedTriggersSet.fromSet(new HashSet<>());
-      finishedSets.put(window, finishedSet);
-    }
-    return finishedSet;
+    return finishedSets.computeIfAbsent(window, k -> FinishedTriggersSet.fromSet(new HashSet<>()));
   }
 
   private static class TestAssignContext<W extends BoundedWindow>

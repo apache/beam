@@ -21,11 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -34,11 +30,8 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -153,7 +146,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     private static class NodeRecorder extends PipelineVisitor.Defaults {
 
-      private final List<TransformHierarchy.Node> visited = new LinkedList<>();
+      private final List<TransformHierarchy.Node> visited = new ArrayList<>();
 
       @Override
       public void leaveCompositeTransform(final TransformHierarchy.Node node) {
@@ -331,11 +324,13 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Runs this {@link TestPipeline}, unwrapping any {@code AssertionError} that is raised during
    * testing.
    */
+  @Override
   public PipelineResult run() {
     return run(getOptions());
   }
 
   /** Like {@link #run} but with the given potentially modified options. */
+  @Override
   public PipelineResult run(PipelineOptions options) {
     checkState(
         enforcement.isPresent(),
@@ -472,31 +467,6 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  public static String[] convertToArgs(PipelineOptions options) {
-    try {
-      byte[] opts = MAPPER.writeValueAsBytes(options);
-
-      JsonParser jsonParser = MAPPER.getFactory().createParser(opts);
-      TreeNode node = jsonParser.readValueAsTree();
-      ObjectNode optsNode = (ObjectNode) node.get("options");
-      ArrayList<String> optArrayList = new ArrayList<>();
-      Iterator<Entry<String, JsonNode>> entries = optsNode.fields();
-      while (entries.hasNext()) {
-        Entry<String, JsonNode> entry = entries.next();
-        if (entry.getValue().isNull()) {
-          continue;
-        } else if (entry.getValue().isTextual()) {
-          optArrayList.add("--" + entry.getKey() + "=" + entry.getValue().asText());
-        } else {
-          optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
-        }
-      }
-      return optArrayList.toArray(new String[optArrayList.size()]);
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
   /** Returns the class + method name of the test. */
   private String getAppName(Description description) {
     String methodName = description.getMethodName();
@@ -526,9 +496,9 @@ public class TestPipeline extends Pipeline implements TestRule {
               MetricsFilter.builder()
                   .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
                   .build())
-              .counters();
+              .getCounters();
       for (MetricResult<Long> counter : successCounterResults) {
-        if (counter.attempted() > 0) {
+        if (counter.getAttempted() > 0) {
           successfulAssertions++;
         }
       }

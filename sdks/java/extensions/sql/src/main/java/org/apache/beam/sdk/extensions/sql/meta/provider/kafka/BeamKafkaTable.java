@@ -19,50 +19,48 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.Row;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 /**
- * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to
- * extend to convert between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
- *
+ * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to extend to convert
+ * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  */
-public abstract class BeamKafkaTable extends BaseBeamTable implements Serializable {
+public abstract class BeamKafkaTable extends BaseBeamTable {
   private String bootstrapServers;
   private List<String> topics;
   private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(BeamRecordSqlType beamSqlRowType) {
-    super(beamSqlRowType);
+  protected BeamKafkaTable(Schema beamSchema) {
+    super(beamSchema);
   }
 
-  public BeamKafkaTable(BeamRecordSqlType beamSqlRowType, String bootstrapServers,
-      List<String> topics) {
-    super(beamSqlRowType);
+  public BeamKafkaTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
+    super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
   }
 
-  public BeamKafkaTable(BeamRecordSqlType beamSqlRowType,
-      List<TopicPartition> topicPartitions, String bootstrapServers) {
-    super(beamSqlRowType);
+  public BeamKafkaTable(
+      Schema beamSchema, List<TopicPartition> topicPartitions, String bootstrapServers) {
+    super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topicPartitions = topicPartitions;
   }
@@ -77,51 +75,57 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
     return BeamIOType.UNBOUNDED;
   }
 
-  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamRecord>>
+  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 
-  public abstract PTransform<PCollection<BeamRecord>, PCollection<KV<byte[], byte[]>>>
+  public abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override
-  public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(Pipeline pipeline) {
     KafkaIO.Read<byte[], byte[]> kafkaRead = null;
     if (topics != null) {
-      kafkaRead = KafkaIO.<byte[], byte[]>read()
-      .withBootstrapServers(bootstrapServers)
-      .withTopics(topics)
-      .updateConsumerProperties(configUpdates)
-      .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-      .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
+      kafkaRead =
+          KafkaIO.<byte[], byte[]>read()
+              .withBootstrapServers(bootstrapServers)
+              .withTopics(topics)
+              .updateConsumerProperties(configUpdates)
+              .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else if (topicPartitions != null) {
-      kafkaRead = KafkaIO.<byte[], byte[]>read()
-          .withBootstrapServers(bootstrapServers)
-          .withTopicPartitions(topicPartitions)
-          .updateConsumerProperties(configUpdates)
-          .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-          .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
+      kafkaRead =
+          KafkaIO.<byte[], byte[]>read()
+              .withBootstrapServers(bootstrapServers)
+              .withTopicPartitions(topicPartitions)
+              .updateConsumerProperties(configUpdates)
+              .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else {
       throw new IllegalArgumentException("One of topics and topicPartitions must be configurated.");
     }
 
-    return PBegin.in(pipeline).apply("read", kafkaRead.withoutMetadata())
-.apply("in_format", getPTransformForInput());
+    return PBegin.in(pipeline)
+        .apply("read", kafkaRead.withoutMetadata())
+        .apply("in_format", getPTransformForInput());
   }
 
   @Override
-  public PTransform<? super PCollection<BeamRecord>, PDone> buildIOWriter() {
-    checkArgument(topics != null && topics.size() == 1,
-        "Only one topic can be acceptable as output.");
+  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+    checkArgument(
+        topics != null && topics.size() == 1, "Only one topic can be acceptable as output.");
 
-    return new PTransform<PCollection<BeamRecord>, PDone>() {
+    return new PTransform<PCollection<Row>, POutput>() {
       @Override
-      public PDone expand(PCollection<BeamRecord> input) {
-        return input.apply("out_reformat", getPTransformForOutput()).apply("persistent",
-            KafkaIO.<byte[], byte[]>write()
-                .withBootstrapServers(bootstrapServers)
-                .withTopic(topics.get(0))
-                .withKeySerializer(ByteArraySerializer.class)
-                .withValueSerializer(ByteArraySerializer.class));
+      public PDone expand(PCollection<Row> input) {
+        return input
+            .apply("out_reformat", getPTransformForOutput())
+            .apply(
+                "persistent",
+                KafkaIO.<byte[], byte[]>write()
+                    .withBootstrapServers(bootstrapServers)
+                    .withTopic(topics.get(0))
+                    .withKeySerializer(ByteArraySerializer.class)
+                    .withValueSerializer(ByteArraySerializer.class));
       }
     };
   }

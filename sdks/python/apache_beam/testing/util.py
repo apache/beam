@@ -75,6 +75,31 @@ def contains_in_any_order(iterable):
   return InAnyOrder(iterable)
 
 
+def equal_to_per_window(expected_window_to_elements):
+  """Matcher used by assert_that to check on values for specific windows.
+
+  Arguments:
+    expected_window_to_elements: A dictionary where the keys are the windows
+      to check and the values are the elements associated with each window.
+  """
+  def matcher(elements):
+    actual_elements_in_window, window = elements
+    if window in expected_window_to_elements:
+      expected_elements_in_window = list(
+          expected_window_to_elements[window])
+      sorted_expected = sorted(expected_elements_in_window)
+      sorted_actual = sorted(actual_elements_in_window)
+      if sorted_expected != sorted_actual:
+        # Results for the same window don't necessarily come all
+        # at once. Hence the same actual window may contain only
+        # subsets of the expected elements for the window.
+        # For example, in the presence of early triggers.
+        if all(elem in sorted_expected for elem in sorted_actual) is False:
+          raise BeamAssertException(
+              'Failed assert: %r not in %r' % (sorted_actual, sorted_expected))
+  return matcher
+
+
 # Note that equal_to always sorts the expected and actual since what we
 # compare are PCollections for which there is no guaranteed order.
 # However the sorting does not go beyond top level therefore [1,2] and [2,1]
@@ -100,7 +125,8 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, label='assert_that', reify_windows=False):
+def assert_that(actual, matcher, use_global_window=True,
+                label='assert_that', reify_windows=False):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -113,6 +139,8 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
+    use_global_windows: If False, matcher is passed a dictionary of
+      (k, v) = (window, elements in the window).
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
 
   Returns:
@@ -128,23 +156,31 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       # the timestamp and window out of the latter.
       return [TestWindowedValue(element, timestamp, [window])]
 
+  class AddWindow(DoFn):
+    def process(self, element, window=DoFn.WindowParam):
+      yield element, window
+
   class AssertThat(PTransform):
 
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
-      # We must have at least a single element to ensure the matcher
-      # code gets run even if the input pcollection is empty.
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
-      keyed_actual = (
-          pcoll
-          | WindowInto(window.GlobalWindows())
-          | "ToVoidKey" >> Map(lambda v: (None, v)))
-      _ = ((keyed_singleton, keyed_actual)
-           | "Group" >> CoGroupByKey()
-           | "Unkey" >> Map(lambda k___actual_values: k___actual_values[1][1])
-           | "Match" >> Map(matcher))
+
+      if use_global_window:
+        pcoll = pcoll | WindowInto(window.GlobalWindows())
+
+      keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+
+      plain_actual = ((keyed_singleton, keyed_actual)
+                      | "Group" >> CoGroupByKey()
+                      | "Unkey" >> Map(lambda k_values: k_values[1][1]))
+
+      if not use_global_window:
+        plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())
+
+      plain_actual = plain_actual | "Match" >> Map(matcher)
 
     def default_label(self):
       return label
@@ -155,8 +191,9 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
 @experimental()
 def open_shards(glob_pattern):
   """Returns a composite file of all shards matching the given glob pattern."""
-  with tempfile.NamedTemporaryFile(delete=False) as f:
+  with tempfile.NamedTemporaryFile(delete=False) as out_file:
     for shard in glob.glob(glob_pattern):
-      f.write(file(shard).read())
-    concatenated_file_name = f.name
-  return file(concatenated_file_name, 'rb')
+      with open(shard) as in_file:
+        out_file.write(in_file.read())
+    concatenated_file_name = out_file.name
+  return open(concatenated_file_name, 'rb')

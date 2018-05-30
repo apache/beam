@@ -131,7 +131,7 @@ def getargspec(func):
         # Arguments with the %unknown% prefix will be ignored in the type
         # checking code.
         return inspect.ArgSpec(
-            ['_'], '%unknown%varargs', '%unknown%keywords', ())
+            ['_'], '__unknown__varargs', '__unknown__keywords', ())
     else:
       raise
 
@@ -567,10 +567,12 @@ class GeneratorWrapper(object):
       return self.__iter__()
     return getattr(self.internal_gen, attr)
 
-  def next(self):
+  def __next__(self):
     next_val = next(self.internal_gen)
     self.interleave_func(next_val)
     return next_val
+
+  next = __next__
 
   def __iter__(self):
     while True:

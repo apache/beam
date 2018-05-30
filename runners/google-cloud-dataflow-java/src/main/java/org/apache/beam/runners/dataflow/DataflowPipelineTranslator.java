@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.addDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.addList;
@@ -29,6 +28,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 
@@ -716,6 +716,13 @@ public class DataflowPipelineTranslator {
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+            stepContext.addInput(
+                PropertyNames.WINDOWING_STRATEGY,
+                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
+            stepContext.addInput(
+                PropertyNames.IS_MERGING_WINDOW_FN,
+                !windowingStrategy.getWindowFn().isNonMerging());
             stepContext.addCollectionToSingletonOutput(
                 input, PropertyNames.OUTPUT, transform.getView());
           }
@@ -837,13 +844,15 @@ public class DataflowPipelineTranslator {
             WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
             boolean isStreaming =
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
-            boolean disallowCombinerLifting =
-                !windowingStrategy.getWindowFn().isNonMerging()
-                    || !windowingStrategy.getWindowFn().assignsToOneWindow()
-                    || (isStreaming && !transform.fewKeys())
-                    // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-                    || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
-            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
+            boolean allowCombinerLifting =
+                windowingStrategy.getWindowFn().isNonMerging()
+                    && windowingStrategy.getWindowFn().assignsToOneWindow();
+            if (isStreaming) {
+              allowCombinerLifting &= transform.fewKeys();
+              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
+            }
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
@@ -958,17 +967,19 @@ public class DataflowPipelineTranslator {
 
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
-                translateOutputs(context.getOutputs(transform), stepContext);
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(
-                    serializeToByteArray(
-                        DoFnInfo.forFn(
-                            transform.getFn(),
-                            transform.getInputWindowingStrategy(),
-                            transform.getSideInputs(),
-                            transform.getElementCoder(),
-                            transform.getMainOutputTag()))));
+            translateOutputs(context.getOutputs(transform), stepContext);
+            String ptransformId =
+                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            translateFn(
+                stepContext,
+                ptransformId,
+                transform.getFn(),
+                transform.getInputWindowingStrategy(),
+                transform.getSideInputs(),
+                transform.getElementCoder(),
+                context,
+                transform.getMainOutputTag());
+
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
                 CloudObjects.asCloudObject(transform.getRestrictionCoder()));
@@ -1012,13 +1023,6 @@ public class DataflowPipelineTranslator {
       TupleTag<?> mainOutput) {
 
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support splittable DoFn: %s",
-              DataflowRunner.class.getSimpleName(),
-              fn));
-    }
 
     if (signature.usesState() || signature.usesTimers()) {
       DataflowRunner.verifyStateSupported(fn);
@@ -1027,12 +1031,9 @@ public class DataflowPipelineTranslator {
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
 
-    List<String> experiments = context.getPipelineOptions().getExperiments();
-    boolean isFnApi = experiments != null && experiments.contains("beam_fn_api");
-
     // Fn API does not need the additional metadata in the wrapper, and it is Java-only serializable
     // hence not suitable for portable execution
-    if (isFnApi) {
+    if (context.isFnApi()) {
       stepContext.addInput(PropertyNames.SERIALIZED_FN, ptransformId);
     } else {
       stepContext.addInput(

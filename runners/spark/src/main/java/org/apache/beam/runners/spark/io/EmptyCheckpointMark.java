@@ -31,7 +31,7 @@ public class EmptyCheckpointMark implements UnboundedSource.CheckpointMark, Seri
   private static final EmptyCheckpointMark INSTANCE = new EmptyCheckpointMark();
   private static final int ID = 2654265; // some constant to serve as identifier.
 
-  private EmptyCheckpointMark() {};
+  private EmptyCheckpointMark() {}
 
   public static EmptyCheckpointMark get() {
     return INSTANCE;

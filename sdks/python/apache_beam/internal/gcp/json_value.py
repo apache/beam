@@ -17,6 +17,10 @@
 
 """JSON conversion utility functions."""
 
+from __future__ import absolute_import
+
+from apache_beam.options.value_provider import ValueProvider
+
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -25,7 +29,12 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.options.value_provider import ValueProvider
+try:              # Python 2
+  unicode         # pylint: disable=unicode-builtin
+  long            # pylint: disable=long-builtin
+except NameError: # Python 3
+  unicode = str
+  long = int
 
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)
@@ -47,7 +56,7 @@ def get_typed_value_descriptor(obj):
     ~exceptions.TypeError: if the Python object has a type that is not
       supported.
   """
-  if isinstance(obj, basestring):
+  if isinstance(obj, (str, unicode)):
     type_name = 'Text'
   elif isinstance(obj, bool):
     type_name = 'Boolean'
@@ -92,20 +101,18 @@ def to_json_value(obj, with_type=False):
             entries=[to_json_value(o, with_type=with_type) for o in obj]))
   elif isinstance(obj, dict):
     json_object = extra_types.JsonObject()
-    for k, v in obj.iteritems():
+    for k, v in obj.items():
       json_object.properties.append(
           extra_types.JsonObject.Property(
               key=k, value=to_json_value(v, with_type=with_type)))
     return extra_types.JsonValue(object_value=json_object)
   elif with_type:
     return to_json_value(get_typed_value_descriptor(obj), with_type=False)
-  elif isinstance(obj, basestring):
+  elif isinstance(obj, (str, unicode)):
     return extra_types.JsonValue(string_value=obj)
   elif isinstance(obj, bool):
     return extra_types.JsonValue(boolean_value=obj)
-  elif isinstance(obj, int):
-    return extra_types.JsonValue(integer_value=obj)
-  elif isinstance(obj, long):
+  elif isinstance(obj, (int, long)):
     if _MININT64 <= obj <= _MAXINT64:
       return extra_types.JsonValue(integer_value=obj)
     else:

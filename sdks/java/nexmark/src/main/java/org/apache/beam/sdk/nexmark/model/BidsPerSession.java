@@ -73,7 +73,7 @@ public class BidsPerSession implements KnownSize, Serializable {
   @Override
   public long sizeInBytes() {
     // Two longs.
-    return 8 + 8;
+    return 8L + 8L;
   }
 
   @Override

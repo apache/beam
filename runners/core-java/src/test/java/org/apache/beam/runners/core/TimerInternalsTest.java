@@ -19,7 +19,6 @@ package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.lessThan;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -63,43 +62,66 @@ public class TimerInternalsTest {
   }
 
   @Test
-  public void testCompareTo() {
+  public void testCompareEqual() {
+    Instant timestamp = new Instant(100);
+    StateNamespace namespace = StateNamespaces.global();
+    TimerData timer = TimerData.of("id", namespace, timestamp, TimeDomain.EVENT_TIME);
+
+    assertThat(timer,
+        comparesEqualTo(TimerData.of("id", namespace, timestamp, TimeDomain.EVENT_TIME)));
+  }
+
+  @Test
+  public void testCompareByTimestamp() {
     Instant firstTimestamp = new Instant(100);
     Instant secondTimestamp = new Instant(200);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), firstTimestamp);
-    IntervalWindow secondWindow =  new IntervalWindow(firstTimestamp, secondTimestamp);
+    StateNamespace namespace = StateNamespaces.global();
+
+    TimerData firstTimer = TimerData.of(namespace, firstTimestamp, TimeDomain.EVENT_TIME);
+    TimerData secondTimer = TimerData.of(namespace, secondTimestamp, TimeDomain.EVENT_TIME);
+
+    assertThat(firstTimer, lessThan(secondTimer));
+  }
+
+  @Test
+  public void testCompareByDomain() {
+    Instant timestamp = new Instant(100);
+    StateNamespace namespace = StateNamespaces.global();
+
+    TimerData eventTimer = TimerData.of(namespace, timestamp, TimeDomain.EVENT_TIME);
+    TimerData procTimer = TimerData.of(namespace, timestamp, TimeDomain.PROCESSING_TIME);
+    TimerData synchronizedProcTimer =
+        TimerData.of(namespace, timestamp, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+
+    assertThat(eventTimer, lessThan(procTimer));
+    assertThat(eventTimer, lessThan(synchronizedProcTimer));
+    assertThat(procTimer, lessThan(synchronizedProcTimer));
+  }
+
+  @Test
+  public void testCompareByNamespace() {
+    Instant timestamp = new Instant(100);
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), timestamp);
+    IntervalWindow secondWindow =  new IntervalWindow(timestamp, new Instant(200));
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
 
     StateNamespace firstWindowNs = StateNamespaces.window(windowCoder, firstWindow);
     StateNamespace secondWindowNs = StateNamespaces.window(windowCoder, secondWindow);
 
-    TimerData firstEventTime = TimerData.of(firstWindowNs, firstTimestamp, TimeDomain.EVENT_TIME);
-    TimerData secondEventTime = TimerData.of(firstWindowNs, secondTimestamp, TimeDomain.EVENT_TIME);
-    TimerData thirdEventTime = TimerData.of(secondWindowNs, secondTimestamp, TimeDomain.EVENT_TIME);
+    TimerData secondEventTime = TimerData.of(firstWindowNs, timestamp, TimeDomain.EVENT_TIME);
+    TimerData thirdEventTime = TimerData.of(secondWindowNs, timestamp, TimeDomain.EVENT_TIME);
 
-    TimerData firstProcTime =
-        TimerData.of(firstWindowNs, firstTimestamp, TimeDomain.PROCESSING_TIME);
-    TimerData secondProcTime =
-        TimerData.of(firstWindowNs, secondTimestamp, TimeDomain.PROCESSING_TIME);
-    TimerData thirdProcTime =
-        TimerData.of(secondWindowNs, secondTimestamp, TimeDomain.PROCESSING_TIME);
-
-    assertThat(firstEventTime,
-        comparesEqualTo(TimerData.of(firstWindowNs, firstTimestamp, TimeDomain.EVENT_TIME)));
-    assertThat(firstEventTime, lessThan(secondEventTime));
     assertThat(secondEventTime, lessThan(thirdEventTime));
-    assertThat(firstEventTime, lessThan(thirdEventTime));
+  }
 
-    assertThat(secondProcTime,
-        comparesEqualTo(TimerData.of(firstWindowNs, secondTimestamp, TimeDomain.PROCESSING_TIME)));
-    assertThat(firstProcTime, lessThan(secondProcTime));
-    assertThat(secondProcTime, lessThan(thirdProcTime));
-    assertThat(firstProcTime, lessThan(thirdProcTime));
+  @Test
+  public void testCompareByTimerId() {
+    Instant timestamp = new Instant(100);
+    StateNamespace namespace = StateNamespaces.global();
 
-    assertThat(firstEventTime, not(comparesEqualTo(firstProcTime)));
-    assertThat(firstProcTime,
-        not(comparesEqualTo(TimerData.of(firstWindowNs,
-            firstTimestamp,
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME))));
+    TimerData id0Timer = TimerData.of("id0", namespace, timestamp, TimeDomain.EVENT_TIME);
+    TimerData id1Timer = TimerData.of("id1", namespace, timestamp, TimeDomain.EVENT_TIME);
+
+    assertThat(id0Timer, lessThan(id1Timer));
   }
 }

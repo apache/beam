@@ -85,7 +85,7 @@ public class FilterExamples {
    */
   static class ProjectionFn extends DoFn<TableRow, TableRow> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       // Grab year, month, day, mean_temp from the row
       Integer year = Integer.parseInt((String) row.get("year"));
@@ -114,7 +114,7 @@ public class FilterExamples {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       Integer month;
       month = (Integer) row.get("month");
@@ -130,7 +130,7 @@ public class FilterExamples {
    */
   static class ExtractTempFn extends DoFn<TableRow, Double> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
       c.output(meanTemp);

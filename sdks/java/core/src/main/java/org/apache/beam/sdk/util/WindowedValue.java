@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.MoreObjects;
@@ -50,35 +51,34 @@ import org.joda.time.Instant;
  */
 public abstract class WindowedValue<T> {
 
-  /**
-   * Returns a {@code WindowedValue} with the given value, timestamp,
-   * and windows.
-   */
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
-      T value,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo pane) {
-    checkNotNull(pane);
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
+    checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
-    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInEmptyWindows(value, pane);
-    } else if (windows.size() == 1) {
+    if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);
     } else {
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
     }
   }
 
-  /**
-   * Returns a {@code WindowedValue} with the given value, timestamp, and window.
-   */
+  /** @deprecated for use only in compatibility with old broken code */
+  @Deprecated
+  static <T> WindowedValue<T> createWithoutValidation(
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    if (windows.size() == 1) {
+      return of(value, timestamp, windows.iterator().next(), pane);
+    } else {
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+    }
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
-      T value,
-      Instant timestamp,
-      BoundedWindow window,
-      PaneInfo pane) {
-    checkNotNull(pane);
+      T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
+    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
@@ -107,8 +107,8 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * Returns a {@code WindowedValue} with the given value and timestamp,
-   * {@code GlobalWindow} and default pane.
+   * Returns a {@code WindowedValue} with the given value and timestamp, {@code GlobalWindow} and
+   * default pane.
    */
   public static <T> WindowedValue<T> timestampedValueInGlobalWindow(T value, Instant timestamp) {
     if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
@@ -119,53 +119,21 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and pane.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
-    return new ValueInEmptyWindows<>(value, PaneInfo.NO_FIRING);
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and the specified pane.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
-    return new ValueInEmptyWindows<>(value, pane);
-  }
-
-  /**
    * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
    * which may have a new type {@code NewT}.
    */
   public abstract <NewT> WindowedValue<NewT> withValue(NewT value);
 
-  /**
-   * Returns the value of this {@code WindowedValue}.
-   */
+  /** Returns the value of this {@code WindowedValue}. */
   public abstract T getValue();
 
-  /**
-   * Returns the timestamp of this {@code WindowedValue}.
-   */
+  /** Returns the timestamp of this {@code WindowedValue}. */
   public abstract Instant getTimestamp();
 
-  /**
-   * Returns the windows of this {@code WindowedValue}.
-   */
+  /** Returns the windows of this {@code WindowedValue}. */
   public abstract Collection<? extends BoundedWindow> getWindows();
 
-  /**
-   * Returns the pane of this {@code WindowedValue} in its window.
-   */
+  /** Returns the pane of this {@code WindowedValue} in its window. */
   public abstract PaneInfo getPane();
 
   /**
@@ -210,8 +178,8 @@ public abstract class WindowedValue<T> {
       Collections.singletonList(GlobalWindow.INSTANCE);
 
   /**
-   * An abstract superclass for implementations of {@link WindowedValue} that stores the value
-   * and pane info.
+   * An abstract superclass for implementations of {@link WindowedValue} that stores the value and
+   * pane info.
    */
   private abstract static class SimpleWindowedValue<T> extends WindowedValue<T> {
     private final T value;
@@ -226,18 +194,15 @@ public abstract class WindowedValue<T> {
     public PaneInfo getPane() {
       return pane;
     }
+
     @Override
     public T getValue() {
       return value;
     }
   }
 
-  /**
-   * The abstract superclass of WindowedValue representations where
-   * timestamp == MIN.
-   */
-  private abstract static class MinTimestampWindowedValue<T>
-      extends SimpleWindowedValue<T> {
+  /** The abstract superclass of WindowedValue representations where timestamp == MIN. */
+  private abstract static class MinTimestampWindowedValue<T> extends SimpleWindowedValue<T> {
     public MinTimestampWindowedValue(T value, PaneInfo pane) {
       super(value, pane);
     }
@@ -248,12 +213,8 @@ public abstract class WindowedValue<T> {
     }
   }
 
-  /**
-   * The representation of a WindowedValue where timestamp == MIN and
-   * windows == {GlobalWindow}.
-   */
-  private static class ValueInGlobalWindow<T>
-      extends MinTimestampWindowedValue<T> {
+  /** The representation of a WindowedValue where timestamp == MIN and windows == {GlobalWindow}. */
+  private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T> {
     public ValueInGlobalWindow(T value, PaneInfo pane) {
       super(value, pane);
     }
@@ -293,64 +254,11 @@ public abstract class WindowedValue<T> {
     }
   }
 
-  /**
-   * The representation of a WindowedValue where timestamp == MIN and windows == {}.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  private static class ValueInEmptyWindows<T> extends MinTimestampWindowedValue<T> {
-    public ValueInEmptyWindows(T value, PaneInfo pane) {
-      super(value, pane);
-    }
-
-    @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInEmptyWindows<>(newValue, getPane());
-    }
-
-    @Override
-    public Collection<? extends BoundedWindow> getWindows() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o instanceof ValueInEmptyWindows) {
-        ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
-        return Objects.equals(that.getPane(), this.getPane())
-            && Objects.equals(that.getValue(), this.getValue());
-      } else {
-        return super.equals(o);
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(getValue(), getPane());
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("value", getValue())
-          .add("pane", getPane())
-          .toString();
-    }
-  }
-
-  /**
-   * The abstract superclass of WindowedValue representations where
-   * timestamp is arbitrary.
-   */
-  private abstract static class TimestampedWindowedValue<T>
-      extends SimpleWindowedValue<T> {
+  /** The abstract superclass of WindowedValue representations where timestamp is arbitrary. */
+  private abstract static class TimestampedWindowedValue<T> extends SimpleWindowedValue<T> {
     private final Instant timestamp;
 
-    public TimestampedWindowedValue(T value,
-                                    Instant timestamp,
-                                    PaneInfo pane) {
+    public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo pane) {
       super(value, pane);
       this.timestamp = checkNotNull(timestamp);
     }
@@ -362,14 +270,11 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * The representation of a WindowedValue where timestamp {@code >}
-   * MIN and windows == {GlobalWindow}.
+   * The representation of a WindowedValue where timestamp {@code >} MIN and windows ==
+   * {GlobalWindow}.
    */
-  private static class TimestampedValueInGlobalWindow<T>
-      extends TimestampedWindowedValue<T> {
-    public TimestampedValueInGlobalWindow(T value,
-                                          Instant timestamp,
-                                          PaneInfo pane) {
+  private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T> {
+    public TimestampedValueInGlobalWindow(T value, Instant timestamp, PaneInfo pane) {
       super(value, timestamp, pane);
     }
 
@@ -386,8 +291,7 @@ public abstract class WindowedValue<T> {
     @Override
     public boolean equals(Object o) {
       if (o instanceof TimestampedValueInGlobalWindow) {
-        TimestampedValueInGlobalWindow<?> that =
-            (TimestampedValueInGlobalWindow<?>) o;
+        TimestampedValueInGlobalWindow<?> that = (TimestampedValueInGlobalWindow<?>) o;
         // Compare timestamps first as they are most likely to differ.
         // Also compare timestamps according to millis-since-epoch because otherwise expensive
         // comparisons are made on their Chronology objects.
@@ -416,17 +320,14 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * The representation of a WindowedValue where timestamp is arbitrary and
-   * windows == a single non-Global window.
+   * The representation of a WindowedValue where timestamp is arbitrary and windows == a single
+   * non-Global window.
    */
-  private static class TimestampedValueInSingleWindow<T>
-      extends TimestampedWindowedValue<T> {
+  private static class TimestampedValueInSingleWindow<T> extends TimestampedWindowedValue<T> {
     private final BoundedWindow window;
 
-    public TimestampedValueInSingleWindow(T value,
-                                          Instant timestamp,
-                                          BoundedWindow window,
-                                          PaneInfo pane) {
+    public TimestampedValueInSingleWindow(
+        T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
       super(value, timestamp, pane);
       this.window = checkNotNull(window);
     }
@@ -444,8 +345,7 @@ public abstract class WindowedValue<T> {
     @Override
     public boolean equals(Object o) {
       if (o instanceof TimestampedValueInSingleWindow) {
-        TimestampedValueInSingleWindow<?> that =
-            (TimestampedValueInSingleWindow<?>) o;
+        TimestampedValueInSingleWindow<?> that = (TimestampedValueInSingleWindow<?>) o;
         // Compare timestamps first as they are most likely to differ.
         // Also compare timestamps according to millis-since-epoch because otherwise expensive
         // comparisons are made on their Chronology objects.
@@ -475,19 +375,12 @@ public abstract class WindowedValue<T> {
     }
   }
 
-  /**
-   * The representation of a WindowedValue, excluding the special
-   * cases captured above.
-   */
-  private static class TimestampedValueInMultipleWindows<T>
-      extends TimestampedWindowedValue<T> {
+  /** The representation of a WindowedValue, excluding the special cases captured above. */
+  private static class TimestampedValueInMultipleWindows<T> extends TimestampedWindowedValue<T> {
     private Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInMultipleWindows(
-        T value,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
+        T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
       super(value, timestamp, pane);
       this.windows = checkNotNull(windows);
     }
@@ -505,8 +398,7 @@ public abstract class WindowedValue<T> {
     @Override
     public boolean equals(Object o) {
       if (o instanceof TimestampedValueInMultipleWindows) {
-        TimestampedValueInMultipleWindows<?> that =
-            (TimestampedValueInMultipleWindows<?>) o;
+        TimestampedValueInMultipleWindows<?> that = (TimestampedValueInMultipleWindows<?>) o;
         // Compare timestamps first as they are most likely to differ.
         // Also compare timestamps according to millis-since-epoch because otherwise expensive
         // comparisons are made on their Chronology objects.
@@ -548,67 +440,54 @@ public abstract class WindowedValue<T> {
     }
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Returns the {@code Coder} to use for a {@code WindowedValue<T>},
-   * using the given valueCoder and windowCoder.
+   * Returns the {@code Coder} to use for a {@code WindowedValue<T>}, using the given valueCoder and
+   * windowCoder.
    */
   public static <T> FullWindowedValueCoder<T> getFullCoder(
-      Coder<T> valueCoder,
-      Coder<? extends BoundedWindow> windowCoder) {
+      Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
     return FullWindowedValueCoder.of(valueCoder, windowCoder);
   }
 
-  /**
-   * Returns the {@code ValueOnlyCoder} from the given valueCoder.
-   */
+  /** Returns the {@code ValueOnlyCoder} from the given valueCoder. */
   public static <T> ValueOnlyWindowedValueCoder<T> getValueOnlyCoder(Coder<T> valueCoder) {
     return ValueOnlyWindowedValueCoder.of(valueCoder);
   }
 
-  /**
-   * Abstract class for {@code WindowedValue} coder.
-   */
-  public abstract static class WindowedValueCoder<T>
-      extends StructuredCoder<WindowedValue<T>> {
+  /** Abstract class for {@code WindowedValue} coder. */
+  public abstract static class WindowedValueCoder<T> extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
     }
 
-    /**
-     * Returns the value coder.
-     */
+    /** Returns the value coder. */
     public Coder<T> getValueCoder() {
       return valueCoder;
     }
 
     /**
-     * Returns a new {@code WindowedValueCoder} that is a copy of this one,
-     * but with a different value coder.
+     * Returns a new {@code WindowedValueCoder} that is a copy of this one, but with a different
+     * value coder.
      */
     public abstract <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder);
   }
 
-  /**
-   * Coder for {@code WindowedValue}.
-   */
+  /** Coder for {@code WindowedValue}. */
   public static class FullWindowedValueCoder<T> extends WindowedValueCoder<T> {
     private final Coder<? extends BoundedWindow> windowCoder;
     // Precompute and cache the coder for a list of windows.
     private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
 
     public static <T> FullWindowedValueCoder<T> of(
-        Coder<T> valueCoder,
-        Coder<? extends BoundedWindow> windowCoder) {
+        Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
-    FullWindowedValueCoder(Coder<T> valueCoder,
-                           Coder<? extends BoundedWindow> windowCoder) {
+    FullWindowedValueCoder(Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
       super(valueCoder);
       this.windowCoder = checkNotNull(windowCoder);
       // It's not possible to statically type-check correct use of the
@@ -642,9 +521,7 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public void encode(WindowedValue<T> windowedElem,
-                       OutputStream outStream,
-                       Context context)
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
@@ -661,11 +538,13 @@ public abstract class WindowedValue<T> {
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
-      Collection<? extends BoundedWindow> windows =
-          windowsCoder.decode(inStream);
+      Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
-      return WindowedValue.of(value, timestamp, windows, pane);
+
+      // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
+      // we call this deprecated no-validation path when decoding
+      return WindowedValue.createWithoutValidation(value, timestamp, windows, pane);
     }
 
     @Override
@@ -677,8 +556,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public void registerByteSizeObserver(WindowedValue<T> value,
-                                         ElementByteSizeObserver observer) throws Exception {
+    public void registerByteSizeObserver(WindowedValue<T> value, ElementByteSizeObserver observer)
+        throws Exception {
       InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
       windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
       PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
@@ -688,8 +567,8 @@ public abstract class WindowedValue<T> {
     /**
      * {@inheritDoc}.
      *
-     * @return a singleton list containing the {@code valueCoder} of this
-     *         {@link FullWindowedValueCoder}.
+     * @return a singleton list containing the {@code valueCoder} of this {@link
+     *     FullWindowedValueCoder}.
      */
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
@@ -707,12 +586,11 @@ public abstract class WindowedValue<T> {
   /**
    * Coder for {@code WindowedValue}.
    *
-   * <p>A {@code ValueOnlyWindowedValueCoder} only encodes and decodes the value. It drops
-   * timestamp and windows for encoding, and uses defaults timestamp, and windows for decoding.
+   * <p>A {@code ValueOnlyWindowedValueCoder} only encodes and decodes the value. It drops timestamp
+   * and windows for encoding, and uses defaults timestamp, and windows for decoding.
    */
   public static class ValueOnlyWindowedValueCoder<T> extends WindowedValueCoder<T> {
-    public static <T> ValueOnlyWindowedValueCoder<T> of(
-        Coder<T> valueCoder) {
+    public static <T> ValueOnlyWindowedValueCoder<T> of(Coder<T> valueCoder) {
       return new ValueOnlyWindowedValueCoder<>(valueCoder);
     }
 
@@ -752,14 +630,11 @@ public abstract class WindowedValue<T> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
-          this,
-          "ValueOnlyWindowedValueCoder requires a deterministic valueCoder",
-          valueCoder);
+          this, "ValueOnlyWindowedValueCoder requires a deterministic valueCoder", valueCoder);
     }
 
     @Override
-    public void registerByteSizeObserver(
-        WindowedValue<T> value, ElementByteSizeObserver observer)
+    public void registerByteSizeObserver(WindowedValue<T> value, ElementByteSizeObserver observer)
         throws Exception {
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }

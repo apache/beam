@@ -22,6 +22,8 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,7 +31,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -143,13 +146,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     this.enabledEnforcements = Enforcement.enabled(options);
   }
 
-  /**
-   * Returns the {@link PipelineOptions} used to create this {@link DirectRunner}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
-  }
-
   Supplier<Clock> getClockSupplier() {
     return clockSupplier;
   }
@@ -161,56 +157,70 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @Override
   public DirectPipelineResult run(Pipeline originalPipeline) {
     Pipeline pipeline;
-    try {
-      RunnerApi.Pipeline protoPipeline = PipelineTranslation.toProto(originalPipeline);
-      pipeline = PipelineTranslation.fromProto(protoPipeline);
-    } catch (IOException exception) {
-      throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
+    if (options.isProtoTranslation()) {
+      try {
+        pipeline = PipelineTranslation.fromProto(
+            PipelineTranslation.toProto(originalPipeline));
+      } catch (IOException exception) {
+        throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
+      }
+    } else {
+      pipeline = originalPipeline;
     }
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
-    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
-    pipeline.traverseTopologically(graphVisitor);
+    try {
+      DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+      pipeline.traverseTopologically(graphVisitor);
 
-    @SuppressWarnings("rawtypes")
-    KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
-    pipeline.traverseTopologically(keyedPValueVisitor);
+      @SuppressWarnings("rawtypes")
+      KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
+      pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(getPipelineOptions());
+    DisplayDataValidator.validateOptions(options);
 
-    DirectGraph graph = graphVisitor.getGraph();
-    EvaluationContext context =
-        EvaluationContext.create(
-            getPipelineOptions(),
-            clockSupplier.get(),
-            Enforcement.bundleFactoryFor(enabledEnforcements, graph),
-            graph,
-            keyedPValueVisitor.getKeyedPValues());
+      ExecutorService metricsPool = Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+            .setThreadFactory(MoreExecutors.platformThreadFactory())
+            .setDaemon(false) // otherwise you say you want to leak, please don't!
+            .setNameFormat("direct-metrics-counter-committer")
+            .build());
+      DirectGraph graph = graphVisitor.getGraph();
+      EvaluationContext context =
+          EvaluationContext.create(
+              clockSupplier.get(),
+              Enforcement.bundleFactoryFor(enabledEnforcements, graph),
+              graph,
+              keyedPValueVisitor.getKeyedPValues(), metricsPool);
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry
+        .javaSdkNativeRegistry(context, options);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             options.getTargetParallelism(),
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),
-            context);
-    executor.start(graph, RootProviderRegistry.defaultRegistry(context));
+            context, metricsPool);
+    executor.start(graph, RootProviderRegistry.javaNativeRegistry(context, options));
 
-    DirectPipelineResult result = new DirectPipelineResult(executor, context);
-    if (options.isBlockOnRun()) {
-      try {
-        result.waitUntilFinish();
-      } catch (UserCodeException userException) {
-        throw new PipelineExecutionException(userException.getCause());
-      } catch (Throwable t) {
-        if (t instanceof RuntimeException) {
-          throw (RuntimeException) t;
+      DirectPipelineResult result = new DirectPipelineResult(executor, context);
+      if (options.isBlockOnRun()) {
+        try {
+          result.waitUntilFinish();
+        } catch (UserCodeException userException) {
+          throw new PipelineExecutionException(userException.getCause());
+        } catch (Throwable t) {
+          if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+          }
+          throw new RuntimeException(t);
         }
-        throw new RuntimeException(t);
       }
+      return result;
+    } finally {
+      MetricsEnvironment.setMetricsSupported(false);
     }
-    return result;
   }
 
   /**
@@ -257,7 +267,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             .add(
                 PTransformOverride.of(
                     PTransformMatchers.urnEqualTo(
-                        SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
+                        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
                     new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
             .add(
                 PTransformOverride.of(

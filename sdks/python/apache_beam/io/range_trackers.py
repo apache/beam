@@ -22,6 +22,8 @@ import logging
 import math
 import threading
 
+from six import integer_types
+
 from apache_beam.io import iobase
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
@@ -45,9 +47,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError('Start offset must not be \'None\'')
     if end is None:
       raise ValueError('End offset must not be \'None\'')
-    assert isinstance(start, (int, long))
+    assert isinstance(start, integer_types)
     if end != self.OFFSET_INFINITY:
-      assert isinstance(end, (int, long))
+      assert isinstance(end, integer_types)
 
     assert start <= end
 
@@ -121,7 +123,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
-    assert isinstance(split_offset, (int, long))
+    assert isinstance(split_offset, integer_types)
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
         logging.debug('refusing to split %r at %d: stop position unspecified',

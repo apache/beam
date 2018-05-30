@@ -17,24 +17,19 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit
+  testCompileOnly library.java.findbugs_annotations
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

@@ -17,24 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.config.Lex;
+import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptUtil;
@@ -42,138 +35,128 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
-import org.apache.calcite.util.ConversionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The core component to handle through a SQL statement, from explain execution plan,
- * to generate a Beam pipeline.
- *
+ * The core component to handle through a SQL statement, from explain execution plan, to generate a
+ * Beam pipeline.
  */
 public class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
-  protected final Planner planner;
-  private Map<String, BeamSqlTable> sourceTables = new HashMap<>();
+  private final FrameworkConfig config;
 
-  public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
-      RelDataTypeSystem.DEFAULT);
-
-  public BeamQueryPlanner(SchemaPlus schema) {
-    String defaultCharsetKey = "saffron.default.charset";
-    if (System.getProperty(defaultCharsetKey) == null) {
-      System.setProperty(defaultCharsetKey, ConversionUtil.NATIVE_UTF16_CHARSET_NAME);
-      System.setProperty("saffron.default.nationalcharset",
-        ConversionUtil.NATIVE_UTF16_CHARSET_NAME);
-      System.setProperty("saffron.default.collation.name",
-        String.format("%s$%s", ConversionUtil.NATIVE_UTF16_CHARSET_NAME, "en_US"));
+  public BeamQueryPlanner(CalciteConnection connection) {
+    final CalciteConnectionConfig config = connection.config();
+    final SqlParser.ConfigBuilder parserConfig =
+        SqlParser.configBuilder()
+            .setQuotedCasing(config.quotedCasing())
+            .setUnquotedCasing(config.unquotedCasing())
+            .setQuoting(config.quoting())
+            .setConformance(config.conformance())
+            .setCaseSensitive(config.caseSensitive());
+    final SqlParserImplFactory parserFactory =
+        config.parserFactory(SqlParserImplFactory.class, null);
+    if (parserFactory != null) {
+      parserConfig.setParserFactory(parserFactory);
     }
 
-    final List<RelTraitDef> traitDefs = new ArrayList<>();
-    traitDefs.add(ConventionTraitDef.INSTANCE);
-    traitDefs.add(RelCollationTraitDef.INSTANCE);
+    final SchemaPlus schema = connection.getRootSchema();
+    final SchemaPlus defaultSchema = JdbcDriver.getDefaultSchema(connection);
 
-    List<SqlOperatorTable> sqlOperatorTables = new ArrayList<>();
-    sqlOperatorTables.add(SqlStdOperatorTable.instance());
-    sqlOperatorTables.add(
+    final ImmutableList<RelTraitDef> traitDefs =
+        ImmutableList.of(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
+
+    final CalciteCatalogReader catalogReader =
         new CalciteCatalogReader(
-            CalciteSchema.from(schema), false, Collections.emptyList(), TYPE_FACTORY));
+            CalciteSchema.from(schema),
+            ImmutableList.of(defaultSchema.getName()),
+            connection.getTypeFactory(),
+            connection.config());
+    final SqlOperatorTable opTab0 =
+        connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
-    FrameworkConfig config = Frameworks.newConfigBuilder()
-        .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)
-        .traitDefs(traitDefs).context(Contexts.EMPTY_CONTEXT).ruleSets(BeamRuleSets.getRuleSets())
-        .costFactory(null).typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
-        .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
-        .build();
-    this.planner = Frameworks.getPlanner(config);
+    this.config =
+        Frameworks.newConfigBuilder()
+            .parserConfig(parserConfig.build())
+            .defaultSchema(defaultSchema)
+            .traitDefs(traitDefs)
+            .context(Contexts.of(connection.config()))
+            .ruleSets(BeamRuleSets.getRuleSets())
+            .costFactory(null)
+            .typeSystem(connection.getTypeFactory().getTypeSystem())
+            .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
+            .build();
+  }
 
-    for (String t : schema.getTableNames()) {
-      sourceTables.put(t, (BaseBeamTable) schema.getTable(t));
+  /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
+  public SqlNode parse(String sqlStatement) throws SqlParseException {
+    Planner planner = getPlanner();
+    SqlNode parsed;
+    try {
+      parsed = planner.parse(sqlStatement);
+    } finally {
+      planner.close();
     }
+    return parsed;
   }
 
   /**
-   * Parse input SQL query, and return a {@link SqlNode} as grammar tree.
+   * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow, which is
+   * linked with the given {@code pipeline}. The final output stream is returned as {@code
+   * PCollection} so more operations can be applied.
    */
-  public SqlNode parseQuery(String sqlQuery) throws SqlParseException{
-    return planner.parse(sqlQuery);
-  }
-
-  /**
-   * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow,
-   * which is linked with the given {@code pipeline}. The final output stream is returned as
-   * {@code PCollection} so more operations can be applied.
-   */
-  public PCollection<BeamRecord> compileBeamPipeline(String sqlStatement, Pipeline basePipeline
-      , BeamSqlEnv sqlEnv) throws Exception {
+  public PCollection<Row> compileBeamPipeline(String sqlStatement, Pipeline basePipeline)
+      throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
-    return relNode.buildBeamPipeline(PCollectionTuple.empty(basePipeline), sqlEnv);
+    return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform());
   }
 
-  /**
-   * It parses and validate the input query, then convert into a
-   * {@link BeamRelNode} tree.
-   *
-   */
+  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode beamRelNode;
+    Planner planner = getPlanner();
     try {
-      beamRelNode = (BeamRelNode) validateAndConvert(planner.parse(sqlStatement));
+      SqlNode parsed = planner.parse(sqlStatement);
+      SqlNode validated = planner.validate(parsed);
+      LOG.info("SQL:\n" + validated);
+
+      RelRoot root = planner.rel(validated);
+      LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
+
+      RelTraitSet desiredTraits =
+          root.rel
+              .getTraitSet()
+              .replace(BeamLogicalConvention.INSTANCE)
+              .replace(root.collation)
+              .simplify();
+      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
+      LOG.info("BeamSQL>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
     }
     return beamRelNode;
   }
 
-  private RelNode validateAndConvert(SqlNode sqlNode)
-      throws ValidationException, RelConversionException {
-    SqlNode validated = validateNode(sqlNode);
-    LOG.info("SQL:\n" + validated);
-    RelNode relNode = convertToRelNode(validated);
-    return convertToBeamRel(relNode);
+  private Planner getPlanner() {
+    return Frameworks.getPlanner(config);
   }
-
-  private RelNode convertToBeamRel(RelNode relNode) throws RelConversionException {
-    RelTraitSet traitSet = relNode.getTraitSet();
-
-    LOG.info("SQLPlan>\n" + RelOptUtil.toString(relNode));
-
-    // PlannerImpl.transform() optimizes RelNode with ruleset
-    return planner.transform(0, traitSet.plus(BeamLogicalConvention.INSTANCE), relNode);
-  }
-
-  private RelNode convertToRelNode(SqlNode sqlNode) throws RelConversionException {
-    return planner.rel(sqlNode).rel;
-  }
-
-  private SqlNode validateNode(SqlNode sqlNode) throws ValidationException {
-    return planner.validate(sqlNode);
-  }
-
-  public Map<String, BeamSqlTable> getSourceTables() {
-    return sourceTables;
-  }
-
-  public Planner getPlanner() {
-    return planner;
-  }
-
 }

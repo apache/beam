@@ -223,7 +223,7 @@ public class SplittableDoFnTest implements Serializable {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
-          tracker.tryClaim(blockStarts[i]);
+          tracker.tryClaim((long) blockStarts[i]);
           ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
@@ -351,7 +351,7 @@ public class SplittableDoFnTest implements Serializable {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
-          tracker.tryClaim(blockStarts[i]);
+          tracker.tryClaim((long) blockStarts[i]);
           ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(KV.of(c.sideInput(sideInput) + ":" + c.element(), index));
@@ -516,7 +516,7 @@ public class SplittableDoFnTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
-      assertTrue(tracker.tryClaim(0));
+      assertTrue(tracker.tryClaim(0L));
       c.output(c.element());
     }
 

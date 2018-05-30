@@ -130,7 +130,7 @@ public class TupleTag<V> implements Serializable {
     // this case we can assign deterministic ids.
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     for (StackTraceElement frame : stackTrace) {
-      if (frame.getMethodName().equals("<clinit>")) {
+      if ("<clinit>".equals(frame.getMethodName())) {
         int counter = staticInits.add(frame.getClassName(), 1);
         return frame.getClassName() + "#" + counter;
       }

@@ -22,11 +22,12 @@ import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Query "9", 'Winning bids'. Select just the winning bids. Not in original NEXMark suite, but
- * handy for testing. See {@link WinningBids} for the details.
+ * Query "9", 'Winning bids'. Select just the winning bids. Not in original NEXMark suite, but handy
+ * for testing. See {@link WinningBids} for the details.
  */
 public class Query9 extends NexmarkQuery {
   public Query9(NexmarkConfiguration configuration) {
@@ -34,7 +35,9 @@ public class Query9 extends NexmarkQuery {
   }
 
   private PCollection<AuctionBid> applyTyped(PCollection<Event> events) {
-    return events.apply(new WinningBids(name, configuration));
+    return events
+        .apply(Filter.by(new AuctionOrBid()))
+        .apply(new WinningBids(name, configuration));
   }
 
   @Override

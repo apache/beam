@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Implementation for operators in {@link org.apache.calcite.sql.fun.SqlStdOperatorTable}.
- */
+/** Implementation for operators in {@link org.apache.calcite.sql.fun.SqlStdOperatorTable}. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;

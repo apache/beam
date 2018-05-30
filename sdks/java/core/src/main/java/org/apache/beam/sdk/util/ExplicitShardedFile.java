@@ -26,9 +26,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -52,7 +52,7 @@ public class ExplicitShardedFile implements ShardedFile {
 
   /** Constructs an {@link ExplicitShardedFile} for the given files. */
   public ExplicitShardedFile(Collection<String> files) throws IOException {
-    this.files = new LinkedList<>();
+    this.files = new ArrayList<>();
     for (String file: files) {
       this.files.add(FileSystems.matchSingleFileSpec(file));
     }

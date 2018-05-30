@@ -97,18 +97,15 @@ public class StatefulTeamScore extends LeaderBoard {
   private static Map<String, FieldInfo<KV<String, Integer>>> configureCompleteWindowedTableWrite() {
 
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<String, FieldInfo<KV<String, Integer>>>();
+        new HashMap<>();
     tableConfigure.put(
-        "team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> c.element().getKey()));
+        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
         "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "INTEGER", (c, w) -> c.element().getValue()));
+        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
@@ -125,22 +122,24 @@ public class StatefulTeamScore extends LeaderBoard {
     pipeline
         // Read game events from Pub/Sub using custom timestamps, which are extracted from the
         // pubsub data elements, and parse the data.
-        .apply(PubsubIO.readStrings()
-            .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-            .fromTopic(options.getTopic()))
+        .apply(
+            PubsubIO.readStrings()
+                .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
+                .fromTopic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
         // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
-        .apply("MapTeamAsKey", MapElements
-            .into(TypeDescriptors.kvs(TypeDescriptors.strings(),
-                TypeDescriptor.of(GameActionInfo.class)))
-            .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
+        .apply(
+            "MapTeamAsKey",
+            MapElements.into(
+                    TypeDescriptors.kvs(
+                        TypeDescriptors.strings(), TypeDescriptor.of(GameActionInfo.class)))
+                .via((GameActionInfo gInfo) -> KV.of(gInfo.team, gInfo)))
         // Outputs a team's score every time it passes a new multiple of the threshold.
-        .apply("UpdateTeamScore",
-            ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())))
+        .apply("UpdateTeamScore", ParDo.of(new UpdateTeamScoreFn(options.getThresholdScore())))
         // Write the results to BigQuery.
         .apply(
             "WriteTeamLeaders",
-            new WriteWindowedToBigQuery<KV<String, Integer>>(
+            new WriteWindowedToBigQuery<>(
                 options.as(GcpOptions.class).getProject(),
                 options.getDataset(),
                 options.getLeaderBoardTableName() + "_team_leader",

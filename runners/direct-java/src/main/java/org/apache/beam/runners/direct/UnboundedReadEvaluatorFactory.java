@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -45,28 +46,28 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
  */
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadEvaluatorFactory.class);
   // Occasionally close an existing reader and resume from checkpoint, to exercise close-and-resume
   private static final double DEFAULT_READER_REUSE_CHANCE = 0.95;
 
   private final EvaluationContext evaluationContext;
+  private final PipelineOptions options;
   private final double readerReuseChance;
 
-  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
-    this(evaluationContext, DEFAULT_READER_REUSE_CHANCE);
+  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext, PipelineOptions options) {
+    this(evaluationContext, options, DEFAULT_READER_REUSE_CHANCE);
   }
 
   @VisibleForTesting
-  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext, double readerReuseChance) {
+  UnboundedReadEvaluatorFactory(
+      EvaluationContext evaluationContext, PipelineOptions options, double readerReuseChance) {
     this.evaluationContext = evaluationContext;
+    this.options = options;
     this.readerReuseChance = readerReuseChance;
   }
 
@@ -80,7 +81,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <OutputT> TransformEvaluator<?> createEvaluator(
       AppliedPTransform<PBegin, PCollection<OutputT>, Read.Unbounded<OutputT>> application) {
-    return new UnboundedReadEvaluator<>(application, evaluationContext, readerReuseChance);
+    return new UnboundedReadEvaluator<>(application, evaluationContext, options, readerReuseChance);
   }
 
   @Override
@@ -102,15 +103,18 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     private final AppliedPTransform<?, PCollection<OutputT>, ?> transform;
     private final EvaluationContext evaluationContext;
+    private final PipelineOptions options;
     private final double readerReuseChance;
     private final StepTransformResult.Builder resultBuilder;
 
     public UnboundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, ?> transform,
         EvaluationContext evaluationContext,
+        PipelineOptions options,
         double readerReuseChance) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
+      this.options = options;
       this.readerReuseChance = readerReuseChance;
       resultBuilder = StepTransformResult.withoutHold(transform);
     }
@@ -140,8 +144,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
           Instant watermark = reader.getWatermark();
 
-          CheckpointMarkT finishedCheckpoint = finishRead(reader, shard);
-          UnboundedSourceShard<OutputT, CheckpointMarkT> residual;
+          CheckpointMarkT finishedCheckpoint = finishRead(reader, watermark, shard);
           // Sometimes resume from a checkpoint even if it's not required
           if (ThreadLocalRandom.current().nextDouble(1.0) >= readerReuseChance) {
             UnboundedReader<OutputT> toClose = reader;
@@ -150,29 +153,36 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             // if the call to close throws an IOException.
             reader = null;
             toClose.close();
-            residual =
-                UnboundedSourceShard.of(
-                    shard.getSource(), shard.getDeduplicator(), null, finishedCheckpoint);
-          } else {
-            residual = shard.withCheckpoint(finishedCheckpoint);
           }
+          UnboundedSourceShard<OutputT, CheckpointMarkT> residual = UnboundedSourceShard.of(
+                shard.getSource(), shard.getDeduplicator(), reader, finishedCheckpoint);
 
           resultBuilder
               .addOutput(output)
               .addUnprocessedElements(
                   Collections.singleton(
                       WindowedValue.timestampedValueInGlobalWindow(residual, watermark)));
-        } else if (reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          // If the reader had no elements available, but the shard is not done, reuse it later
-          resultBuilder.addUnprocessedElements(
-              Collections.<WindowedValue<?>>singleton(
-                  WindowedValue.timestampedValueInGlobalWindow(
-                      UnboundedSourceShard.of(
-                          shard.getSource(),
-                          shard.getDeduplicator(),
-                          reader,
-                          shard.getCheckpoint()),
-                      reader.getWatermark())));
+        } else {
+          Instant watermark = reader.getWatermark();
+          if (watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+            // If the reader had no elements available, but the shard is not done, reuse it later
+            // Might be better to finalize old checkpoint.
+            resultBuilder.addUnprocessedElements(
+                Collections.<WindowedValue<?>>singleton(
+                    WindowedValue.timestampedValueInGlobalWindow(
+                        UnboundedSourceShard.of(
+                            shard.getSource(),
+                            shard.getDeduplicator(),
+                            reader,
+                            shard.getCheckpoint()),
+                        watermark)));
+          } else {
+            // End of input. Close the reader after finalizing old checkpoint.
+            shard.getCheckpoint().finalizeCheckpoint();
+            UnboundedReader<?> toClose = reader;
+            reader = null; // Avoid double close below in case of an exception.
+            toClose.close();
+          }
         }
       } catch (IOException e) {
         if (reader != null) {
@@ -190,9 +200,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         if (checkpoint != null) {
           checkpoint = CoderUtils.clone(shard.getSource().getCheckpointMarkCoder(), checkpoint);
         }
-        return shard
-            .getSource()
-            .createReader(evaluationContext.getPipelineOptions(), checkpoint);
+        return shard.getSource().createReader(options, checkpoint);
       } else {
         return existing;
       }
@@ -209,11 +217,13 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     /**
-     * Checkpoint the current reader, finalize the previous checkpoint, and return the residual
-     * {@link UnboundedSourceShard}.
+     * Checkpoint the current reader, finalize the previous checkpoint, and return the current
+     * checkpoint.
      */
     private CheckpointMarkT finishRead(
-        UnboundedReader<OutputT> reader, UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
+        UnboundedReader<OutputT> reader,
+        Instant watermark,
+        UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
         throws IOException {
       final CheckpointMark oldMark = shard.getCheckpoint();
       @SuppressWarnings("unchecked")
@@ -224,7 +234,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
-      if (!reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      if (!watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         PCollection<OutputT> outputPc =
             (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
         evaluationContext.scheduleAfterOutputWouldBeProduced(
@@ -277,18 +287,17 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Nullable
     abstract CheckpointT getCheckpoint();
-
-    UnboundedSourceShard<T, CheckpointT> withCheckpoint(CheckpointT newCheckpoint) {
-      return of(getSource(), getDeduplicator(), getExistingReader(), newCheckpoint);
-    }
   }
 
   static class InputProvider<T>
       implements RootInputProvider<T, UnboundedSourceShard<T, ?>, PBegin> {
     private final EvaluationContext evaluationContext;
+    private final PipelineOptions options;
 
-    InputProvider(EvaluationContext evaluationContext) {
+    InputProvider(
+        EvaluationContext evaluationContext, PipelineOptions options) {
       this.evaluationContext = evaluationContext;
+      this.options = options;
     }
 
     @Override
@@ -299,7 +308,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         throws Exception {
       UnboundedSource<T, ?> source = ReadTranslation.unboundedSourceFromTransform(transform);
       List<? extends UnboundedSource<T, ?>> splits =
-          source.split(targetParallelism, evaluationContext.getPipelineOptions());
+          source.split(targetParallelism, options);
       UnboundedReadDeduplicator deduplicator =
           source.requiresDeduping()
               ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()

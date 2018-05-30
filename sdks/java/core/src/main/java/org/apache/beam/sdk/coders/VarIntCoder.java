@@ -49,7 +49,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
-    VarInt.encode(value.intValue(), outStream);
+    VarInt.encode(value, outStream);
   }
 
   @Override

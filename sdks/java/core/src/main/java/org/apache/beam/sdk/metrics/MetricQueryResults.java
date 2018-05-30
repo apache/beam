@@ -26,11 +26,11 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.METRICS)
 public interface MetricQueryResults {
   /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
+  Iterable<MetricResult<Long>> getCounters();
 
   /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
+  Iterable<MetricResult<DistributionResult>> getDistributions();
 
   /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
+  Iterable<MetricResult<GaugeResult>> getGauges();
 }

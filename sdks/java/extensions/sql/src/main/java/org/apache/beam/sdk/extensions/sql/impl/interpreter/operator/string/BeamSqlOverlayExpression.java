@@ -18,26 +18,26 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * 'OVERLAY' operator.
  *
- * <p>
- *   OVERLAY(string1 PLACING string2 FROM integer [ FOR integer2 ])
- * </p>
+ * <p>OVERLAY(string1 PLACING string2 FROM integer [ FOR integer2 ])
  */
 public class BeamSqlOverlayExpression extends BeamSqlExpression {
   public BeamSqlOverlayExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public boolean accept() {
+  @Override
+  public boolean accept() {
     if (operands.size() < 3 || operands.size() > 4) {
       return false;
     }
@@ -55,22 +55,21 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
-    String replaceStr = opValueEvaluated(1, inputRow, window);
-    int idx = opValueEvaluated(2, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
+    String replaceStr = opValueEvaluated(1, inputRow, window, correlateEnv);
+    int idx = opValueEvaluated(2, inputRow, window, correlateEnv);
     // the index is 1 based.
     idx -= 1;
     int length = replaceStr.length();
     if (operands.size() == 4) {
-      length = opValueEvaluated(3, inputRow, window);
+      length = opValueEvaluated(3, inputRow, window, correlateEnv);
     }
 
-    StringBuilder result = new StringBuilder(
-        str.length() + replaceStr.length() - length);
-    result.append(str.substring(0, idx))
-        .append(replaceStr)
-        .append(str.substring(idx + length));
+    StringBuilder result = new StringBuilder(str.length() + replaceStr.length() - length);
+    result.append(str.substring(0, idx)).append(replaceStr).append(str.substring(idx + length));
 
     return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, result.toString());
   }

@@ -59,7 +59,7 @@ public class HadoopFileSystemRegistrarTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     hdfsCluster.shutdown();
   }
 

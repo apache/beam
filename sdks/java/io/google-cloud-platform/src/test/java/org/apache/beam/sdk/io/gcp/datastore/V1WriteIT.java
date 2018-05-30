@@ -75,7 +75,7 @@ public class V1WriteIT {
     // Count number of entities written to datastore.
     long numEntitiesWritten = countEntities(options, project, ancestor);
 
-    assertEquals(numEntitiesWritten, numEntities);
+    assertEquals(numEntities, numEntitiesWritten);
   }
 
   /**
@@ -108,7 +108,7 @@ public class V1WriteIT {
     // Count number of entities written to datastore.
     long numEntitiesWritten = countEntities(options, project, ancestor);
 
-    assertEquals(numEntitiesWritten, numLargeEntities);
+    assertEquals(numLargeEntities, numEntitiesWritten);
   }
 
   @After

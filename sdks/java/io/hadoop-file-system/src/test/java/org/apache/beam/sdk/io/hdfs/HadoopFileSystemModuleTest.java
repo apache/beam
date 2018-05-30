@@ -38,11 +38,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HadoopFileSystemModuleTest {
   @Test
-  public void testObjectMapperIsAbleToFindModule() throws Exception {
+  public void testObjectMapperIsAbleToFindModule() {
     List<Module> modules = ObjectMapper.findModules(ReflectHelpers.findClassLoader());
     assertThat(modules, hasItem(Matchers.<Module>instanceOf(HadoopFileSystemModule.class)));
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testConfigurationSerializationDeserialization() throws Exception {
     Configuration baseConfiguration = new Configuration(false);

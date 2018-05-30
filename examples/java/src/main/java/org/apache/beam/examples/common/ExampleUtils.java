@@ -346,38 +346,39 @@ public class ExampleUtils {
   }
 
   private void addShutdownHook(final Collection<PipelineResult> pipelineResults) {
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        tearDown();
-        printPendingMessages();
-        for (PipelineResult pipelineResult : pipelineResults) {
-          try {
-            pipelineResult.cancel();
-          } catch (IOException e) {
-            System.out.println("Failed to cancel the job.");
-            System.out.println(e.getMessage());
-          }
-        }
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  tearDown();
+                  printPendingMessages();
+                  for (PipelineResult pipelineResult : pipelineResults) {
+                    try {
+                      pipelineResult.cancel();
+                    } catch (IOException e) {
+                      System.out.println("Failed to cancel the job.");
+                      System.out.println(e.getMessage());
+                    }
+                  }
 
-        for (PipelineResult pipelineResult : pipelineResults) {
-          boolean cancellationVerified = false;
-          for (int retryAttempts = 6; retryAttempts > 0; retryAttempts--) {
-            if (pipelineResult.getState().isTerminal()) {
-              cancellationVerified = true;
-              break;
-            } else {
-              System.out.println(
-                  "The example pipeline is still running. Verifying the cancellation.");
-            }
-            Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
-          }
-          if (!cancellationVerified) {
-            System.out.println("Failed to verify the cancellation for job: " + pipelineResult);
-          }
-        }
-      }
-    });
+                  for (PipelineResult pipelineResult : pipelineResults) {
+                    boolean cancellationVerified = false;
+                    for (int retryAttempts = 6; retryAttempts > 0; retryAttempts--) {
+                      if (pipelineResult.getState().isTerminal()) {
+                        cancellationVerified = true;
+                        break;
+                      } else {
+                        System.out.println(
+                            "The example pipeline is still running. Verifying the cancellation.");
+                      }
+                      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
+                    }
+                    if (!cancellationVerified) {
+                      System.out.println(
+                          "Failed to verify the cancellation for job: " + pipelineResult);
+                    }
+                  }
+                }));
   }
 
   private void printPendingMessages() {

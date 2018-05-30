@@ -77,11 +77,16 @@ import com.amazonaws.services.kinesis.model.StopStreamEncryptionResult;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
 import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
+import com.amazonaws.services.kinesis.producer.IKinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
+import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
@@ -98,7 +103,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     private final String sequenceNumber;
 
     public TestData(KinesisRecord record) {
-      this(new String(record.getData().array()),
+      this(new String(record.getData().array(), StandardCharsets.UTF_8),
           record.getApproximateArrivalTimestamp(),
           record.getSequenceNumber());
     }
@@ -112,7 +117,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     public Record convertToRecord() {
       return new Record().
           withApproximateArrivalTimestamp(arrivalTimestamp.toDate()).
-          withData(ByteBuffer.wrap(data.getBytes())).
+          withData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8))).
           withSequenceNumber(sequenceNumber).
           withPartitionKey("");
     }
@@ -125,6 +130,11 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public int hashCode() {
       return reflectionHashCode(this);
+    }
+
+    @Override public String toString() {
+      return "TestData{" + "data='" + data + '\'' + ", arrivalTimestamp=" + arrivalTimestamp
+          + ", sequenceNumber='" + sequenceNumber + '\'' + '}';
     }
   }
 
@@ -141,15 +151,20 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public AmazonKinesis getKinesisClient() {
       return new AmazonKinesisMock(
-          transform(
-              shardedData,
-              testDatas -> transform(testDatas, testData -> testData.convertToRecord())),
+          shardedData
+              .stream()
+              .map(testDatas -> transform(testDatas, TestData::convertToRecord))
+              .collect(Collectors.toList()),
           numberOfRecordsPerGet);
     }
 
     @Override
     public AmazonCloudWatch getCloudWatchClient() {
       return Mockito.mock(AmazonCloudWatch.class);
+    }
+
+    @Override public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
+      throw new RuntimeException("Not implemented");
     }
   }
 
@@ -163,9 +178,10 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public GetRecordsResult getRecords(GetRecordsRequest getRecordsRequest) {
-    String[] shardIteratorParts = getRecordsRequest.getShardIterator().split(":");
-    int shardId = parseInt(shardIteratorParts[0]);
-    int startingRecord = parseInt(shardIteratorParts[1]);
+    List<String> shardIteratorParts =
+        Splitter.on(':').splitToList(getRecordsRequest.getShardIterator());
+    int shardId = parseInt(shardIteratorParts.get(0));
+    int startingRecord = parseInt(shardIteratorParts.get(1));
     List<Record> shardData = shardedData.get(shardId);
 
     int toIndex = min(startingRecord + numberOfRecordsPerGet, shardData.size());

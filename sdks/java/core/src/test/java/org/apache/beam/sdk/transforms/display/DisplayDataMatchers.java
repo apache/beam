@@ -172,7 +172,7 @@ public class DisplayDataMatchers {
       @Override
       protected boolean matchesSafely(DisplayData displayData) {
         DisplayData subComponentData = subComponentData(path);
-        if (subComponentData.items().size() == 0) {
+        if (subComponentData.items().isEmpty()) {
           throw new UnsupportedOperationException(
               "subComponent contains no display data; " + "cannot verify whether it is included");
         }

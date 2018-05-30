@@ -17,30 +17,51 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import io.grpc.stub.StreamObserver;
-import java.util.concurrent.BlockingQueue;
+import java.util.ArrayList;
+import java.util.Collection;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A Fn API control service which adds incoming SDK harness connections to a pool. */
-public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase {
+/** A Fn API control service which adds incoming SDK harness connections to a sink. */
+public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
+    implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
-  private final BlockingQueue<FnApiControlClient> clientPool;
+  private final Object lock = new Object();
+  private final ControlClientPool.Sink clientSink;
+  private final HeaderAccessor headerAccessor;
 
-  private FnApiControlClientPoolService(BlockingQueue<FnApiControlClient> clientPool) {
-    this.clientPool = clientPool;
+  @GuardedBy("lock")
+  private final Collection<FnApiControlClient> vendedClients = new ArrayList<>();
+
+  @GuardedBy("lock")
+  private boolean closed = false;
+
+  private FnApiControlClientPoolService(
+      ControlClientPool.Sink clientSink, HeaderAccessor headerAccessor) {
+    this.clientSink = clientSink;
+    this.headerAccessor = headerAccessor;
   }
 
   /**
    * Creates a new {@link FnApiControlClientPoolService} which will enqueue and vend new SDK harness
    * connections.
+   *
+   * <p>Clients placed into the {@code clientSink} are owned by whoever consumes them from the other
+   * end of the pool. That consumer is responsible for closing the clients when they are no longer
+   * needed.
    */
   public static FnApiControlClientPoolService offeringClientsToPool(
-      BlockingQueue<FnApiControlClient> clientPool) {
-    return new FnApiControlClientPoolService(clientPool);
+      ControlClientPool.Sink clientPool, HeaderAccessor headerAccessor) {
+    return new FnApiControlClientPoolService(clientPool, headerAccessor);
   }
 
   /**
@@ -53,14 +74,43 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   @Override
   public StreamObserver<BeamFnApi.InstructionResponse> control(
       StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
-    LOGGER.info("Beam Fn Control client connected.");
-    FnApiControlClient newClient = FnApiControlClient.forRequestObserver(requestObserver);
+    String workerId = headerAccessor.getSdkWorkerId();
+    LOGGER.info("Beam Fn Control client connected with id {}", workerId);
+    FnApiControlClient newClient = FnApiControlClient.forRequestObserver(workerId, requestObserver);
     try {
-      clientPool.put(newClient);
+      // Add the client to the pool of vended clients before making it available - we should close
+      // the client when we close even if no one has picked it up yet. This can occur after the
+      // service is closed, in which case the client will be discarded when the service is
+      // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
+      // able to handle an unexpectedly terminated connection.
+      synchronized (lock) {
+        checkState(
+            !closed, "%s already closed", FnApiControlClientPoolService.class.getSimpleName());
+        // TODO: https://issues.apache.org/jira/browse/BEAM-4151: Prevent stale client references
+        // from leaking.
+        vendedClients.add(newClient);
+      }
+      // We do not attempt to transactionally add the client to our internal list and offer it to
+      // the sink.
+      clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
     return newClient.asResponseObserver();
+  }
+
+  @Override
+  public void close() {
+    synchronized (lock) {
+      if (!closed) {
+        closed = true;
+        for (FnApiControlClient vended : vendedClients) {
+          vended.close();
+        }
+      }
+    }
   }
 }

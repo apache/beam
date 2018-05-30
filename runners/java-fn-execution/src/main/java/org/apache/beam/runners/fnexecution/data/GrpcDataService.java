@@ -24,6 +24,8 @@ import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
@@ -51,8 +53,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
 
-  public static GrpcDataService create(
-      ExecutorService executor) {
+  public static GrpcDataService create(ExecutorService executor) {
     return new GrpcDataService(executor);
   }
 
@@ -60,6 +61,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   /**
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
+   *
+   * <p>TODO: (BEAM-3811) Replace with some cancellable collection, to ensure that new clients of a
+   * closed {@link GrpcDataService} are closed with that {@link GrpcDataService}.
    */
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
@@ -103,10 +107,13 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         // Shutdown remaining clients
       }
     }
-    connectedClient.get().close();
+    if (!connectedClient.isCancelled()) {
+      connectedClient.get().close();
+    }
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public <T> InboundDataClient receive(
       final LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
@@ -127,16 +134,17 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         throw new RuntimeException(e.getCause());
       }
     } else {
-      executor.submit(() -> {
-        try {
-          connectedClient.get().registerConsumer(inputLocation, observer);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-          throw new RuntimeException(e.getCause());
-        }
-      });
+      executor.submit(
+          () -> {
+            try {
+              connectedClient.get().registerConsumer(inputLocation, observer);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+              throw new RuntimeException(e.getCause());
+            }
+          });
     }
     return observer;
   }
@@ -150,12 +158,14 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         outputLocation.getTarget());
     try {
       return BeamFnDataBufferingOutboundObserver.forLocation(
-          outputLocation, coder, connectedClient.get().getOutboundObserver());
+          outputLocation, coder, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    } catch (TimeoutException e) {
+      throw new RuntimeException("No client connected within timeout", e);
     } catch (ExecutionException e) {
-      throw new RuntimeException(e.getCause());
+      throw new RuntimeException(e);
     }
   }
 }

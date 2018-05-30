@@ -182,8 +182,7 @@ class TestNativeSink(unittest.TestCase):
       def Write(self, value):
         self.written_values.append(value)
 
-    # Records in-memory writes, only works on Direct runner.
-    p = TestPipeline(runner='DirectRunner')
+    p = TestPipeline()
     sink = FakeSink()
     p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
     p.run()

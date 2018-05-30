@@ -34,16 +34,10 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.Suite;
 
 /**
  * Tests for {@link InMemoryStateInternals}. This is based on {@link StateInternalsTest}.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    InMemoryStateInternalsTest.StandardStateInternalsTests.class,
-    InMemoryStateInternalsTest.OtherTests.class
-})
 public class InMemoryStateInternalsTest {
 
   /**

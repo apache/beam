@@ -112,12 +112,9 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
       while (!newWindowStart.equals(windowStart)) {
         averages(windowStart.plus(Duration.standardSeconds(configuration.windowSizeSec)));
         windowStart = windowStart.plus(Duration.standardSeconds(configuration.windowPeriodSec));
-        Iterator<TimestampedValue<CategoryPrice>> itr = winningPricesByCategory.iterator();
-        while (itr.hasNext()) {
-          if (itr.next().getTimestamp().isBefore(windowStart)) {
-            itr.remove();
-          }
-        }
+        winningPricesByCategory.removeIf(
+            categoryPriceTimestampedValue ->
+                categoryPriceTimestampedValue.getTimestamp().isBefore(windowStart));
         if (winningPricesByCategory.isEmpty()) {
           windowStart = newWindowStart;
         }

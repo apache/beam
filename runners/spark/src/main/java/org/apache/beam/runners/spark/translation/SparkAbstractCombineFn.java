@@ -25,7 +25,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SideInputReader;
@@ -78,12 +78,7 @@ public class SparkAbstractCombineFn implements Serializable {
 
   protected static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
     List<WindowedValue<T>> sorted = Lists.newArrayList(iter);
-    Collections.sort(
-        sorted,
-        (o1, o2) ->
-            Iterables.getOnlyElement(o1.getWindows())
-                .maxTimestamp()
-                .compareTo(Iterables.getOnlyElement(o2.getWindows()).maxTimestamp()));
+    sorted.sort(Comparator.comparing(o -> Iterables.getOnlyElement(o.getWindows()).maxTimestamp()));
     return sorted;
   }
 
