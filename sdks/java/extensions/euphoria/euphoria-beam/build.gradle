@@ -30,10 +30,10 @@ dependencies {
     compile project(':beam-sdks-java-extensions-euphoria-core')
     compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
     shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-    shadow 'com.google.code.findbugs:annotations:3.0.1'
+    shadow 'com.google.code.findbugs:annotations:3.0.+'
     testCompile project(':beam-sdks-java-extensions-euphoria-testing')
     testCompile project(':beam-runners-direct-java')
-    testCompile 'org.slf4j:slf4j-simple:1.7.25'
+    testCompile 'org.slf4j:slf4j-simple:1.7.+'
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
 }
