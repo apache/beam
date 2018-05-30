@@ -52,6 +52,11 @@ public class AuctionPrice implements KnownSize, Serializable {
       long price = LONG_CODER.decode(inStream);
       return new AuctionPrice(auction, price);
     }
+
+    @Override
+    public Object structuralValue(AuctionPrice v) {
+      return v;
+    }
   };
 
   @JsonProperty
