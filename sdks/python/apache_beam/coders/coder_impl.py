@@ -48,6 +48,8 @@ try:
   from .stream import OutputStream as create_OutputStream
   from .stream import ByteCountingOutputStream
   from .stream import get_varint_size
+  # Make it possible to import create_InputStream and other cdef-classes
+  # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
