@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Local Java Core"
 
@@ -31,6 +31,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
+  shadow library.java.findbugs_annotations
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
 }
