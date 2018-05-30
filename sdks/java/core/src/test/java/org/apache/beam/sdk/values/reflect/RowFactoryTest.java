@@ -142,6 +142,6 @@ public class RowFactoryTest {
   }
 
   private RowFactory newFactory() {
-    return new RowFactory(new DefaultRowTypeFactory(), getterFactory);
+    return new RowFactory(new DefaultSchemaFactory(), getterFactory);
   }
 }

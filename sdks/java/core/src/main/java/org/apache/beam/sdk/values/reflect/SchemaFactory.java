@@ -30,15 +30,15 @@ import org.apache.beam.sdk.schemas.Schema;
  * <p>Different implementations can have different ways of mapping getter types to coders.
  * For example Beam SQL uses custom mapping via java.sql.Types.
  *
- * <p>Default implementation is {@link DefaultRowTypeFactory}.
+ * <p>Default implementation is {@link DefaultSchemaFactory}.
  * It returns instances of {@link Schema}, mapping {@link FieldValueGetter#type()}
  * to known coders.
  */
 @Internal
-public interface RowTypeFactory extends Serializable {
+public interface SchemaFactory extends Serializable {
 
   /**
    * Create a {@link Schema} for the list of the pojo field getters.
    */
-  Schema createRowType(Iterable<FieldValueGetter> getters);
+  Schema createSchema(Iterable<FieldValueGetter> getters);
 }

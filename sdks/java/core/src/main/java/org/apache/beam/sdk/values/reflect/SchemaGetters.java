@@ -28,11 +28,11 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>This is used in {@link RowFactory} to create instances of {@link Row}s.
  */
-class RowTypeGetters {
+class SchemaGetters {
   private Schema schema;
   private List<FieldValueGetter> fieldValueGetters;
 
-  RowTypeGetters(Schema schema, List<FieldValueGetter> fieldValueGetters) {
+  SchemaGetters(Schema schema, List<FieldValueGetter> fieldValueGetters) {
     this.schema = schema;
     this.fieldValueGetters = fieldValueGetters;
   }
@@ -40,13 +40,13 @@ class RowTypeGetters {
   /**
    * Returns a {@link Schema}.
    */
-  Schema rowType() {
+  Schema schema() {
     return schema;
   }
 
   /**
    * Returns the list of {@link FieldValueGetter}s which
-   * were used to create {@link RowTypeGetters#rowType()}.
+   * were used to create {@link SchemaGetters#schema()}.
    */
   List<FieldValueGetter> valueGetters() {
     return fieldValueGetters;

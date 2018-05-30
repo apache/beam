@@ -73,13 +73,13 @@ public class InferredRowCoderTest {
   }
 
   @Test
-  public void testCreatesRowType() {
+  public void testCreatesSchema() {
     InferredRowCoder<PersonPojo> inferredCoder = InferredRowCoder.ofSerializable(PersonPojo.class);
-    Schema rowType = inferredCoder.rowType();
+    Schema schema = inferredCoder.schema();
 
-    assertEquals(2, rowType.getFieldCount());
+    assertEquals(2, schema.getFieldCount());
     assertThat(
-        rowType.getFields(),
+        schema.getFields(),
         containsInAnyOrder(PERSON_ROW_TYPE.getField(0), PERSON_ROW_TYPE.getField(1)));
   }
 

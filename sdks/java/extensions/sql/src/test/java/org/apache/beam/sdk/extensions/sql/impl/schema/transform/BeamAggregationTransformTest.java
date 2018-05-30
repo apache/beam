@@ -124,7 +124,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                     new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputSchema)))
             .setCoder(KvCoder.of(keyCoder, aggCoder));
 
-    //4. flat KV to a single record
+    // 4. flat KV to a single record
     PCollection<Row> mergedStream =
         aggregatedStream.apply(
             "mergeRecord",
@@ -132,13 +132,13 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                 new BeamAggregationTransforms.MergeAggregationRecord(outputType, aggCalls, -1)));
     mergedStream.setCoder(outRecordCoder);
 
-    //assert function BeamAggregationTransform.AggregationGroupByKeyFn
+    // assert function BeamAggregationTransform.AggregationGroupByKeyFn
     PAssert.that(exGroupByStream).containsInAnyOrder(prepareResultOfAggregationGroupByKeyFn());
 
-    //assert BeamAggregationTransform.AggregationCombineFn
+    // assert BeamAggregationTransform.AggregationCombineFn
     PAssert.that(aggregatedStream).containsInAnyOrder(prepareResultOfAggregationCombineFn());
 
-    //assert BeamAggregationTransform.MergeAggregationRecord
+    // assert BeamAggregationTransform.MergeAggregationRecord
     PAssert.that(mergedStream).containsInAnyOrder(prepareResultOfMergeAggregationRow());
 
     p.run();
@@ -152,7 +152,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
   /** create list of all {@link AggregateCall}. */
   @SuppressWarnings("deprecation")
   private void prepareAggregationCalls() {
-    //aggregations for all data type
+    // aggregations for all data type
     aggCalls = new ArrayList<>();
     aggCalls.add(
         new AggregateCall(
@@ -393,7 +393,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
     aggCoder = aggPartType.getRowCoder();
 
-    outputType = prepareFinalRowType();
+    outputType = prepareFinalSchema();
     outRecordCoder = outputType.getRowCoder();
   }
 
@@ -446,7 +446,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
   }
 
   /** Row type of final output row. */
-  private Schema prepareFinalRowType() {
+  private Schema prepareFinalSchema() {
     return RowSqlTypes.builder()
         .withIntegerField("f_int")
         .withBigIntField("count")
