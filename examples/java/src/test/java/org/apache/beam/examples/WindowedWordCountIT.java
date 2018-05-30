@@ -169,7 +169,7 @@ public class WindowedWordCountIT {
     SortedMap<String, Long> expectedWordCounts = new TreeMap<>();
     for (String line :
         inputFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff())) {
-      String[] words = line.split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = line.split(ExampleUtils.TOKENIZER_PATTERN, -1);
 
       for (String word : words) {
         if (!word.isEmpty()) {
@@ -215,7 +215,7 @@ public class WindowedWordCountIT {
         // Since the windowing is nondeterministic we only check the sums
         actualCounts = new TreeMap<>();
         for (String line : outputLines) {
-          String[] splits = line.split(": ");
+          String[] splits = line.split(": ", -1);
           String word = splits[0];
           long count = Long.parseLong(splits[1]);
           actualCounts.merge(word, count, (a, b) -> a + b);

@@ -76,7 +76,7 @@ public class HourlyTeamScore extends UserScore {
 
   private static DateTimeFormatter minFmt =
       DateTimeFormat.forPattern("yyyy-MM-dd-HH-mm")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
+          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("America/Los_Angeles")));
 
 
   /**

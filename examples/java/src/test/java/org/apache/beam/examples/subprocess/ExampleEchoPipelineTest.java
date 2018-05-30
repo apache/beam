@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.subprocess;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -76,12 +78,12 @@ public class ExampleEchoPipelineTest {
 
     try (SeekableByteChannel channel =
         FileChannel.open(fileA, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-      channel.write(ByteBuffer.wrap(getTestShellEcho().getBytes()));
+      channel.write(ByteBuffer.wrap(getTestShellEcho().getBytes(UTF_8)));
     }
 
     try (SeekableByteChannel channel =
         FileChannel.open(fileB, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-        channel.write(ByteBuffer.wrap(getTestShellEchoAgain().getBytes()));
+        channel.write(ByteBuffer.wrap(getTestShellEchoAgain().getBytes(UTF_8)));
     }
 
 
