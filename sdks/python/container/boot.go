@@ -27,8 +27,8 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pbpipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	pbjob "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pbpipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -36,6 +36,8 @@ import (
 )
 
 var (
+	acceptableWhlSpecs = []string{"cp27-cp27mu-manylinux1_x86_64.whl"}
+
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
 	id                = flag.String("id", "", "Local identifier (required).")
@@ -48,10 +50,10 @@ var (
 
 const (
 	sdkHarnessEntrypoint = "apache_beam.runners.worker.sdk_worker_main"
-	// Please keep these names in sync with setup dependency.py
+	// Please keep these names in sync with stager.py
 	workflowFile      = "workflow.tar.gz"
 	requirementsFile  = "requirements.txt"
-	sdkFile           = "dataflow_python_sdk.tar"
+	sdkSrcFile        = "dataflow_python_sdk.tar"
 	extraPackagesFile = "extra_packages.txt"
 )
 
@@ -100,7 +102,7 @@ func main() {
 	// TODO(herohde): the packages to install should be specified explicitly. It
 	// would also be possible to install the SDK in the Dockerfile.
 	if setupErr := installSetupPackages(files, dir); setupErr != nil {
-		log.Fatalf("Failed to install SDK: %v", setupErr)
+		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
 
 	// (3) Invoke python
@@ -133,7 +135,7 @@ func installSetupPackages(mds []*pbjob.ArtifactMetadata, workDir string) error {
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
-	if err := pipInstallPackage(files, workDir, sdkFile, false, false, []string{"gcp"}); err != nil {
+	if err := installSdk(files, workDir, sdkSrcFile, acceptableWhlSpecs); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	// The staged files will not disappear due to restarts because workDir is a
