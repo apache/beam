@@ -100,7 +100,7 @@ message ArtifactChunk {
 }
 
 message PutArtifactMetadata {
-  // (Required) An identifier for artifact staging session.
+  // (Required) A token for artifact staging session.
   string staging_session_token = 1;
   // (Required) The Artifact metadata.
   ArtifactMetadata metadata = 2;
@@ -127,7 +127,7 @@ message PutArtifactResponse {
 message CommitManifestRequest {
   // (Required) The manifest to commit.
   Manifest manifest = 1;
-  // (Required) An identifier for artifact staging session.
+  // (Required) A token for artifact staging session.
   string staging_session_token = 2;
 }
 

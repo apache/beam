@@ -97,6 +97,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
+              .setStagingSessionToken(tempDir.toFile().getAbsolutePath())
               .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
