@@ -144,6 +144,7 @@
       <li><a href="#go-sdk">Go SDK</a></li>
       <li><a href="#python-3-support">Python 3 Support</a></li>
       <li><a href="#next-java-lts-version-support-java-11--189">Next Java LTS version support (Java 11 / 18.9)</a></li>
+      <li><a href="#io-performance-testing">IO Performance Testing</a></li>
     </ul>
   </li>
   <li><a href="#stale-pull-requests">Stale pull requests</a></li>
@@ -368,6 +369,21 @@ When submitting a new PR, please tag <a href="https://github.com/robbesneyders">
   <li>JIRA: <a href="https://issues.apache.org/jira/issues/BEAM-2530">BEAM-2530</a></li>
   <li>Contact: <a href="mailto:iemejia@gmail.com">Ismaël Mejía</a></li>
 </ul>
+
+<h3 id="io-performance-testing">IO Performance Testing</h3>
+
+<p>We are also working on writing Performance Tests for IOs and developing a Performance Testing Framework for them. Contributions are welcome in the following areas:</p>
+
+<ul>
+  <li>developing more IO Performance Tests (IOITs)</li>
+  <li>providing necessary kubernetes infrastructure (eg. for databases or filesystems to be used in tests)</li>
+  <li>running Performance Tests on runners other than Dataflow and Direct</li>
+  <li>improving existing Performance Testing Framework and it’s documentation</li>
+</ul>
+
+<p>See the <a href="https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests">documentation</a> and the <a href="https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing">initial proposal</a>(for file based tests).</p>
+
+<p>If you’re willing to help in this area, tag the following people in PRs: <a href="https://github.com/chamikaramj">@chamikaramj</a>, <a href="https://github.com/dariuszaniszewski">@DariuszAniszewski</a>, <a href="https://github.com/lgajowy">@lgajowy</a>, <a href="https://github.com/szewi">@szewi</a>, <a href="https://github.com/kkucharc">@kkucharc</a></p>
 
 <h2 id="stale-pull-requests">Stale pull requests</h2>
 
