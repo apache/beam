@@ -341,6 +341,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
         commons_io_2x                               : "commons-io:commons-io:2.5",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
+        commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.4.0",
         datastore_v1_protos                         : "com.google.cloud.datastore:datastore-v1-protos:1.3.0",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
