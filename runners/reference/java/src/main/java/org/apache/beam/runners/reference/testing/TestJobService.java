@@ -59,6 +59,7 @@ public class TestJobService extends JobServiceImplBase {
         PrepareJobResponse.newBuilder()
             .setPreparationId(preparationId)
             .setArtifactStagingEndpoint(stagingEndpoint)
+            .setStagingSessionToken("TestStagingToken")
             .build());
     responseObserver.onCompleted();
   }
