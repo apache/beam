@@ -57,7 +57,7 @@ public class Event implements KnownSize, Serializable {
     AUCTION(1),
     BID(2);
 
-    private int value = -1;
+    private final int value;
 
     Tag(int value) {
       this.value = value;
