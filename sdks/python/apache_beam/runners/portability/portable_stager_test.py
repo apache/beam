@@ -64,7 +64,9 @@ class PortableStagerTest(unittest.TestCase):
     test_port = server.add_insecure_port('[::]:0')
     server.start()
     stager = portable_stager.PortableStager(
-        grpc.insecure_channel('localhost:%s' % test_port))
+        artifact_service_channel=grpc.insecure_channel(
+            'localhost:%s' % test_port),
+        staging_session_token='token')
     for from_file, to_file in files:
       stager.stage_artifact(
           local_path_to_artifact=os.path.join(self._temp_dir, from_file),
@@ -145,7 +147,7 @@ class TestLocalFileSystemArtifactStagingServiceServicer(
     for request in request_iterator:
       if first:
         first = False
-        file_name = request.metadata.name
+        file_name = request.metadata.metadata.name
       else:
         with open(os.path.join(self.temp_dir, file_name), 'ab') as f:
           f.write(request.data.data)
