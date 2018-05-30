@@ -39,16 +39,16 @@ public class SchemaTest {
   @Test
   public void testCreate() {
     Schema schema = Schema.builder()
-        .addByteField("f_byte", false)
-        .addInt16Field("f_int16", false)
-        .addInt32Field("f_int32", false)
-        .addInt64Field("f_int64", false)
-        .addDecimalField("f_decimal", false)
-        .addFloatField("f_float", false)
-        .addDoubleField("f_double", false)
-        .addStringField("f_string", false)
-        .addDateTimeField("f_datetime", false)
-        .addBooleanField("f_boolean", false).build();
+        .addByteField("f_byte")
+        .addInt16Field("f_int16")
+        .addInt32Field("f_int32")
+        .addInt64Field("f_int64")
+        .addDecimalField("f_decimal")
+        .addFloatField("f_float")
+        .addDoubleField("f_double")
+        .addStringField("f_string")
+        .addDateTimeField("f_datetime")
+        .addBooleanField("f_boolean").build();
     assertEquals(10, schema.getFieldCount());
 
     assertEquals(0, schema.indexOf("f_byte"));

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,13 +38,13 @@ public class BeamValuesRelTest extends BaseRelTest {
     registerTable(
         "string_table",
         MockedBoundedTable.of(
-            TypeName.STRING, "name",
-            TypeName.STRING, "description"));
+            Schema.FieldType.STRING, "name",
+            Schema.FieldType.STRING, "description"));
     registerTable(
         "int_table",
         MockedBoundedTable.of(
-            TypeName.INT32, "c0",
-            TypeName.INT32, "c1"));
+            Schema.FieldType.INT32, "c0",
+            Schema.FieldType.INT32, "c1"));
   }
 
   @Test
@@ -56,8 +56,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.STRING, "name",
-                    TypeName.STRING, "description")
+                    Schema.FieldType.STRING, "name",
+                    Schema.FieldType.STRING, "description")
                 .addRows(
                     "hello", "world",
                     "james", "bond")
@@ -72,8 +72,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "c0",
-                    TypeName.INT32, "c1")
+                    Schema.FieldType.INT32, "c0",
+                    Schema.FieldType.INT32, "c1")
                 .addRows(1, 2)
                 .getRows());
     pipeline.run();
@@ -86,8 +86,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT32, "EXPR$0",
-                    TypeName.STRING, "EXPR$1")
+                    Schema.FieldType.INT32, "EXPR$0",
+                    Schema.FieldType.STRING, "EXPR$1")
                 .addRows(1, "1")
                 .getRows());
     pipeline.run();
