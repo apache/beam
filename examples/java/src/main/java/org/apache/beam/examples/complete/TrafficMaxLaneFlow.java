@@ -148,7 +148,8 @@ public class TrafficMaxLaneFlow {
 
     @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
-      String[] items = c.element().split(",");
+      String[] items = c.element().split(",", -1);
+
       if (items.length > 0) {
         try {
           String timestamp = items[0];
@@ -171,7 +172,7 @@ public class TrafficMaxLaneFlow {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] items = c.element().split(",");
+      String[] items = c.element().split(",", -1);
       if (items.length < 48) {
         // Skip the invalid input.
         return;

@@ -100,7 +100,7 @@ public class WordCount {
       }
 
       // Split the line into words.
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN, -1);
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {
