@@ -68,6 +68,7 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
    * Calcite deals with all intervals this way. Whenever there is an interval, its value is always
    * multiplied by the corresponding TimeUnit.multiplier
    */
+  @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     DateTime timestampStart =

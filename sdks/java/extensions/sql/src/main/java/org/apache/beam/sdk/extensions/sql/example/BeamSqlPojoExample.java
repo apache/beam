@@ -109,6 +109,7 @@ class BeamSqlPojoExample {
   private static MapElements<Row, Void> logRecords(String suffix) {
     return MapElements.via(
         new SimpleFunction<Row, Void>() {
+          @Override
           public @Nullable Void apply(Row input) {
             System.out.println(input.getValues() + suffix);
             return null;

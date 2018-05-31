@@ -55,6 +55,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     return new BeamSqlPrimitive<>(value, outputType);
   }
 
+  @Override
   public SqlTypeName getOutputType() {
     return outputType;
   }

@@ -136,6 +136,7 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
    * <p>Includes fields 'event_timestamp', 'attributes, and 'payload'. See {@link
    * PubsubMessageToRow}.
    */
+  @Override
   public abstract Schema getSchema();
 
   @Override
