@@ -74,8 +74,7 @@ public class DirectTransformExecutorTest {
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -316,8 +315,7 @@ public class DirectTransformExecutorTest {
 
   @Test
   public void callWithEnforcementThrowsOnFinishPropagates() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(createdProducer).build();
+    final TransformResult<Object> result = StepTransformResult.withoutHold(createdProducer).build();
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
@@ -355,8 +353,7 @@ public class DirectTransformExecutorTest {
 
   @Test
   public void callWithEnforcementThrowsOnElementPropagates() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(createdProducer).build();
+    final TransformResult<Object> result = StepTransformResult.withoutHold(createdProducer).build();
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {

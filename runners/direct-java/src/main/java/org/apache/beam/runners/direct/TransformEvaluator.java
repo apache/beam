@@ -20,8 +20,8 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * An evaluator of a specific application of a transform. Will be used for at least one
- * {@link CommittedBundle}.
+ * An evaluator of a specific application of a transform. Will be used for at least one {@link
+ * CommittedBundle}.
  *
  * @param <InputT> the type of elements that will be passed to {@link #processElement}
  */

@@ -36,9 +36,7 @@ import org.apache.beam.sdk.transforms.PTransform;
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
-  /**
-   * Returns a {@link RootProviderRegistry} that supports the Java SDK root transforms.
-   */
+  /** Returns a {@link RootProviderRegistry} that supports the Java SDK root transforms. */
   public static RootProviderRegistry javaNativeRegistry(
       EvaluationContext context, PipelineOptions options) {
     return new RootProviderRegistry(
@@ -52,9 +50,7 @@ class RootProviderRegistry {
             .build());
   }
 
-  /**
-   * Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive.
-   */
+  /** Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive. */
   public static RootProviderRegistry impulseRegistry(EvaluationContext context) {
     return new RootProviderRegistry(
         ImmutableMap.<String, RootInputProvider<?, ?, ?>>builder()
@@ -64,8 +60,7 @@ class RootProviderRegistry {
 
   private final Map<String, RootInputProvider<?, ?, ?>> providers;
 
-  private RootProviderRegistry(
-      Map<String, RootInputProvider<?, ?, ?>> providers) {
+  private RootProviderRegistry(Map<String, RootInputProvider<?, ?, ?>> providers) {
     this.providers = providers;
   }
 

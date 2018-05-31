@@ -33,9 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link UnboundedReadDeduplicator}.
- */
+/** Tests for {@link UnboundedReadDeduplicator}. */
 @RunWith(JUnit4.class)
 public class UnboundedReadDeduplicatorTest {
   @Test
@@ -69,13 +67,9 @@ public class UnboundedReadDeduplicatorTest {
     AtomicInteger successCount = new AtomicInteger();
     AtomicInteger noOutputCount = new AtomicInteger();
     for (int i = 0; i < numThreads; i++) {
-      executor.submit(new TryOutputIdRunnable(dedupper,
-          id,
-          successCount,
-          noOutputCount,
-          readyLatch,
-          startSignal,
-          finishLine));
+      executor.submit(
+          new TryOutputIdRunnable(
+              dedupper, id, successCount, noOutputCount, readyLatch, startSignal, finishLine));
     }
 
     readyLatch.await();

@@ -59,9 +59,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalFileSystemArtifactRetrievalService}.
- */
+/** Tests for {@link LocalFileSystemArtifactRetrievalService}. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemArtifactRetrievalServiceTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();

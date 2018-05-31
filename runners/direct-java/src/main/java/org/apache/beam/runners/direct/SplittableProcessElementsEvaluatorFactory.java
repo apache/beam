@@ -117,20 +117,22 @@ class SplittableProcessElementsEvaluatorFactory<
     final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
-    final DoFnLifecycleManagerRemovingTransformEvaluator
-      <KeyedWorkItem<String, KV<InputT, RestrictionT>>> evaluator =
-      delegateFactory.createEvaluator(
-        (AppliedPTransform) application,
-        (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>) inputBundle.getPCollection(),
-        inputBundle.getKey(),
-        application.getTransform().getSideInputs(),
-        application.getTransform().getMainOutputTag(),
-        application.getTransform().getAdditionalOutputTags().getAll());
+    final DoFnLifecycleManagerRemovingTransformEvaluator<
+            KeyedWorkItem<String, KV<InputT, RestrictionT>>>
+        evaluator =
+            delegateFactory.createEvaluator(
+                (AppliedPTransform) application,
+                (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>)
+                    inputBundle.getPCollection(),
+                inputBundle.getKey(),
+                application.getTransform().getSideInputs(),
+                application.getTransform().getMainOutputTag(),
+                application.getTransform().getAdditionalOutputTags().getAll());
     final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> pde =
-      evaluator.getParDoEvaluator();
+        evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-      (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
-        ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
+        (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
+            ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
 
     final DirectExecutionContext.DirectStepContext stepContext = pde.getStepContext();
     processFn.setStateInternalsFactory(key -> stepContext.stateInternals());

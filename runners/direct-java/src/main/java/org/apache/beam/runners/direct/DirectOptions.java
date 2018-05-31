@@ -53,6 +53,7 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
       "Controls whether the DirectRunner should ensure that all of the elements of every "
           + "PCollection can be encoded and decoded by that PCollection's Coder.")
   boolean isEnforceEncodability();
+
   void setEnforceEncodability(boolean test);
 
   @Default.InstanceFactory(AvailableParallelismFactory.class)
@@ -61,6 +62,7 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
           + " the greater of the number of available processors and 3. Must be a value greater"
           + " than zero.")
   int getTargetParallelism();
+
   void setTargetParallelism(int target);
 
   /**
@@ -81,5 +83,6 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   @Default.Boolean(false)
   @Description("Control whether toProto/fromProto translations are applied to original Pipeline")
   boolean isProtoTranslation();
+
   void setProtoTranslation(boolean b);
 }

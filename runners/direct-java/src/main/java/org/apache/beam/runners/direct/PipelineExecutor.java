@@ -32,26 +32,23 @@ interface PipelineExecutor {
    * Starts this executor on the provided graph. The {@link RootProviderRegistry} will be used to
    * create initial inputs for the provide {@link DirectGraph graph}.
    */
-  void start(
-      DirectGraph graph, RootProviderRegistry rootProviderRegistry);
+  void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry);
 
   /**
-   * Blocks until the job being executed enters a terminal state. A job is completed after all
-   * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
-   * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
+   * Blocks until the job being executed enters a terminal state. A job is completed after all root
+   * {@link AppliedPTransform AppliedPTransforms} have completed, and all {@link CommittedBundle
+   * Bundles} have been consumed. Jobs may also terminate abnormally.
    *
    * <p>Waits for up to the provided duration, or forever if the provided duration is less than or
    * equal to zero.
    *
    * @return The terminal state of the Pipeline.
-   * @throws Exception whenever an executor thread throws anything, transfers to the
-   *                   waiting thread and rethrows it
+   * @throws Exception whenever an executor thread throws anything, transfers to the waiting thread
+   *     and rethrows it
    */
   State waitUntilFinish(Duration duration) throws Exception;
 
-  /**
-   * Gets the current state of the {@link Pipeline}.
-   */
+  /** Gets the current state of the {@link Pipeline}. */
   State getPipelineState();
 
   /**

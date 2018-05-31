@@ -35,8 +35,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @Hidden
 public interface DirectTestOptions extends PipelineOptions, ApplicationNameOptions {
   @Default.Boolean(true)
-  @Description(
-      "Indicates whether this is an automatically-run unit test.")
+  @Description("Indicates whether this is an automatically-run unit test.")
   boolean isRunnerDeterminedSharding();
+
   void setRunnerDeterminedSharding(boolean goAheadAndDetermineSharding);
 }

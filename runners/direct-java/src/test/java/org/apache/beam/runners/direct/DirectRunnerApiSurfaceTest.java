@@ -64,11 +64,12 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(MetricResults.class)
             .pruningClass(DirectGraphs.class)
             .pruningClass(
-                WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
+                /* TODO: BEAM-4237 Consider moving to local-java */
+                WatermarkManager.class)
             .pruningClass(ExecutableGraphBuilder.class)
             .pruningPattern(
-                "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
-                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */)
+                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */
+                "org[.]apache[.]beam[.]runners[.]direct[.]portable.*")
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")
