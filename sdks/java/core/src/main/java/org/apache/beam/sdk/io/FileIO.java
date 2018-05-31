@@ -1068,7 +1068,7 @@ public class FileIO {
     public Write<DestinationT, UserT> withNaming(
         SerializableFunction<DestinationT, FileNaming> namingFn) {
       checkArgument(namingFn != null, "namingFn can not be null");
-      return withNaming(Contextful.fn(namingFn));
+      return withNaming(fn(namingFn));
     }
 
     /**
