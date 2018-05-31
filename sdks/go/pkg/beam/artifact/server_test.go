@@ -87,7 +87,7 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 	if header.GetMetadata() == nil {
 		return fmt.Errorf("expected header as first message: %v", header)
 	}
-	key := header.GetMetadata().Name
+	key := header.GetMetadata().GetMetadata().Name
 
 	// Read chunks
 
