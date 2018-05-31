@@ -71,6 +71,7 @@ class BeamSqlExample {
         "log_result",
         MapElements.via(
             new SimpleFunction<Row, Void>() {
+              @Override
               public @Nullable Void apply(Row input) {
                 // expect output:
                 //  PCOLLECTION: [3, row, 3.0]
