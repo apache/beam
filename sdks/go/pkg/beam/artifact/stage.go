@@ -132,6 +132,11 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 		Permissions: uint32(stat.Mode()),
 		Md5:         hash,
 	}
+	// TODO (angoenka): Pass the appropriate staging_session_token
+	pmd := &pb.PutArtifactMetadata{
+		Metadata:            md,
+		StagingSessionToken: "token",
+	}
 
 	fd, err := os.Open(filename)
 	if err != nil {
@@ -146,7 +151,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 
 	header := &pb.PutArtifactRequest{
 		Content: &pb.PutArtifactRequest_Metadata{
-			Metadata: md,
+			Metadata: pmd,
 		},
 	}
 	if err := stream.Send(header); err != nil {
