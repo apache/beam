@@ -6,6 +6,7 @@ permalink: /contribute/design-documents/
 ---
 
 # Design Documents
+This is a collection of documents that may or may not be up to date.
 
 ## Documents by category
 ### Project Incubation (2016)
