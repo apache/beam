@@ -84,6 +84,8 @@ include "beam-sdks-java-extensions-sorter"
 project(":beam-sdks-java-extensions-sorter").dir = file("sdks/java/extensions/sorter")
 include "beam-sdks-java-extensions-sql"
 project(":beam-sdks-java-extensions-sql").dir = file("sdks/java/extensions/sql")
+include "beam-sdks-java-extensions-sql-jdbc"
+project(":beam-sdks-java-extensions-sql-jdbc").dir = file("sdks/java/extensions/sql/jdbc")
 include "beam-sdks-java-fn-execution"
 project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
 include "beam-sdks-java-harness"

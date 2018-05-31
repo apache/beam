@@ -344,6 +344,7 @@ class JavaNatureConfiguration {
 
   //TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this default to true?
   boolean enableSpotless = false // Controls whether spotless plugin enforces autoformat
+  boolean testShadowJar = false  // Controls whether tests are run with shadowJar
 
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
@@ -581,6 +582,22 @@ ext.applyJavaNature = {
   artifacts.shadow shadowJar
   artifacts.shadowTest shadowTestJar
 
+  if (configuration.testShadowJar) {
+    // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
+    configurations {
+      shadowTestRuntimeClasspath
+    }
+
+    dependencies {
+      shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
+      shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
+    }
+
+    test {
+      classpath = configurations.shadowTestRuntimeClasspath
+    }
+  }
+
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
 
@@ -631,21 +648,6 @@ artifactId=${project.name}
       from javadoc.destinationDir
     }
     artifacts.archives javadocJar
-
-    // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
-    configurations {
-      shadowTestRuntimeClasspath
-    }
-
-    dependencies {
-      shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
-      shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
-      shadowTestRuntimeClasspath project(path: project.path, configuration: "runtime")
-    }
-
-    test {
-      classpath = configurations.shadowTestRuntimeClasspath
-    }
 
     // Only sign artifacts if we are performing a release
     if (isRelease()) {
