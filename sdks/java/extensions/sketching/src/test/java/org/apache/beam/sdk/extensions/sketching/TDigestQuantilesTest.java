@@ -82,9 +82,9 @@ public class TDigestQuantilesTest {
   @Test
   public void perKey() {
     PCollection<KV<Double, Double>> col = tp.apply(Create.of(stream))
-            .apply(WithKeys.<Integer, Double>of(1))
+            .apply(WithKeys.of(1))
             .apply(TDigestQuantiles.<Integer>perKey().withCompression(compression))
-            .apply(Values.<MergingDigest>create())
+            .apply(Values.create())
             .apply(ParDo.of(new RetrieveQuantiles(quantiles)));
 
     PAssert.that("Verify Accuracy", col).satisfies(new VerifyAccuracy());
@@ -150,7 +150,7 @@ public class TDigestQuantilesTest {
   static class RetrieveQuantiles extends DoFn<MergingDigest, KV<Double, Double>> {
     private final double[] quantiles;
 
-    public RetrieveQuantiles(double[] quantiles) {
+    RetrieveQuantiles(double[] quantiles) {
       this.quantiles = quantiles;
     }
 
@@ -162,9 +162,9 @@ public class TDigestQuantilesTest {
   }
 
   static class VerifyAccuracy implements SerializableFunction<Iterable<KV<Double, Double>>, Void> {
+    final double expectedError = 3D / compression;
 
-    double expectedError = 3D / compression;
-
+    @Override
     public Void apply(Iterable<KV<Double, Double>> input) {
       for (KV<Double, Double> pair : input) {
         double expectedValue = pair.getKey() * (size + 1);
