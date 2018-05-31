@@ -108,7 +108,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
         (Row) extractJsonNodeValue(
             FieldValue.of(
                 "root",
-                TypeName.ROW.type().withRowSchema(schema),
+                FieldType.row(schema),
                 jsonParser
                     .readValueAsTree()));
   }

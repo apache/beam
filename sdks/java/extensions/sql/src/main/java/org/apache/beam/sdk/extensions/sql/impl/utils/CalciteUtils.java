@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -99,15 +98,22 @@ public class CalciteUtils {
   }
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
-    SqlTypeName typeName =
-        BEAM_TO_CALCITE_TYPE_MAPPING.get(
-            type.withCollectionElementType(null).withRowSchema(null).withMapType(null, null));
-    if (typeName != null) {
-      return typeName;
-    } else {
-      // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
-      // type of SQL string we want. In this case, use the default mapping.
-      return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+    switch (type.getTypeName()) {
+      case ROW:
+        return SqlTypeName.ROW;
+      case ARRAY:
+        return SqlTypeName.ARRAY;
+      case MAP:
+        return SqlTypeName.MAP;
+      default:
+        SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type);
+        if (typeName != null) {
+          return typeName;
+        } else {
+          // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
+          // type of SQL string we want. In this case, use the default mapping.
+          return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+        }
     }
   }
 
@@ -123,7 +129,7 @@ public class CalciteUtils {
                     + "so it cannot be converted to a %s",
                 sqlTypeName, Schema.FieldType.class.getSimpleName()));
       default:
-        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).getTypeName().type();
+        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).withMetadata((byte[]) null);
     }
   }
 
@@ -141,26 +147,6 @@ public class CalciteUtils {
       default:
         return toFieldType(calciteType.getSqlTypeName());
     }
-  }
-
-  public static FieldType toArrayType(SqlTypeName collectionElementType) {
-    return TypeName.ARRAY.type().withCollectionElementType(toFieldType(collectionElementType));
-  }
-
-  public static FieldType toArrayType(RelDataType collectionElementType) {
-    return TypeName.ARRAY.type().withCollectionElementType(toFieldType(collectionElementType));
-  }
-
-  public static FieldType toMapType(SqlTypeName componentKeyType, SqlTypeName componentValueType) {
-    return TypeName.MAP
-        .type()
-        .withMapType(toFieldType(componentKeyType), toFieldType(componentValueType));
-  }
-
-  public static FieldType toMapType(RelDataType componentKeyType, RelDataType componentValueType) {
-    return TypeName.MAP
-        .type()
-        .withMapType(toFieldType(componentKeyType), toFieldType(componentValueType));
   }
 
   public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
