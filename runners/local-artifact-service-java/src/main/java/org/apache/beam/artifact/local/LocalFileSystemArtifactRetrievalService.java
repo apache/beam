@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct.portable.artifact;
+package org.apache.beam.artifact.local;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;

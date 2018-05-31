@@ -23,6 +23,7 @@ def exportedJavadocProjects = [
   ':beam-runners-apex',
   ':beam-runners-core-construction-java',
   ':beam-runners-core-java',
+  ':beam-local-artifact-service-java',
   ':beam-runners-java-fn-execution',
   ':beam-runners-local-java-core',
   ':beam-runners-direct-java',
