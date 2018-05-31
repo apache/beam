@@ -30,6 +30,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -39,7 +40,6 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
-import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -108,7 +108,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService()
       throws Exception {
     LocalFileSystemArtifactStagerService service =
-        LocalFileSystemArtifactStagerService.forRootDirectory(stagingPathSupplier.call().toFile());
+        LocalFileSystemArtifactStagerService.withRootDirectory(stagingPathSupplier.call().toFile());
     return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
