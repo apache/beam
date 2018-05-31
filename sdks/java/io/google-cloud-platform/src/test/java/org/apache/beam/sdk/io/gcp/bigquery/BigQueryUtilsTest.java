@@ -52,7 +52,7 @@ public class BigQueryUtilsTest {
 
   private static final Schema ARRAY_TYPE = Schema
       .builder()
-      .addArrayField("ids", Schema.TypeName.INT64.type())
+      .addArrayField("ids", Schema.FieldType.INT64)
       .build();
 
   private static final Schema ROW_TYPE = Schema
@@ -62,7 +62,7 @@ public class BigQueryUtilsTest {
 
   private static final Schema ARRAY_ROW_TYPE =
       Schema.builder()
-          .addArrayField("rows", Schema.FieldType.of(Schema.TypeName.ROW).withRowSchema(FLAT_TYPE))
+          .addArrayField("rows", Schema.FieldType.row(FLAT_TYPE))
           .build();
 
   private static final TableFieldSchema ID =
