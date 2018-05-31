@@ -97,7 +97,7 @@ public class StateSpecFunctions {
    * @return The appropriate {@link org.apache.spark.streaming.StateSpec} function.
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-  scala.Function3<Source<T>, scala.Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+  scala.Function3<Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
       Tuple2<Iterable<byte[]>, Metadata>> mapSourceFunction(
       final SerializablePipelineOptions options, final String stepName) {
 
@@ -107,7 +107,7 @@ public class StateSpecFunctions {
       @Override
       public Tuple2<Iterable<byte[]>, Metadata> apply(
           Source<T> source,
-          scala.Option<CheckpointMarkT> startCheckpointMark,
+          Option<CheckpointMarkT> startCheckpointMark,
           State<Tuple2<byte[], Instant>> state) {
 
         MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();

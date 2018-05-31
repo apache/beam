@@ -132,7 +132,7 @@ public class DirectTransformExecutorTest {
     executor.run();
 
     assertThat(finishCalled.get(), is(true));
-    assertThat(completionCallback.handledResult, Matchers.equalTo(result));
+    assertThat(completionCallback.handledResult, equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
@@ -196,7 +196,7 @@ public class DirectTransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
-    assertThat(completionCallback.handledResult, Matchers.equalTo(result));
+    assertThat(completionCallback.handledResult, equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
@@ -309,8 +309,8 @@ public class DirectTransformExecutorTest {
 
     executor.run();
     TestEnforcement<?> testEnforcement = enforcement.instance;
-    assertThat(testEnforcement.beforeElements, Matchers.containsInAnyOrder(barElem, fooElem));
-    assertThat(testEnforcement.afterElements, Matchers.containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.beforeElements, containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.afterElements, containsInAnyOrder(barElem, fooElem));
     assertThat(testEnforcement.finishedBundles, Matchers.contains(result));
   }
 

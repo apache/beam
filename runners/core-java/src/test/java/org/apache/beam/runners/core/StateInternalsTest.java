@@ -108,7 +108,7 @@ public abstract class StateInternalsTest {
     assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
     assertThat(
         underTest.state(NAMESPACE_2, STRING_VALUE_ADDR),
-        Matchers.not(equalTo(value)));
+        not(equalTo(value)));
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");

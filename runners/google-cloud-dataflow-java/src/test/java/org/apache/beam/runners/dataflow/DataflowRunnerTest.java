@@ -1091,7 +1091,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(new TestTransform());
 
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(Matchers.containsString("no translator registered"));
+    thrown.expectMessage(containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
         .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
 

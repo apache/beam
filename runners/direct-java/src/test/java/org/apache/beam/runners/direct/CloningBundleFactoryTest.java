@@ -47,7 +47,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -123,7 +122,7 @@ public class CloningBundleFactoryTest {
         not(theInstance(foos.getValue())));
     assertThat(keyedBundle.getPCollection(), equalTo(keyed));
     assertThat(
-        keyedBundle.getKey(), Matchers.equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
+        keyedBundle.getKey(), equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
   }
 
   @Test

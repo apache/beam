@@ -166,7 +166,7 @@ public class HIFIOCassandraIT implements Serializable {
     conf.setClass("mapreduce.job.inputformat.class",
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass("key.class", java.lang.Long.class, Object.class);
-    conf.setClass("value.class", com.datastax.driver.core.Row.class, Object.class);
+    conf.setClass("value.class", Row.class, Object.class);
     return conf;
   }
 }

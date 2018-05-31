@@ -184,7 +184,7 @@ public class HIFIOWithElasticTest implements Serializable {
     conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
     conf.setClass("mapreduce.job.inputformat.class",
-        org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
+        EsInputFormat.class, InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
     conf.setClass("value.class", LinkedMapWritable.class, Object.class);
     return conf;

@@ -54,7 +54,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -124,10 +123,10 @@ public class PCollectionTranslationTest {
         PCollectionTranslation.fromProto(protoCollection, pipeline, protoComponents);
 
     // Verify
-    assertThat(decodedCollection.getCoder(), Matchers.equalTo(testCollection.getCoder()));
+    assertThat(decodedCollection.getCoder(), equalTo(testCollection.getCoder()));
     assertThat(
         decodedCollection.getWindowingStrategy(),
-        Matchers.equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+        equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
   }
 
@@ -143,9 +142,9 @@ public class PCollectionTranslationTest {
         protoComponents.getWindowingStrategy(protoCollection.getWindowingStrategyId());
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
-    assertThat(decodedCoder, Matchers.equalTo(testCollection.getCoder()));
+    assertThat(decodedCoder, equalTo(testCollection.getCoder()));
     assertThat(
-        decodedStrategy, Matchers.equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+        decodedStrategy, equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 

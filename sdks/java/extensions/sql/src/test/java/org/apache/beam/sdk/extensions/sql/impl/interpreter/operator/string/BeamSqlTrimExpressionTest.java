@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpre
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Assert;
 import org.junit.Test;
 
 /** Test for BeamSqlTrimExpression. */
@@ -62,7 +61,7 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.LEADING));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
-    Assert.assertEquals(
+    assertEquals(
         "__hehe",
         new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
@@ -70,7 +69,7 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.TRAILING));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
-    Assert.assertEquals(
+    assertEquals(
         "hehe__",
         new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
@@ -78,13 +77,13 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.BOTH));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "__"));
-    Assert.assertEquals(
+    assertEquals(
         "__",
         new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " hello "));
-    Assert.assertEquals(
+    assertEquals(
         "hello",
         new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
