@@ -25,6 +25,7 @@ import java.util.Set;
 /**
  * A set of {@link NexmarkConfiguration}s.
  */
+@SuppressWarnings("ImmutableEnumChecker")
 public enum NexmarkSuite {
   /**
    * The default.
