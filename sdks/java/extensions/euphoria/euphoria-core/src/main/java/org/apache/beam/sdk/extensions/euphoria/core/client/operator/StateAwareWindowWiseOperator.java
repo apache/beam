@@ -19,10 +19,10 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /** Operator with internal state. */
 @Audience(Audience.Type.INTERNAL)
@@ -32,7 +32,7 @@ public abstract class StateAwareWindowWiseOperator<
         KeyInT,
         K,
         OutputT,
-        W extends Window<W>,
+        W extends BoundedWindow,
         OperatorT extends
             StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
     extends WindowWiseOperator<InputT, WindowInT, OutputT, W> implements StateAware<KeyInT, K> {
@@ -42,7 +42,7 @@ public abstract class StateAwareWindowWiseOperator<
   protected StateAwareWindowWiseOperator(
       String name,
       Flow flow,
-      @Nullable Windowing<WindowInT, W> windowing,
+      @Nullable WindowingDesc<Object, W> windowing,
       UnaryFunction<KeyInT, K> keyExtractor) {
 
     super(name, flow, windowing);
