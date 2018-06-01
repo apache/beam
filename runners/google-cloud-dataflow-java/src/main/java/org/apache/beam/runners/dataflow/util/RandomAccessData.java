@@ -30,6 +30,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -72,7 +73,7 @@ public class RandomAccessData {
     @Override
     public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
-      if (value == POSITIVE_INFINITY) {
+      if (Objects.equals(value, POSITIVE_INFINITY)) {
         throw new CoderException("Positive infinity can not be encoded.");
       }
       if (!context.isWholeStream) {
@@ -148,6 +149,7 @@ public class RandomAccessData {
     /**
      * Compare the two sets of bytes starting at the given offset.
      */
+    @SuppressWarnings("ReferenceEquality") // equals overload calls into this compare method
     public int compare(RandomAccessData o1, RandomAccessData o2, int startOffset) {
       if (o1 == o2) {
         return 0;
@@ -322,6 +324,7 @@ public class RandomAccessData {
     if (!(other instanceof RandomAccessData)) {
       return false;
     }
+
     return UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(this, (RandomAccessData) other) == 0;
   }
 

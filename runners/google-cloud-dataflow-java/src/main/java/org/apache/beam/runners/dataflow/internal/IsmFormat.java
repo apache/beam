@@ -113,6 +113,8 @@ public class IsmFormat {
   public abstract static class IsmRecord<V> {
     abstract List<?> keyComponents();
     @Nullable abstract V value();
+
+    @SuppressWarnings("mutable")
     @Nullable abstract byte[] metadata();
 
     IsmRecord() {} // Prevent public constructor
@@ -279,7 +281,7 @@ public class IsmFormat {
      * using {@code 1225801234} as the seed value. We ensure that shard ids for
      * metadata keys and normal keys do not overlap.
      */
-    public <V, T> int hash(List<?> keyComponents) {
+    public int hash(List<?> keyComponents) {
       return encodeAndHash(keyComponents, new RandomAccessData(), new ArrayList<>());
     }
 
@@ -289,7 +291,7 @@ public class IsmFormat {
      * <p>Mutates {@code keyBytes} such that when returned, contains the encoded
      * version of the key components.
      */
-    public <V, T> int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
+    public int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
       return encodeAndHash(keyComponents, keyBytesToMutate, new ArrayList<>());
     }
 
@@ -301,7 +303,7 @@ public class IsmFormat {
      * store the location where each key component's encoded byte representation ends within
      * {@code keyBytes}.
      */
-    public <V, T> int encodeAndHash(
+    public int encodeAndHash(
         List<?> keyComponents,
         RandomAccessData keyBytesToMutate,
         List<Integer> keyComponentByteOffsetsToMutate) {

@@ -225,7 +225,8 @@ class PackageUtil implements Closeable {
               "Upload failed, will NOT retry staging of package: {}",
               sourceDescription,
               ioException);
-          throw new RuntimeException("Could not stage %s to %s", ioException);
+          throw new RuntimeException(
+              String.format("Could not stage %s to %s", sourceDescription, target), ioException);
         } else {
           LOG.warn(
               "Upload attempt failed, sleeping before retrying staging of package: {}",
@@ -508,6 +509,7 @@ class PackageUtil implements Closeable {
     public abstract File getSource();
 
     /** @return the bytes to be uploaded, if any */
+    @SuppressWarnings("mutable")
     @Nullable
     public abstract byte[] getBytes();
 

@@ -21,6 +21,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
@@ -43,7 +44,9 @@ import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
@@ -749,7 +752,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try (PrintWriter printWriter =
           new PrintWriter(
-              Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)))) {
+              new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(
+                  FileSystems.create(fileResource, MimeTypes.TEXT)), UTF_8)))) {
         printWriter.print(workSpecJson);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
