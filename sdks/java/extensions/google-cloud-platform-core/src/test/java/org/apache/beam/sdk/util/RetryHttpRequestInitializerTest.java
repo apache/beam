@@ -86,7 +86,7 @@ public class RetryHttpRequestInitializerTest {
 
     @Override
     public long nanoTime() {
-      return timesMs[i++ / 2] * 1000000;
+      return timesMs[i++ / 2] * 1000000L;
     }
   }
 
