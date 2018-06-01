@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
@@ -58,6 +61,10 @@ public class BeamSqlEnv {
     connection = JdbcDriver.connect(tableProvider);
     defaultSchema = JdbcDriver.getDefaultSchema(connection);
     planner = new BeamQueryPlanner(connection);
+  }
+
+  public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
+    return withTableProvider(new ReadOnlyTableProvider(tableType, tables));
   }
 
   public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
