@@ -22,17 +22,21 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test operator Join.  */
+/**
+ * Test operator Join.
+ */
 public class JoinTest {
 
   @Test
@@ -206,11 +210,17 @@ public class JoinTest {
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(AfterWatermark.pastEndOfWindow())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
-    assertTrue(join.getWindowing() instanceof Time);
+    WindowingDesc windowing = join.getWindowing();
+
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
+    assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
   }
 
   @Test
@@ -273,7 +283,9 @@ public class JoinTest {
             (String l, String r, Collector<String> c) -> {
               // no-op
             })
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(AfterWatermark.pastEndOfWindow())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
         .output();
 
     Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
@@ -294,6 +306,9 @@ public class JoinTest {
         2,
         ((Dataset) join.listInputs().stream().findFirst().get()).getProducer().getHints().size());
 
-    assertTrue(join.getWindowing() instanceof Time);
+    WindowingDesc windowing = join.getWindowing();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
+    assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
   }
 }

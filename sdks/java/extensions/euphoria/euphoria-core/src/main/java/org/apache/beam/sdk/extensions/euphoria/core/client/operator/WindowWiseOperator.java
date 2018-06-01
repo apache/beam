@@ -22,22 +22,24 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /** Operator working on some context. */
 @Audience(Audience.Type.INTERNAL)
-public abstract class WindowWiseOperator<InputT, WindowInT, OutputT, W extends Window<W>>
-    extends Operator<InputT, OutputT> implements WindowAware<WindowInT, W> {
+public abstract class WindowWiseOperator<InputT, WindowInT, OutputT, W extends BoundedWindow>
+    extends Operator<InputT, OutputT> implements WindowAware<Object, W> { //TODO remove WindowInT
 
-  @Nullable protected Windowing<WindowInT, W> windowing;
+  @Nullable protected WindowingDesc<Object, W> windowing;
 
-  public WindowWiseOperator(String name, Flow flow, @Nullable Windowing<WindowInT, W> windowing) {
+  public WindowWiseOperator(String name, Flow flow, @Nullable WindowingDesc<Object, W> windowing) {
     super(name, flow);
     this.windowing = windowing;
   }
 
   @Nullable
   @Override
-  public Windowing<WindowInT, W> getWindowing() {
+  public WindowingDesc<Object, W> getWindowing() {
     return windowing;
   }
 }

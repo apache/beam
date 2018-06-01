@@ -23,11 +23,11 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /** Operator operating on window level with state information. */
 @Audience(Audience.Type.INTERNAL)
@@ -37,7 +37,7 @@ public class StateAwareWindowWiseSingleInputOperator<
         KeyInT,
         K,
         OutputT,
-        W extends Window<W>,
+        W extends BoundedWindow,
         OperatorT extends
             StateAwareWindowWiseSingleInputOperator<
                     InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
@@ -51,7 +51,7 @@ public class StateAwareWindowWiseSingleInputOperator<
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<KeyInT, K> extractor,
-      @Nullable Windowing<WindowInT, W> windowing,
+      @Nullable WindowingDesc<WindowInT, W> windowing,
       Set<OutputHint> outputHints) {
 
     super(name, flow, windowing, extractor);
