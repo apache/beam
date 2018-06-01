@@ -26,8 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.sql.SqlExecutableStatement;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
@@ -61,11 +59,9 @@ public class BeamSqlCli {
   /** Executes the given sql. */
   public void execute(String sqlString)
       throws ValidationException, RelConversionException, SqlParseException {
-    SqlNode sqlNode = env.getPlanner().parse(sqlString);
 
-    // DDL nodes are SqlExecutableStatement
-    if (sqlNode instanceof SqlExecutableStatement) {
-      ((SqlExecutableStatement) sqlNode).execute(env.getContext());
+    if (env.isDdl(sqlString)) {
+      env.executeDdl(sqlString);
     } else {
       PipelineOptions options =
           PipelineOptionsFactory.fromArgs(new String[] {})

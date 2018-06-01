@@ -33,6 +33,7 @@ import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
+import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
@@ -88,6 +89,15 @@ public class BeamSqlEnv {
       throws SqlParseException, RelConversionException, ValidationException {
 
     return planner.convertToBeamRel(query).toPTransform();
+  }
+
+  public boolean isDdl(String sqlStatement) throws SqlParseException {
+    return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+  }
+
+  public void executeDdl(String sqlStatement) throws SqlParseException {
+    SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
+    ddl.execute(getContext());
   }
 
   public CalcitePrepare.Context getContext() {

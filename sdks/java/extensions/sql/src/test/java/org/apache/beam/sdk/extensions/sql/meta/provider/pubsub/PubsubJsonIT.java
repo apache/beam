@@ -38,9 +38,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.SqlExecutableStatement;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParseException;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -88,7 +85,7 @@ public class PubsubJsonIT implements Serializable {
 
     BeamSqlEnv sqlEnv = newSqlEnv();
 
-    createTable(sqlEnv, createTableString);
+    sqlEnv.executeDdl(createTableString);
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
 
     queryOutput.apply(
@@ -142,7 +139,7 @@ public class PubsubJsonIT implements Serializable {
 
     BeamSqlEnv sqlEnv = newSqlEnv();
 
-    createTable(sqlEnv, createTableString);
+    sqlEnv.executeDdl(createTableString);
     query(sqlEnv, pipeline, queryString);
 
     PCollection<PubsubMessage> dlq =
@@ -174,11 +171,6 @@ public class PubsubJsonIT implements Serializable {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new PubsubJsonTableProvider());
     return new BeamSqlEnv(metaStore);
-  }
-
-  private void createTable(BeamSqlEnv sqlEnv, String statement) throws SqlParseException {
-    SqlNode sqlNode = sqlEnv.getPlanner().parse(statement);
-    ((SqlExecutableStatement) sqlNode).execute(sqlEnv.getContext());
   }
 
   private Row row(Schema schema, Object... values) {
