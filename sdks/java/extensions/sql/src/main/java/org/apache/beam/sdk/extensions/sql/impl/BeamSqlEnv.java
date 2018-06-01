@@ -24,11 +24,18 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
 
 /**
  * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
@@ -75,6 +82,12 @@ public class BeamSqlEnv {
 
   public BeamQueryPlanner getPlanner() {
     return planner;
+  }
+
+  public PTransform<PCollectionTuple, PCollection<Row>> parseQuery(String query)
+      throws SqlParseException, RelConversionException, ValidationException {
+
+    return planner.convertToBeamRel(query).toPTransform();
   }
 
   public CalcitePrepare.Context getContext() {

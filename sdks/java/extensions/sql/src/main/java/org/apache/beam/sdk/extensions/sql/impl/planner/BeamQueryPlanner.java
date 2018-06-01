@@ -18,13 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -114,19 +110,6 @@ public class BeamQueryPlanner {
       planner.close();
     }
     return parsed;
-  }
-
-  /**
-   * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow, which is
-   * linked with the given {@code pipeline}. The final output stream is returned as {@code
-   * PCollection} so more operations can be applied.
-   */
-  public PCollection<Row> compileBeamPipeline(String sqlStatement, Pipeline basePipeline)
-      throws ValidationException, RelConversionException, SqlParseException {
-    BeamRelNode relNode = convertToBeamRel(sqlStatement);
-
-    // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
-    return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform());
   }
 
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
