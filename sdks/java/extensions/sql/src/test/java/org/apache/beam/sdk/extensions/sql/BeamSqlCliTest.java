@@ -26,12 +26,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.calcite.tools.ValidationException;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlCli}. */
@@ -194,7 +194,7 @@ public class BeamSqlCliTest {
     assertNull(table);
   }
 
-  @Test(expected = ValidationException.class)
+  @Test(expected = ParseException.class)
   public void testExecute_dropTable_assertTableRemovedFromPlanner() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
