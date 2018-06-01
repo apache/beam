@@ -136,11 +136,12 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     BeamSqlFnExecutor executor = new BeamSqlFnExecutor(relNode);
 
     executor.prepare();
-    Assert.assertEquals(4, executor.exps.size());
+    Assert.assertEquals(5, executor.exps.size());
     assertTrue(executor.exps.get(0) instanceof BeamSqlInputRefExpression);
     assertTrue(executor.exps.get(1) instanceof BeamSqlInputRefExpression);
     assertTrue(executor.exps.get(2) instanceof BeamSqlInputRefExpression);
     assertTrue(executor.exps.get(3) instanceof BeamSqlInputRefExpression);
+    assertTrue(executor.exps.get(4) instanceof BeamSqlInputRefExpression);
   }
 
   @Test
