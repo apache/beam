@@ -23,7 +23,6 @@ This is a collection of documents that may or may not be up to date.
   - Reimplementing Beam API classes on top of Splittable DoFn on top of Source API [[doc](https://s.apache.org/sdf-via-source)]
   - New TextIO features based on SDF [[doc](http://s.apache.org/textio-sdf)]
   - Watch transform [[doc](http://s.apache.org/beam-watch-transform)]
-  - Technical contract for runtime rebalancing of work using Splittable DoFn [[doc](https://s.apache.org/beam-breaking-fusion)]
 - State and Timers for DoFn [[doc](https://s.apache.org/beam-state)]
 - ContextFn [[doc](http://s.apache.org/context-fn)]
 - Static Display Data [[doc](https://docs.google.com/document/d/11enEB9JwVp6vO0uOYYTMYTGkr3TdNfELwWqoiUg5ZxM)]
@@ -60,6 +59,7 @@ This is a collection of documents that may or may not be up to date.
   - Progress [[doc](https://s.apache.org/beam-fn-api-progress-reporting)]
   - Graphical view of progress [[doc](https://docs.google.com/document/d/1Dx18qBTvFWNqwLeecemOpKfleKzFyeV3Qwh71SHATvY)]
   - Fn State API and Bundle Processing [[doc](https://s.apache.org/beam-fn-state-api-and-bundle-processing)]
+  - Checkpointing and splitting of Beam bundles over the Fn API, with application to SDF [[doc](https://s.apache.org/beam-breaking-fusion)]
   - How to send and receive data [[doc](https://s.apache.org/beam-fn-api-send-and-receive-data)]
   - Defining and adding SDK Metrics [[doc](https://s.apache.org/beam-fn-api-metrics)]
   - SDK harness container contract [[doc](https://s.apache.org/beam-fn-api-container-contract)]
@@ -67,6 +67,9 @@ This is a collection of documents that may or may not be up to date.
 - Cross-language Beam Pipelines [[doc](https://s.apache.org/beam-mixed-language-pipelines)]
 - SDK X with Runner Y using Runner API [[doc](https://s.apache.org/beam-job-api)]
 - Flink Portable Runner Overview [[doc](https://s.apache.org/portable-flink-runner-overview)]
+- Launching portable pipeline on Flink Runner [[doc](https://docs.google.com/document/d/1xOaEEJrMmiSHprd-WiYABegfT129qqF-idUBINjxz8s)]
+- Portability support [[table](https://docs.google.com/spreadsheets/d/1KDa_FGn1ShjomGd-UUDOhuh2q73de2tPz6BqHpzqvNI)]
+- Portability Prototype [[doc](https://s.apache.org/beam-portability-team-doc)]
 
 ### Testing
 - More Expressive PAsserts [[doc](https://docs.google.com/document/d/1fZUUbG2LxBtqCVabQshldXIhkMcXepsbv2vuuny8Ix4)]
@@ -76,6 +79,7 @@ This is a collection of documents that may or may not be up to date.
 
 ### Python
 - Beam Python User State and Timer APIs [[doc](https://s.apache.org/beam-python-user-state-and-timers)]
+- Python Kafka connector [[doc](https://docs.google.com/document/d/1ogRS-e-HYYTHsXi_l2zDUUOnvfzEbub3BFkPrYIOawU)]
 
 ### Go
 - Apache Beam Go SDK design [[doc](https://s.apache.org/beam-go-sdk-design-rfc)]
