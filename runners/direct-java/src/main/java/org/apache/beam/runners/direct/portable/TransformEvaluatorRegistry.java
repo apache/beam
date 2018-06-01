@@ -48,7 +48,7 @@ class TransformEvaluatorRegistry {
       Components components,
       BundleFactory bundleFactory,
       JobBundleFactory jobBundleFactory,
-      StateAndTimerProvider stateAndTimerProvider) {
+      StepStateAndTimers.Provider stepStateAndTimers) {
     return new TransformEvaluatorRegistry(
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             .put(
@@ -63,7 +63,7 @@ class TransformEvaluatorRegistry {
             .put(
                 DirectGroupByKey.DIRECT_GABW_URN,
                 new GroupAlsoByWindowEvaluatorFactory(
-                    graph, components, bundleFactory, stateAndTimerProvider))
+                    graph, components, bundleFactory, stepStateAndTimers))
             .put(
                 ExecutableStage.URN,
                 new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
@@ -90,6 +90,7 @@ class TransformEvaluatorRegistry {
 
     TransformEvaluatorFactory factory =
         checkNotNull(factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
+    LOG.warn("Evaluator Factory {} for PTransform {}", factory, application);
     return factory.forApplication(application, inputBundle);
   }
 

@@ -57,9 +57,9 @@ import org.joda.time.Instant;
  * <p>{@link EvaluationContext} contains shared state for an execution of the {@code DirectRunner}
  * that can be used while evaluating a {@link PTransform}. This consists of views into underlying
  * state and watermark implementations, access to read and write {@link PCollectionView
- * PCollectionViews}, and managing the {@link DirectExecutionContext ExecutionContexts}. This
- * includes executing callbacks asynchronously when state changes to the appropriate point (e.g.
- * when a {@link PCollectionView} is requested and known to be empty).
+ * PCollectionViews}, and managing the {@link DirectStateAndTimers ExecutionContexts}. This includes
+ * executing callbacks asynchronously when state changes to the appropriate point (e.g. when a
+ * {@link PCollectionView} is requested and known to be empty).
  *
  * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based on the
  * current global state and updating the global state appropriately. This includes updating the
@@ -271,45 +271,20 @@ class EvaluationContext {
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     PTransformNode producing = graph.getProducer(value);
-    callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
-
-    fireAvailableCallbacks(producing);
-  }
-
-  /**
-   * Schedule a callback to be executed after the given window is expired.
-   *
-   * <p>For example, upstream state associated with the window may be cleared.
-   */
-  public void scheduleAfterWindowExpiration(
-      PTransformNode producing,
-      BoundedWindow window,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Runnable runnable) {
     callbackExecutor.callOnWindowExpiration(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
   }
 
-  /**
-   * Get a {@link DirectExecutionContext} for the provided {@link PTransformNode} and key.
-   */
-  public DirectExecutionContext getExecutionContext(
-      PTransformNode application, StructuralKey<?> key) {
+  /** Get a {@link DirectStateAndTimers} for the provided {@link PTransformNode} and key. */
+  public <K> StepStateAndTimers<K> getStateAndTimers(
+      PTransformNode application, StructuralKey<K> key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
-    return new DirectExecutionContext(
-        clock,
+    return new DirectStateAndTimers<>(
         key,
         applicationStateInternals.get(stepAndKey),
+        clock,
         watermarkManager.getWatermarks(application));
-  }
-
-
-  /**
-   * Get the Step Name for the provided application.
-   */
-  String getStepName(PTransformNode application) {
-    throw new UnsupportedOperationException("getStepName Unsupported");
   }
 
   /** Returns all of the steps in this {@link Pipeline}. */

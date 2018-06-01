@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -85,8 +84,6 @@ class DirectJobBundleFactory implements JobBundleFactory {
         stageBundleFactories.computeIfAbsent(executableStage, this::createBundleFactory);
   }
 
-  private final AtomicLong idgen = new AtomicLong();
-
   private <T> StageBundleFactory<T> createBundleFactory(ExecutableStage stage) {
     RemoteEnvironment remoteEnv =
         environments.computeIfAbsent(
@@ -100,12 +97,13 @@ class DirectJobBundleFactory implements JobBundleFactory {
             });
     SdkHarnessClient sdkHarnessClient =
         SdkHarnessClient.usingFnApiClient(
-            remoteEnv.getInstructionRequestHandler(), dataService.getService());
+                remoteEnv.getInstructionRequestHandler(), dataService.getService())
+            .withIdGenerator(idGenerator);
     ExecutableProcessBundleDescriptor descriptor;
     try {
       descriptor =
           ProcessBundleDescriptors.fromExecutableStage(
-              Long.toString(idgen.getAndIncrement()), stage, dataService.getApiServiceDescriptor());
+              idGenerator.getId(), stage, dataService.getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -151,8 +149,7 @@ class DirectJobBundleFactory implements JobBundleFactory {
 
     @Override
     public RemoteBundle<T> getBundle(
-        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler)
-        throws Exception {
+        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler) {
       Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
       for (Map.Entry<Target, Coder<WindowedValue<?>>> targetCoders :
           descriptor.getOutputTargetCoders().entrySet()) {
@@ -167,7 +164,7 @@ class DirectJobBundleFactory implements JobBundleFactory {
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
             targetCoders.getKey(),
-            RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
+            RemoteOutputReceiver.of((Coder) targetCoders.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler);
     }

@@ -24,9 +24,12 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.local.StructuralKey;
 
 /** A provider of {@link StateInternals} and {@link TimerInternals}. */
-interface StateAndTimerProvider {
-  <K> CopyOnAccessInMemoryStateInternals<K> stateInternals(
-      PTransformNode transform, StructuralKey<K> key);
+interface StepStateAndTimers<K> {
+  interface Provider {
+    <K> StepStateAndTimers<K> forStepAndKey(PTransformNode transform, StructuralKey<K> key);
+  }
 
-  DirectTimerInternals timerInternals(PTransformNode transform, StructuralKey<?> key);
+  CopyOnAccessInMemoryStateInternals<K> stateInternals();
+
+  DirectTimerInternals timerInternals();
 }
