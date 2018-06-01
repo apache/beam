@@ -152,7 +152,7 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
     return n == null ? null : ((NlsString) SqlLiteral.value(n)).getValue();
   }
 
-  Table toTable() {
+  private Table toTable() {
     return Table.builder()
         .type(getString(type))
         .name(name.getSimple())

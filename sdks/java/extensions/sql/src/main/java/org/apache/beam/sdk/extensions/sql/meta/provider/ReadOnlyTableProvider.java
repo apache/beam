@@ -24,12 +24,15 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 
-/** A {@code BeamSqlTableProvider} provides read only set of {@code BeamSqlTable}. */
-public class BeamSqlTableProvider implements TableProvider {
+/**
+ * A {@code ReadOnlyTableProvider} provides in-memory read only set of {@code BeamSqlTable
+ * BeamSqlTables}.
+ */
+public class ReadOnlyTableProvider implements TableProvider {
   private final String typeName;
   private final Map<String, BeamSqlTable> tables;
 
-  public BeamSqlTableProvider(String typeName, Map<String, BeamSqlTable> tables) {
+  public ReadOnlyTableProvider(String typeName, Map<String, BeamSqlTable> tables) {
     this.typeName = typeName;
     this.tables = tables;
   }
@@ -41,12 +44,14 @@ public class BeamSqlTableProvider implements TableProvider {
 
   @Override
   public void createTable(Table table) {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        "ReadOnlyTableProvider does not support table creation");
   }
 
   @Override
   public void dropTable(String tableName) {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        "ReadOnlyTableProvider does not support table deletion");
   }
 
   @Override
