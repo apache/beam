@@ -20,9 +20,11 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /** A {@code InMemoryMetaTableProvider} is an abstract {@code TableProvider} for in-memory types. */
+@Internal
 public abstract class InMemoryMetaTableProvider implements TableProvider {
 
   @Override

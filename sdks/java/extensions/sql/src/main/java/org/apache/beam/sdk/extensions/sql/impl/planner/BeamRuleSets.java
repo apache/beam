@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
@@ -35,9 +36,10 @@ import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
 /**
- * {@link RuleSet} used in {@link BeamQueryPlanner}. It translates a standard Calcite {@link
+ * {@link RuleSet} used in {@code BeamQueryPlanner}. It translates a standard Calcite {@link
  * RelNode} tree, to represent with {@link BeamRelNode}
  */
+@Internal
 public class BeamRuleSets {
 
   public static RuleSet[] getRuleSets() {
