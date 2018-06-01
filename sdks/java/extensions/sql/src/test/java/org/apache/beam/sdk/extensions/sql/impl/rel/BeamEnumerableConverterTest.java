@@ -99,18 +99,22 @@ public class BeamEnumerableConverterTest {
   }
 
   private static class FakeTable implements BeamSqlTable {
+    @Override
     public BeamIOType getSourceType() {
       return null;
     }
 
+    @Override
     public PCollection<Row> buildIOReader(Pipeline pipeline) {
       return null;
     }
 
+    @Override
     public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
       return new FakeIOWriter();
     }
 
+    @Override
     public Schema getSchema() {
       return null;
     }

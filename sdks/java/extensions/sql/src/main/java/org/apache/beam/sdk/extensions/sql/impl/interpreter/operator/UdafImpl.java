@@ -47,15 +47,18 @@ public final class UdafImpl<InputT, AccumT, OutputT>
     List<FunctionParameter> para = new ArrayList<>();
     para.add(
         new FunctionParameter() {
+          @Override
           public int getOrdinal() {
             return 0; //up to one parameter is supported in UDAF.
           }
 
+          @Override
           public String getName() {
             // not used as Beam SQL uses its own execution engine
             return null;
           }
 
+          @Override
           public RelDataType getType(RelDataTypeFactory typeFactory) {
             ParameterizedType parameterizedType = findCombineFnSuperClass();
             return typeFactory.createJavaType(
@@ -76,6 +79,7 @@ public final class UdafImpl<InputT, AccumT, OutputT>
             }
           }
 
+          @Override
           public boolean isOptional() {
             // not used as Beam SQL uses its own execution engine
             return false;
