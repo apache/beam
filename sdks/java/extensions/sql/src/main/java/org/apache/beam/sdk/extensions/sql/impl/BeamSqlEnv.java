@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -53,10 +54,23 @@ public class BeamSqlEnv {
   final SchemaPlus defaultSchema;
   final BeamQueryPlanner planner;
 
-  public BeamSqlEnv(TableProvider tableProvider) {
+  private BeamSqlEnv(TableProvider tableProvider) {
     connection = JdbcDriver.connect(tableProvider);
     defaultSchema = JdbcDriver.getDefaultSchema(connection);
     planner = new BeamQueryPlanner(connection);
+  }
+
+  public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
+    return new BeamSqlEnv(tableProvider);
+  }
+
+  public static BeamSqlEnv inMemory(TableProvider... tableProviders) {
+    InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
+    for (TableProvider tableProvider : tableProviders) {
+      inMemoryMetaStore.registerProvider(tableProvider);
+    }
+
+    return new BeamSqlEnv(inMemoryMetaStore);
   }
 
   /** Register a UDF function which can be used in SQL expression. */

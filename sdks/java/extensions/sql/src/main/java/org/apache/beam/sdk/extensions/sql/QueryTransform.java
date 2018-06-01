@@ -59,7 +59,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
   @Override
   public PCollection<Row> expand(PInput input) {
-    BeamSqlEnv sqlEnv = new BeamSqlEnv(toTableProvider(input));
+    BeamSqlEnv sqlEnv = BeamSqlEnv.withTableProvider(toTableProvider(input));
 
     registerFunctions(sqlEnv);
 
