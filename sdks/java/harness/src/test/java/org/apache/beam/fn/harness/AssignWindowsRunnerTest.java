@@ -111,7 +111,7 @@ public class AssignWindowsRunnerTest implements Serializable {
             new Instant(0).minus(Duration.standardMinutes(2L)), Duration.standardMinutes(4L));
     IntervalWindow thirdWindow =
         new IntervalWindow(
-            new Instant(0).minus(Duration.standardMinutes(0L)), Duration.standardMinutes(4L));
+            new Instant(0), Duration.standardMinutes(4L));
 
     WindowedValue<Integer> firstValue =
         WindowedValue.timestampedValueInGlobalWindow(-3, new Instant(-12));

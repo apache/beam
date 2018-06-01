@@ -89,7 +89,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
 
     // round(short) => short
     operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, new Short("4")));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("4")));
     Assert.assertEquals(
         SqlFunctions.toShort(4),
         new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
