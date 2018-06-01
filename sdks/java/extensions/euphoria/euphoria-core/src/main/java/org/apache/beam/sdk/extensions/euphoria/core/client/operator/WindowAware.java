@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  * Operator aware of windows.
@@ -28,7 +30,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
  * @param <W> the type of windows handled
  */
 @Audience(Audience.Type.INTERNAL)
-public interface WindowAware<InputT, W extends Window<W>> {
+public interface WindowAware<InputT, W extends BoundedWindow> {
 
-  Windowing<InputT, W> getWindowing();
+  WindowingDesc<InputT, W> getWindowing();
 }

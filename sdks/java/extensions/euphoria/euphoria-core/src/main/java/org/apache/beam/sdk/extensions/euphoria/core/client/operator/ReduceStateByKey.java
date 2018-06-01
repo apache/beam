@@ -34,9 +34,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputH
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateFactory;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateMerger;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api, but very powerful
@@ -100,7 +102,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceStateByKey<
-        InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends Window<W>>
+        InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
         InputT, InputT, InputT, K, Pair<K, OutputT>, W,
         ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
@@ -117,7 +119,7 @@ public class ReduceStateByKey<
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, V> valueExtractor,
-      @Nullable Windowing<InputT, W> windowing,
+      @Nullable WindowingDesc<InputT, W> windowing,
       StateFactory<V, OutputT, StateT> stateFactory,
       StateMerger<V, OutputT, StateT> stateMerger,
       Set<OutputHint> outputHints) {

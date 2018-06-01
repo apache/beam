@@ -22,6 +22,7 @@ applyJavaNature(enableFindbugs: false)
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL :: Core"
 
 dependencies {
+    compile project(':beam-sdks-java-core')
     shadow library.java.guava
     shadow library.java.slf4j_api
     compileOnly library.java.findbugs_jsr305
