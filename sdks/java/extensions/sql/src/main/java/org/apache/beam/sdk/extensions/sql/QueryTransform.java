@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
-import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -59,7 +58,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
   @Override
   public PCollection<Row> expand(PInput input) {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.withTableProvider(toTableProvider(input));
+    BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
 
     registerFunctions(sqlEnv);
 
@@ -68,10 +67,6 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new IllegalStateException(e);
     }
-  }
-
-  private BeamSqlTableProvider toTableProvider(PInput inputs) {
-    return new BeamSqlTableProvider(PCOLLECTION_NAME, toTableMap(inputs));
   }
 
   private Map<String, BeamSqlTable> toTableMap(PInput inputs) {
