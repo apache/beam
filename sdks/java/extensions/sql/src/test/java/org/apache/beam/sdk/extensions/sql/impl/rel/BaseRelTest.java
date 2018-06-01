@@ -30,8 +30,9 @@ import org.apache.beam.sdk.values.Row;
 
 /** Base class for rel test. */
 abstract class BaseRelTest {
-  private static Map<String, BeamSqlTable> tables = new HashMap();
-  private static BeamSqlEnv env = new BeamSqlEnv(new BeamSqlTableProvider("test", tables));
+  private static Map<String, BeamSqlTable> tables = new HashMap<>();
+  private static BeamSqlEnv env =
+      BeamSqlEnv.withTableProvider(new BeamSqlTableProvider("test", tables));
 
   protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline)
       throws Exception {

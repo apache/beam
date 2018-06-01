@@ -37,7 +37,7 @@ public class BeamSqlCli {
 
   public BeamSqlCli metaStore(MetaStore metaStore) {
     this.metaStore = metaStore;
-    this.env = new BeamSqlEnv(metaStore);
+    this.env = BeamSqlEnv.withTableProvider(metaStore);
 
     return this;
   }

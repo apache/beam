@@ -79,7 +79,7 @@ public class BeamDDLNestedTypesTest {
     System.out.println(createTable);
 
     TestTableProvider tableProvider = new TestTableProvider();
-    BeamSqlEnv env = new BeamSqlEnv(tableProvider);
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
     env.executeDdl(createTable);
     return tableProvider.getTables().get("tablename");
   }

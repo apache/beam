@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -83,7 +82,7 @@ public class PubsubJsonIT implements Serializable {
         ImmutableList.of(
             message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
 
-    BeamSqlEnv sqlEnv = newSqlEnv();
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
 
     sqlEnv.executeDdl(createTableString);
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
@@ -137,7 +136,7 @@ public class PubsubJsonIT implements Serializable {
             message(ts(4), "{ - }"), // invalid
             message(ts(5), "{ + }")); // invalid
 
-    BeamSqlEnv sqlEnv = newSqlEnv();
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
 
     sqlEnv.executeDdl(createTableString);
     query(sqlEnv, pipeline, queryString);
@@ -165,12 +164,6 @@ public class PubsubJsonIT implements Serializable {
   private static boolean messagesEqual(PubsubMessage message1, PubsubMessage message2) {
     return message1.getAttributeMap().equals(message2.getAttributeMap())
         && Arrays.equals(message1.getPayload(), message2.getPayload());
-  }
-
-  private BeamSqlEnv newSqlEnv() {
-    InMemoryMetaStore metaStore = new InMemoryMetaStore();
-    metaStore.registerProvider(new PubsubJsonTableProvider());
-    return new BeamSqlEnv(metaStore);
   }
 
   private Row row(Schema schema, Object... values) {

@@ -39,7 +39,7 @@ public class BeamDDLTest {
   @Test
   public void testParseCreateTable_full() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    BeamSqlEnv env = new BeamSqlEnv(tableProvider);
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
     JSONObject properties = new JSONObject();
     JSONArray hello = new JSONArray();
@@ -63,7 +63,7 @@ public class BeamDDLTest {
 
   @Test(expected = SqlParseException.class)
   public void testParseCreateTable_withoutType() throws Exception {
-    BeamSqlEnv env = new BeamSqlEnv(new TestTableProvider());
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(new TestTableProvider());
     env.executeDdl(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
@@ -76,7 +76,7 @@ public class BeamDDLTest {
   @Test
   public void testParseCreateTable_withoutTableComment() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    BeamSqlEnv env = new BeamSqlEnv(tableProvider);
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
     JSONObject properties = new JSONObject();
     JSONArray hello = new JSONArray();
@@ -98,7 +98,8 @@ public class BeamDDLTest {
   @Test
   public void testParseCreateTable_withoutTblProperties() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    BeamSqlEnv env = new BeamSqlEnv(tableProvider);
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+
     env.executeDdl(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
@@ -114,7 +115,8 @@ public class BeamDDLTest {
   @Test
   public void testParseCreateTable_withoutLocation() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    BeamSqlEnv env = new BeamSqlEnv(tableProvider);
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+
     env.executeDdl(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
@@ -130,7 +132,7 @@ public class BeamDDLTest {
   @Test
   public void testParseDropTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
-    BeamSqlEnv env = new BeamSqlEnv(tableProvider);
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
     assertNull(tableProvider.getTables().get("person"));
     env.executeDdl(
