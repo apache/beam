@@ -19,13 +19,13 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.tools.ValidationException;
 import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Rule;
@@ -259,7 +259,7 @@ public class BeamSortRelTest extends BaseRelTest {
     pipeline.run().waitUntilFinish();
   }
 
-  @Test(expected = ValidationException.class)
+  @Test(expected = ParseException.class)
   public void testOrderBy_exception() throws Exception {
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "

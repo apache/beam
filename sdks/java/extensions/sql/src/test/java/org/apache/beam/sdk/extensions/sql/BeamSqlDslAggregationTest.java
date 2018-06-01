@@ -17,14 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
@@ -502,9 +505,11 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   @Test
   public void testWindowOnNonTimestampField() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage(
-        "Cannot apply 'TUMBLE' to arguments of type 'TUMBLE(<BIGINT>, <INTERVAL HOUR>)'");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(
+        hasMessage(
+            containsString(
+                "Cannot apply 'TUMBLE' to arguments of type 'TUMBLE(<BIGINT>, <INTERVAL HOUR>)'")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql =
@@ -519,8 +524,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   @Test
   public void testUnsupportedDistinct() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Encountered \"*\"");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Encountered \"*\"")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` " + "FROM PCOLLECTION GROUP BY f_int2";

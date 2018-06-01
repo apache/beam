@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -36,10 +35,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.SqlExecutableStatement;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParseException;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -85,9 +82,9 @@ public class PubsubJsonIT implements Serializable {
         ImmutableList.of(
             message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
 
-    BeamSqlEnv sqlEnv = newSqlEnv();
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
 
-    createTable(sqlEnv, createTableString);
+    sqlEnv.executeDdl(createTableString);
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
 
     queryOutput.apply(
@@ -139,9 +136,9 @@ public class PubsubJsonIT implements Serializable {
             message(ts(4), "{ - }"), // invalid
             message(ts(5), "{ + }")); // invalid
 
-    BeamSqlEnv sqlEnv = newSqlEnv();
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
 
-    createTable(sqlEnv, createTableString);
+    sqlEnv.executeDdl(createTableString);
     query(sqlEnv, pipeline, queryString);
 
     PCollection<PubsubMessage> dlq =
@@ -169,17 +166,6 @@ public class PubsubJsonIT implements Serializable {
         && Arrays.equals(message1.getPayload(), message2.getPayload());
   }
 
-  private BeamSqlEnv newSqlEnv() {
-    InMemoryMetaStore metaStore = new InMemoryMetaStore();
-    metaStore.registerProvider(new PubsubJsonTableProvider());
-    return new BeamSqlEnv(metaStore);
-  }
-
-  private void createTable(BeamSqlEnv sqlEnv, String statement) throws SqlParseException {
-    SqlNode sqlNode = sqlEnv.getPlanner().parse(statement);
-    ((SqlExecutableStatement) sqlNode).execute(sqlEnv.getContext());
-  }
-
   private Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
   }
@@ -187,7 +173,7 @@ public class PubsubJsonIT implements Serializable {
   private PCollection<Row> query(BeamSqlEnv sqlEnv, TestPipeline pipeline, String queryString)
       throws Exception {
 
-    return sqlEnv.getPlanner().compileBeamPipeline(queryString, pipeline);
+    return PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(queryString));
   }
 
   private PubsubMessage message(Instant timestamp, int id, String name) {

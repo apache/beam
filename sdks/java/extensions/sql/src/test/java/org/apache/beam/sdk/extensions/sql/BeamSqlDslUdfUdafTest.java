@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -80,9 +84,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testRawCombineFnSubclass() {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("parameterized");
-    exceptions.expectMessage("CombineFn");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("CombineFn must be parameterized")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     Schema resultType = Schema.builder().addInt32Field("f_int2").addInt32Field("squaresum").build();

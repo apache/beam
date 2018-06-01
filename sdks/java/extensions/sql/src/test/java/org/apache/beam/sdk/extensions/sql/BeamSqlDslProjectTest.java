@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static java.util.stream.Collectors.toList;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
@@ -175,8 +178,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
   @Test
   public void testProjectUnknownField() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Column 'f_int_na' not found in any table");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Column 'f_int_na' not found in any table")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT f_int_na FROM TABLE_A";

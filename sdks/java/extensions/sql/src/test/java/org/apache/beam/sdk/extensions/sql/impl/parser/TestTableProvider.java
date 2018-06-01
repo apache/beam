@@ -15,30 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-package org.apache.beam.sdk.extensions.sql.meta.provider;
-
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
-/** A {@code InMemoryMetaTableProvider} is an abstract {@code TableProvider} for in-memory types. */
-@Internal
-public abstract class InMemoryMetaTableProvider implements TableProvider {
+/** Test in-memory table provider for use in tests. */
+public class TestTableProvider implements TableProvider {
+  private Map<String, Table> tables = new HashMap<>();
+
+  @Override
+  public String getTableType() {
+    return "test";
+  }
 
   @Override
   public void createTable(Table table) {
-    // No-op
+    tables.put(table.getName(), table);
   }
 
   @Override
   public void dropTable(String tableName) {
-    // No-op
+    tables.remove(tableName);
   }
 
   @Override
   public Map<String, Table> getTables() {
-    return Collections.emptyMap();
+    return tables;
+  }
+
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    throw new UnsupportedOperationException("Test table provider cannot build tables");
   }
 }

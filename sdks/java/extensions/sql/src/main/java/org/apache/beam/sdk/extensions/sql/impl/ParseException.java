@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.parser;
+package org.apache.beam.sdk.extensions.sql.impl;
 
-import com.google.common.collect.ImmutableMap;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParseException;
+/** Exception thrown when Beam SQL is unable to parse the statement. */
+public class ParseException extends RuntimeException {
 
-class ParserTestUtils {
-  private static final BeamSqlEnv env =
-      new BeamSqlEnv(new BeamSqlTableProvider("test", ImmutableMap.of()));
+  public ParseException(Throwable cause) {
+    super(cause);
+  }
 
-  static SqlNode parse(String sql) throws SqlParseException {
-    return env.getPlanner().parse(sql);
+  public ParseException(String message, Throwable cause) {
+    super(message, cause);
   }
 }
