@@ -1058,6 +1058,11 @@ ext.provideIntegrationTestingDependencies = {
         testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
         shadowTest library.java.hadoop_client
       }
+
+      /* include dependencies required by AWS S3 */
+      if (filesystem?.equalsIgnoreCase('s3')) {
+        testCompile project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
+      }
     }
   }
 }
