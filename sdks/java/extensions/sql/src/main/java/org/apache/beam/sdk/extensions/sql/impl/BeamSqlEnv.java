@@ -77,7 +77,7 @@ public class BeamSqlEnv {
       inMemoryMetaStore.registerProvider(tableProvider);
     }
 
-    return new BeamSqlEnv(inMemoryMetaStore);
+    return withTableProvider(inMemoryMetaStore);
   }
 
   /** Register a UDF function which can be used in SQL expression. */
@@ -107,18 +107,29 @@ public class BeamSqlEnv {
   }
 
   public PTransform<PCollectionTuple, PCollection<Row>> parseQuery(String query)
-      throws SqlParseException, RelConversionException, ValidationException {
-
-    return planner.convertToBeamRel(query).toPTransform();
+      throws ParseException {
+    try {
+      return planner.convertToBeamRel(query).toPTransform();
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
+      throw new ParseException("Unable to parse query", e);
+    }
   }
 
-  public boolean isDdl(String sqlStatement) throws SqlParseException {
-    return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+  public boolean isDdl(String sqlStatement) throws ParseException {
+    try {
+      return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+    } catch (SqlParseException e) {
+      throw new ParseException("Unable to parse statement", e);
+    }
   }
 
-  public void executeDdl(String sqlStatement) throws SqlParseException {
-    SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
-    ddl.execute(getContext());
+  public void executeDdl(String sqlStatement) throws ParseException {
+    try {
+      SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
+      ddl.execute(getContext());
+    } catch (SqlParseException e) {
+      throw new ParseException("Unable to parse DDL statement", e);
+    }
   }
 
   public CalcitePrepare.Context getContext() {
