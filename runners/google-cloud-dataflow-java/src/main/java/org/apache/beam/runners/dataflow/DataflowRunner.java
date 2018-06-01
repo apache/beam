@@ -1211,7 +1211,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingFnApiCreate<T> extends PTransform<PBegin, PCollection<T>> {
     private final Create.Values<T> transform;
-    private final PCollection<T> originalOutput;
+    private final transient PCollection<T> originalOutput;
 
     private StreamingFnApiCreate(
         Create.Values<T> transform,
@@ -1604,7 +1604,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private class StreamingPubsubIOWriteOverrideFactory
+  private static class StreamingPubsubIOWriteOverrideFactory
       implements PTransformOverrideFactory<
           PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
     private final DataflowRunner runner;

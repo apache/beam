@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -57,5 +58,5 @@ public abstract class MetricResults {
    * // applications.
    * }</pre>
    */
-  public abstract MetricQueryResults queryMetrics(MetricsFilter filter);
+  public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
 }

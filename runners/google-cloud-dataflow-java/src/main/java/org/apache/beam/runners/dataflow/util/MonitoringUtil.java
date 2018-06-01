@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -125,7 +126,7 @@ public class MonitoringUtil {
   /**
    * Comparator for sorting rows in increasing order based on timestamp.
    */
-  public static class TimeStampComparator implements Comparator<JobMessage> {
+  public static class TimeStampComparator implements Comparator<JobMessage>, Serializable {
     @Override
     public int compare(JobMessage o1, JobMessage o2) {
       @Nullable Instant t1 = fromCloudTime(o1.getTime());
