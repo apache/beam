@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -134,7 +135,7 @@ public class RandomAccessData {
    * all other {@link RandomAccessData}.
    */
   public static final class UnsignedLexicographicalComparator
-      implements Comparator<RandomAccessData> {
+      implements Comparator<RandomAccessData>, Serializable {
     // Do not instantiate
     private UnsignedLexicographicalComparator() {
     }

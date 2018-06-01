@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false /* BEAM-925 */)
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
