@@ -112,6 +112,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
     return properties.get(CONTAINER_VERSION_KEY);
   }
 
+  @Override
   public Map<String, String> getProperties() {
     return ImmutableMap.copyOf((Map) properties);
   }

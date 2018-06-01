@@ -151,10 +151,12 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
       ctxt.output(ctxt.element().longValue());
     }
 
+    @Override
     public boolean equals(Object other) {
       return other != null && other.getClass().equals(getClass());
     }
 
+    @Override
     public int hashCode() {
       return getClass().hashCode();
     }
