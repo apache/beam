@@ -28,6 +28,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -51,6 +52,7 @@ import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides.TransformReplacement;
 import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactRetrievalService;
+import org.apache.beam.runners.direct.portable.artifact.UnsupportedArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
@@ -78,12 +80,12 @@ import org.joda.time.Instant;
 public class ReferenceRunner {
   private final RunnerApi.Pipeline pipeline;
   private final Struct options;
-  private final File artifactsDir;
+  @Nullable private final File artifactsDir;
 
   private final EnvironmentType environmentType;
 
   private ReferenceRunner(
-      Pipeline p, Struct options, File artifactsDir, EnvironmentType environmentType) {
+      Pipeline p, Struct options, @Nullable File artifactsDir, EnvironmentType environmentType) {
     this.pipeline = executable(p);
     this.options = options;
     this.artifactsDir = artifactsDir;
@@ -131,7 +133,8 @@ public class ReferenceRunner {
                 GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
         GrpcFnServer<ArtifactRetrievalService> artifact =
             artifactsDir == null
-                ? null
+                ? GrpcFnServer.allocatePortAndCreateFor(
+                    UnsupportedArtifactRetrievalService.create(), serverFactory)
                 : GrpcFnServer.allocatePortAndCreateFor(
                     LocalFileSystemArtifactRetrievalService.forRootDirectory(artifactsDir),
                     serverFactory);
