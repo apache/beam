@@ -216,6 +216,15 @@ Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction 
 - Contact: [David Moravek](mailto:david.moravek@gmail.com)
 
 
+### Beam SQL
+
+Beam SQL has lots of areas to contribute: support for new operators, new
+connectors, performance measurement and improvement, more full specification
+and testing, etc.
+
+ - JIRA: [dsl-sql](https://issues.apache.org/jira/issues/?filter=12343977)
+ - Contact: [Kenneth Knowles](mailto:kenn@apache.org)
+
 ## Stale pull requests
 
 The community will close stale pull requests in order to keep the project
