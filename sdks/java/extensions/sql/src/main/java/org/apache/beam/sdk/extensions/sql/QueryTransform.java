@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
@@ -63,7 +64,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     registerFunctions(sqlEnv);
 
     try {
-      return sqlEnv.getPlanner().compileBeamPipeline(queryString(), input.getPipeline());
+      return PCollectionTuple.empty(input.getPipeline()).apply(sqlEnv.parseQuery(queryString()));
     } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new IllegalStateException(e);
     }

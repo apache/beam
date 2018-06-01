@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.SqlNode;
@@ -187,7 +188,7 @@ public class PubsubJsonIT implements Serializable {
   private PCollection<Row> query(BeamSqlEnv sqlEnv, TestPipeline pipeline, String queryString)
       throws Exception {
 
-    return sqlEnv.getPlanner().compileBeamPipeline(queryString, pipeline);
+    return PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(queryString));
   }
 
   private PubsubMessage message(Instant timestamp, int id, String name) {

@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.SqlNode;
@@ -72,7 +73,7 @@ public class BeamSqlCli {
               .as(PipelineOptions.class);
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
-      env.getPlanner().compileBeamPipeline(sqlString, pipeline);
+      PCollectionTuple.empty(pipeline).apply(env.parseQuery(sqlString));
       pipeline.run();
     }
   }
