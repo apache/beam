@@ -26,11 +26,11 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlParserImpl}. */
@@ -61,7 +61,7 @@ public class BeamDDLTest {
         tableProvider.getTables().get("person"));
   }
 
-  @Test(expected = SqlParseException.class)
+  @Test(expected = ParseException.class)
   public void testParseCreateTable_withoutType() throws Exception {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(new TestTableProvider());
     env.executeDdl(

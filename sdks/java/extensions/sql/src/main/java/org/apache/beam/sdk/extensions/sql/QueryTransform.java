@@ -37,9 +37,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.ValidationException;
 
 /**
  * A {@link PTransform} representing an execution plan for a SQL query.
@@ -62,11 +59,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
     registerFunctions(sqlEnv);
 
-    try {
-      return PCollectionTuple.empty(input.getPipeline()).apply(sqlEnv.parseQuery(queryString()));
-    } catch (ValidationException | RelConversionException | SqlParseException e) {
-      throw new IllegalStateException(e);
-    }
+    return PCollectionTuple.empty(input.getPipeline()).apply(sqlEnv.parseQuery(queryString()));
   }
 
   private Map<String, BeamSqlTable> toTableMap(PInput inputs) {
