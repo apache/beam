@@ -17,9 +17,10 @@
  */
 package org.apache.beam.examples.subprocess.utils;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -150,7 +151,7 @@ public class FileUtils {
 
   public static String readLineOfLogFile(Path path) {
 
-    try (BufferedReader br = new BufferedReader(new FileReader(path.toString()))) {
+    try (BufferedReader br = Files.newBufferedReader(Paths.get(path.toString()), UTF_8)) {
       return br.readLine();
     } catch (FileNotFoundException e) {
       LOG.error("Error reading the first line of file", e);
