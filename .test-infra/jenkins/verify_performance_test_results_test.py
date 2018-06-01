@@ -19,6 +19,8 @@
 #   This script performs testing of scenarios from verify_performance_test_results.py
 #
 
+from __future__ import print_function
+
 import unittest, mock
 from mock import patch
 from verify_performance_test_results import create_report
@@ -27,7 +29,7 @@ class VerifyAnalysisScript(unittest.TestCase):
     """Tests for `verify_performance_test_results.py`."""
 
     def setUp(self):
-        print "Test name:", self._testMethodName
+        print("Test name:", self._testMethodName)
 
     @patch('verify_performance_test_results.count_queries', return_value=0)
     def test_create_daily_report_when_no_data_was_uploaded(self, *args):
