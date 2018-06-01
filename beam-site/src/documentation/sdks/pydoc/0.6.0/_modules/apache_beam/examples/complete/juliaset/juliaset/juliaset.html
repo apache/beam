@@ -1,0 +1,214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.complete.juliaset.juliaset.juliaset &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.complete.juliaset.juliaset.juliaset</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A Julia set computing workflow: https://en.wikipedia.org/wiki/Julia_set.</span>
+
+<span class="sd">We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">WriteToText</span>
+
+
+<div class="viewcode-block" id="from_pixel"><a class="viewcode-back" href="../../../../../../apache_beam.examples.complete.juliaset.juliaset.html#apache_beam.examples.complete.juliaset.juliaset.juliaset.from_pixel">[docs]</a><span class="k">def</span> <span class="nf">from_pixel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Converts a NxN pixel position to a (-1..1, -1..1) complex number.&quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="nb">complex</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">/</span> <span class="n">n</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">y</span> <span class="o">/</span> <span class="n">n</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_julia_set_point_color"><a class="viewcode-back" href="../../../../../../apache_beam.examples.complete.juliaset.juliaset.html#apache_beam.examples.complete.juliaset.juliaset.juliaset.get_julia_set_point_color">[docs]</a><span class="k">def</span> <span class="nf">get_julia_set_point_color</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">max_iterations</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Given an pixel, convert it into a point in our julia set.&quot;&quot;&quot;</span>
+  <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">element</span>
+  <span class="n">z</span> <span class="o">=</span> <span class="n">from_pixel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="n">max_iterations</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">z</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">z</span><span class="o">.</span><span class="n">real</span> <span class="o">+</span> <span class="n">z</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">z</span><span class="o">.</span><span class="n">imag</span> <span class="o">&gt;</span> <span class="mf">2.0</span><span class="p">:</span>
+      <span class="k">break</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">z</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="n">c</span>
+  <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">i</span>  <span class="c1"># pylint: disable=undefined-loop-variable</span></div>
+
+
+<div class="viewcode-block" id="generate_julia_set_colors"><a class="viewcode-back" href="../../../../../../apache_beam.examples.complete.juliaset.juliaset.html#apache_beam.examples.complete.juliaset.juliaset.juliaset.generate_julia_set_colors">[docs]</a><span class="k">def</span> <span class="nf">generate_julia_set_colors</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">max_iterations</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Compute julia set coordinates for each point in our set.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">point_set</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+  <span class="n">julia_set_colors</span> <span class="o">=</span> <span class="p">(</span><span class="n">pipeline</span>
+                      <span class="o">|</span> <span class="s1">&#39;add points&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">point_set</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+                      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+                          <span class="n">get_julia_set_point_color</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">max_iterations</span><span class="p">))</span>
+
+  <span class="k">return</span> <span class="n">julia_set_colors</span></div>
+
+
+<div class="viewcode-block" id="generate_julia_set_visualization"><a class="viewcode-back" href="../../../../../../apache_beam.examples.complete.juliaset.juliaset.html#apache_beam.examples.complete.juliaset.juliaset.juliaset.generate_julia_set_visualization">[docs]</a><span class="k">def</span> <span class="nf">generate_julia_set_visualization</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">max_iterations</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Generate the pixel matrix for rendering the julia set as an image.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="n">colors</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">):</span>
+        <span class="n">colors</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span>
+
+  <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">iteration</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+    <span class="n">xy</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="n">iteration</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">colors</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_iterations</span><span class="p">]</span>
+
+  <span class="k">return</span> <span class="n">xy</span></div>
+
+
+<div class="viewcode-block" id="save_julia_set_visualization"><a class="viewcode-back" href="../../../../../../apache_beam.examples.complete.juliaset.juliaset.html#apache_beam.examples.complete.juliaset.juliaset.juliaset.save_julia_set_visualization">[docs]</a><span class="k">def</span> <span class="nf">save_julia_set_visualization</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">image_array</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Save the fractal image of our julia set as a png.&quot;&quot;&quot;</span>
+  <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="n">plt</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">image_array</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../../../../apache_beam.examples.complete.juliaset.juliaset.html#apache_beam.examples.complete.juliaset.juliaset.juliaset.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=missing-docstring</span>
+
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--grid_size&#39;</span><span class="p">,</span>
+                      <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;grid_size&#39;</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Size of the NxN matrix&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s1">&#39;--coordinate_output&#39;</span><span class="p">,</span>
+      <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;coordinate_output&#39;</span><span class="p">,</span>
+      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write the color coordinates of the image to.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--image_output&#39;</span><span class="p">,</span>
+                      <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;image_output&#39;</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write the resulting image to.&#39;</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="n">pipeline_args</span><span class="p">)</span>
+  <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">grid_size</span><span class="p">)</span>
+
+  <span class="n">coordinates</span> <span class="o">=</span> <span class="n">generate_julia_set_colors</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">complex</span><span class="p">(</span><span class="o">-.</span><span class="mi">62772</span><span class="p">,</span> <span class="o">.</span><span class="mi">42193</span><span class="p">),</span> <span class="n">n</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+
+  <span class="c1"># Group each coordinate triplet by its x value, then write the coordinates to</span>
+  <span class="c1"># the output file with an x-coordinate grouping per line.</span>
+  <span class="c1"># pylint: disable=expression-not-assigned</span>
+  <span class="p">(</span><span class="n">coordinates</span>
+   <span class="o">|</span> <span class="s1">&#39;x coord key&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">i</span><span class="p">)))</span>
+   <span class="o">|</span> <span class="s1">&#39;x coord&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+   <span class="o">|</span> <span class="s1">&#39;format&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+       <span class="k">lambda</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">coord</span> <span class="k">for</span> <span class="n">coord</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">))</span>
+   <span class="o">|</span> <span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">coordinate_output</span><span class="p">))</span>
+  <span class="c1"># pylint: enable=expression-not-assigned</span>
+  <span class="k">return</span> <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+  <span class="c1"># Optionally render the image and save it to a file.</span>
+  <span class="c1"># TODO(silviuc): Add this functionality.</span>
+  <span class="c1"># if p.options.image_output is not None:</span>
+  <span class="c1">#  julia_set_image = generate_julia_set_visualization(</span>
+  <span class="c1">#      file_with_coordinates, n, 100)</span>
+  <span class="c1">#  save_julia_set_visualization(p.options.image_output, julia_set_image)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

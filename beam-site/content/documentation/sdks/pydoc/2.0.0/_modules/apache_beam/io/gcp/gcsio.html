@@ -1,0 +1,979 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.gcsio &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.gcsio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;Google Cloud Storage client.</span>
+
+<span class="sd">This library evolved from the Google App Engine GCS client available at</span>
+<span class="sd">https://github.com/GoogleCloudPlatform/appengine-gcs-client.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">cStringIO</span>
+<span class="kn">import</span> <span class="nn">errno</span>
+<span class="kn">import</span> <span class="nn">fnmatch</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">Queue</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">retry</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GcsIO&#39;</span><span class="p">]</span>
+
+
+<span class="c1"># Issue a friendlier error message if the storage library is not available.</span>
+<span class="c1"># TODO(silviuc): Remove this guard when storage is available everywhere.</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="c1"># pylint: disable=ungrouped-imports</span>
+  <span class="kn">import</span> <span class="nn">apitools.base.py.transfer</span> <span class="k">as</span> <span class="nn">transfer</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py.batch</span> <span class="k">import</span> <span class="n">BatchApiRequest</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py.exceptions</span> <span class="k">import</span> <span class="n">HttpError</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.internal.gcp</span> <span class="k">import</span> <span class="n">auth</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="k">import</span> <span class="n">storage</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+      <span class="s1">&#39;Google Cloud Storage I/O not supported for this execution environment &#39;</span>
+      <span class="s1">&#39;(could not import storage API client).&#39;</span><span class="p">)</span>
+
+<span class="c1"># This is the size of each partial-file read operation from GCS.  This</span>
+<span class="c1"># parameter was chosen to give good throughput while keeping memory usage at</span>
+<span class="c1"># a reasonable level; the following table shows throughput reached when</span>
+<span class="c1"># reading files of a given size with a chosen buffer size and informed the</span>
+<span class="c1"># choice of the value, as of 11/2016:</span>
+<span class="c1">#</span>
+<span class="c1"># +---------------+------------+-------------+-------------+-------------+</span>
+<span class="c1"># |               | 50 MB file | 100 MB file | 200 MB file | 400 MB file |</span>
+<span class="c1"># +---------------+------------+-------------+-------------+-------------+</span>
+<span class="c1"># | 8 MB buffer   | 17.12 MB/s | 22.67 MB/s  | 23.81 MB/s  | 26.05 MB/s  |</span>
+<span class="c1"># | 16 MB buffer  | 24.21 MB/s | 42.70 MB/s  | 42.89 MB/s  | 46.92 MB/s  |</span>
+<span class="c1"># | 32 MB buffer  | 28.53 MB/s | 48.08 MB/s  | 54.30 MB/s  | 54.65 MB/s  |</span>
+<span class="c1"># | 400 MB buffer | 34.72 MB/s | 71.13 MB/s  | 79.13 MB/s  | 85.39 MB/s  |</span>
+<span class="c1"># +---------------+------------+-------------+-------------+-------------+</span>
+<span class="n">DEFAULT_READ_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">16</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+
+<span class="c1"># This is the number of seconds the library will wait for a partial-file read</span>
+<span class="c1"># operation from GCS to complete before retrying.</span>
+<span class="n">DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS</span> <span class="o">=</span> <span class="mi">60</span>
+
+<span class="c1"># This is the size of chunks used when writing to GCS.</span>
+<span class="n">WRITE_CHUNK_SIZE</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+
+
+<span class="c1"># Maximum number of operations permitted in GcsIO.copy_batch() and</span>
+<span class="c1"># GcsIO.delete_batch().</span>
+<span class="n">MAX_BATCH_OPERATION_SIZE</span> <span class="o">=</span> <span class="mi">100</span>
+
+
+<span class="k">def</span> <span class="nf">parse_gcs_path</span><span class="p">(</span><span class="n">gcs_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Return the bucket and object names of the given gs:// path.&quot;&quot;&quot;</span>
+  <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;^gs://([^/]+)/(.+)$&#39;</span><span class="p">,</span> <span class="n">gcs_path</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;GCS path must be in the form gs://&lt;bucket&gt;/&lt;object&gt;.&#39;</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">GcsIOError</span><span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="n">retry</span><span class="o">.</span><span class="n">PermanentException</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;GCS IO error that should not be retried.&quot;&quot;&quot;</span>
+  <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="GcsIO"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio.GcsIO">[docs]</a><span class="k">class</span> <span class="nc">GcsIO</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Google Cloud Storage I/O client.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">storage_client</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">storage_client</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">GcsIO</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">storage_client</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Create a single storage client for each thread.  We would like to avoid</span>
+      <span class="c1"># creating more than one storage client for each thread, since each</span>
+      <span class="c1"># initialization requires the relatively expensive step of initializing</span>
+      <span class="c1"># credentaials.</span>
+      <span class="n">local_state</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">local</span><span class="p">()</span>
+      <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">local_state</span><span class="p">,</span> <span class="s1">&#39;gcsio_instance&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">credentials</span> <span class="o">=</span> <span class="n">auth</span><span class="o">.</span><span class="n">get_service_credentials</span><span class="p">()</span>
+        <span class="n">storage_client</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageV1</span><span class="p">(</span><span class="n">credentials</span><span class="o">=</span><span class="n">credentials</span><span class="p">)</span>
+        <span class="n">local_state</span><span class="o">.</span><span class="n">gcsio_instance</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">GcsIO</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">storage_client</span><span class="p">))</span>
+        <span class="n">local_state</span><span class="o">.</span><span class="n">gcsio_instance</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">storage_client</span>
+      <span class="k">return</span> <span class="n">local_state</span><span class="o">.</span><span class="n">gcsio_instance</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage_client</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># We must do this check on storage_client because the client attribute may</span>
+    <span class="c1"># have already been set in __new__ for the singleton case when</span>
+    <span class="c1"># storage_client is None.</span>
+    <span class="k">if</span> <span class="n">storage_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">storage_client</span>
+
+<div class="viewcode-block" id="GcsIO.open"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio.GcsIO.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+           <span class="n">filename</span><span class="p">,</span>
+           <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span>
+           <span class="n">read_buffer_size</span><span class="o">=</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">,</span>
+           <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Open a GCS file path for reading or writing.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      filename: GCS file path in the form gs://&lt;bucket&gt;/&lt;object&gt;.</span>
+<span class="sd">      mode: &#39;r&#39; for reading or &#39;w&#39; for writing.</span>
+<span class="sd">      read_buffer_size: Buffer size to use during read operations.</span>
+<span class="sd">      mime_type: Mime type to set for write operations.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      file object.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: Invalid open file mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;r&#39;</span> <span class="ow">or</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;rb&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">GcsBufferedReader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                               <span class="n">buffer_size</span><span class="o">=</span><span class="n">read_buffer_size</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;w&#39;</span> <span class="ow">or</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;wb&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">GcsBufferedWriter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                               <span class="n">mime_type</span><span class="o">=</span><span class="n">mime_type</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid file open mode: </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">mode</span><span class="p">)</span></div>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">glob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the GCS path names matching a given path name pattern.</span>
+
+<span class="sd">    Path name patterns are those recognized by fnmatch.fnmatch().  The path</span>
+<span class="sd">    can contain glob characters (*, ?, and [...] sets).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pattern: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name_pattern&gt;.</span>
+<span class="sd">      limit: Maximal number of path names to return.</span>
+<span class="sd">        All matching paths are returned if set to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      list of GCS file paths matching the given pattern.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name_pattern</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="c1"># Get the prefix with which we can list objects in the given bucket.</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;^[^[*?]*&#39;</span><span class="p">,</span> <span class="n">name_pattern</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsListRequest</span><span class="p">(</span><span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span>
+    <span class="n">object_paths</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">fnmatch</span><span class="o">.</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name_pattern</span><span class="p">):</span>
+          <span class="n">object_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;gs://</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">nextPageToken</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">pageToken</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">nextPageToken</span>
+        <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">object_paths</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span>
+          <span class="k">break</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">break</span>
+    <span class="k">return</span> <span class="n">object_paths</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deletes the object at the given GCS path.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">object_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsDeleteRequest</span><span class="p">(</span>
+        <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="n">object_path</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Delete</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">http_error</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">http_error</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="c1"># Return success when the file doesn&#39;t exist anymore for idempotency.</span>
+        <span class="k">return</span>
+      <span class="k">raise</span>
+
+  <span class="c1"># We intentionally do not decorate this method with a retry, as retrying is</span>
+  <span class="c1"># handled in BatchApiRequest.Execute().</span>
+<div class="viewcode-block" id="GcsIO.delete_batch"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio.GcsIO.delete_batch">[docs]</a>  <span class="k">def</span> <span class="nf">delete_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deletes the objects at the given GCS paths.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      paths: List of GCS file path patterns in the form gs://&lt;bucket&gt;/&lt;name&gt;,</span>
+<span class="sd">             not to exceed MAX_BATCH_OPERATION_SIZE in length.</span>
+
+<span class="sd">    Returns: List of tuples of (path, exception) in the same order as the paths</span>
+<span class="sd">             argument, where exception is None if the operation succeeded or</span>
+<span class="sd">             the relevant exception if the operation failed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">paths</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">batch_request</span> <span class="o">=</span> <span class="n">BatchApiRequest</span><span class="p">(</span>
+        <span class="n">retryable_codes</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">SERVER_ERROR_OR_TIMEOUT_CODES</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+      <span class="n">bucket</span><span class="p">,</span> <span class="n">object_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsDeleteRequest</span><span class="p">(</span>
+          <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="n">object_path</span><span class="p">)</span>
+      <span class="n">batch_request</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="p">,</span> <span class="s1">&#39;Delete&#39;</span><span class="p">,</span> <span class="n">request</span><span class="p">)</span>
+    <span class="n">api_calls</span> <span class="o">=</span> <span class="n">batch_request</span><span class="o">.</span><span class="n">Execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">_http</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+    <span class="n">result_statuses</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">api_call</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">api_calls</span><span class="p">):</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">paths</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+      <span class="n">exception</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="n">api_call</span><span class="o">.</span><span class="n">is_error</span><span class="p">:</span>
+        <span class="n">exception</span> <span class="o">=</span> <span class="n">api_call</span><span class="o">.</span><span class="n">exception</span>
+        <span class="c1"># Return success when the file doesn&#39;t exist anymore for idempotency.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="n">HttpError</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exception</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+          <span class="n">exception</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="n">result_statuses</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">path</span><span class="p">,</span> <span class="n">exception</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">result_statuses</span></div>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies the given GCS object from src to dest.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      src: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</span>
+<span class="sd">      dest: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">src_bucket</span><span class="p">,</span> <span class="n">src_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+    <span class="n">dest_bucket</span><span class="p">,</span> <span class="n">dest_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsCopyRequest</span><span class="p">(</span>
+        <span class="n">sourceBucket</span><span class="o">=</span><span class="n">src_bucket</span><span class="p">,</span>
+        <span class="n">sourceObject</span><span class="o">=</span><span class="n">src_path</span><span class="p">,</span>
+        <span class="n">destinationBucket</span><span class="o">=</span><span class="n">dest_bucket</span><span class="p">,</span>
+        <span class="n">destinationObject</span><span class="o">=</span><span class="n">dest_path</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Copy</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">http_error</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">http_error</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="c1"># This is a permanent error that should not be retried. Note that</span>
+        <span class="c1"># FileBasedSink.finalize_write expects an IOError when the source</span>
+        <span class="c1"># file does not exist.</span>
+        <span class="k">raise</span> <span class="n">GcsIOError</span><span class="p">(</span><span class="n">errno</span><span class="o">.</span><span class="n">ENOENT</span><span class="p">,</span> <span class="s1">&#39;Source file not found: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">src</span><span class="p">)</span>
+      <span class="k">raise</span>
+
+  <span class="c1"># We intentionally do not decorate this method with a retry, as retrying is</span>
+  <span class="c1"># handled in BatchApiRequest.Execute().</span>
+<div class="viewcode-block" id="GcsIO.copy_batch"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio.GcsIO.copy_batch">[docs]</a>  <span class="k">def</span> <span class="nf">copy_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_dest_pairs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies the given GCS object from src to dest.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      src_dest_pairs: list of (src, dest) tuples of gs://&lt;bucket&gt;/&lt;name&gt; files</span>
+<span class="sd">                      paths to copy from src to dest, not to exceed</span>
+<span class="sd">                      MAX_BATCH_OPERATION_SIZE in length.</span>
+
+<span class="sd">    Returns: List of tuples of (src, dest, exception) in the same order as the</span>
+<span class="sd">             src_dest_pairs argument, where exception is None if the operation</span>
+<span class="sd">             succeeded or the relevant exception if the operation failed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">src_dest_pairs</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">batch_request</span> <span class="o">=</span> <span class="n">BatchApiRequest</span><span class="p">(</span>
+        <span class="n">retryable_codes</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">SERVER_ERROR_OR_TIMEOUT_CODES</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">src_dest_pairs</span><span class="p">:</span>
+      <span class="n">src_bucket</span><span class="p">,</span> <span class="n">src_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+      <span class="n">dest_bucket</span><span class="p">,</span> <span class="n">dest_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+      <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsCopyRequest</span><span class="p">(</span>
+          <span class="n">sourceBucket</span><span class="o">=</span><span class="n">src_bucket</span><span class="p">,</span>
+          <span class="n">sourceObject</span><span class="o">=</span><span class="n">src_path</span><span class="p">,</span>
+          <span class="n">destinationBucket</span><span class="o">=</span><span class="n">dest_bucket</span><span class="p">,</span>
+          <span class="n">destinationObject</span><span class="o">=</span><span class="n">dest_path</span><span class="p">)</span>
+      <span class="n">batch_request</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="p">,</span> <span class="s1">&#39;Copy&#39;</span><span class="p">,</span> <span class="n">request</span><span class="p">)</span>
+    <span class="n">api_calls</span> <span class="o">=</span> <span class="n">batch_request</span><span class="o">.</span><span class="n">Execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">_http</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+    <span class="n">result_statuses</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">api_call</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">api_calls</span><span class="p">):</span>
+      <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="o">=</span> <span class="n">src_dest_pairs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+      <span class="n">exception</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="n">api_call</span><span class="o">.</span><span class="n">is_error</span><span class="p">:</span>
+        <span class="n">exception</span> <span class="o">=</span> <span class="n">api_call</span><span class="o">.</span><span class="n">exception</span>
+        <span class="c1"># Translate 404 to the appropriate not found exception.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="n">HttpError</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exception</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+          <span class="n">exception</span> <span class="o">=</span> <span class="p">(</span>
+              <span class="n">GcsIOError</span><span class="p">(</span><span class="n">errno</span><span class="o">.</span><span class="n">ENOENT</span><span class="p">,</span> <span class="s1">&#39;Source file not found: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">src</span><span class="p">))</span>
+      <span class="n">result_statuses</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">result_statuses</span></div>
+
+  <span class="c1"># We intentionally do not decorate this method with a retry, since the</span>
+  <span class="c1"># underlying copy and delete operations are already idempotent operations</span>
+  <span class="c1"># protected by retry decorators.</span>
+<div class="viewcode-block" id="GcsIO.copytree"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio.GcsIO.copytree">[docs]</a>  <span class="k">def</span> <span class="nf">copytree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Renames the given GCS &quot;directory&quot; recursively from src to dest.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      src: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;/.</span>
+<span class="sd">      dest: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;/.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">src</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">dest</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">src</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+      <span class="n">rel_path</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">src</span><span class="p">):]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">dest</span> <span class="o">+</span> <span class="n">rel_path</span><span class="p">)</span></div>
+
+  <span class="c1"># We intentionally do not decorate this method with a retry, since the</span>
+  <span class="c1"># underlying copy and delete operations are already idempotent operations</span>
+  <span class="c1"># protected by retry decorators.</span>
+<div class="viewcode-block" id="GcsIO.rename"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio.GcsIO.rename">[docs]</a>  <span class="k">def</span> <span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Renames the given GCS object from src to dest.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      src: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</span>
+<span class="sd">      dest: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">src</span><span class="p">)</span></div>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns whether the given GCS object exists.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: GCS file path pattern in the form gs://&lt;bucket&gt;/&lt;name&gt;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">object_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsGetRequest</span><span class="p">(</span>
+          <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="n">object_path</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>  <span class="c1"># metadata</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">http_error</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">http_error</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="c1"># HTTP 404 indicates that the file did not exist</span>
+        <span class="k">return</span> <span class="kc">False</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># We re-raise all other exceptions</span>
+        <span class="k">raise</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the size of a single GCS object.</span>
+
+<span class="sd">    This method does not perform glob expansion. Hence the given path must be</span>
+<span class="sd">    for a single GCS object.</span>
+
+<span class="sd">    Returns: size of the GCS object in bytes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">object_path</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsGetRequest</span><span class="p">(</span>
+        <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="n">object_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">request</span><span class="p">)</span><span class="o">.</span><span class="n">size</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">size_of_files_in_glob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the size of all the files in the glob as a dictionary</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pattern: a file path pattern that reads the size of all the files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name_pattern</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="c1"># Get the prefix with which we can list objects in the given bucket.</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;^[^[*?]*&#39;</span><span class="p">,</span> <span class="n">name_pattern</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsListRequest</span><span class="p">(</span><span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span>
+    <span class="n">file_sizes</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting the size estimation of the input&quot;</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">fnmatch</span><span class="o">.</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name_pattern</span><span class="p">):</span>
+          <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+          <span class="n">file_sizes</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">counter</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span>
+          <span class="k">break</span>
+        <span class="k">if</span> <span class="n">counter</span> <span class="o">%</span> <span class="mi">10000</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished computing size of: </span><span class="si">%s</span><span class="s2"> files&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_sizes</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">nextPageToken</span><span class="p">:</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">pageToken</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">nextPageToken</span>
+        <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_sizes</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span>
+          <span class="k">break</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">break</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s2">&quot;Finished the size estimation of the input at </span><span class="si">%s</span><span class="s2"> files. &quot;</span> <span class="o">+</span>\
+        <span class="s2">&quot;Estimation took </span><span class="si">%s</span><span class="s2"> seconds&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">file_sizes</span></div>
+
+
+<span class="c1"># TODO: Consider using cStringIO instead of buffers and data_lists when reading.</span>
+<span class="k">class</span> <span class="nc">GcsBufferedReader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A class for reading Google Cloud Storage files.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">client</span><span class="p">,</span>
+               <span class="n">path</span><span class="p">,</span>
+               <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span>
+               <span class="n">buffer_size</span><span class="o">=</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">,</span>
+               <span class="n">segment_timeout</span><span class="o">=</span><span class="n">DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">buffer_size</span> <span class="o">=</span> <span class="n">buffer_size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">segment_timeout</span> <span class="o">=</span> <span class="n">segment_timeout</span>
+
+    <span class="c1"># Get object state.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">get_request</span> <span class="o">=</span> <span class="p">(</span><span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsGetRequest</span><span class="p">(</span>
+        <span class="n">bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_object_metadata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">http_error</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">http_error</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">errno</span><span class="o">.</span><span class="n">ENOENT</span><span class="p">,</span> <span class="s1">&#39;Not found: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;HTTP error while requesting file </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                      <span class="n">http_error</span><span class="p">)</span>
+        <span class="k">raise</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="c1"># Ensure read is from file of the correct generation.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">get_request</span><span class="o">.</span><span class="n">generation</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">generation</span>
+
+    <span class="c1"># Initialize read buffer state.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">download_stream</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">downloader</span> <span class="o">=</span> <span class="n">transfer</span><span class="o">.</span><span class="n">Download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">download_stream</span><span class="p">,</span> <span class="n">auto_transfer</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_request</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">buffer_start_position</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_get_object_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_request</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">get_request</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read one line delimited by &#39;\\n&#39; from the file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read one line delimited by &#39;\\n&#39; from the file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">StopIteration</span>
+    <span class="k">return</span> <span class="n">line</span>
+
+  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read data from a GCS file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      size: Number of bytes to read. Actual number of bytes read is always</span>
+<span class="sd">            equal to size unless EOF is reached. If size is negative or</span>
+<span class="sd">            unspecified, read the entire file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      data read as str.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: When this buffer is closed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_inner</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">readline</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read one line delimited by &#39;\\n&#39; from the file.</span>
+
+<span class="sd">    Mimics behavior of the readline() method on standard file objects.</span>
+
+<span class="sd">    A trailing newline character is kept in the string. It may be absent when a</span>
+<span class="sd">    file ends with an incomplete line. If the size argument is non-negative,</span>
+<span class="sd">    it specifies the maximum string size (counting the newline) to return.</span>
+<span class="sd">    A negative size is the same as unspecified. Empty string is returned</span>
+<span class="sd">    only when EOF is encountered immediately.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      size: Maximum number of bytes to read. If not specified, readline stops</span>
+<span class="sd">        only on &#39;\\n&#39; or EOF.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      The data read as a string.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: When this buffer is closed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_inner</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">readline</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_read_inner</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">readline</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Shared implementation of read() and readline().&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_open</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remaining</span><span class="p">():</span>
+      <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="c1"># Prepare to read.</span>
+    <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">size</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">to_read</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remaining</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">to_read</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">to_read</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remaining</span><span class="p">()</span>
+    <span class="n">break_after</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">while</span> <span class="n">to_read</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="c1"># If we have exhausted the buffer, get the next segment.</span>
+      <span class="c1"># TODO(ccy): We should consider prefetching the next block in another</span>
+      <span class="c1"># thread.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_next_if_buffer_exhausted</span><span class="p">()</span>
+
+      <span class="c1"># Determine number of bytes to read from buffer.</span>
+      <span class="n">buffer_bytes_read</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_start_position</span>
+      <span class="n">bytes_to_read_from_buffer</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+          <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">)</span> <span class="o">-</span> <span class="n">buffer_bytes_read</span><span class="p">,</span> <span class="n">to_read</span><span class="p">)</span>
+
+      <span class="c1"># If readline is set, we only want to read up to and including the next</span>
+      <span class="c1"># newline character.</span>
+      <span class="k">if</span> <span class="n">readline</span><span class="p">:</span>
+        <span class="n">next_newline_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">buffer_bytes_read</span><span class="p">,</span>
+                                                 <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">next_newline_position</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+          <span class="n">bytes_to_read_from_buffer</span> <span class="o">=</span> <span class="p">(</span>
+              <span class="mi">1</span> <span class="o">+</span> <span class="n">next_newline_position</span> <span class="o">-</span> <span class="n">buffer_bytes_read</span><span class="p">)</span>
+          <span class="n">break_after</span> <span class="o">=</span> <span class="kc">True</span>
+
+      <span class="c1"># Read bytes.</span>
+      <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">[</span><span class="n">buffer_bytes_read</span><span class="p">:</span><span class="n">buffer_bytes_read</span> <span class="o">+</span>
+                                   <span class="n">bytes_to_read_from_buffer</span><span class="p">])</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+=</span> <span class="n">bytes_to_read_from_buffer</span>
+      <span class="n">to_read</span> <span class="o">-=</span> <span class="n">bytes_to_read_from_buffer</span>
+
+      <span class="k">if</span> <span class="n">break_after</span><span class="p">:</span>
+        <span class="k">break</span>
+
+    <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_list</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_fetch_next_if_buffer_exhausted</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="ow">or</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer_start_position</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">):</span>
+      <span class="n">bytes_to_request</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_remaining</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_size</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">buffer_start_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+      <span class="n">retry_count</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">while</span> <span class="n">retry_count</span> <span class="o">&lt;=</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_fetch_to_queue</span><span class="p">,</span>
+                             <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_segment</span><span class="p">,</span>
+                                   <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">bytes_to_request</span><span class="p">)))</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">result</span><span class="p">,</span> <span class="n">exn</span><span class="p">,</span> <span class="n">tb</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">segment_timeout</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+              <span class="p">(</span><span class="s1">&#39;Timed out fetching </span><span class="si">%d</span><span class="s1"> bytes from position </span><span class="si">%d</span><span class="s1"> of </span><span class="si">%s</span><span class="s1"> after </span><span class="si">%f</span><span class="s1"> &#39;</span>
+               <span class="s1">&#39;seconds; retrying...&#39;</span><span class="p">),</span> <span class="n">bytes_to_request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">segment_timeout</span><span class="p">)</span>
+          <span class="n">retry_count</span> <span class="o">+=</span> <span class="mi">1</span>
+          <span class="c1"># Reinitialize download objects.</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">download_stream</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">downloader</span> <span class="o">=</span> <span class="n">transfer</span><span class="o">.</span><span class="n">Download</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">download_stream</span><span class="p">,</span> <span class="n">auto_transfer</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+              <span class="n">chunksize</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_size</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_request</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">downloader</span><span class="p">)</span>
+          <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">exn</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+              <span class="p">(</span><span class="s1">&#39;Exception while fetching </span><span class="si">%d</span><span class="s1"> bytes from position </span><span class="si">%d</span><span class="s1"> of </span><span class="si">%s</span><span class="s1">: &#39;</span>
+               <span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">),</span>
+              <span class="n">bytes_to_request</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">exn</span><span class="p">,</span> <span class="n">tb</span><span class="p">)</span>
+          <span class="k">raise</span> <span class="n">exn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="k">return</span>
+      <span class="k">raise</span> <span class="n">GcsIOError</span><span class="p">(</span>
+          <span class="s1">&#39;Reached retry limit for _fetch_next_if_buffer_exhausted.&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_fetch_to_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+      <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">value</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+      <span class="n">tb</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+      <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">tb</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">_remaining</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+
+  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Close the current GCS file.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">download_stream</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">downloader</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">_get_segment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the given segment of the current GCS file.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+    <span class="c1"># The objects self.downloader and self.download_stream may be recreated if</span>
+    <span class="c1"># this call times out; we save them locally to avoid any threading issues.</span>
+    <span class="n">downloader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">downloader</span>
+    <span class="n">download_stream</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_stream</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">size</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">downloader</span><span class="o">.</span><span class="n">GetRange</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">download_stream</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+    <span class="c1"># Clear the cStringIO object after we&#39;ve read its contents.</span>
+    <span class="n">download_stream</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="n">size</span>
+    <span class="k">return</span> <span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">seek</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">whence</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Set the file&#39;s current offset.</span>
+
+<span class="sd">    Note if the new offset is out of bound, it is adjusted to either 0 or EOF.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      offset: seek offset as number.</span>
+<span class="sd">      whence: seek mode. Supported modes are os.SEEK_SET (absolute seek),</span>
+<span class="sd">        os.SEEK_CUR (seek relative to the current position), and os.SEEK_END</span>
+<span class="sd">        (seek relative to the end, offset should be negative).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: When this buffer is closed.</span>
+<span class="sd">      ValueError: When whence is invalid.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_open</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">buffer_start_position</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">whence</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">offset</span>
+    <span class="k">elif</span> <span class="n">whence</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_CUR</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+=</span> <span class="n">offset</span>
+    <span class="k">elif</span> <span class="n">whence</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_END</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="n">offset</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Whence mode </span><span class="si">%r</span><span class="s1"> is invalid.&#39;</span> <span class="o">%</span> <span class="n">whence</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Tell the file&#39;s current offset.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      current offset in reading this file.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: When this buffer is closed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_open</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+
+  <span class="k">def</span> <span class="nf">_check_open</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Buffer is closed.&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">seekable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="k">def</span> <span class="nf">readable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="k">def</span> <span class="nf">writable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="c1"># TODO: Consider using cStringIO instead of buffers and data_lists when reading</span>
+<span class="c1"># and writing.</span>
+<span class="k">class</span> <span class="nc">GcsBufferedWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A class for writing Google Cloud Storage files.&quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">PipeStream</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class that presents a pipe connection as a readable stream.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recv_pipe</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">recv_pipe</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">False</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">remaining</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Read data from the wrapped pipe connection.</span>
+
+<span class="sd">      Args:</span>
+<span class="sd">        size: Number of bytes to read. Actual number of bytes read is always</span>
+<span class="sd">              equal to size unless EOF is reached.</span>
+
+<span class="sd">      Returns:</span>
+<span class="sd">        data read as str.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">bytes_read</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">while</span> <span class="n">bytes_read</span> <span class="o">&lt;</span> <span class="n">size</span><span class="p">:</span>
+        <span class="n">bytes_from_remaining</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">size</span> <span class="o">-</span> <span class="n">bytes_read</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remaining</span><span class="p">))</span>
+        <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remaining</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">bytes_from_remaining</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining</span><span class="p">[</span><span class="n">bytes_from_remaining</span><span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+=</span> <span class="n">bytes_from_remaining</span>
+        <span class="n">bytes_read</span> <span class="o">+=</span> <span class="n">bytes_from_remaining</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining</span><span class="p">:</span>
+          <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">remaining</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">recv_bytes</span><span class="p">()</span>
+          <span class="k">except</span> <span class="ne">EOFError</span><span class="p">:</span>
+            <span class="k">break</span>
+      <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_list</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Tell the file&#39;s current offset.</span>
+
+<span class="sd">      Returns:</span>
+<span class="sd">        current offset in reading this file.</span>
+
+<span class="sd">      Raises:</span>
+<span class="sd">        IOError: When this stream is closed.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_check_open</span><span class="p">()</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+
+    <span class="k">def</span> <span class="nf">seek</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">whence</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">):</span>
+      <span class="c1"># The apitools.base.py.transfer.Upload class insists on seeking to the end</span>
+      <span class="c1"># of a stream to do a check before completing an upload, so we must have</span>
+      <span class="c1"># this no-op method here in that case.</span>
+      <span class="k">if</span> <span class="n">whence</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_END</span> <span class="ow">and</span> <span class="n">offset</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span>
+      <span class="k">elif</span> <span class="n">whence</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span> <span class="ow">and</span> <span class="n">offset</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">:</span>
+        <span class="k">return</span>
+      <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">_check_open</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Stream is closed.&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">client</span><span class="p">,</span>
+               <span class="n">path</span><span class="p">,</span>
+               <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span>
+               <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># A small buffer to avoid CPU-heavy per-write pipe calls.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">write_buffer</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">write_buffer_size</span> <span class="o">=</span> <span class="mi">128</span> <span class="o">*</span> <span class="mi">1024</span>
+
+    <span class="c1"># Set up communication with uploading thread.</span>
+    <span class="n">parent_conn</span><span class="p">,</span> <span class="n">child_conn</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pipe</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">child_conn</span> <span class="o">=</span> <span class="n">child_conn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">parent_conn</span>
+
+    <span class="c1"># Set up uploader.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">insert_request</span> <span class="o">=</span> <span class="p">(</span><span class="n">storage</span><span class="o">.</span><span class="n">StorageObjectsInsertRequest</span><span class="p">(</span>
+        <span class="n">bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload</span> <span class="o">=</span> <span class="n">transfer</span><span class="o">.</span><span class="n">Upload</span><span class="p">(</span>
+        <span class="n">GcsBufferedWriter</span><span class="o">.</span><span class="n">PipeStream</span><span class="p">(</span><span class="n">child_conn</span><span class="p">),</span>
+        <span class="n">mime_type</span><span class="p">,</span>
+        <span class="n">chunksize</span><span class="o">=</span><span class="n">WRITE_CHUNK_SIZE</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload</span><span class="o">.</span><span class="n">strategy</span> <span class="o">=</span> <span class="n">transfer</span><span class="o">.</span><span class="n">RESUMABLE_UPLOAD</span>
+
+    <span class="c1"># Start uploading thread.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_start_upload</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">last_error</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+  <span class="c1"># TODO(silviuc): Refactor so that retry logic can be applied.</span>
+  <span class="c1"># There is retry logic in the underlying transfer library but we should make</span>
+  <span class="c1"># it more explicit so we can control the retry parameters.</span>
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">no_retries</span>  <span class="c1"># Using no_retries marks this as an integration point.</span>
+  <span class="k">def</span> <span class="nf">_start_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># This starts the uploader thread.  We are forced to run the uploader in</span>
+    <span class="c1"># another thread because the apitools uploader insists on taking a stream</span>
+    <span class="c1"># as input. Happily, this also means we get asynchronous I/O to GCS.</span>
+    <span class="c1">#</span>
+    <span class="c1"># The uploader by default transfers data in chunks of 1024 * 1024 bytes at</span>
+    <span class="c1"># a time, buffering writes until that size is reached.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">Insert</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">insert_request</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">upload</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Error in _start_upload while inserting file </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">last_error</span> <span class="o">=</span> <span class="n">e</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">child_conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Write data to a GCS file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      data: data to write as str.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError: When this buffer is closed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_open</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">write_buffer</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">write_buffer</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">write_buffer_size</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_flush_write_buffer</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Flushes any internal buffer to the underlying GCS file.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_open</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_flush_write_buffer</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the total number of bytes passed to write() so far.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+
+  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Close the current GCS file.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Channel for </span><span class="si">%s</span><span class="s1"> is not open.&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+      <span class="k">return</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_flush_write_buffer</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">closed</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="c1"># Check for exception since the last _flush_write_buffer() call.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">last_error</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">last_error</span>  <span class="c1"># pylint: disable=raising-bad-type</span>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_check_open</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Buffer is closed.&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">seekable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">readable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">writable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="k">def</span> <span class="nf">_flush_write_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">send_bytes</span><span class="p">(</span><span class="n">buffer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">write_buffer</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">write_buffer</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">last_error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_thread</span><span class="o">.</span><span class="n">last_error</span>  <span class="c1"># pylint: disable=raising-bad-type</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

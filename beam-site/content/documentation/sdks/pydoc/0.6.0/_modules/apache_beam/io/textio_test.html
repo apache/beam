@@ -1,0 +1,808 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.textio_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.textio_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Tests for textio module.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">bz2</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">gzip</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">import</span> <span class="nn">apache_beam.io.source_test_utils</span> <span class="k">as</span> <span class="nn">source_test_utils</span>
+
+<span class="c1"># Importing following private classes for testing.</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.textio</span> <span class="k">import</span> <span class="n">_TextSink</span> <span class="k">as</span> <span class="n">TextSink</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.textio</span> <span class="k">import</span> <span class="n">_TextSource</span> <span class="k">as</span> <span class="n">TextSource</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.textio</span> <span class="k">import</span> <span class="n">ReadFromText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.textio</span> <span class="k">import</span> <span class="n">WriteToText</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource_test</span> <span class="k">import</span> <span class="n">EOL</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource_test</span> <span class="k">import</span> <span class="n">write_data</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource_test</span> <span class="k">import</span> <span class="n">write_pattern</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.fileio</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">equal_to</span>
+
+
+<span class="c1"># TODO: Refactor code so all io tests are using same library</span>
+<span class="c1"># TestCaseWithTempDirCleanup class.</span>
+<span class="k">class</span> <span class="nc">_TestCaseWithTempDirCleanUp</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for TestCases that deals with TempDir clean-up.</span>
+
+<span class="sd">  Inherited test cases will call self._new_tempdir() to start a temporary dir</span>
+<span class="sd">  which will be deleted at the end of the tests (when tearDown() is called).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">_new_tempdir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">_create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">template</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+        <span class="nb">dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="n">suffix</span><span class="o">=</span><span class="n">suffix</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">return</span> <span class="n">file_name</span>
+
+
+<div class="viewcode-block" id="TextSourceTest"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest">[docs]</a><span class="k">class</span> <span class="nc">TextSourceTest</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+  <span class="c1"># Number of records that will be written by most tests.</span>
+  <span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">=</span> <span class="mi">100</span>
+
+  <span class="k">def</span> <span class="nf">_run_read_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_or_pattern</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span>
+                     <span class="n">buffer_size</span><span class="o">=</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+                     <span class="n">compression</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">):</span>
+    <span class="c1"># Since each record usually takes more than 1 byte, default buffer size is</span>
+    <span class="c1"># smaller than the total size of the file. This is done to</span>
+    <span class="c1"># increase test coverage for cases that hit the buffer boundary.</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_or_pattern</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">compression</span><span class="p">,</span>
+                        <span class="kc">True</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span> <span class="n">buffer_size</span><span class="p">)</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_smaller_than_default_buffer"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_smaller_than_default_buffer">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_smaller_than_default_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span>
+                        <span class="n">buffer_size</span><span class="o">=</span><span class="n">TextSource</span><span class="o">.</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_larger_than_default_buffer"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_larger_than_default_buffer">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_larger_than_default_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSource</span><span class="o">.</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span>
+                        <span class="n">buffer_size</span><span class="o">=</span><span class="n">TextSource</span><span class="o">.</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_file_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_file_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_file_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">5</span><span class="p">,</span>
+         <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+         <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span>
+         <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span>
+         <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span>
+         <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">40</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_windows_eol"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_windows_eol">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_windows_eol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+                                          <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">CRLF</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_mixed_eol"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_mixed_eol">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_mixed_eol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+                                          <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">MIXED</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_last_line_no_eol"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_last_line_no_eol">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_last_line_no_eol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+        <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_single_line_no_eol"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_single_line_no_eol">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_single_line_no_eol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="mi">1</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_empty_single_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_empty_single_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_empty_single_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">written_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="mi">1</span><span class="p">,</span> <span class="n">no_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">written_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="c1"># written data has a single entry with an empty string. Reading the source</span>
+    <span class="c1"># should not produce anything since we only wrote a single empty string</span>
+    <span class="c1"># without an end of line character.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="p">[])</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_last_line_no_eol_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_last_line_no_eol_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_last_line_no_eol_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+        <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">)</span>
+
+    <span class="n">gzip_file_name</span> <span class="o">=</span> <span class="n">file_name</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">,</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+      <span class="n">dst</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span>
+                        <span class="n">compression</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_single_line_no_eol_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_single_line_no_eol_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_single_line_no_eol_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="mi">1</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">)</span>
+
+    <span class="n">gzip_file_name</span> <span class="o">=</span> <span class="n">file_name</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">,</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+      <span class="n">dst</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">,</span>
+                        <span class="n">compression</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_empty_single_file_no_eol_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_empty_single_file_no_eol_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_empty_single_file_no_eol_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">written_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="mi">1</span><span class="p">,</span> <span class="n">no_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF_WITH_NOTHING_AT_LAST_LINE</span><span class="p">)</span>
+
+    <span class="n">gzip_file_name</span> <span class="o">=</span> <span class="n">file_name</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">,</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+      <span class="n">dst</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">written_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="c1"># written data has a single entry with an empty string. Reading the source</span>
+    <span class="c1"># should not produce anything since we only wrote a single empty string</span>
+    <span class="c1"># without an end of line character.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="p">[],</span> <span class="n">compression</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_with_empty_lines"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_with_empty_lines">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_with_empty_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span> <span class="n">no_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">expected_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_without_striping_eol_lf"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_without_striping_eol_lf">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_without_striping_eol_lf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">written_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+                                         <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">LF</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">written_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span>
+                        <span class="kc">False</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">([</span><span class="n">line</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">written_data</span><span class="p">],</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_single_file_without_striping_eol_crlf"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_single_file_without_striping_eol_crlf">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_single_file_without_striping_eol_crlf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">written_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+                                         <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">CRLF</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">written_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span>
+                        <span class="kc">False</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">([</span><span class="n">line</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">written_data</span><span class="p">],</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_file_pattern_with_empty_files"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_file_pattern_with_empty_files">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_file_pattern_with_empty_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">5</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+         <span class="mi">3</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+         <span class="mi">12</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+         <span class="mi">8</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+         <span class="mi">8</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">,</span>
+         <span class="mi">4</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">],</span>
+        <span class="n">no_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">40</span> <span class="o">*</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">expected_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_read_test</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_after_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_after_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_after_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">33</span><span class="p">)]</span>
+
+    <span class="n">reference_source_info</span> <span class="o">=</span> <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">sources_info</span> <span class="o">=</span> <span class="p">([</span>
+        <span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span> <span class="k">for</span>
+        <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">])</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSourcesEqualReferenceSource</span><span class="p">(</span>
+        <span class="n">reference_source_info</span><span class="p">,</span> <span class="n">sources_info</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_progress"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_progress">[docs]</a>  <span class="k">def</span> <span class="nf">test_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">)]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">fraction_consumed_report</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">split_points_report</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+        <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">):</span>
+      <span class="n">fraction_consumed_report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">fraction_consumed</span><span class="p">())</span>
+      <span class="n">split_points_report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">split_points</span><span class="p">())</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span> <span class="mi">10</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)],</span> <span class="n">fraction_consumed_report</span><span class="p">)</span>
+    <span class="n">expected_split_points_report</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">((</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>
+
+    <span class="c1"># At last split point, the remaining split points callback returns 1 since</span>
+    <span class="c1"># the expected position of next record becomes equal to the stop position.</span>
+    <span class="n">expected_split_points_report</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">expected_split_points_report</span><span class="p">,</span> <span class="n">split_points_report</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_reentrant_without_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_reentrant_without_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_reentrant_without_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertReentrantReadsSucceed</span><span class="p">((</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_reentrant_after_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_reentrant_after_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_reentrant_after_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">)]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertReentrantReadsSucceed</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_dynamic_work_rebalancing"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_dynamic_work_rebalancing">[docs]</a>  <span class="k">def</span> <span class="nf">test_dynamic_work_rebalancing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">)]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span>
+        <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_dynamic_work_rebalancing_windows_eol"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_dynamic_work_rebalancing_windows_eol">[docs]</a>  <span class="k">def</span> <span class="nf">test_dynamic_work_rebalancing_windows_eol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">CRLF</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">15</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">)]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span>
+        <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">,</span>
+        <span class="n">perform_multi_threaded_test</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_dynamic_work_rebalancing_mixed_eol"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_dynamic_work_rebalancing_mixed_eol">[docs]</a>  <span class="k">def</span> <span class="nf">test_dynamic_work_rebalancing_mixed_eol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">eol</span><span class="o">=</span><span class="n">EOL</span><span class="o">.</span><span class="n">MIXED</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">)]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span>
+        <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stop_position</span><span class="p">,</span>
+        <span class="n">perform_multi_threaded_test</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_dataflow_single_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_dataflow_single_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_dataflow_single_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_dataflow_single_file_with_coder"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_dataflow_single_file_with_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_dataflow_single_file_with_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">DummyCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span>
+
+      <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">2</span>
+
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">DummyCoder</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="n">record</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">expected_data</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_dataflow_file_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_dataflow_file_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_dataflow_file_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">40</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_auto_bzip2"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_auto_bzip2">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_auto_bzip2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.bz2&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2File</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_auto_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_auto_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_auto_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.gz&#39;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_bzip2"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_bzip2">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_bzip2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2File</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span>
+        <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">,</span>
+        <span class="kc">True</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_gzip_large"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_gzip_large">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_gzip_large</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10000</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span>
+        <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">,</span>
+        <span class="kc">True</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_gzip_large_after_splitting"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_gzip_large_after_splitting">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_gzip_large_after_splitting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">10000</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;FileBasedSource generated more than one initial split &#39;</span>
+                       <span class="s1">&#39;for a compressed file.&#39;</span><span class="p">)</span>
+
+    <span class="n">reference_source_info</span> <span class="o">=</span> <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">sources_info</span> <span class="o">=</span> <span class="p">([</span>
+        <span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span> <span class="k">for</span>
+        <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">])</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSourcesEqualReferenceSource</span><span class="p">(</span>
+        <span class="n">reference_source_info</span><span class="p">,</span> <span class="n">sources_info</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_gzip_empty_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_gzip_empty_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_gzip_empty_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span>
+        <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">,</span>
+        <span class="kc">True</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">_remove_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lines</span><span class="p">,</span> <span class="n">sublist_lengths</span><span class="p">,</span> <span class="n">num_to_remove</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Utility function to remove num_to_remove lines from each sublist.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      lines: list of items.</span>
+<span class="sd">      sublist_lengths: list of integers representing length of sublist</span>
+<span class="sd">        corresponding to each source file.</span>
+<span class="sd">      num_to_remove: number of lines to remove from each sublist.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      remaining lines.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">curr</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="n">sublist_lengths</span><span class="p">:</span>
+      <span class="n">end</span> <span class="o">=</span> <span class="n">curr</span> <span class="o">+</span> <span class="n">offset</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">curr</span> <span class="o">+</span> <span class="n">num_to_remove</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
+      <span class="n">result</span> <span class="o">+=</span> <span class="n">lines</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+      <span class="n">curr</span> <span class="o">+=</span> <span class="n">offset</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">_read_skip_header_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_or_pattern</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Simple wrapper function for instantiating TextSource.&quot;&quot;&quot;</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span>
+        <span class="n">file_or_pattern</span><span class="p">,</span>
+        <span class="mi">0</span><span class="p">,</span>
+        <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span>
+        <span class="kc">True</span><span class="p">,</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span>
+        <span class="n">skip_header_lines</span><span class="o">=</span><span class="n">skip_header_lines</span><span class="p">)</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_skip_header_single"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_skip_header_single">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_skip_header_single</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span>
+    <span class="n">skip_header_lines</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">expected_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_lines</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span>
+                                       <span class="p">[</span><span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span><span class="p">],</span>
+                                       <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_skip_header_lines</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_data</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_skip_header_pattern"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_skip_header_pattern">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_skip_header_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">line_counts</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="n">TextSourceTest</span><span class="o">.</span><span class="n">DEFAULT_NUM_RECORDS</span> <span class="o">*</span> <span class="mi">4</span>
+    <span class="p">]</span>
+    <span class="n">skip_header_lines</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">(</span><span class="n">line_counts</span><span class="p">)</span>
+
+    <span class="n">expected_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_lines</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">line_counts</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_skip_header_lines</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_data</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_skip_header_pattern_insufficient_lines"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_skip_header_pattern_insufficient_lines">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_skip_header_pattern_insufficient_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">line_counts</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="c1"># Fewer lines in file than we want to skip</span>
+        <span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span>
+    <span class="p">]</span>
+    <span class="n">skip_header_lines</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">pattern</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">write_pattern</span><span class="p">(</span><span class="n">line_counts</span><span class="p">)</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_lines</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">line_counts</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="n">read_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_skip_header_lines</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_data</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">read_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_gzip_with_skip_lines"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_gzip_with_skip_lines">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_gzip_with_skip_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">,</span>
+        <span class="kc">True</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span> <span class="n">skip_header_lines</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="mi">2</span><span class="p">:]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TextSourceTest.test_read_after_splitting_skip_header"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSourceTest.test_read_after_splitting_skip_header">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_after_splitting_skip_header</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">expected_data</span> <span class="o">=</span> <span class="n">write_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">100</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">TextSource</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span> <span class="n">skip_header_lines</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">split</span> <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">33</span><span class="p">)]</span>
+
+    <span class="n">reference_source_info</span> <span class="o">=</span> <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">sources_info</span> <span class="o">=</span> <span class="p">([</span>
+        <span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span> <span class="k">for</span>
+        <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sources_info</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">reference_lines</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span><span class="p">(</span><span class="o">*</span><span class="n">reference_source_info</span><span class="p">)</span>
+    <span class="n">split_lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">source_info</span> <span class="ow">in</span> <span class="n">sources_info</span><span class="p">:</span>
+      <span class="n">split_lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span><span class="p">(</span><span class="o">*</span><span class="n">source_info</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_data</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span> <span class="n">reference_lines</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">reference_lines</span><span class="p">,</span> <span class="n">split_lines</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TextSinkTest"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest">[docs]</a><span class="k">class</span> <span class="nc">TextSinkTest</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TextSinkTest.setUp"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">TextSinkTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Line </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">_write_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sink</span><span class="p">,</span> <span class="n">lines</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+      <span class="n">sink</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+    <span class="n">sink</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_text_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_text_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_text_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_text_file_empty"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_text_file_empty">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_text_file_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="p">[])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="p">[])</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_bzip2_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_bzip2_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_bzip2_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">BZIP2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_bzip2_file_auto"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_bzip2_file_auto">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_bzip2_file_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.bz2&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">BZ2File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_gzip_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_gzip_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_gzip_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_gzip_file_auto"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_gzip_file_auto">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_gzip_file_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.gz&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_gzip_file_empty"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_gzip_file_empty">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_gzip_file_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="p">[])</span>
+
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="p">[])</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_text_file_with_header"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_text_file_with_header">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_text_file_with_header</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="s1">&#39;header1</span><span class="se">\n</span><span class="s1">header2&#39;</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="n">header</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_text_file_empty_with_header"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_text_file_empty_with_header">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_text_file_empty_with_header</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="s1">&#39;header1</span><span class="se">\n</span><span class="s1">header2&#39;</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">TextSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="p">[])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(),</span> <span class="n">header</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_dataflow"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_dataflow">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_dataflow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+    <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToText</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">read_result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">read_result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">read_result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_dataflow_auto_compression"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_dataflow_auto_compression">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_dataflow_auto_compression</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+    <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToText</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.gz&#39;</span><span class="p">)</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">read_result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+      <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">read_result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">read_result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_dataflow_auto_compression_unsharded"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_dataflow_auto_compression_unsharded">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_dataflow_auto_compression_unsharded</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+    <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToText</span><span class="p">(</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">read_result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+      <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">read_result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">read_result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TextSinkTest.test_write_dataflow_header"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.textio_test.TextSinkTest.test_write_dataflow_header">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_dataflow_header</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
+    <span class="n">header_text</span> <span class="o">=</span> <span class="s1">&#39;foo&#39;</span>
+    <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToText</span><span class="p">(</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="n">header</span><span class="o">=</span><span class="n">header_text</span><span class="p">)</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">read_result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+      <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">read_result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">read_result</span><span class="p">,</span> <span class="p">[</span><span class="n">header_text</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

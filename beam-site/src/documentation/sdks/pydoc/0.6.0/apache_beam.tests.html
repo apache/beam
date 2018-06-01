@@ -1,0 +1,280 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.tests package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.transforms package" href="apache_beam.transforms.html" />
+    <link rel="prev" title="apache_beam.runners.test package" href="apache_beam.runners.test.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.transforms.html" title="apache_beam.transforms package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.test.html" title="apache_beam.runners.test package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.tests package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.tests.pipeline_verifiers">apache_beam.tests.pipeline_verifiers module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.tests.pipeline_verifiers_test">apache_beam.tests.pipeline_verifiers_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.tests.test_utils">apache_beam.tests.test_utils module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.tests">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.runners.test.html"
+                        title="previous chapter">apache_beam.runners.test package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.transforms.html"
+                        title="next chapter">apache_beam.transforms package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.tests.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-tests-package">
+<h1>apache_beam.tests package<a class="headerlink" href="#apache-beam-tests-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.tests.pipeline_verifiers">
+<span id="apache-beam-tests-pipeline-verifiers-module"></span><h2>apache_beam.tests.pipeline_verifiers module<a class="headerlink" href="#module-apache_beam.tests.pipeline_verifiers" title="Permalink to this headline">¶</a></h2>
+<p>End-to-end test result verifiers</p>
+<p>A set of verifiers that are used in end-to-end tests to verify state/output
+of test pipeline job. Customized verifier should extend
+<cite>hamcrest.core.base_matcher.BaseMatcher</cite> and override _matches.</p>
+<dl class="class">
+<dt id="apache_beam.tests.pipeline_verifiers.FileChecksumMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.tests.pipeline_verifiers.</code><code class="descname">FileChecksumMatcher</code><span class="sig-paren">(</span><em>file_path</em>, <em>expected_checksum</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#FileChecksumMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.FileChecksumMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+<p>Matcher that verifies file(s) content by comparing file checksum.</p>
+<p>Use apache_beam.io.fileio to fetch file(s) from given path. File checksum
+is a hash string computed from content of file(s).</p>
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers.FileChecksumMatcher.describe_mismatch">
+<code class="descname">describe_mismatch</code><span class="sig-paren">(</span><em>pipeline_result</em>, <em>mismatch_description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#FileChecksumMatcher.describe_mismatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.FileChecksumMatcher.describe_mismatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers.FileChecksumMatcher.describe_to">
+<code class="descname">describe_to</code><span class="sig-paren">(</span><em>description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#FileChecksumMatcher.describe_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.FileChecksumMatcher.describe_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.tests.pipeline_verifiers.PipelineStateMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.tests.pipeline_verifiers.</code><code class="descname">PipelineStateMatcher</code><span class="sig-paren">(</span><em>expected_state='DONE'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#PipelineStateMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.PipelineStateMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+<p>Matcher that verify pipeline job terminated in expected state</p>
+<p>Matcher compares the actual pipeline terminate state with expected.
+By default, <cite>PipelineState.DONE</cite> is used as expected state.</p>
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers.PipelineStateMatcher.describe_mismatch">
+<code class="descname">describe_mismatch</code><span class="sig-paren">(</span><em>pipeline_result</em>, <em>mismatch_description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#PipelineStateMatcher.describe_mismatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.PipelineStateMatcher.describe_mismatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers.PipelineStateMatcher.describe_to">
+<code class="descname">describe_to</code><span class="sig-paren">(</span><em>description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#PipelineStateMatcher.describe_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.PipelineStateMatcher.describe_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tests.pipeline_verifiers.retry_on_io_error_and_server_error">
+<code class="descclassname">apache_beam.tests.pipeline_verifiers.</code><code class="descname">retry_on_io_error_and_server_error</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers.html#retry_on_io_error_and_server_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers.retry_on_io_error_and_server_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter allowing retries on file I/O errors and service error.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.tests.pipeline_verifiers_test">
+<span id="apache-beam-tests-pipeline-verifiers-test-module"></span><h2>apache_beam.tests.pipeline_verifiers_test module<a class="headerlink" href="#module-apache_beam.tests.pipeline_verifiers_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the test pipeline verifiers</p>
+<dl class="class">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest">
+<em class="property">class </em><code class="descclassname">apache_beam.tests.pipeline_verifiers_test.</code><code class="descname">PipelineVerifiersTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>content</em>, <em>directory=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.setUp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.setUp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_cases">
+<code class="descname">test_cases</code><em class="property"> = [{'expected_checksum': 'ebe16840cc1d0b4fe1cf71743e9d772fa31683b8', 'num_files': 1, 'content': 'Test FileChecksumMatcher with single file'}, {'expected_checksum': '58b3d3636de3891ac61afb8ace3b5025c3c37d44', 'num_files': 3, 'content': 'Test FileChecksumMatcher with multiple files'}, {'expected_checksum': 'da39a3ee5e6b4b0d3255bfef95601890afd80709', 'num_files': 1, 'content': ''}]</em><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_cases" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_file_checksum_matcher_read_failed">
+<code class="descname">test_file_checksum_matcher_read_failed</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.test_file_checksum_matcher_read_failed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_file_checksum_matcher_read_failed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_file_checksum_matcher_service_error">
+<code class="descname">test_file_checksum_matcher_service_error</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.test_file_checksum_matcher_service_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_file_checksum_matcher_service_error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_file_checksum_matcher_success">
+<code class="descname">test_file_checksum_matcher_success</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.test_file_checksum_matcher_success"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_file_checksum_matcher_success" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_pipeline_state_matcher_fails">
+<code class="descname">test_pipeline_state_matcher_fails</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.test_pipeline_state_matcher_fails"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_pipeline_state_matcher_fails" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test PipelineStateMatcher fails when using default expected state
+and job actually finished in CANCELLED/DRAINED/FAILED/STOPPED/UNKNOWN</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_pipeline_state_matcher_given_state">
+<code class="descname">test_pipeline_state_matcher_given_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.test_pipeline_state_matcher_given_state"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_pipeline_state_matcher_given_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test PipelineStateMatcher successes when matches given state</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_pipeline_state_matcher_success">
+<code class="descname">test_pipeline_state_matcher_success</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/pipeline_verifiers_test.html#PipelineVerifiersTest.test_pipeline_state_matcher_success"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.pipeline_verifiers_test.PipelineVerifiersTest.test_pipeline_state_matcher_success" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test PipelineStateMatcher successes when using default expected state
+and job actually finished in DONE</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.tests.test_utils">
+<span id="apache-beam-tests-test-utils-module"></span><h2>apache_beam.tests.test_utils module<a class="headerlink" href="#module-apache_beam.tests.test_utils" title="Permalink to this headline">¶</a></h2>
+<p>Utility methods for testing</p>
+<dl class="function">
+<dt id="apache_beam.tests.test_utils.compute_hash">
+<code class="descclassname">apache_beam.tests.test_utils.</code><code class="descname">compute_hash</code><span class="sig-paren">(</span><em>content</em>, <em>hashing_alg='sha1'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/test_utils.html#compute_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.test_utils.compute_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute a hash value from a list of string.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tests.test_utils.patch_retry">
+<code class="descclassname">apache_beam.tests.test_utils.</code><code class="descname">patch_retry</code><span class="sig-paren">(</span><em>testcase</em>, <em>module</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tests/test_utils.html#patch_retry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tests.test_utils.patch_retry" title="Permalink to this definition">¶</a></dt>
+<dd><p>A function to patch retry module to use mock clock and logger.</p>
+<p>Clock and logger that defined in retry decorator will be replaced in test
+in order to skip sleep phase when retry happens.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>testcase</strong> &#8211; An instance of unittest.TestCase that calls this function to
+patch retry module.</li>
+<li><strong>module</strong> &#8211; The module that uses retry and need to be replaced with mock
+clock and logger in test.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.tests">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.tests" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.transforms.html" title="apache_beam.transforms package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.test.html" title="apache_beam.runners.test package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

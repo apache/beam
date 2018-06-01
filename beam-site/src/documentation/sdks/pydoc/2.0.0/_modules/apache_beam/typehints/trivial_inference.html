@@ -1,0 +1,503 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.trivial_inference &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.trivial_inference</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Trivial type inference for simple functions.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">__builtin__</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">dis</span>
+<span class="kn">import</span> <span class="nn">pprint</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">types</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Any</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+
+
+<div class="viewcode-block" id="TypeInferenceError"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.TypeInferenceError">[docs]</a><span class="k">class</span> <span class="nc">TypeInferenceError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Error to raise when type inference failed.&quot;&quot;&quot;</span>
+  <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="instance_to_type"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.instance_to_type">[docs]</a><span class="k">def</span> <span class="nf">instance_to_type</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Given a Python object o, return the corresponding type hint.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">t</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># TODO(robertwb): Eliminate inconsistent use of None vs. NoneType.</span>
+    <span class="k">return</span> <span class="kc">None</span>
+  <span class="k">elif</span> <span class="n">t</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">typehints</span><span class="o">.</span><span class="n">DISALLOWED_PRIMITIVE_TYPES</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">types</span><span class="o">.</span><span class="n">InstanceType</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">o</span><span class="o">.</span><span class="vm">__class__</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">BoundMethod</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span>
+    <span class="k">return</span> <span class="n">t</span>
+  <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="nb">tuple</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[[</span><span class="n">instance_to_type</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">o</span><span class="p">]]</span>
+  <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[[</span><span class="n">instance_to_type</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">o</span><span class="p">]]</span>
+    <span class="p">]</span>
+  <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="nb">set</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[[</span><span class="n">instance_to_type</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">o</span><span class="p">]]</span>
+    <span class="p">]</span>
+  <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[[</span><span class="n">instance_to_type</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">o</span><span class="o">.</span><span class="n">items</span><span class="p">()]],</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[[</span><span class="n">instance_to_type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">o</span><span class="o">.</span><span class="n">items</span><span class="p">()]],</span>
+    <span class="p">]</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">TypeInferenceError</span><span class="p">(</span><span class="s1">&#39;Unknown forbidden type: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">t</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="union_list"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.union_list">[docs]</a><span class="k">def</span> <span class="nf">union_list</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">):</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">xs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ys</span><span class="p">)</span>
+  <span class="k">return</span> <span class="p">[</span><span class="n">union</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="Const"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.Const">[docs]</a><span class="k">class</span> <span class="nc">Const</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">instance_to_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Const</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;Const[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)[:</span><span class="mi">100</span><span class="p">]</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Const.unwrap"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.Const.unwrap">[docs]</a>  <span class="k">def</span> <span class="nf">unwrap</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Const</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">type</span>
+    <span class="k">return</span> <span class="n">x</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Const.unwrap_all"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.Const.unwrap_all">[docs]</a>  <span class="k">def</span> <span class="nf">unwrap_all</span><span class="p">(</span><span class="n">xs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">]</span></div></div>
+
+
+<div class="viewcode-block" id="FrameState"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.FrameState">[docs]</a><span class="k">class</span> <span class="nc">FrameState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stores the state of the frame at a particular point of execution.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">local_vars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stack</span><span class="o">=</span><span class="p">()):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="n">f</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">co</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">func_code</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">vars</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">local_vars</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stack</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stack</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span>
+
+<div class="viewcode-block" id="FrameState.copy"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.FrameState.copy">[docs]</a>  <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FrameState</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FrameState.const_type"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.FrameState.const_type">[docs]</a>  <span class="k">def</span> <span class="nf">const_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Const</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">co</span><span class="o">.</span><span class="n">co_consts</span><span class="p">[</span><span class="n">i</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FrameState.closure_type"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.FrameState.closure_type">[docs]</a>  <span class="k">def</span> <span class="nf">closure_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="n">ncellvars</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">co</span><span class="o">.</span><span class="n">co_cellvars</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">ncellvars</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">Any</span>
+    <span class="k">return</span> <span class="n">Const</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">func_closure</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="n">ncellvars</span><span class="p">]</span><span class="o">.</span><span class="n">cell_contents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FrameState.get_global"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.FrameState.get_global">[docs]</a>  <span class="k">def</span> <span class="nf">get_global</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_name</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">func_globals</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">Const</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">func_globals</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">__builtin__</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">Const</span><span class="p">(</span><span class="n">__builtin__</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">Any</span></div>
+
+<div class="viewcode-block" id="FrameState.get_name"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.FrameState.get_name">[docs]</a>  <span class="k">def</span> <span class="nf">get_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">co</span><span class="o">.</span><span class="n">co_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span></div>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;Stack: </span><span class="si">%s</span><span class="s1"> Vars: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vars</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">other</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">FrameState</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="n">union_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vars</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">vars</span><span class="p">),</span> <span class="n">union_list</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">stack</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__ror__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">left</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span> <span class="o">|</span> <span class="n">left</span></div>
+
+
+<div class="viewcode-block" id="union"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.union">[docs]</a><span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the union of two types or Const values.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">b</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">a</span>
+  <span class="k">elif</span> <span class="ow">not</span> <span class="n">a</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">b</span>
+  <span class="k">elif</span> <span class="ow">not</span> <span class="n">b</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">a</span>
+  <span class="n">a</span> <span class="o">=</span> <span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+  <span class="n">b</span> <span class="o">=</span> <span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+  <span class="c1"># TODO(robertwb): Work this into the Union code in a more generic way.</span>
+  <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">and</span> <span class="n">element_type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[()]:</span>
+    <span class="k">return</span> <span class="n">b</span>
+  <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">and</span> <span class="n">element_type</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[()]:</span>
+    <span class="k">return</span> <span class="n">a</span>
+  <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="element_type"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.element_type">[docs]</a><span class="k">def</span> <span class="nf">element_type</span><span class="p">(</span><span class="n">hint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the element type of a composite type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">hint</span> <span class="o">=</span> <span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">hint</span><span class="p">)</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">hint</span><span class="o">.</span><span class="n">inner_type</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">hint</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">]</span>
+  <span class="k">return</span> <span class="n">Any</span></div>
+
+
+<div class="viewcode-block" id="key_value_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.key_value_types">[docs]</a><span class="k">def</span> <span class="nf">key_value_types</span><span class="p">(</span><span class="n">kv_type</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the key and value type of a KV type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># TODO(robertwb): Unions of tuples, etc.</span>
+  <span class="c1"># TODO(robertwb): Assert?</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">kv_type</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">)</span>
+      <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">kv_type</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">kv_type</span><span class="o">.</span><span class="n">tuple_types</span>
+  <span class="k">return</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Any</span></div>
+
+
+<span class="n">known_return_types</span> <span class="o">=</span> <span class="p">{</span><span class="nb">len</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">hash</span><span class="p">:</span> <span class="nb">int</span><span class="p">,}</span>
+
+
+<div class="viewcode-block" id="BoundMethod"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.BoundMethod">[docs]</a><span class="k">class</span> <span class="nc">BoundMethod</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Used to create a bound method when we only know the type of the instance.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unbound</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">unbound</span> <span class="o">=</span> <span class="n">unbound</span></div>
+
+
+<div class="viewcode-block" id="hashable"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.hashable">[docs]</a><span class="k">def</span> <span class="nf">hashable</span><span class="p">(</span><span class="n">c</span><span class="p">):</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="nb">hash</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">True</span>
+  <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="infer_return_type"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.infer_return_type">[docs]</a><span class="k">def</span> <span class="nf">infer_return_type</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">input_types</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Analyses a callable to deduce its return type.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    c: A Python callable to infer the return type of.</span>
+<span class="sd">    input_types: A sequence of inputs corresponding to the input types.</span>
+<span class="sd">    debug: Whether to print verbose debugging information.</span>
+<span class="sd">    depth: Maximum inspection depth during type inference.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A TypeConstraint that that the return value of this function will (likely)</span>
+<span class="sd">    satisfy given the specified inputs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">hashable</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="ow">and</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">known_return_types</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">known_return_types</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">FunctionType</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">infer_return_type_func</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">input_types</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">im_self</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">input_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">Const</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">im_self</span><span class="p">)]</span> <span class="o">+</span> <span class="n">input_types</span>
+      <span class="k">return</span> <span class="n">infer_return_type_func</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">im_func</span><span class="p">,</span> <span class="n">input_types</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">BoundMethod</span><span class="p">):</span>
+      <span class="n">input_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">unbound</span><span class="o">.</span><span class="n">im_class</span><span class="p">]</span> <span class="o">+</span> <span class="n">input_types</span>
+      <span class="k">return</span> <span class="n">infer_return_type_func</span><span class="p">(</span>
+          <span class="n">c</span><span class="o">.</span><span class="n">unbound</span><span class="o">.</span><span class="n">im_func</span><span class="p">,</span> <span class="n">input_types</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">ClassType</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">typehints</span><span class="o">.</span><span class="n">DISALLOWED_PRIMITIVE_TYPES</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="nb">list</span><span class="p">:</span> <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+            <span class="nb">set</span><span class="p">:</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+            <span class="nb">tuple</span><span class="p">:</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+            <span class="nb">dict</span><span class="p">:</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+        <span class="p">}[</span><span class="n">c</span><span class="p">]</span>
+      <span class="k">return</span> <span class="n">c</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">Any</span>
+  <span class="k">except</span> <span class="n">TypeInferenceError</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">Any</span>
+  <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+      <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+      <span class="k">raise</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">Any</span></div>
+
+
+<div class="viewcode-block" id="infer_return_type_func"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference.infer_return_type_func">[docs]</a><span class="k">def</span> <span class="nf">infer_return_type_func</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">input_types</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Analyses a function to deduce its return type.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    f: A Python function object to infer the return type of.</span>
+<span class="sd">    input_types: A sequence of inputs corresponding to the input types.</span>
+<span class="sd">    debug: Whether to print verbose debugging information.</span>
+<span class="sd">    depth: Maximum inspection depth during type inference.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A TypeConstraint that that the return value of this function will (likely)</span>
+<span class="sd">    satisfy given the specified inputs.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    TypeInferenceError: if no type can be inferred.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+    <span class="nb">print</span>
+    <span class="nb">print</span> <span class="n">f</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">input_types</span>
+  <span class="kn">import</span> <span class="nn">opcodes</span>
+  <span class="n">simple_ops</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">opcodes</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+  <span class="n">co</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">func_code</span>
+  <span class="n">code</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_code</span>
+  <span class="n">end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  <span class="n">pc</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="n">extended_arg</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="n">free</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="n">yields</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+  <span class="n">returns</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+  <span class="c1"># TODO(robertwb): Default args via inspect module.</span>
+  <span class="n">local_vars</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">input_types</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[()]]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">co</span><span class="o">.</span><span class="n">co_varnames</span><span class="p">)</span>
+                                                            <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_types</span><span class="p">))</span>
+  <span class="n">state</span> <span class="o">=</span> <span class="n">FrameState</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">local_vars</span><span class="p">)</span>
+  <span class="n">states</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">)</span>
+  <span class="n">jumps</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+  <span class="n">last_pc</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+  <span class="k">while</span> <span class="n">pc</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">:</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">pc</span>
+    <span class="n">op</span> <span class="o">=</span> <span class="nb">ord</span><span class="p">(</span><span class="n">code</span><span class="p">[</span><span class="n">pc</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+      <span class="nb">print</span> <span class="s1">&#39;--&gt;&#39;</span> <span class="k">if</span> <span class="n">pc</span> <span class="o">==</span> <span class="n">last_pc</span> <span class="k">else</span> <span class="s1">&#39;    &#39;</span><span class="p">,</span>
+      <span class="nb">print</span> <span class="nb">repr</span><span class="p">(</span><span class="n">pc</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span>
+      <span class="nb">print</span> <span class="n">dis</span><span class="o">.</span><span class="n">opname</span><span class="p">[</span><span class="n">op</span><span class="p">]</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span>
+    <span class="n">pc</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">op</span> <span class="o">&gt;=</span> <span class="n">dis</span><span class="o">.</span><span class="n">HAVE_ARGUMENT</span><span class="p">:</span>
+      <span class="n">arg</span> <span class="o">=</span> <span class="nb">ord</span><span class="p">(</span><span class="n">code</span><span class="p">[</span><span class="n">pc</span><span class="p">])</span> <span class="o">+</span> <span class="nb">ord</span><span class="p">(</span><span class="n">code</span><span class="p">[</span><span class="n">pc</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mi">256</span> <span class="o">+</span> <span class="n">extended_arg</span>
+      <span class="n">extended_arg</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">pc</span> <span class="o">+=</span> <span class="mi">2</span>
+      <span class="k">if</span> <span class="n">op</span> <span class="o">==</span> <span class="n">dis</span><span class="o">.</span><span class="n">EXTENDED_ARG</span><span class="p">:</span>
+        <span class="n">extended_arg</span> <span class="o">=</span> <span class="n">arg</span> <span class="o">*</span> <span class="mi">65536</span><span class="n">L</span>
+      <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="nb">str</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+        <span class="k">if</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">hasconst</span><span class="p">:</span>
+          <span class="nb">print</span> <span class="s1">&#39;(&#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">co</span><span class="o">.</span><span class="n">co_consts</span><span class="p">[</span><span class="n">arg</span><span class="p">])</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span>
+        <span class="k">elif</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">hasname</span><span class="p">:</span>
+          <span class="nb">print</span> <span class="s1">&#39;(&#39;</span> <span class="o">+</span> <span class="n">co</span><span class="o">.</span><span class="n">co_names</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span>
+        <span class="k">elif</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">hasjrel</span><span class="p">:</span>
+          <span class="nb">print</span> <span class="s1">&#39;(to &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">pc</span> <span class="o">+</span> <span class="n">arg</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span>
+        <span class="k">elif</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">haslocal</span><span class="p">:</span>
+          <span class="nb">print</span> <span class="s1">&#39;(&#39;</span> <span class="o">+</span> <span class="n">co</span><span class="o">.</span><span class="n">co_varnames</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span>
+        <span class="k">elif</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">hascompare</span><span class="p">:</span>
+          <span class="nb">print</span> <span class="s1">&#39;(&#39;</span> <span class="o">+</span> <span class="n">dis</span><span class="o">.</span><span class="n">cmp_op</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span>
+        <span class="k">elif</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">hasfree</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">free</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">free</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_cellvars</span> <span class="o">+</span> <span class="n">co</span><span class="o">.</span><span class="n">co_freevars</span>
+          <span class="nb">print</span> <span class="s1">&#39;(&#39;</span> <span class="o">+</span> <span class="n">free</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Acutally emulate the op.</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">states</span><span class="p">[</span><span class="n">start</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># No control reaches here (yet).</span>
+      <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+        <span class="nb">print</span>
+      <span class="k">continue</span>
+    <span class="n">state</span> <span class="o">|=</span> <span class="n">states</span><span class="p">[</span><span class="n">start</span><span class="p">]</span>
+
+    <span class="n">opname</span> <span class="o">=</span> <span class="n">dis</span><span class="o">.</span><span class="n">opname</span><span class="p">[</span><span class="n">op</span><span class="p">]</span>
+    <span class="n">jmp</span> <span class="o">=</span> <span class="n">jmp_state</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">opname</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;CALL_FUNCTION&#39;</span><span class="p">):</span>
+      <span class="n">standard_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">arg</span> <span class="o">&amp;</span> <span class="mh">0xF</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">arg</span> <span class="o">&amp;</span> <span class="mh">0xF0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">8</span>
+      <span class="n">var_args</span> <span class="o">=</span> <span class="s1">&#39;VAR&#39;</span> <span class="ow">in</span> <span class="n">opname</span>
+      <span class="n">kw_args</span> <span class="o">=</span> <span class="s1">&#39;KW&#39;</span> <span class="ow">in</span> <span class="n">opname</span>
+      <span class="n">pop_count</span> <span class="o">=</span> <span class="n">standard_args</span> <span class="o">+</span> <span class="n">var_args</span> <span class="o">+</span> <span class="n">kw_args</span> <span class="o">+</span> <span class="mi">1</span>
+      <span class="k">if</span> <span class="n">depth</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">return_type</span> <span class="o">=</span> <span class="n">Any</span>
+      <span class="k">elif</span> <span class="n">arg</span> <span class="o">&amp;</span> <span class="mh">0xF0</span><span class="p">:</span>
+        <span class="c1"># TODO(robertwb): Handle this case.</span>
+        <span class="n">return_type</span> <span class="o">=</span> <span class="n">Any</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">pop_count</span><span class="p">],</span> <span class="n">Const</span><span class="p">):</span>
+        <span class="c1"># TODO(robertwb): Handle this better.</span>
+        <span class="k">if</span> <span class="n">var_args</span> <span class="ow">or</span> <span class="n">kw_args</span><span class="p">:</span>
+          <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">Any</span>
+          <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">var_args</span> <span class="o">-</span> <span class="n">kw_args</span><span class="p">]</span> <span class="o">=</span> <span class="n">Any</span>
+        <span class="n">return_type</span> <span class="o">=</span> <span class="n">infer_return_type</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">pop_count</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                        <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pop_count</span><span class="p">:],</span>
+                                        <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span>
+                                        <span class="n">depth</span><span class="o">=</span><span class="n">depth</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">return_type</span> <span class="o">=</span> <span class="n">Any</span>
+      <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">pop_count</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">return_type</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="ow">in</span> <span class="n">simple_ops</span><span class="p">:</span>
+      <span class="n">simple_ops</span><span class="p">[</span><span class="n">opname</span><span class="p">](</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="o">==</span> <span class="s1">&#39;RETURN_VALUE&#39;</span><span class="p">:</span>
+      <span class="n">returns</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="o">==</span> <span class="s1">&#39;YIELD_VALUE&#39;</span><span class="p">:</span>
+      <span class="n">yields</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="o">==</span> <span class="s1">&#39;JUMP_FORWARD&#39;</span><span class="p">:</span>
+      <span class="n">jmp</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">+</span> <span class="n">arg</span>
+      <span class="n">jmp_state</span> <span class="o">=</span> <span class="n">state</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="o">==</span> <span class="s1">&#39;JUMP_ABSOLUTE&#39;</span><span class="p">:</span>
+      <span class="n">jmp</span> <span class="o">=</span> <span class="n">arg</span>
+      <span class="n">jmp_state</span> <span class="o">=</span> <span class="n">state</span>
+      <span class="n">state</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;POP_JUMP_IF_TRUE&#39;</span><span class="p">,</span> <span class="s1">&#39;POP_JUMP_IF_FALSE&#39;</span><span class="p">):</span>
+      <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+      <span class="n">jmp</span> <span class="o">=</span> <span class="n">arg</span>
+      <span class="n">jmp_state</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;JUMP_IF_TRUE_OR_POP&#39;</span><span class="p">,</span> <span class="s1">&#39;JUMP_IF_FALSE_OR_POP&#39;</span><span class="p">):</span>
+      <span class="n">jmp</span> <span class="o">=</span> <span class="n">arg</span>
+      <span class="n">jmp_state</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+      <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">opname</span> <span class="o">==</span> <span class="s1">&#39;FOR_ITER&#39;</span><span class="p">:</span>
+      <span class="n">jmp</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">+</span> <span class="n">arg</span>
+      <span class="n">jmp_state</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+      <span class="n">jmp_state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+      <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element_type</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">TypeInferenceError</span><span class="p">(</span><span class="s1">&#39;unable to handle </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">opname</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">jmp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># TODO(robertwb): Is this guerenteed to converge?</span>
+      <span class="n">new_state</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="n">jmp</span><span class="p">]</span> <span class="o">|</span> <span class="n">jmp_state</span>
+      <span class="k">if</span> <span class="n">jmp</span> <span class="o">&lt;</span> <span class="n">pc</span> <span class="ow">and</span> <span class="n">new_state</span> <span class="o">!=</span> <span class="n">states</span><span class="p">[</span><span class="n">jmp</span><span class="p">]</span> <span class="ow">and</span> <span class="n">jumps</span><span class="p">[</span><span class="n">pc</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">jumps</span><span class="p">[</span><span class="n">pc</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">pc</span> <span class="o">=</span> <span class="n">jmp</span>
+      <span class="n">states</span><span class="p">[</span><span class="n">jmp</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_state</span>
+
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+      <span class="nb">print</span>
+      <span class="nb">print</span> <span class="n">state</span>
+      <span class="n">pprint</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">states</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+  <span class="k">if</span> <span class="n">yields</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">reduce</span><span class="p">(</span><span class="n">union</span><span class="p">,</span> <span class="n">Const</span><span class="o">.</span><span class="n">unwrap_all</span><span class="p">(</span><span class="n">yields</span><span class="p">))]</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">union</span><span class="p">,</span> <span class="n">Const</span><span class="o">.</span><span class="n">unwrap_all</span><span class="p">(</span><span class="n">returns</span><span class="p">))</span>
+
+  <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+    <span class="nb">print</span> <span class="n">f</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">input_types</span><span class="p">,</span> <span class="s1">&#39;-&gt;&#39;</span><span class="p">,</span> <span class="n">result</span>
+  <span class="k">return</span> <span class="n">result</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

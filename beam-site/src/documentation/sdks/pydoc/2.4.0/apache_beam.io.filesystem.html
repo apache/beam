@@ -1,0 +1,659 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.filesystem module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.filesystemio module" href="apache_beam.io.filesystemio.html"/>
+        <link rel="prev" title="apache_beam.io.filebasedsource module" href="apache_beam.io.filebasedsource.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystemio.html">apache_beam.io.filesystemio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.filesystem module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.filesystem.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.filesystem">
+<span id="apache-beam-io-filesystem-module"></span><h1>apache_beam.io.filesystem module<a class="headerlink" href="#module-apache_beam.io.filesystem" title="Permalink to this headline">¶</a></h1>
+<p>File system abstraction for file-based sources and sinks.</p>
+<dl class="class">
+<dt id="apache_beam.io.filesystem.CompressionTypes">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystem.</code><code class="descname">CompressionTypes</code><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressionTypes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Enum-like class representing known compression types.</p>
+<dl class="attribute">
+<dt id="apache_beam.io.filesystem.CompressionTypes.AUTO">
+<code class="descname">AUTO</code><em class="property"> = 'auto'</em><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.AUTO" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.filesystem.CompressionTypes.BZIP2">
+<code class="descname">BZIP2</code><em class="property"> = 'bzip2'</em><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.BZIP2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.filesystem.CompressionTypes.GZIP">
+<code class="descname">GZIP</code><em class="property"> = 'gzip'</em><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.GZIP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.filesystem.CompressionTypes.UNCOMPRESSED">
+<code class="descname">UNCOMPRESSED</code><em class="property"> = 'uncompressed'</em><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.UNCOMPRESSED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.io.filesystem.CompressionTypes.is_valid_compression_type">
+<em class="property">classmethod </em><code class="descname">is_valid_compression_type</code><span class="sig-paren">(</span><em>compression_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressionTypes.is_valid_compression_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.is_valid_compression_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True for valid compression types, False otherwise.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.io.filesystem.CompressionTypes.mime_type">
+<em class="property">classmethod </em><code class="descname">mime_type</code><span class="sig-paren">(</span><em>compression_type</em>, <em>default='application/octet-stream'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressionTypes.mime_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.mime_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.io.filesystem.CompressionTypes.detect_compression_type">
+<em class="property">classmethod </em><code class="descname">detect_compression_type</code><span class="sig-paren">(</span><em>file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressionTypes.detect_compression_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressionTypes.detect_compression_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the compression type of a file (based on its suffix).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystem.CompressedFile">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystem.</code><code class="descname">CompressedFile</code><span class="sig-paren">(</span><em>fileobj</em>, <em>compression_type='gzip'</em>, <em>read_size=16777216</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>File wrapper for easier handling of compressed files.</p>
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.readable">
+<code class="descname">readable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.readable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.readable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.writeable">
+<code class="descname">writeable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.writeable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.writeable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write data to file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>num_bytes</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.readline">
+<code class="descname">readline</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.readline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.readline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Equivalent to standard file.readline(). Same return conventions apply.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.closed">
+<code class="descname">closed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.closed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.closed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.flush">
+<code class="descname">flush</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.flush"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.flush" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.filesystem.CompressedFile.seekable">
+<code class="descname">seekable</code><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.seekable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.seek">
+<code class="descname">seek</code><span class="sig-paren">(</span><em>offset</em>, <em>whence=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.seek"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.seek" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the file’s current offset.</p>
+<p>Seeking behavior:</p>
+<blockquote>
+<div><ul class="simple">
+<li>seeking from the end <a class="reference external" href="https://docs.python.org/2/library/os.html#os.SEEK_END" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">os.SEEK_END</span></code></a> the whole file is decompressed
+once to determine it’s size. Therefore it is preferred to use
+<a class="reference external" href="https://docs.python.org/2/library/os.html#os.SEEK_SET" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">os.SEEK_SET</span></code></a> or <a class="reference external" href="https://docs.python.org/2/library/os.html#os.SEEK_CUR" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">os.SEEK_CUR</span></code></a> to avoid the processing
+overhead</li>
+<li>seeking backwards from the current position rewinds the file to <code class="docutils literal"><span class="pre">0</span></code>
+and decompresses the chunks to the requested offset</li>
+<li>seeking is only supported in files opened for reading</li>
+<li>if the new offset is out of bound, it is adjusted to either <code class="docutils literal"><span class="pre">0</span></code> or
+<code class="docutils literal"><span class="pre">EOF</span></code>.</li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>offset</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – seek offset in the uncompressed content represented as
+number</li>
+<li><strong>whence</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – seek mode. Supported modes are <a class="reference external" href="https://docs.python.org/2/library/os.html#os.SEEK_SET" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">os.SEEK_SET</span></code></a>
+(absolute seek), <a class="reference external" href="https://docs.python.org/2/library/os.html#os.SEEK_CUR" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">os.SEEK_CUR</span></code></a> (seek relative to the current
+position), and <a class="reference external" href="https://docs.python.org/2/library/os.html#os.SEEK_END" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">os.SEEK_END</span></code></a> (seek relative to the end, offset
+should be negative).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.IOError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">IOError</span></code></a> – When this buffer is closed.</li>
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – When whence is invalid or the file is not seekable</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.CompressedFile.tell">
+<code class="descname">tell</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#CompressedFile.tell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.CompressedFile.tell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns current position in uncompressed file.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystem.FileMetadata">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystem.</code><code class="descname">FileMetadata</code><span class="sig-paren">(</span><em>path</em>, <em>size_in_bytes</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileMetadata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileMetadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Metadata about a file path that is the output of FileSystem.match</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystem.MatchResult">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystem.</code><code class="descname">MatchResult</code><span class="sig-paren">(</span><em>pattern</em>, <em>metadata_list</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#MatchResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.MatchResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Result from the <code class="docutils literal"><span class="pre">FileSystem</span></code> match operation which contains the list
+of matched FileMetadata.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystem.FileSystem">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystem.</code><code class="descname">FileSystem</code><span class="sig-paren">(</span><em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.utils.plugin.html#apache_beam.utils.plugin.BeamPlugin" title="apache_beam.utils.plugin.BeamPlugin"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.plugin.BeamPlugin</span></code></a></p>
+<p>A class that defines the functions that can be performed on a filesystem.</p>
+<p>All methods are abstract and they are for file system providers to
+implement. Clients should use the FileSystems class to interact with
+the correct file system based on the provided file pattern scheme.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pipeline_options</strong> – Instance of <code class="docutils literal"><span class="pre">PipelineOptions</span></code>.</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.io.filesystem.FileSystem.CHUNK_SIZE">
+<code class="descname">CHUNK_SIZE</code><em class="property"> = 1</em><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.CHUNK_SIZE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.io.filesystem.FileSystem.scheme">
+<em class="property">classmethod </em><code class="descname">scheme</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.scheme"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.scheme" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI scheme for the FileSystem</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.join">
+<code class="descname">join</code><span class="sig-paren">(</span><em>basepath</em>, <em>*paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.join" title="Permalink to this definition">¶</a></dt>
+<dd><p>Join two or more pathname components for the filesystem</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>basepath</strong> – string path of the first component of the path</li>
+<li><strong>paths</strong> – path components to be added</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: full path after combining all the passed components</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.split">
+<code class="descname">split</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits the given path into two parts.</p>
+<p>Splits the path into a pair (head, tail) such that tail contains the last
+component of the path and head contains everything up to that.</p>
+<p>For file-systems other than the local file-system, head should include the
+prefix.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>path</strong> – path as a string</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a pair of path components as strings.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.mkdirs">
+<code class="descname">mkdirs</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.mkdirs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.mkdirs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively create directories for the provided path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>path</strong> – string path of the directory structure that should be created</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body">IOError if leaf directory already exists.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.match">
+<code class="descname">match</code><span class="sig-paren">(</span><em>patterns</em>, <em>limits=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.match" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find all matching paths to the patterns provided.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>patterns</strong> – list of string for the file path pattern to match against</li>
+<li><strong>limits</strong> – list of maximum number of responses that need to be fetched</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: list of <code class="docutils literal"><span class="pre">MatchResult</span></code> objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the pattern match operations fail</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.create">
+<code class="descname">create</code><span class="sig-paren">(</span><em>path</em>, <em>mime_type='application/octet-stream'</em>, <em>compression_type='auto'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a write channel for the given file path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> – string path of the file object to be written to the system</li>
+<li><strong>mime_type</strong> – MIME type to specify the type of content in the file object</li>
+<li><strong>compression_type</strong> – Type of compression to be used for this object</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: file handle with a close function for the user to use</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.open">
+<code class="descname">open</code><span class="sig-paren">(</span><em>path</em>, <em>mime_type='application/octet-stream'</em>, <em>compression_type='auto'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a read channel for the given file path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> – string path of the file object to be read</li>
+<li><strong>mime_type</strong> – MIME type to specify the type of content in the file object</li>
+<li><strong>compression_type</strong> – Type of compression to be used for this object</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: file handle with a close function for the user to use</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><em>source_file_names</em>, <em>destination_file_names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively copy the file tree from the source to the destination</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>source_file_names</strong> – list of source file objects that needs to be copied</li>
+<li><strong>destination_file_names</strong> – list of destination of the new object</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the copy operations fail</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.rename">
+<code class="descname">rename</code><span class="sig-paren">(</span><em>source_file_names</em>, <em>destination_file_names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.rename"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.rename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rename the files at the source list to the destination list.
+Source and destination lists should be of the same size.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>source_file_names</strong> – List of file paths that need to be moved</li>
+<li><strong>destination_file_names</strong> – List of destination_file_names for the files</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the rename operations fail</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.exists">
+<code class="descname">exists</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.exists" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the provided path exists on the FileSystem.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>path</strong> – string path that needs to be checked.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns: boolean flag indicating if path exists</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystem.FileSystem.delete">
+<code class="descname">delete</code><span class="sig-paren">(</span><em>paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystem.html#FileSystem.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystem.FileSystem.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes files or directories at the provided paths.
+Directories will be deleted recursively.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>paths</strong> – list of paths that give the file objects to be deleted</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><code class="docutils literal"><span class="pre">BeamIOError</span></code> if any of the delete operations fail</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.filesystemio.html" class="btn btn-neutral float-right" title="apache_beam.io.filesystemio module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.filebasedsource.html" class="btn btn-neutral" title="apache_beam.io.filebasedsource module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+apache\_beam\.runners\.experimental\.python\_rpc\_direct\.server module
+=======================================================================
+
+.. automodule:: apache_beam.runners.experimental.python_rpc_direct.server
+    :members:
+    :undoc-members:
+    :show-inheritance:

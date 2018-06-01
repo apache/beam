@@ -1,0 +1,7 @@
+apache\_beam\.utils\.plugin module
+==================================
+
+.. automodule:: apache_beam.utils.plugin
+    :members:
+    :undoc-members:
+    :show-inheritance:

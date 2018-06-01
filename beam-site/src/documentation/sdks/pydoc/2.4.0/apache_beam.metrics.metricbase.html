@@ -1,0 +1,366 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.metrics.metricbase module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.metrics package" href="apache_beam.metrics.html"/>
+        <link rel="next" title="apache_beam.options package" href="apache_beam.options.html"/>
+        <link rel="prev" title="apache_beam.metrics.metric module" href="apache_beam.metrics.metric.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.metrics.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.metrics.cells.html">apache_beam.metrics.cells module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.metrics.metric.html">apache_beam.metrics.metric module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.metrics.metricbase module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.metrics.html">apache_beam.metrics package</a> &raquo;</li>
+        
+      <li>apache_beam.metrics.metricbase module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.metrics.metricbase.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.metrics.metricbase">
+<span id="apache-beam-metrics-metricbase-module"></span><h1>apache_beam.metrics.metricbase module<a class="headerlink" href="#module-apache_beam.metrics.metricbase" title="Permalink to this headline">¶</a></h1>
+<p>The classes in this file are interfaces for metrics. They are not intended
+to be subclassed or created directly by users. To work with and access metrics,
+users should use the classes and methods exposed in metric.py.</p>
+<p>Available classes:</p>
+<ul class="simple">
+<li>Metric - Base interface of a metrics object.</li>
+<li><dl class="first docutils">
+<dt>Counter - Counter metric interface. Allows a count to be incremented or</dt>
+<dd>decremented during pipeline execution.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Distribution - Distribution Metric interface. Allows statistics about the</dt>
+<dd>distribution of a variable to be collected during pipeline execution.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Gauge - Gauge Metric interface. Allows to track the latest value of a</dt>
+<dd>variable during pipeline execution.</dd>
+</dl>
+</li>
+<li>MetricName - Namespace and name used to refer to a Metric.</li>
+</ul>
+<dl class="class">
+<dt id="apache_beam.metrics.metricbase.MetricName">
+<em class="property">class </em><code class="descclassname">apache_beam.metrics.metricbase.</code><code class="descname">MetricName</code><span class="sig-paren">(</span><em>namespace</em>, <em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#MetricName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.MetricName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>The name of a metric.</p>
+<p>The name of a metric consists of a namespace and a name. The namespace
+allows grouping related metrics together and also prevents collisions
+between multiple metrics of the same name.</p>
+<p>Initializes <code class="docutils literal"><span class="pre">MetricName</span></code>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>namespace</strong> – A string with the namespace of a metric.</li>
+<li><strong>name</strong> – A string with the name of a metric.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.metrics.metricbase.MetricName.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#MetricName.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.MetricName.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.metrics.metricbase.MetricName.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#MetricName.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.MetricName.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.metrics.metricbase.Metric">
+<em class="property">class </em><code class="descclassname">apache_beam.metrics.metricbase.</code><code class="descname">Metric</code><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Metric"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Metric" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Base interface of a metric object.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.metrics.metricbase.Counter">
+<em class="property">class </em><code class="descclassname">apache_beam.metrics.metricbase.</code><code class="descname">Counter</code><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.metrics.metricbase.Metric" title="apache_beam.metrics.metricbase.Metric"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.metrics.metricbase.Metric</span></code></a></p>
+<p>Counter metric interface. Allows a count to be incremented/decremented
+during pipeline execution.</p>
+<dl class="method">
+<dt id="apache_beam.metrics.metricbase.Counter.inc">
+<code class="descname">inc</code><span class="sig-paren">(</span><em>n=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Counter.inc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Counter.inc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.metrics.metricbase.Counter.dec">
+<code class="descname">dec</code><span class="sig-paren">(</span><em>n=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Counter.dec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Counter.dec" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.metrics.metricbase.Distribution">
+<em class="property">class </em><code class="descclassname">apache_beam.metrics.metricbase.</code><code class="descname">Distribution</code><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Distribution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.metrics.metricbase.Metric" title="apache_beam.metrics.metricbase.Metric"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.metrics.metricbase.Metric</span></code></a></p>
+<p>Distribution Metric interface.</p>
+<p>Allows statistics about the distribution of a variable to be collected during
+pipeline execution.</p>
+<dl class="method">
+<dt id="apache_beam.metrics.metricbase.Distribution.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Distribution.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Distribution.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.metrics.metricbase.Gauge">
+<em class="property">class </em><code class="descclassname">apache_beam.metrics.metricbase.</code><code class="descname">Gauge</code><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Gauge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Gauge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.metrics.metricbase.Metric" title="apache_beam.metrics.metricbase.Metric"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.metrics.metricbase.Metric</span></code></a></p>
+<p>Gauge Metric interface.</p>
+<p>Allows tracking of the latest value of a variable during pipeline
+execution.</p>
+<dl class="method">
+<dt id="apache_beam.metrics.metricbase.Gauge.set">
+<code class="descname">set</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/metrics/metricbase.html#Gauge.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.metrics.metricbase.Gauge.set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.options.html" class="btn btn-neutral float-right" title="apache_beam.options package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.metrics.metric.html" class="btn btn-neutral" title="apache_beam.metrics.metric module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

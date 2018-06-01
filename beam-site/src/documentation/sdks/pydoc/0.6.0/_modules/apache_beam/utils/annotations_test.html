@@ -1,0 +1,216 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.annotations_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.annotations_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.annotations</span> <span class="k">import</span> <span class="n">deprecated</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.annotations</span> <span class="k">import</span> <span class="n">experimental</span>
+
+
+<div class="viewcode-block" id="AnnotationTests"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests">[docs]</a><span class="k">class</span> <span class="nc">AnnotationTests</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="c1"># Note: use different names for each of the the functions decorated</span>
+  <span class="c1"># so that a warning is produced for each of them.</span>
+<div class="viewcode-block" id="AnnotationTests.test_deprecated_with_since_current"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_with_since_current">[docs]</a>  <span class="k">def</span> <span class="nf">test_deprecated_with_since_current</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+      <span class="nd">@deprecated</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+      <span class="k">def</span> <span class="nf">fnc_test_deprecated_with_since_current</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+      <span class="n">fnc_test_deprecated_with_since_current</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_annotation</span><span class="p">(</span><span class="n">warning</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">warning_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">warning_type</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
+                            <span class="n">fnc_name</span><span class="o">=</span><span class="s1">&#39;fnc_test_deprecated_with_since_current&#39;</span><span class="p">,</span>
+                            <span class="n">annotation_type</span><span class="o">=</span><span class="s1">&#39;deprecated&#39;</span><span class="p">,</span>
+                            <span class="n">label_check_list</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;since&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                              <span class="p">(</span><span class="s1">&#39;instead&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="AnnotationTests.test_deprecated_without_current"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_without_current">[docs]</a>  <span class="k">def</span> <span class="nf">test_deprecated_without_current</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+      <span class="nd">@deprecated</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">)</span>
+      <span class="k">def</span> <span class="nf">fnc_test_deprecated_without_current</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+      <span class="n">fnc_test_deprecated_without_current</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_annotation</span><span class="p">(</span><span class="n">warning</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">warning_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">warning_type</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
+                            <span class="n">fnc_name</span><span class="o">=</span><span class="s1">&#39;fnc_test_deprecated_without_current&#39;</span><span class="p">,</span>
+                            <span class="n">annotation_type</span><span class="o">=</span><span class="s1">&#39;deprecated&#39;</span><span class="p">,</span>
+                            <span class="n">label_check_list</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;since&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                              <span class="p">(</span><span class="s1">&#39;instead&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="AnnotationTests.test_deprecated_without_since_should_fail"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_without_since_should_fail">[docs]</a>  <span class="k">def</span> <span class="nf">test_deprecated_without_since_should_fail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+
+        <span class="nd">@deprecated</span><span class="p">()</span>
+        <span class="k">def</span> <span class="nf">fnc_test_deprecated_without_since_should_fail</span><span class="p">():</span>
+          <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+        <span class="n">fnc_test_deprecated_without_since_should_fail</span><span class="p">()</span>
+      <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="AnnotationTests.test_experimental_with_current"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.test_experimental_with_current">[docs]</a>  <span class="k">def</span> <span class="nf">test_experimental_with_current</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+      <span class="nd">@experimental</span><span class="p">(</span><span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+      <span class="k">def</span> <span class="nf">fnc_test_experimental_with_current</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+      <span class="n">fnc_test_experimental_with_current</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_annotation</span><span class="p">(</span><span class="n">warning</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">warning_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">warning_type</span><span class="o">=</span><span class="ne">FutureWarning</span><span class="p">,</span>
+                            <span class="n">fnc_name</span><span class="o">=</span><span class="s1">&#39;fnc_test_experimental_with_current&#39;</span><span class="p">,</span>
+                            <span class="n">annotation_type</span><span class="o">=</span><span class="s1">&#39;experimental&#39;</span><span class="p">,</span>
+                            <span class="n">label_check_list</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;instead&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="AnnotationTests.test_experimental_without_current"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.test_experimental_without_current">[docs]</a>  <span class="k">def</span> <span class="nf">test_experimental_without_current</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+      <span class="nd">@experimental</span><span class="p">()</span>
+      <span class="k">def</span> <span class="nf">fnc_test_experimental_without_current</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+      <span class="n">fnc_test_experimental_without_current</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_annotation</span><span class="p">(</span><span class="n">warning</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">warning_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">warning_type</span><span class="o">=</span><span class="ne">FutureWarning</span><span class="p">,</span>
+                            <span class="n">fnc_name</span><span class="o">=</span><span class="s1">&#39;fnc_test_experimental_without_current&#39;</span><span class="p">,</span>
+                            <span class="n">annotation_type</span><span class="o">=</span><span class="s1">&#39;experimental&#39;</span><span class="p">,</span>
+                            <span class="n">label_check_list</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;instead&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="AnnotationTests.test_frequency"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.test_frequency">[docs]</a>  <span class="k">def</span> <span class="nf">test_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Tests that the filter &#39;once&#39; is sufficient to print once per</span>
+<span class="sd">    warning independently of location.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+      <span class="nd">@experimental</span><span class="p">()</span>
+      <span class="k">def</span> <span class="nf">fnc_test_annotate_frequency</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+
+      <span class="nd">@experimental</span><span class="p">()</span>
+      <span class="k">def</span> <span class="nf">fnc2_test_annotate_frequency</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s1">&#39;lol&#39;</span>
+      <span class="n">fnc_test_annotate_frequency</span><span class="p">()</span>
+      <span class="n">fnc_test_annotate_frequency</span><span class="p">()</span>
+      <span class="n">fnc2_test_annotate_frequency</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_annotation</span><span class="p">(</span><span class="n">warning</span><span class="o">=</span><span class="p">[</span><span class="n">w</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">warning_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">warning_type</span><span class="o">=</span><span class="ne">FutureWarning</span><span class="p">,</span>
+                            <span class="n">fnc_name</span><span class="o">=</span><span class="s1">&#39;fnc_test_annotate_frequency&#39;</span><span class="p">,</span>
+                            <span class="n">annotation_type</span><span class="o">=</span><span class="s1">&#39;experimental&#39;</span><span class="p">,</span>
+                            <span class="n">label_check_list</span><span class="o">=</span><span class="p">[])</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_annotation</span><span class="p">(</span><span class="n">warning</span><span class="o">=</span><span class="p">[</span><span class="n">w</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="n">warning_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">warning_type</span><span class="o">=</span><span class="ne">FutureWarning</span><span class="p">,</span>
+                            <span class="n">fnc_name</span><span class="o">=</span><span class="s1">&#39;fnc2_test_annotate_frequency&#39;</span><span class="p">,</span>
+                            <span class="n">annotation_type</span><span class="o">=</span><span class="s1">&#39;experimental&#39;</span><span class="p">,</span>
+                            <span class="n">label_check_list</span><span class="o">=</span><span class="p">[])</span></div>
+
+  <span class="c1"># helper function</span>
+<div class="viewcode-block" id="AnnotationTests.check_annotation"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations_test.AnnotationTests.check_annotation">[docs]</a>  <span class="k">def</span> <span class="nf">check_annotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">warning</span><span class="p">,</span> <span class="n">warning_size</span><span class="p">,</span> <span class="n">warning_type</span><span class="p">,</span> <span class="n">fnc_name</span><span class="p">,</span>
+                       <span class="n">annotation_type</span><span class="p">,</span> <span class="n">label_check_list</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">warning_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">issubclass</span><span class="p">(</span><span class="n">warning</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">category</span><span class="p">,</span> <span class="n">warning_type</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">fnc_name</span> <span class="o">+</span> <span class="s1">&#39; is &#39;</span> <span class="o">+</span> <span class="n">annotation_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">warning</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">label_check_list</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">label</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">warning</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">warning</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="p">))</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

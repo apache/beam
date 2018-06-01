@@ -1,0 +1,221 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.metrics.execution_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.metrics.execution_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">CellCommitState</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricsContainer</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">ScopedMetricsContainer</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricsEnvironment</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metric</span> <span class="k">import</span> <span class="n">Metrics</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metricbase</span> <span class="k">import</span> <span class="n">MetricName</span>
+
+
+<div class="viewcode-block" id="TestMetricsContainer"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsContainer">[docs]</a><span class="k">class</span> <span class="nc">TestMetricsContainer</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestMetricsContainer.test_create_new_counter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsContainer.test_create_new_counter">[docs]</a>  <span class="k">def</span> <span class="nf">test_create_new_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mc</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;astep&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">mc</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)))</span>
+    <span class="n">mc</span><span class="o">.</span><span class="n">get_counter</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">mc</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="TestMetricsContainer.test_scoped_container"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsContainer.test_scoped_container">[docs]</a>  <span class="k">def</span> <span class="nf">test_scoped_container</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;mystep&#39;</span><span class="p">)</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;myinternalstep&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">ScopedMetricsContainer</span><span class="p">(</span><span class="n">c1</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">current_container</span><span class="p">())</span>
+      <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)</span>
+      <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+      <span class="k">with</span> <span class="n">ScopedMetricsContainer</span><span class="p">(</span><span class="n">c2</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">c2</span><span class="p">,</span> <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">current_container</span><span class="p">())</span>
+        <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)</span>
+        <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+            <span class="n">c2</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+            <span class="p">[(</span><span class="n">MetricKey</span><span class="p">(</span><span class="s1">&#39;myinternalstep&#39;</span><span class="p">,</span> <span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)),</span> <span class="mi">3</span><span class="p">)])</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">current_container</span><span class="p">())</span>
+      <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)</span>
+      <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="n">c1</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+          <span class="p">[(</span><span class="n">MetricKey</span><span class="p">(</span><span class="s1">&#39;mystep&#39;</span><span class="p">,</span> <span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)),</span> <span class="mi">6</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="TestMetricsContainer.test_add_to_counter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsContainer.test_add_to_counter">[docs]</a>  <span class="k">def</span> <span class="nf">test_add_to_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mc</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;astep&#39;</span><span class="p">)</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get_counter</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">))</span>
+    <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get_counter</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMetricsContainer.test_get_cumulative_or_updates"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsContainer.test_get_cumulative_or_updates">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_cumulative_or_updates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mc</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;astep&#39;</span><span class="p">)</span>
+
+    <span class="n">clean_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">dirty_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">):</span>
+      <span class="n">counter</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get_counter</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+      <span class="n">distribution</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span>
+          <span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;name</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+      <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">distribution</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Some are left to be DIRTY (i.e. not yet committed).</span>
+        <span class="c1"># Some are left to be CLEAN (i.e. already committed).</span>
+        <span class="n">dirty_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="k">continue</span>
+      <span class="c1"># Assert: Counter/Distribution is DIRTY or COMMITTING (not CLEAN)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">distribution</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">before_commit</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">before_commit</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+      <span class="n">distribution</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">after_commit</span><span class="p">()</span>
+      <span class="n">counter</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">after_commit</span><span class="p">()</span>
+      <span class="c1"># Assert: Counter/Distribution has been committed, therefore it&#39;s CLEAN</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="n">CellCommitState</span><span class="o">.</span><span class="n">CLEAN</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">distribution</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="n">CellCommitState</span><span class="o">.</span><span class="n">CLEAN</span><span class="p">)</span>
+      <span class="n">clean_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="c1"># Retrieve NON-COMMITTED updates.</span>
+    <span class="n">logical</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get_updates</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">logical</span><span class="o">.</span><span class="n">counters</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">logical</span><span class="o">.</span><span class="n">distributions</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dirty_values</span><span class="p">),</span>
+                     <span class="nb">set</span><span class="p">([</span><span class="n">v</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">logical</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">()]))</span>
+    <span class="c1"># Retrieve ALL updates.</span>
+    <span class="n">cumulative</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cumulative</span><span class="o">.</span><span class="n">counters</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cumulative</span><span class="o">.</span><span class="n">distributions</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dirty_values</span> <span class="o">+</span> <span class="n">clean_values</span><span class="p">),</span>
+                     <span class="nb">set</span><span class="p">([</span><span class="n">v</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cumulative</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">()]))</span></div></div>
+
+
+<div class="viewcode-block" id="TestMetricsEnvironment"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsEnvironment">[docs]</a><span class="k">class</span> <span class="nc">TestMetricsEnvironment</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestMetricsEnvironment.test_uses_right_container"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsEnvironment.test_uses_right_container">[docs]</a>  <span class="k">def</span> <span class="nf">test_uses_right_container</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;step1&#39;</span><span class="p">)</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="n">MetricsContainer</span><span class="p">(</span><span class="s1">&#39;step2&#39;</span><span class="p">)</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)</span>
+    <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">set_current_container</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+    <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+    <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">set_current_container</span><span class="p">(</span><span class="n">c2</span><span class="p">)</span>
+    <span class="n">counter</span><span class="o">.</span><span class="n">inc</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">unset_current_container</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">c1</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+        <span class="p">[(</span><span class="n">MetricKey</span><span class="p">(</span><span class="s1">&#39;step1&#39;</span><span class="p">,</span> <span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)])</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">c2</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+        <span class="p">[(</span><span class="n">MetricKey</span><span class="p">(</span><span class="s1">&#39;step2&#39;</span><span class="p">,</span> <span class="n">MetricName</span><span class="p">(</span><span class="s1">&#39;ns&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)),</span> <span class="mi">3</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="TestMetricsEnvironment.test_no_container"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution_test.TestMetricsEnvironment.test_no_container">[docs]</a>  <span class="k">def</span> <span class="nf">test_no_container</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">current_container</span><span class="p">(),</span>
+                     <span class="kc">None</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

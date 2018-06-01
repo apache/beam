@@ -1,0 +1,165 @@
+apache_beam.io package
+======================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.io.gcp
+
+Submodules
+----------
+
+apache_beam.io.avroio module
+----------------------------
+
+.. automodule:: apache_beam.io.avroio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.avroio_test module
+---------------------------------
+
+.. automodule:: apache_beam.io.avroio_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.concat_source module
+-----------------------------------
+
+.. automodule:: apache_beam.io.concat_source
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.concat_source_test module
+----------------------------------------
+
+.. automodule:: apache_beam.io.concat_source_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.filebasedsource module
+-------------------------------------
+
+.. automodule:: apache_beam.io.filebasedsource
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.filebasedsource_test module
+------------------------------------------
+
+.. automodule:: apache_beam.io.filebasedsource_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.fileio module
+----------------------------
+
+.. automodule:: apache_beam.io.fileio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.fileio_test module
+---------------------------------
+
+.. automodule:: apache_beam.io.fileio_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.iobase module
+----------------------------
+
+.. automodule:: apache_beam.io.iobase
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.range_trackers module
+------------------------------------
+
+.. automodule:: apache_beam.io.range_trackers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.range_trackers_test module
+-----------------------------------------
+
+.. automodule:: apache_beam.io.range_trackers_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.source_test_utils module
+---------------------------------------
+
+.. automodule:: apache_beam.io.source_test_utils
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.source_test_utils_test module
+--------------------------------------------
+
+.. automodule:: apache_beam.io.source_test_utils_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.sources_test module
+----------------------------------
+
+.. automodule:: apache_beam.io.sources_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.textio module
+----------------------------
+
+.. automodule:: apache_beam.io.textio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.textio_test module
+---------------------------------
+
+.. automodule:: apache_beam.io.textio_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.tfrecordio module
+--------------------------------
+
+.. automodule:: apache_beam.io.tfrecordio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.tfrecordio_test module
+-------------------------------------
+
+.. automodule:: apache_beam.io.tfrecordio_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.io
+    :members:
+    :undoc-members:
+    :show-inheritance:

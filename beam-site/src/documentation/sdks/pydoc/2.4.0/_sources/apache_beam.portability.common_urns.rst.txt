@@ -1,0 +1,7 @@
+apache\_beam\.portability\.common\_urns module
+==============================================
+
+.. automodule:: apache_beam.portability.common_urns
+    :members:
+    :undoc-members:
+    :show-inheritance:

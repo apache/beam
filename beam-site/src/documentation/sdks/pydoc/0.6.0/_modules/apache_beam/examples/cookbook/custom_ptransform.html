@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.cookbook.custom_ptransform &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.cookbook.custom_ptransform</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Various implementations of a Count custom PTransform.</span>
+
+<span class="sd">These example show the different ways you can write custom PTransforms.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">ReadFromText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">WriteToText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+
+<span class="c1"># pylint doesn&#39;t understand our pipeline syntax:</span>
+<span class="c1"># pylint:disable=expression-not-assigned</span>
+
+<div class="viewcode-block" id="Count1"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.Count1">[docs]</a><span class="k">class</span> <span class="nc">Count1</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Count as a subclass of PTransform, with an apply method.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Count1.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.Count1.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="o">|</span> <span class="s1">&#39;ParWithOne&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="run_count1"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.run_count1">[docs]</a><span class="k">def</span> <span class="nf">run_count1</span><span class="p">(</span><span class="n">known_args</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Runs the first example pipeline.&quot;&quot;&quot;</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running first pipeline&#39;</span><span class="p">)</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">Count1</span><span class="p">()</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<span class="nd">@beam</span><span class="o">.</span><span class="n">ptransform_fn</span>
+<span class="k">def</span> <span class="nf">Count2</span><span class="p">(</span><span class="n">pcoll</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="sd">&quot;&quot;&quot;Count as a decorated function.&quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="p">(</span>
+      <span class="n">pcoll</span>
+      <span class="o">|</span> <span class="s1">&#39;PairWithOne&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="run_count2"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.run_count2">[docs]</a><span class="k">def</span> <span class="nf">run_count2</span><span class="p">(</span><span class="n">known_args</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Runs the second example pipeline.&quot;&quot;&quot;</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running second pipeline&#39;</span><span class="p">)</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">Count2</span><span class="p">()</span>  <span class="c1"># pylint: disable=no-value-for-parameter</span>
+   <span class="o">|</span> <span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<span class="nd">@beam</span><span class="o">.</span><span class="n">ptransform_fn</span>
+<span class="k">def</span> <span class="nf">Count3</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">factor</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="sd">&quot;&quot;&quot;Count as a decorated function with a side input.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    pcoll: the PCollection passed in from the previous transform</span>
+<span class="sd">    factor: the amount by which to count</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A PCollection counting the number of times each unique element occurs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="p">(</span>
+      <span class="n">pcoll</span>
+      <span class="o">|</span> <span class="s1">&#39;PairWithOne&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">factor</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="run_count3"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.run_count3">[docs]</a><span class="k">def</span> <span class="nf">run_count3</span><span class="p">(</span><span class="n">known_args</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Runs the third example pipeline.&quot;&quot;&quot;</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running third pipeline&#39;</span><span class="p">)</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">Count3</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># pylint: disable=no-value-for-parameter</span>
+   <span class="o">|</span> <span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="get_args"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.get_args">[docs]</a><span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Determines user specified arguments from the given list of arguments.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    argv: all arguments.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A pair of argument lists containing known and remaining arguments.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input file to process.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write results to.&#39;</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.custom_ptransform.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">get_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+
+  <span class="n">run_count1</span><span class="p">(</span><span class="n">known_args</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+  <span class="n">run_count2</span><span class="p">(</span><span class="n">known_args</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+  <span class="n">run_count3</span><span class="p">(</span><span class="n">known_args</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

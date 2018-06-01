@@ -1,0 +1,293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.metrics.metric &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.metrics.metric</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">User-facing classes for Metrics API.</span>
+
+<span class="sd">The classes in this file allow users to define and use metrics to be collected</span>
+<span class="sd">and displayed as part of their pipeline execution.</span>
+
+<span class="sd">- Metrics - This class lets pipeline and transform writers create and access</span>
+<span class="sd">    metric objects such as counters, distributions, etc.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricsEnvironment</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metricbase</span> <span class="k">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">Distribution</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metricbase</span> <span class="k">import</span> <span class="n">MetricName</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Metrics&#39;</span><span class="p">,</span> <span class="s1">&#39;MetricsFilter&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Metrics"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics">[docs]</a><span class="k">class</span> <span class="nc">Metrics</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Lets users create/access metric objects during pipeline execution.&quot;&quot;&quot;</span>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Metrics.get_namespace"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.get_namespace">[docs]</a>  <span class="k">def</span> <span class="nf">get_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">namespace</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">namespace</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">namespace</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">namespace</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown namespace type&#39;</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Metrics.counter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.counter">[docs]</a>  <span class="k">def</span> <span class="nf">counter</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Obtains or creates a Counter metric.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      namespace: A class or string that gives the namespace to a metric</span>
+<span class="sd">      name: A string that gives a unique name to a metric</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A Counter object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">namespace</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">get_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">DelegatingCounter</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Metrics.distribution"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.distribution">[docs]</a>  <span class="k">def</span> <span class="nf">distribution</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Obtains or creates a Distribution metric.</span>
+
+<span class="sd">    Distribution metrics are restricted to integer-only distributions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      namespace: A class or string that gives the namespace to a metric</span>
+<span class="sd">      name: A string that gives a unique name to a metric</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A Distribution object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">namespace</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">get_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">DelegatingDistribution</span><span class="p">(</span><span class="n">MetricName</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Metrics.DelegatingCounter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.DelegatingCounter">[docs]</a>  <span class="k">class</span> <span class="nc">DelegatingCounter</span><span class="p">(</span><span class="n">Counter</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">metric_name</span> <span class="o">=</span> <span class="n">metric_name</span>
+
+<div class="viewcode-block" id="Metrics.DelegatingCounter.inc"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.DelegatingCounter.inc">[docs]</a>    <span class="k">def</span> <span class="nf">inc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+      <span class="n">container</span> <span class="o">=</span> <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">current_container</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">container</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">container</span><span class="o">.</span><span class="n">get_counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metric_name</span><span class="p">)</span><span class="o">.</span><span class="n">inc</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="Metrics.DelegatingDistribution"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.DelegatingDistribution">[docs]</a>  <span class="k">class</span> <span class="nc">DelegatingDistribution</span><span class="p">(</span><span class="n">Distribution</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">metric_name</span> <span class="o">=</span> <span class="n">metric_name</span>
+
+<div class="viewcode-block" id="Metrics.DelegatingDistribution.update"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.Metrics.DelegatingDistribution.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+      <span class="n">container</span> <span class="o">=</span> <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">current_container</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">container</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">container</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metric_name</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div></div>
+
+
+<span class="k">class</span> <span class="nc">MetricResults</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_matches_name</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">metric_key</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">filter</span><span class="o">.</span><span class="n">names</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">filter</span><span class="o">.</span><span class="n">namespaces</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="p">((</span><span class="nb">filter</span><span class="o">.</span><span class="n">namespaces</span> <span class="ow">and</span>
+         <span class="n">metric_key</span><span class="o">.</span><span class="n">metric</span><span class="o">.</span><span class="n">namespace</span> <span class="ow">in</span> <span class="nb">filter</span><span class="o">.</span><span class="n">namespaces</span><span class="p">)</span> <span class="ow">or</span>
+        <span class="p">(</span><span class="nb">filter</span><span class="o">.</span><span class="n">names</span> <span class="ow">and</span>
+         <span class="n">metric_key</span><span class="o">.</span><span class="n">metric</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="nb">filter</span><span class="o">.</span><span class="n">names</span><span class="p">)):</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_matches_sub_path</span><span class="p">(</span><span class="n">actual_scope</span><span class="p">,</span> <span class="n">filter_scope</span><span class="p">):</span>
+    <span class="n">start_pos</span> <span class="o">=</span> <span class="n">actual_scope</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">filter_scope</span><span class="p">)</span>
+    <span class="n">end_pos</span> <span class="o">=</span> <span class="n">start_pos</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">filter_scope</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">start_pos</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># No match at all</span>
+    <span class="k">elif</span> <span class="n">start_pos</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">actual_scope</span><span class="p">[</span><span class="n">start_pos</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;/&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># The first entry was not exactly matched</span>
+    <span class="k">elif</span> <span class="n">end_pos</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_scope</span><span class="p">)</span> <span class="ow">and</span> <span class="n">actual_scope</span><span class="p">[</span><span class="n">end_pos</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;/&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># The last entry was not exactly matched</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_matches_scope</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">metric_key</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">filter</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">filter</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">MetricResults</span><span class="o">.</span><span class="n">_matches_sub_path</span><span class="p">(</span><span class="n">metric_key</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">matches</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">metric_key</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">filter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">MetricResults</span><span class="o">.</span><span class="n">_matches_name</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">metric_key</span><span class="p">)</span> <span class="ow">and</span>
+        <span class="n">MetricResults</span><span class="o">.</span><span class="n">_matches_scope</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">metric_key</span><span class="p">)):</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<div class="viewcode-block" id="MetricsFilter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter">[docs]</a><span class="k">class</span> <span class="nc">MetricsFilter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Simple object to filter metrics results.</span>
+
+<span class="sd">  This class is experimental. No backwards-compatibility guarantees.</span>
+
+<span class="sd">  If filters by matching a result&#39;s step-namespace-name with three internal</span>
+<span class="sd">  sets. No execution/matching logic is added to this object, so that it may</span>
+<span class="sd">  be used to construct arguments as an RPC request. It is left for runners</span>
+<span class="sd">  to implement matching logic by themselves.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_namespaces</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">steps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">frozenset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">)</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">frozenset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_names</span><span class="p">)</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">namespaces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">frozenset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_namespaces</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MetricsFilter.with_name"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter.with_name">[docs]</a>  <span class="k">def</span> <span class="nf">with_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_names</span><span class="p">([</span><span class="n">name</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="MetricsFilter.with_names"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter.with_names">[docs]</a>  <span class="k">def</span> <span class="nf">with_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Names must be a collection, not a string&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="MetricsFilter.with_namespace"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter.with_namespace">[docs]</a>  <span class="k">def</span> <span class="nf">with_namespace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_namespaces</span><span class="p">([</span><span class="n">namespace</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="MetricsFilter.with_namespaces"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter.with_namespaces">[docs]</a>  <span class="k">def</span> <span class="nf">with_namespaces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespaces</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">namespaces</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Namespaces must be an iterable, not a string&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_namespaces</span><span class="o">.</span><span class="n">update</span><span class="p">([</span><span class="n">Metrics</span><span class="o">.</span><span class="n">get_namespace</span><span class="p">(</span><span class="n">ns</span><span class="p">)</span> <span class="k">for</span> <span class="n">ns</span> <span class="ow">in</span> <span class="n">namespaces</span><span class="p">])</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="MetricsFilter.with_step"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter.with_step">[docs]</a>  <span class="k">def</span> <span class="nf">with_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_steps</span><span class="p">([</span><span class="n">step</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="MetricsFilter.with_steps"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.metric.MetricsFilter.with_steps">[docs]</a>  <span class="k">def</span> <span class="nf">with_steps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">steps</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">steps</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Steps must be an iterable, not a string&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">steps</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

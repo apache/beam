@@ -1,0 +1,241 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.trivial_inference_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.trivial_inference_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Tests for apache_beam.typehints.trivial_inference.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">trivial_inference</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+
+<span class="n">global_int</span> <span class="o">=</span> <span class="mi">1</span>
+
+
+<div class="viewcode-block" id="TrivialInferenceTest"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest">[docs]</a><span class="k">class</span> <span class="nc">TrivialInferenceTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TrivialInferenceTest.assertReturnType"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.assertReturnType">[docs]</a>  <span class="k">def</span> <span class="nf">assertReturnType</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="p">()):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">trivial_inference</span><span class="o">.</span><span class="n">infer_return_type</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">inputs</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testIdentity"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testIdentity">[docs]</a>  <span class="k">def</span> <span class="nf">testIdentity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testTuples"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testTuples">[docs]</a>  <span class="k">def</span> <span class="nf">testTuples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[()],</span> <span class="nb">int</span><span class="p">],</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">((),</span> <span class="n">x</span><span class="p">),</span> <span class="p">[</span><span class="nb">int</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="p">[</span><span class="nb">str</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testUnpack"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testUnpack">[docs]</a>  <span class="k">def</span> <span class="nf">testUnpack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">reverse</span><span class="p">((</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
+      <span class="k">return</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span>
+    <span class="n">any_tuple</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+                        <span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+        <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="n">any_tuple</span><span class="p">,</span> <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">])</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+                          <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">trivial_inference</span><span class="o">.</span><span class="n">Const</span><span class="p">((</span><span class="mf">1.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="n">any_tuple</span><span class="p">,</span>
+                          <span class="n">reverse</span><span class="p">,</span> <span class="p">[</span><span class="n">trivial_inference</span><span class="o">.</span><span class="n">Const</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testListComprehension"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testListComprehension">[docs]</a>  <span class="k">def</span> <span class="nf">testListComprehension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testTupleListComprehension"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testTupleListComprehension">[docs]</a>  <span class="k">def</span> <span class="nf">testTupleListComprehension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span>
+        <span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testGenerator"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testGenerator">[docs]</a>  <span class="k">def</span> <span class="nf">testGenerator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="n">x</span>
+      <span class="k">yield</span> <span class="n">y</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">foo</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">foo</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testBinOp"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testBinOp">[docs]</a>  <span class="k">def</span> <span class="nf">testBinOp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">,</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testCall"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testCall">[docs]</a>  <span class="k">def</span> <span class="nf">testCall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">x</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="k">lambda</span><span class="p">:</span> <span class="p">(</span><span class="n">f</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">f</span><span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testClosure"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testClosure">[docs]</a>  <span class="k">def</span> <span class="nf">testClosure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="k">lambda</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testGlobals"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testGlobals">[docs]</a>  <span class="k">def</span> <span class="nf">testGlobals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">global_int</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testBuiltins"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testBuiltins">[docs]</a>  <span class="k">def</span> <span class="nf">testBuiltins</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testGetAttr"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testGetAttr">[docs]</a>  <span class="k">def</span> <span class="nf">testGetAttr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">],</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">fake</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testMethod"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testMethod">[docs]</a>  <span class="k">def</span> <span class="nf">testMethod</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">class</span> <span class="nc">A</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">A</span><span class="p">()</span><span class="o">.</span><span class="n">m</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">A</span><span class="o">.</span><span class="n">m</span><span class="p">(</span><span class="n">A</span><span class="p">(),</span> <span class="mf">3.0</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testAlwaysReturnsEarly"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testAlwaysReturnsEarly">[docs]</a>  <span class="k">def</span> <span class="nf">testAlwaysReturnsEarly</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">some_fn</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">v</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">2</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">some_fn</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testDict"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testDict">[docs]</a>  <span class="k">def</span> <span class="nf">testDict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">],</span> <span class="k">lambda</span><span class="p">:</span> <span class="p">{})</span></div>
+
+<div class="viewcode-block" id="TrivialInferenceTest.testDictComprehension"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.trivial_inference_test.TrivialInferenceTest.testDictComprehension">[docs]</a>  <span class="k">def</span> <span class="nf">testDictComprehension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Just ensure it doesn&#39;t crash.</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertReturnType</span><span class="p">(</span>
+        <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
+        <span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="p">{</span><span class="n">f</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">},</span> <span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">])</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

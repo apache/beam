@@ -1,0 +1,284 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.portability.api.beam_provision_api_pb2_grpc &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.portability.api.beam_provision_api_pb2_grpc</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.portability.api.beam_provision_api_pb2_grpc</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Generated by the gRPC Python protocol compiler plugin. DO NOT EDIT!</span>
+<span class="kn">import</span> <span class="nn">grpc</span>
+
+<span class="kn">import</span> <span class="nn">beam_provision_api_pb2</span> <span class="k">as</span> <span class="nn">beam__provision__api__pb2</span>
+
+
+<div class="viewcode-block" id="ProvisionServiceStub"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_provision_api_pb2_grpc.html#apache_beam.portability.api.beam_provision_api_pb2_grpc.ProvisionServiceStub">[docs]</a><span class="k">class</span> <span class="nc">ProvisionServiceStub</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A service to provide runtime provisioning information to the SDK harness</span>
+<span class="sd">  worker instances -- such as pipeline options, resource constraints and</span>
+<span class="sd">  other job metadata -- needed by an SDK harness instance to initialize.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      channel: A grpc.Channel.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">GetProvisionInfo</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">unary_unary</span><span class="p">(</span>
+        <span class="s1">&#39;/org.apache.beam.model.fn_execution.v1.ProvisionService/GetProvisionInfo&#39;</span><span class="p">,</span>
+        <span class="n">request_serializer</span><span class="o">=</span><span class="n">beam__provision__api__pb2</span><span class="o">.</span><span class="n">GetProvisionInfoRequest</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+        <span class="n">response_deserializer</span><span class="o">=</span><span class="n">beam__provision__api__pb2</span><span class="o">.</span><span class="n">GetProvisionInfoResponse</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ProvisionServiceServicer"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_provision_api_pb2_grpc.html#apache_beam.portability.api.beam_provision_api_pb2_grpc.ProvisionServiceServicer">[docs]</a><span class="k">class</span> <span class="nc">ProvisionServiceServicer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A service to provide runtime provisioning information to the SDK harness</span>
+<span class="sd">  worker instances -- such as pipeline options, resource constraints and</span>
+<span class="sd">  other job metadata -- needed by an SDK harness instance to initialize.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ProvisionServiceServicer.GetProvisionInfo"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_provision_api_pb2_grpc.html#apache_beam.portability.api.beam_provision_api_pb2_grpc.ProvisionServiceServicer.GetProvisionInfo">[docs]</a>  <span class="k">def</span> <span class="nf">GetProvisionInfo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get provision information for the SDK harness worker instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_code</span><span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">UNIMPLEMENTED</span><span class="p">)</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_details</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="add_ProvisionServiceServicer_to_server"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_provision_api_pb2_grpc.html#apache_beam.portability.api.beam_provision_api_pb2_grpc.add_ProvisionServiceServicer_to_server">[docs]</a><span class="k">def</span> <span class="nf">add_ProvisionServiceServicer_to_server</span><span class="p">(</span><span class="n">servicer</span><span class="p">,</span> <span class="n">server</span><span class="p">):</span>
+  <span class="n">rpc_method_handlers</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;GetProvisionInfo&#39;</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">unary_unary_rpc_method_handler</span><span class="p">(</span>
+          <span class="n">servicer</span><span class="o">.</span><span class="n">GetProvisionInfo</span><span class="p">,</span>
+          <span class="n">request_deserializer</span><span class="o">=</span><span class="n">beam__provision__api__pb2</span><span class="o">.</span><span class="n">GetProvisionInfoRequest</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+          <span class="n">response_serializer</span><span class="o">=</span><span class="n">beam__provision__api__pb2</span><span class="o">.</span><span class="n">GetProvisionInfoResponse</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+      <span class="p">),</span>
+  <span class="p">}</span>
+  <span class="n">generic_handler</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">method_handlers_generic_handler</span><span class="p">(</span>
+      <span class="s1">&#39;org.apache.beam.model.fn_execution.v1.ProvisionService&#39;</span><span class="p">,</span> <span class="n">rpc_method_handlers</span><span class="p">)</span>
+  <span class="n">server</span><span class="o">.</span><span class="n">add_generic_rpc_handlers</span><span class="p">((</span><span class="n">generic_handler</span><span class="p">,))</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

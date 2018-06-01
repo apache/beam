@@ -1,0 +1,355 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.datastore.v1.helper_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.datastore.v1.helper_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Tests for datastore helper.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">mock</span> <span class="k">import</span> <span class="n">MagicMock</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">fake_datastore</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">helper</span>
+<span class="kn">from</span> <span class="nn">apache_beam.tests.test_utils</span> <span class="k">import</span> <span class="n">patch_retry</span>
+
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">datastore_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">entity_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">query_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1.entity_pb2</span> <span class="k">import</span> <span class="n">Key</span>
+  <span class="kn">from</span> <span class="nn">googledatastore.connection</span> <span class="k">import</span> <span class="n">RPCError</span>
+  <span class="kn">from</span> <span class="nn">googledatastore</span> <span class="k">import</span> <span class="n">helper</span> <span class="k">as</span> <span class="n">datastore_helper</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">datastore_helper</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">datastore_helper</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="HelperTest"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest">[docs]</a><span class="k">class</span> <span class="nc">HelperTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HelperTest.setUp"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;dummy_kind&#39;</span>
+    <span class="n">patch_retry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">helper</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.permanent_datastore_failure"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.permanent_datastore_failure">[docs]</a>  <span class="k">def</span> <span class="nf">permanent_datastore_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">req</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="n">RPCError</span><span class="p">(</span><span class="s2">&quot;dummy&quot;</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="s2">&quot;failed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.transient_datastore_failure"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.transient_datastore_failure">[docs]</a>  <span class="k">def</span> <span class="nf">transient_datastore_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">req</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transient_fail_count</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_transient_fail_count</span> <span class="o">-=</span> <span class="mi">1</span>
+      <span class="k">raise</span> <span class="n">RPCError</span><span class="p">(</span><span class="s2">&quot;dummy&quot;</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="s2">&quot;failed&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">datastore_pb2</span><span class="o">.</span><span class="n">RunQueryResponse</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">permanent_datastore_failure</span><span class="p">)</span>
+    <span class="n">query_iterator</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">QueryIterator</span><span class="p">(</span><span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">RPCError</span><span class="p">,</span> <span class="nb">iter</span><span class="p">(</span><span class="n">query_iterator</span><span class="p">)</span><span class="o">.</span><span class="n">next</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator_with_transient_failures"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator_with_transient_failures">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator_with_transient_failures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transient_datastore_failure</span><span class="p">)</span>
+    <span class="n">query_iterator</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">QueryIterator</span><span class="p">(</span><span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">)</span>
+    <span class="n">fail_count</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_transient_fail_count</span> <span class="o">=</span> <span class="n">fail_count</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">query_iterator</span><span class="p">:</span>
+      <span class="k">pass</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">fail_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                     <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator_with_single_batch"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator_with_single_batch">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator_with_single_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_query_iterator</span><span class="p">(</span><span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator_with_multiple_batches"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator_with_multiple_batches">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator_with_multiple_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">1098</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_query_iterator</span><span class="p">(</span><span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator_with_exact_batch_multiple"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator_with_exact_batch_multiple">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator_with_exact_batch_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_query_iterator</span><span class="p">(</span><span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator_with_query_limit"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator_with_query_limit">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator_with_query_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">1098</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">1004</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_query_iterator</span><span class="p">(</span><span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_query_iterator_with_large_query_limit"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_query_iterator_with_large_query_limit">[docs]</a>  <span class="k">def</span> <span class="nf">test_query_iterator_with_large_query_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities</span> <span class="o">=</span> <span class="mi">1098</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_query_iterator</span><span class="p">(</span><span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.check_query_iterator"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.check_query_iterator">[docs]</a>  <span class="k">def</span> <span class="nf">check_query_iterator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A helper method to test the QueryIterator.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      num_entities: number of entities contained in the fake datastore.</span>
+<span class="sd">      batch_size: the number of entities returned by fake datastore in one req.</span>
+<span class="sd">      query: the query to be executed</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">entities</span> <span class="o">=</span> <span class="n">fake_datastore</span><span class="o">.</span><span class="n">create_entities</span><span class="p">(</span><span class="n">num_entities</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> \
+        <span class="n">fake_datastore</span><span class="o">.</span><span class="n">create_run_query</span><span class="p">(</span><span class="n">entities</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+    <span class="n">query_iterator</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">QueryIterator</span><span class="p">(</span><span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">)</span>
+
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">query_iterator</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">entities</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">entity</span><span class="p">)</span>
+      <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="n">limit</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;limit&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">sys</span><span class="o">.</span><span class="n">maxint</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_entities</span><span class="p">,</span> <span class="n">limit</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_is_key_valid"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_is_key_valid">[docs]</a>  <span class="k">def</span> <span class="nf">test_is_key_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="c1"># Complete with name, no ancestor</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;kind&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="c1"># Complete with id, no ancestor</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;kind&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="c1"># Incomplete, no ancestor</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;kind&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="c1"># Complete with name and ancestor</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;kind&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;kind2&#39;</span><span class="p">,</span> <span class="s1">&#39;name2&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="c1"># Complete with id and ancestor</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;kind&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;kind2&#39;</span><span class="p">,</span> <span class="mi">123</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="c1"># Incomplete with ancestor</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;kind&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;kind2&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Key</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">is_key_valid</span><span class="p">(</span><span class="n">key</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_compare_path_with_different_kind"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_compare_path_with_different_kind">[docs]</a>  <span class="k">def</span> <span class="nf">test_compare_path_with_different_kind</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy1&#39;</span>
+
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy2&#39;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertLess</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">compare_path</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_compare_path_with_different_id"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_compare_path_with_different_id">[docs]</a>  <span class="k">def</span> <span class="nf">test_compare_path_with_different_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">15</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertLess</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">compare_path</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_compare_path_with_different_name"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_compare_path_with_different_name">[docs]</a>  <span class="k">def</span> <span class="nf">test_compare_path_with_different_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;dummy1&quot;</span>
+
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;dummy2&#39;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertLess</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">compare_path</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_compare_path_of_different_type"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_compare_path_of_different_type">[docs]</a>  <span class="k">def</span> <span class="nf">test_compare_path_of_different_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">Key</span><span class="o">.</span><span class="n">PathElement</span><span class="p">()</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="n">p2</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertLess</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">compare_path</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_key_comparator_with_different_partition"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_key_comparator_with_different_partition">[docs]</a>  <span class="k">def</span> <span class="nf">test_key_comparator_with_different_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k1</span><span class="o">.</span><span class="n">partition_id</span><span class="o">.</span><span class="n">namespace_id</span> <span class="o">=</span> <span class="s1">&#39;dummy1&#39;</span>
+    <span class="n">k2</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k2</span><span class="o">.</span><span class="n">partition_id</span><span class="o">.</span><span class="n">namespace_id</span> <span class="o">=</span> <span class="s1">&#39;dummy2&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">,</span> <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_key_comparator_with_single_path"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_key_comparator_with_single_path">[docs]</a>  <span class="k">def</span> <span class="nf">test_key_comparator_with_single_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k2</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p1</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p2</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">(</span><span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_key_comparator_with_multiple_paths_1"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_key_comparator_with_multiple_paths_1">[docs]</a>  <span class="k">def</span> <span class="nf">test_key_comparator_with_multiple_paths_1</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k2</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">p11</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p12</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p21</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p11</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p12</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p21</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">(</span><span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_key_comparator_with_multiple_paths_2"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_key_comparator_with_multiple_paths_2">[docs]</a>  <span class="k">def</span> <span class="nf">test_key_comparator_with_multiple_paths_2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k2</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">p11</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p21</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p22</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p11</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p21</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p22</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertLess</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">(</span><span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_key_comparator_with_multiple_paths_3"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_key_comparator_with_multiple_paths_3">[docs]</a>  <span class="k">def</span> <span class="nf">test_key_comparator_with_multiple_paths_3</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k2</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">p11</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p12</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p21</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p22</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p11</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p12</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p21</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p22</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">(</span><span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HelperTest.test_key_comparator_with_multiple_paths_4"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.helper_test.HelperTest.test_key_comparator_with_multiple_paths_4">[docs]</a>  <span class="k">def</span> <span class="nf">test_key_comparator_with_multiple_paths_4</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">k2</span> <span class="o">=</span> <span class="n">Key</span><span class="p">()</span>
+    <span class="n">p11</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p12</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p21</span> <span class="o">=</span> <span class="n">k2</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">p11</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="n">p12</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy&#39;</span>
+    <span class="c1"># make path2 greater than path1</span>
+    <span class="n">p21</span><span class="o">.</span><span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;dummy1&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertLess</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">(</span><span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

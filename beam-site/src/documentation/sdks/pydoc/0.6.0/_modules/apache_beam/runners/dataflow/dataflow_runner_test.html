@@ -1,0 +1,271 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.dataflow_runner_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.dataflow_runner_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the DataflowRunner class.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+
+<span class="kn">import</span> <span class="nn">mock</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">import</span> <span class="nn">apache_beam.transforms</span> <span class="k">as</span> <span class="nn">ptransform</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">Pipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">create_runner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">DataflowRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">TestDataflowRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.dataflow_runner</span> <span class="k">import</span> <span class="n">DataflowPipelineResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.dataflow_runner</span> <span class="k">import</span> <span class="n">DataflowRuntimeException</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.clients</span> <span class="k">import</span> <span class="n">dataflow</span> <span class="k">as</span> <span class="n">dataflow_api</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">apiclient</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">apiclient</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">apiclient</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="DataflowRunnerTest"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner_test.DataflowRunnerTest">[docs]</a><span class="k">class</span> <span class="nc">DataflowRunnerTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="n">default_properties</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="s1">&#39;--dataflow_endpoint=ignored&#39;</span><span class="p">,</span>
+      <span class="s1">&#39;--job_name=test-job&#39;</span><span class="p">,</span>
+      <span class="s1">&#39;--project=test-project&#39;</span><span class="p">,</span>
+      <span class="s1">&#39;--staging_location=ignored&#39;</span><span class="p">,</span>
+      <span class="s1">&#39;--temp_location=/dev/null&#39;</span><span class="p">,</span>
+      <span class="s1">&#39;--no_auth=True&#39;</span><span class="p">]</span>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;time.sleep&#39;</span><span class="p">,</span> <span class="n">return_value</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="viewcode-block" id="DataflowRunnerTest.test_wait_until_finish"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner_test.DataflowRunnerTest.test_wait_until_finish">[docs]</a>  <span class="k">def</span> <span class="nf">test_wait_until_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patched_time_sleep</span><span class="p">):</span>
+    <span class="n">values_enum</span> <span class="o">=</span> <span class="n">dataflow_api</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">CurrentStateValueValuesEnum</span>
+
+    <span class="k">class</span> <span class="nc">MockDataflowRunner</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">final_state</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataflow_client</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">currentState</span> <span class="o">=</span> <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_UNKNOWN</span>
+
+        <span class="k">def</span> <span class="nf">get_job_side_effect</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">currentState</span> <span class="o">=</span> <span class="n">final_state</span>
+          <span class="k">return</span> <span class="n">mock</span><span class="o">.</span><span class="n">DEFAULT</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataflow_client</span><span class="o">.</span><span class="n">get_job</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">(</span>
+            <span class="n">return_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">side_effect</span><span class="o">=</span><span class="n">get_job_side_effect</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataflow_client</span><span class="o">.</span><span class="n">list_messages</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">(</span>
+            <span class="n">return_value</span><span class="o">=</span><span class="p">([],</span> <span class="kc">None</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span>
+        <span class="n">DataflowRuntimeException</span><span class="p">,</span> <span class="s1">&#39;Dataflow pipeline failed. State: FAILED&#39;</span><span class="p">):</span>
+      <span class="n">failed_runner</span> <span class="o">=</span> <span class="n">MockDataflowRunner</span><span class="p">(</span><span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_FAILED</span><span class="p">)</span>
+      <span class="n">failed_result</span> <span class="o">=</span> <span class="n">DataflowPipelineResult</span><span class="p">(</span><span class="n">failed_runner</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">failed_runner</span><span class="p">)</span>
+      <span class="n">failed_result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+
+    <span class="n">succeeded_runner</span> <span class="o">=</span> <span class="n">MockDataflowRunner</span><span class="p">(</span><span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_DONE</span><span class="p">)</span>
+    <span class="n">succeeded_result</span> <span class="o">=</span> <span class="n">DataflowPipelineResult</span><span class="p">(</span>
+        <span class="n">succeeded_runner</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">succeeded_runner</span><span class="p">)</span>
+    <span class="n">succeeded_result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DataflowRunnerTest.test_create_runner"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner_test.DataflowRunnerTest.test_create_runner">[docs]</a>  <span class="k">def</span> <span class="nf">test_create_runner</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">create_runner</span><span class="p">(</span><span class="s1">&#39;DataflowRunner&#39;</span><span class="p">),</span>
+                   <span class="n">DataflowRunner</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">create_runner</span><span class="p">(</span><span class="s1">&#39;TestDataflowRunner&#39;</span><span class="p">),</span>
+                   <span class="n">TestDataflowRunner</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DataflowRunnerTest.test_remote_runner_translation"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner_test.DataflowRunnerTest.test_remote_runner_translation">[docs]</a>  <span class="k">def</span> <span class="nf">test_remote_runner_translation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">remote_runner</span> <span class="o">=</span> <span class="n">DataflowRunner</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">remote_runner</span><span class="p">,</span>
+                 <span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_properties</span><span class="p">))</span>
+
+    <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+     <span class="o">|</span> <span class="s1">&#39;Do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">)])</span>
+     <span class="o">|</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">())</span>
+    <span class="n">remote_runner</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">Job</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="p">)</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DataflowRunner</span><span class="p">,</span> <span class="n">remote_runner</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">p</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DataflowRunnerTest.test_remote_runner_display_data"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner_test.DataflowRunnerTest.test_remote_runner_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_remote_runner_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">remote_runner</span> <span class="o">=</span> <span class="n">DataflowRunner</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">remote_runner</span><span class="p">,</span>
+                 <span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_properties</span><span class="p">))</span>
+
+    <span class="c1"># TODO: Should not subclass ParDo. Switch to PTransform as soon as</span>
+    <span class="c1"># composite transforms support display data.</span>
+    <span class="k">class</span> <span class="nc">SpecialParDo</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">now</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SpecialParDo</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">now</span> <span class="o">=</span> <span class="n">now</span>
+
+      <span class="c1"># Make this a list to be accessible within closure</span>
+      <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;asubcomponent&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span>
+                <span class="s1">&#39;a_class&#39;</span><span class="p">:</span> <span class="n">SpecialParDo</span><span class="p">,</span>
+                <span class="s1">&#39;a_time&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">now</span><span class="p">}</span>
+
+    <span class="k">class</span> <span class="nc">SpecialDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;dofn_value&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">}</span>
+
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+     <span class="o">|</span> <span class="s1">&#39;Do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">SpecialParDo</span><span class="p">(</span><span class="n">SpecialDoFn</span><span class="p">(),</span> <span class="n">now</span><span class="p">))</span>
+
+    <span class="n">remote_runner</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">Job</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="p">)</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DataflowRunner</span><span class="p">,</span> <span class="n">remote_runner</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="n">job_dict</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">remote_runner</span><span class="o">.</span><span class="n">job</span><span class="p">))</span>
+    <span class="n">steps</span> <span class="o">=</span> <span class="p">[</span><span class="n">step</span>
+             <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">job_dict</span><span class="p">[</span><span class="s1">&#39;steps&#39;</span><span class="p">]</span>
+             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">step</span><span class="p">[</span><span class="s1">&#39;properties&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;display_data&#39;</span><span class="p">,</span> <span class="p">[]))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">steps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">disp_data</span> <span class="o">=</span> <span class="n">step</span><span class="p">[</span><span class="s1">&#39;properties&#39;</span><span class="p">][</span><span class="s1">&#39;display_data&#39;</span><span class="p">]</span>
+    <span class="n">disp_data</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">disp_data</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">])</span>
+    <span class="n">nspace</span> <span class="o">=</span> <span class="n">SpecialParDo</span><span class="o">.</span><span class="vm">__module__</span><span class="o">+</span> <span class="s1">&#39;.&#39;</span>
+    <span class="n">expected_data</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;TIMESTAMP&#39;</span><span class="p">,</span> <span class="s1">&#39;namespace&#39;</span><span class="p">:</span> <span class="n">nspace</span><span class="o">+</span><span class="s1">&#39;SpecialParDo&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="o">.</span><span class="n">_format_value</span><span class="p">(</span><span class="n">now</span><span class="p">,</span> <span class="s1">&#39;TIMESTAMP&#39;</span><span class="p">),</span>
+                      <span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="s1">&#39;a_time&#39;</span><span class="p">},</span>
+                     <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="s1">&#39;namespace&#39;</span><span class="p">:</span> <span class="n">nspace</span><span class="o">+</span><span class="s1">&#39;SpecialParDo&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">nspace</span><span class="o">+</span><span class="s1">&#39;SpecialParDo&#39;</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="s1">&#39;a_class&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;shortValue&#39;</span><span class="p">:</span> <span class="s1">&#39;SpecialParDo&#39;</span><span class="p">},</span>
+                     <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;INTEGER&#39;</span><span class="p">,</span> <span class="s1">&#39;namespace&#39;</span><span class="p">:</span> <span class="n">nspace</span><span class="o">+</span><span class="s1">&#39;SpecialDoFn&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="s1">&#39;dofn_value&#39;</span><span class="p">}]</span>
+    <span class="n">expected_data</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">expected_data</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">disp_data</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">disp_data</span><span class="p">,</span> <span class="n">expected_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DataflowRunnerTest.test_no_group_by_key_directly_after_bigquery"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner_test.DataflowRunnerTest.test_no_group_by_key_directly_after_bigquery">[docs]</a>  <span class="k">def</span> <span class="nf">test_no_group_by_key_directly_after_bigquery</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">remote_runner</span> <span class="o">=</span> <span class="n">DataflowRunner</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">remote_runner</span><span class="p">,</span>
+                 <span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">([</span>
+                     <span class="s1">&#39;--dataflow_endpoint=ignored&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;--job_name=test-job&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;--project=test-project&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;--staging_location=ignored&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;--temp_location=/dev/null&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;--no_auth=True&#39;</span>
+                 <span class="p">]))</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span><span class="s1">&#39;dataset.faketable&#39;</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span>
+                           <span class="n">msg</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;Coder for the GroupByKey operation&#39;</span>
+                                <span class="s1">&#39;&quot;GroupByKey&quot; is not a key-value coder: &#39;</span>
+                                <span class="s1">&#39;RowAsDictJsonCoder&#39;</span><span class="p">)):</span>
+      <span class="n">unused_invalid</span> <span class="o">=</span> <span class="n">rows</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

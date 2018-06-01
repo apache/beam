@@ -1,0 +1,7 @@
+apache\_beam\.io\.tfrecordio module
+===================================
+
+.. automodule:: apache_beam.io.tfrecordio
+    :members:
+    :undoc-members:
+    :show-inheritance:

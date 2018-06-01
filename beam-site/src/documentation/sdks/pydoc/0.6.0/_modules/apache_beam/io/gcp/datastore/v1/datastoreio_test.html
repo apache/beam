@@ -1,0 +1,335 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.datastore.v1.datastoreio_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.datastore.v1.datastoreio_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">mock</span> <span class="k">import</span> <span class="n">MagicMock</span><span class="p">,</span> <span class="n">call</span><span class="p">,</span> <span class="n">patch</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">fake_datastore</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">helper</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">query_splitter</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1.datastoreio</span> <span class="k">import</span> <span class="n">_Mutate</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1.datastoreio</span> <span class="k">import</span> <span class="n">ReadFromDatastore</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1.datastoreio</span> <span class="k">import</span> <span class="n">WriteToDatastore</span>
+
+<span class="c1"># Protect against environments where datastore library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">datastore_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">query_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">timestamp_pb2</span>
+  <span class="kn">from</span> <span class="nn">googledatastore</span> <span class="k">import</span> <span class="n">helper</span> <span class="k">as</span> <span class="n">datastore_helper</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">datastore_pb2</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">datastore_pb2</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="DatastoreioTest"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest">[docs]</a><span class="k">class</span> <span class="nc">DatastoreioTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="n">_PROJECT</span> <span class="o">=</span> <span class="s1">&#39;project&#39;</span>
+  <span class="n">_KIND</span> <span class="o">=</span> <span class="s1">&#39;kind&#39;</span>
+  <span class="n">_NAMESPACE</span> <span class="o">=</span> <span class="s1">&#39;namespace&#39;</span>
+
+<div class="viewcode-block" id="DatastoreioTest.setUp"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_KIND</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_get_estimated_size_bytes_without_namespace"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_get_estimated_size_bytes_without_namespace">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_estimated_size_bytes_without_namespace</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">entity_bytes</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">timestamp_pb2</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">1234</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_estimated_size_bytes</span><span class="p">(</span><span class="n">entity_bytes</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_get_estimated_size_bytes_with_namespace"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_get_estimated_size_bytes_with_namespace">[docs]</a>  <span class="k">def</span> <span class="nf">test_get_estimated_size_bytes_with_namespace</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">entity_bytes</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">timestamp_pb2</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">1234</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_estimated_size_bytes</span><span class="p">(</span><span class="n">entity_bytes</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_NAMESPACE</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_SplitQueryFn_with_num_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_SplitQueryFn_with_num_splits">[docs]</a>  <span class="k">def</span> <span class="nf">test_SplitQueryFn_with_num_splits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">helper</span><span class="p">,</span> <span class="s1">&#39;get_datastore&#39;</span><span class="p">,</span>
+                      <span class="n">return_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">):</span>
+      <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">23</span>
+
+      <span class="k">def</span> <span class="nf">fake_get_splits</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">partition</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+
+      <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">query_splitter</span><span class="p">,</span> <span class="s1">&#39;get_splits&#39;</span><span class="p">,</span>
+                        <span class="n">side_effect</span><span class="o">=</span><span class="n">fake_get_splits</span><span class="p">):</span>
+
+        <span class="n">split_query_fn</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">SplitQueryFn</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+        <span class="n">split_query_fn</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">()</span>
+        <span class="n">returned_split_queries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">split_query</span> <span class="ow">in</span> <span class="n">split_query_fn</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">):</span>
+          <span class="n">returned_split_queries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">split_query</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">),</span> <span class="n">num_splits</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_unique_keys</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_SplitQueryFn_without_num_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_SplitQueryFn_without_num_splits">[docs]</a>  <span class="k">def</span> <span class="nf">test_SplitQueryFn_without_num_splits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">helper</span><span class="p">,</span> <span class="s1">&#39;get_datastore&#39;</span><span class="p">,</span>
+                      <span class="n">return_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">):</span>
+      <span class="c1"># Force SplitQueryFn to compute the number of query splits</span>
+      <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">expected_num_splits</span> <span class="o">=</span> <span class="mi">23</span>
+      <span class="n">entity_bytes</span> <span class="o">=</span> <span class="p">(</span><span class="n">expected_num_splits</span> <span class="o">*</span>
+                      <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">_DEFAULT_BUNDLE_SIZE_BYTES</span><span class="p">)</span>
+      <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="p">,</span> <span class="s1">&#39;get_estimated_size_bytes&#39;</span><span class="p">,</span>
+                        <span class="n">return_value</span><span class="o">=</span><span class="n">entity_bytes</span><span class="p">):</span>
+
+        <span class="k">def</span> <span class="nf">fake_get_splits</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">partition</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+          <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">query_splitter</span><span class="p">,</span> <span class="s1">&#39;get_splits&#39;</span><span class="p">,</span>
+                          <span class="n">side_effect</span><span class="o">=</span><span class="n">fake_get_splits</span><span class="p">):</span>
+          <span class="n">split_query_fn</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">SplitQueryFn</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+          <span class="n">split_query_fn</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">()</span>
+          <span class="n">returned_split_queries</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="k">for</span> <span class="n">split_query</span> <span class="ow">in</span> <span class="n">split_query_fn</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">):</span>
+            <span class="n">returned_split_queries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">split_query</span><span class="p">)</span>
+
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">),</span> <span class="n">expected_num_splits</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>
+                           <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">))</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">verify_unique_keys</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_SplitQueryFn_with_query_limit"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_SplitQueryFn_with_query_limit">[docs]</a>  <span class="k">def</span> <span class="nf">test_SplitQueryFn_with_query_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A test that verifies no split is performed when the query has a limit.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">helper</span><span class="p">,</span> <span class="s1">&#39;get_datastore&#39;</span><span class="p">,</span>
+                      <span class="n">return_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">3</span>
+      <span class="n">split_query_fn</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">SplitQueryFn</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+      <span class="n">split_query_fn</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">()</span>
+      <span class="n">returned_split_queries</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">split_query</span> <span class="ow">in</span> <span class="n">split_query_fn</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">):</span>
+        <span class="n">returned_split_queries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">split_query</span><span class="p">)</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">method_calls</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_SplitQueryFn_with_exception"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_SplitQueryFn_with_exception">[docs]</a>  <span class="k">def</span> <span class="nf">test_SplitQueryFn_with_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A test that verifies that no split is performed when failures occur.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">helper</span><span class="p">,</span> <span class="s1">&#39;get_datastore&#39;</span><span class="p">,</span>
+                      <span class="n">return_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">):</span>
+      <span class="c1"># Force SplitQueryFn to compute the number of query splits</span>
+      <span class="n">num_splits</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">expected_num_splits</span> <span class="o">=</span> <span class="mi">1</span>
+      <span class="n">entity_bytes</span> <span class="o">=</span> <span class="p">(</span><span class="n">expected_num_splits</span> <span class="o">*</span>
+                      <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">_DEFAULT_BUNDLE_SIZE_BYTES</span><span class="p">)</span>
+      <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">ReadFromDatastore</span><span class="p">,</span> <span class="s1">&#39;get_estimated_size_bytes&#39;</span><span class="p">,</span>
+                        <span class="n">return_value</span><span class="o">=</span><span class="n">entity_bytes</span><span class="p">):</span>
+
+        <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">query_splitter</span><span class="p">,</span> <span class="s1">&#39;get_splits&#39;</span><span class="p">,</span>
+                          <span class="n">side_effect</span><span class="o">=</span><span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Testing query split error&quot;</span><span class="p">)):</span>
+          <span class="n">split_query_fn</span> <span class="o">=</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">SplitQueryFn</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+          <span class="n">split_query_fn</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">()</span>
+          <span class="n">returned_split_queries</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="k">for</span> <span class="n">split_query</span> <span class="ow">in</span> <span class="n">split_query_fn</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">):</span>
+            <span class="n">returned_split_queries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">split_query</span><span class="p">)</span>
+
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">),</span> <span class="n">expected_num_splits</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>
+                           <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">))</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">verify_unique_keys</span><span class="p">(</span><span class="n">returned_split_queries</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_DatastoreWriteFn_with_emtpy_batch"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_DatastoreWriteFn_with_emtpy_batch">[docs]</a>  <span class="k">def</span> <span class="nf">test_DatastoreWriteFn_with_emtpy_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_DatastoreWriteFn</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_DatastoreWriteFn_with_one_batch"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_DatastoreWriteFn_with_one_batch">[docs]</a>  <span class="k">def</span> <span class="nf">test_DatastoreWriteFn_with_one_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities_to_write</span> <span class="o">=</span> <span class="n">_Mutate</span><span class="o">.</span><span class="n">_WRITE_BATCH_SIZE</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">50</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_DatastoreWriteFn</span><span class="p">(</span><span class="n">num_entities_to_write</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_DatastoreWriteFn_with_multiple_batches"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_DatastoreWriteFn_with_multiple_batches">[docs]</a>  <span class="k">def</span> <span class="nf">test_DatastoreWriteFn_with_multiple_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities_to_write</span> <span class="o">=</span> <span class="n">_Mutate</span><span class="o">.</span><span class="n">_WRITE_BATCH_SIZE</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">+</span> <span class="mi">50</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_DatastoreWriteFn</span><span class="p">(</span><span class="n">num_entities_to_write</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.test_DatastoreWriteFn_with_batch_size_exact_multiple"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.test_DatastoreWriteFn_with_batch_size_exact_multiple">[docs]</a>  <span class="k">def</span> <span class="nf">test_DatastoreWriteFn_with_batch_size_exact_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">num_entities_to_write</span> <span class="o">=</span> <span class="n">_Mutate</span><span class="o">.</span><span class="n">_WRITE_BATCH_SIZE</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_DatastoreWriteFn</span><span class="p">(</span><span class="n">num_entities_to_write</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.check_DatastoreWriteFn"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.check_DatastoreWriteFn">[docs]</a>  <span class="k">def</span> <span class="nf">check_DatastoreWriteFn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_entities</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A helper function to test DatastoreWriteFn.&quot;&quot;&quot;</span>
+
+    <span class="k">with</span> <span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">helper</span><span class="p">,</span> <span class="s1">&#39;get_datastore&#39;</span><span class="p">,</span>
+                      <span class="n">return_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">):</span>
+      <span class="n">entities</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">entity</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span>
+                  <span class="n">fake_datastore</span><span class="o">.</span><span class="n">create_entities</span><span class="p">(</span><span class="n">num_entities</span><span class="p">)]</span>
+
+      <span class="n">expected_mutations</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">WriteToDatastore</span><span class="o">.</span><span class="n">to_upsert_mutation</span><span class="p">,</span> <span class="n">entities</span><span class="p">)</span>
+      <span class="n">actual_mutations</span> <span class="o">=</span> <span class="p">[]</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">fake_datastore</span><span class="o">.</span><span class="n">create_commit</span><span class="p">(</span><span class="n">actual_mutations</span><span class="p">))</span>
+
+      <span class="n">datastore_write_fn</span> <span class="o">=</span> <span class="n">_Mutate</span><span class="o">.</span><span class="n">DatastoreWriteFn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">)</span>
+
+      <span class="n">datastore_write_fn</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">mutation</span> <span class="ow">in</span> <span class="n">expected_mutations</span><span class="p">:</span>
+        <span class="n">datastore_write_fn</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">mutation</span><span class="p">)</span>
+      <span class="n">datastore_write_fn</span><span class="o">.</span><span class="n">finish_bundle</span><span class="p">()</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">actual_mutations</span><span class="p">,</span> <span class="n">expected_mutations</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">((</span><span class="n">num_entities</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">_Mutate</span><span class="o">.</span><span class="n">_WRITE_BATCH_SIZE</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">call_count</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.verify_unique_keys"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.verify_unique_keys">[docs]</a>  <span class="k">def</span> <span class="nf">verify_unique_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queries</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A helper function that verifies if all the queries have unique keys.&quot;&quot;&quot;</span>
+    <span class="n">keys</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">queries</span><span class="p">)</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.check_estimated_size_bytes"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.check_estimated_size_bytes">[docs]</a>  <span class="k">def</span> <span class="nf">check_estimated_size_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_bytes</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A helper method to test get_estimated_size_bytes&quot;&quot;&quot;</span>
+
+    <span class="n">timestamp_req</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_latest_timestamp_query</span><span class="p">(</span><span class="n">namespace</span><span class="p">))</span>
+    <span class="n">timestamp_resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_stats_response</span><span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;timestamp&#39;</span><span class="p">:</span> <span class="n">datastore_helper</span><span class="o">.</span><span class="n">from_timestamp</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)})</span>
+    <span class="n">kind_stat_req</span> <span class="o">=</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">helper</span><span class="o">.</span><span class="n">make_kind_stats_query</span><span class="p">(</span>
+            <span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">datastore_helper</span><span class="o">.</span><span class="n">micros_from_timestamp</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)))</span>
+    <span class="n">kind_stat_resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_stats_response</span><span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;entity_bytes&#39;</span><span class="p">:</span> <span class="n">entity_bytes</span><span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">fake_run_query</span><span class="p">(</span><span class="n">req</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">req</span> <span class="o">==</span> <span class="n">timestamp_req</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">timestamp_resp</span>
+      <span class="k">elif</span> <span class="n">req</span> <span class="o">==</span> <span class="n">kind_stat_req</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">kind_stat_resp</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="n">kind_stat_req</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown req: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">req</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="n">fake_run_query</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">entity_bytes</span><span class="p">,</span> <span class="n">ReadFromDatastore</span><span class="o">.</span><span class="n">get_estimated_size_bytes</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_PROJECT</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mock_datastore</span><span class="o">.</span><span class="n">run_query</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">,</span>
+                     <span class="p">[</span><span class="n">call</span><span class="p">(</span><span class="n">timestamp_req</span><span class="p">),</span> <span class="n">call</span><span class="p">(</span><span class="n">kind_stat_req</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.make_stats_response"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.make_stats_response">[docs]</a>  <span class="k">def</span> <span class="nf">make_stats_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_map</span><span class="p">):</span>
+    <span class="n">resp</span> <span class="o">=</span> <span class="n">datastore_pb2</span><span class="o">.</span><span class="n">RunQueryResponse</span><span class="p">()</span>
+    <span class="n">entity_result</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_properties</span><span class="p">(</span><span class="n">entity_result</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="n">property_map</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">resp</span></div>
+
+<div class="viewcode-block" id="DatastoreioTest.split_query"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.datastoreio_test.DatastoreioTest.split_query">[docs]</a>  <span class="k">def</span> <span class="nf">split_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generate dummy query splits.&quot;&quot;&quot;</span>
+    <span class="n">split_queries</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+      <span class="n">q</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+      <span class="n">q</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+      <span class="n">split_queries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">split_queries</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

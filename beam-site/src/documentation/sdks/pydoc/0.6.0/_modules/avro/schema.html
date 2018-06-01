@@ -1,0 +1,875 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>avro.schema &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for avro.schema</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Licensed to the Apache Software Foundation (ASF) under one</span>
+<span class="c1"># or more contributor license agreements.  See the NOTICE file</span>
+<span class="c1"># distributed with this work for additional information</span>
+<span class="c1"># regarding copyright ownership.  The ASF licenses this file</span>
+<span class="c1"># to you under the Apache License, Version 2.0 (the</span>
+<span class="c1"># &quot;License&quot;); you may not use this file except in compliance</span>
+<span class="c1"># with the License.  You may obtain a copy of the License at</span>
+<span class="c1"># </span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1"># </span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Contains the Schema classes.</span>
+
+<span class="sd">A schema may be one of:</span>
+<span class="sd">  A record, mapping field names to field value data;</span>
+<span class="sd">  An error, equivalent to a record;</span>
+<span class="sd">  An enum, containing one of a small set of symbols;</span>
+<span class="sd">  An array of values, all of the same schema;</span>
+<span class="sd">  A map containing string/value pairs, each of a declared schema;</span>
+<span class="sd">  A union of other schemas;</span>
+<span class="sd">  A fixed sized binary object;</span>
+<span class="sd">  A unicode string;</span>
+<span class="sd">  A sequence of bytes;</span>
+<span class="sd">  A 32-bit signed int;</span>
+<span class="sd">  A 64-bit signed long;</span>
+<span class="sd">  A 32-bit floating-point float;</span>
+<span class="sd">  A 64-bit floating-point double;</span>
+<span class="sd">  A boolean; or</span>
+<span class="sd">  Null.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">import</span> <span class="nn">json</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="kn">import</span> <span class="nn">simplejson</span> <span class="k">as</span> <span class="nn">json</span>
+
+<span class="c1">#</span>
+<span class="c1"># Constants</span>
+<span class="c1">#</span>
+
+<span class="n">PRIMITIVE_TYPES</span> <span class="o">=</span> <span class="p">(</span>
+  <span class="s1">&#39;null&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;boolean&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;string&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;bytes&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;int&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;long&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;float&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;double&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">NAMED_TYPES</span> <span class="o">=</span> <span class="p">(</span>
+  <span class="s1">&#39;fixed&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;enum&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;record&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;error&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">VALID_TYPES</span> <span class="o">=</span> <span class="n">PRIMITIVE_TYPES</span> <span class="o">+</span> <span class="n">NAMED_TYPES</span> <span class="o">+</span> <span class="p">(</span>
+  <span class="s1">&#39;array&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;map&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;union&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;request&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;error_union&#39;</span>
+<span class="p">)</span>
+
+<span class="n">SCHEMA_RESERVED_PROPS</span> <span class="o">=</span> <span class="p">(</span>
+  <span class="s1">&#39;type&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;name&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;namespace&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;fields&#39;</span><span class="p">,</span>     <span class="c1"># Record</span>
+  <span class="s1">&#39;items&#39;</span><span class="p">,</span>      <span class="c1"># Array</span>
+  <span class="s1">&#39;size&#39;</span><span class="p">,</span>       <span class="c1"># Fixed</span>
+  <span class="s1">&#39;symbols&#39;</span><span class="p">,</span>    <span class="c1"># Enum</span>
+  <span class="s1">&#39;values&#39;</span><span class="p">,</span>     <span class="c1"># Map</span>
+  <span class="s1">&#39;doc&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">FIELD_RESERVED_PROPS</span> <span class="o">=</span> <span class="p">(</span>
+  <span class="s1">&#39;default&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;name&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;doc&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;order&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;type&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">VALID_FIELD_SORT_ORDERS</span> <span class="o">=</span> <span class="p">(</span>
+  <span class="s1">&#39;ascending&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;descending&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;ignore&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1">#</span>
+<span class="c1"># Exceptions</span>
+<span class="c1">#</span>
+
+<span class="k">class</span> <span class="nc">AvroException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">SchemaParseException</span><span class="p">(</span><span class="n">AvroException</span><span class="p">):</span>
+  <span class="k">pass</span>
+
+<span class="c1">#</span>
+<span class="c1"># Base Classes</span>
+<span class="c1">#</span>
+
+<span class="k">class</span> <span class="nc">Schema</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for all Schema classes.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Schema type must be a string.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_TYPES</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> is not a valid type.&#39;</span> <span class="o">%</span> <span class="nb">type</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># add members</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_props&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">_props</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other_props</span> <span class="ow">or</span> <span class="p">{})</span>
+
+  <span class="c1"># Read-only properties dict. Printing schemas</span>
+  <span class="c1"># creates JSON properties directly from this dict. </span>
+  <span class="n">props</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="p">)</span>
+
+  <span class="c1"># Read-only property dict. Non-reserved properties</span>
+  <span class="n">other_props</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="n">get_other_props</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="p">,</span> <span class="n">SCHEMA_RESERVED_PROPS</span><span class="p">),</span>
+                         <span class="n">doc</span><span class="o">=</span><span class="s2">&quot;dictionary of non-reserved properties&quot;</span><span class="p">)</span>
+
+  <span class="c1"># utility functions to manipulate properties dict</span>
+  <span class="k">def</span> <span class="nf">get_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">set_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts the schema object into its AVRO specification representation.</span>
+
+<span class="sd">    Schema types that have names (records, enums, and fixed) must</span>
+<span class="sd">    be aware of not re-defining schemas that are already listed</span>
+<span class="sd">    in the parameter names.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Must be implemented by subclasses.&quot;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Name</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Class to describe Avro name.&quot;&quot;&quot;</span>
+  
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">,</span> <span class="n">default_space</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Formulate full name according to the specification.</span>
+<span class="sd">    </span>
+<span class="sd">    @arg name_attr: name value read in schema or None.</span>
+<span class="sd">    @arg space_attr: namespace value read in schema or None.</span>
+<span class="sd">    @ard default_space: the current default space or None.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">name_attr</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">name_attr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Name must be non-empty string or None.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">name_attr</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Name must be non-empty string or None.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">space_attr</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">space_attr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Space must be non-empty string or None.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">name_attr</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Space must be non-empty string or None.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+  
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">default_space</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">default_space</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Default space must be non-empty string or None.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">name_attr</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Default must be non-empty string or None.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    
+    <span class="bp">self</span><span class="o">.</span><span class="n">_full</span> <span class="o">=</span> <span class="kc">None</span><span class="p">;</span> 
+    
+    <span class="k">if</span> <span class="n">name_attr</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">name_attr</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="k">return</span><span class="p">;</span>
+    
+    <span class="k">if</span> <span class="p">(</span><span class="n">name_attr</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">space_attr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">space_attr</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_full</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">space_attr</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">default_space</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">default_space</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+           <span class="bp">self</span><span class="o">.</span><span class="n">_full</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">default_space</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_full</span> <span class="o">=</span> <span class="n">name_attr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_full</span> <span class="o">=</span> <span class="n">name_attr</span>         
+    
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fullname</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">fullname</span><span class="p">)</span>
+      
+  <span class="n">fullname</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">get_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Back out a namespace from full name.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_full</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+<span class="k">class</span> <span class="nc">Names</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Track name set and default namespace during parsing.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default_namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">default_namespace</span> <span class="o">=</span> <span class="n">default_namespace</span>
+      
+  <span class="k">def</span> <span class="nf">has_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">):</span>
+      <span class="n">test</span> <span class="o">=</span> <span class="n">Name</span><span class="p">(</span><span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">)</span><span class="o">.</span><span class="n">fullname</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">test</span><span class="p">)</span>
+  
+  <span class="k">def</span> <span class="nf">get_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">):</span>    
+      <span class="n">test</span> <span class="o">=</span> <span class="n">Name</span><span class="p">(</span><span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">)</span><span class="o">.</span><span class="n">fullname</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">test</span><span class="p">):</span>
+          <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">test</span><span class="p">]</span>
+  
+  <span class="k">def</span> <span class="nf">prune_namespace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">properties</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;given a properties, return properties with namespace removed if</span>
+<span class="sd">    it matches the own default namespace&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_namespace</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># I have no default -- no change</span>
+      <span class="k">return</span> <span class="n">properties</span>
+    <span class="k">if</span> <span class="s1">&#39;namespace&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+      <span class="c1"># he has no namespace - no change</span>
+      <span class="k">return</span> <span class="n">properties</span>
+    <span class="k">if</span> <span class="n">properties</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">:</span>
+      <span class="c1"># we&#39;re different - leave his stuff alone</span>
+      <span class="k">return</span> <span class="n">properties</span>
+    <span class="c1"># we each have a namespace and it&#39;s redundant. delete his.</span>
+    <span class="n">prunable</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">del</span><span class="p">(</span><span class="n">prunable</span><span class="p">[</span><span class="s1">&#39;namespace&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">prunable</span>
+
+  <span class="k">def</span> <span class="nf">add_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">,</span> <span class="n">new_schema</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add a new schema object to the name set.</span>
+<span class="sd">    </span>
+<span class="sd">      @arg name_attr: name value read in schema</span>
+<span class="sd">      @arg space_attr: namespace value read in schema.</span>
+<span class="sd">      </span>
+<span class="sd">      @return: the Name that was just added.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">to_add</span> <span class="o">=</span> <span class="n">Name</span><span class="p">(</span><span class="n">name_attr</span><span class="p">,</span> <span class="n">space_attr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">to_add</span><span class="o">.</span><span class="n">fullname</span> <span class="ow">in</span> <span class="n">VALID_TYPES</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> is a reserved type name.&#39;</span> <span class="o">%</span> <span class="n">to_add</span><span class="o">.</span><span class="n">fullname</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">to_add</span><span class="o">.</span><span class="n">fullname</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;The name &quot;</span><span class="si">%s</span><span class="s1">&quot; is already in use.&#39;</span> <span class="o">%</span> <span class="n">to_add</span><span class="o">.</span><span class="n">fullname</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">to_add</span><span class="o">.</span><span class="n">fullname</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_schema</span>
+    <span class="k">return</span> <span class="n">to_add</span>
+
+<span class="k">class</span> <span class="nc">NamedSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Named Schemas specified in NAMED_TYPES.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Named Schemas must have a non-empty name.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;The name property must be a string.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;The namespace property must be a string.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">Schema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+
+    <span class="c1"># Add class members</span>
+    <span class="n">new_name</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">add_name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="c1"># Store name and namespace as they were read in origin schema</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span> 
+      <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="n">new_name</span><span class="o">.</span><span class="n">get_space</span><span class="p">())</span>
+
+    <span class="c1"># Store full name as calculated from name, namespace</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fullname</span> <span class="o">=</span> <span class="n">new_name</span><span class="o">.</span><span class="n">fullname</span>
+    
+  <span class="k">def</span> <span class="nf">name_ref</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">==</span> <span class="n">names</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fullname</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">name</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">))</span>
+  <span class="n">namespace</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">))</span>
+  <span class="n">fullname</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fullname</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Field</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">has_default</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Fields must have a non-empty name.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;The name property must be a string.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">order</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_FIELD_SORT_ORDERS</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;The order property </span><span class="si">%s</span><span class="s1"> is not valid.&#39;</span> <span class="o">%</span> <span class="n">order</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># add members</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_props</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_has_default</span> <span class="o">=</span> <span class="n">has_default</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other_props</span> <span class="ow">or</span> <span class="p">{})</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="ow">and</span> <span class="n">names</span><span class="o">.</span><span class="n">has_name</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="kc">None</span><span class="p">)):</span>
+      <span class="n">type_schema</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">get_name</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">type_schema</span> <span class="o">=</span> <span class="n">make_avsc_object</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Type property &quot;</span><span class="si">%s</span><span class="s1">&quot; not a valid Avro schema: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="n">type_schema</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">type_schema</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="c1"># TODO(hammer): check to ensure default is valid</span>
+    <span class="k">if</span> <span class="n">has_default</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;order&#39;</span><span class="p">,</span> <span class="n">order</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">doc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">default</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">))</span>
+  <span class="n">has_default</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_default</span><span class="p">)</span>
+  <span class="n">order</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;order&#39;</span><span class="p">))</span>
+  <span class="n">doc</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">))</span>
+  <span class="n">props</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="p">)</span>
+
+  <span class="c1"># Read-only property dict. Non-reserved properties</span>
+  <span class="n">other_props</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="n">get_other_props</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="p">,</span> <span class="n">FIELD_RESERVED_PROPS</span><span class="p">),</span>
+                         <span class="n">doc</span><span class="o">=</span><span class="s2">&quot;dictionary of non-reserved properties&quot;</span><span class="p">)</span>
+
+<span class="c1"># utility functions to manipulate properties dict</span>
+  <span class="k">def</span> <span class="nf">get_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">set_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_props</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="n">to_dump</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">to_dump</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">to_dump</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="n">to_cmp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_cmp</span> <span class="o">==</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">that</span><span class="p">))</span>
+
+<span class="c1">#</span>
+<span class="c1"># Primitive Types</span>
+<span class="c1">#</span>
+<span class="k">class</span> <span class="nc">PrimitiveSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Valid primitive types are in PRIMITIVE_TYPES.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="nb">type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">PRIMITIVE_TYPES</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">AvroException</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> is not a valid primitive type.&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">)</span>
+
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">Schema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="n">other_props</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">fullname</span> <span class="o">=</span> <span class="nb">type</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fullname</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span> <span class="o">==</span> <span class="n">that</span><span class="o">.</span><span class="n">props</span>
+
+<span class="c1">#</span>
+<span class="c1"># Complex Types (non-recursive)</span>
+<span class="c1">#</span>
+
+<span class="k">class</span> <span class="nc">FixedSchema</span><span class="p">(</span><span class="n">NamedSchema</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Fixed Schema requires a valid integer for size property.&#39;</span>
+      <span class="k">raise</span> <span class="n">AvroException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">NamedSchema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+
+    <span class="c1"># Add class members</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;size&#39;</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">size</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;size&#39;</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fullname</span> <span class="ow">in</span> <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_ref</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">fullname</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+      <span class="k">return</span> <span class="n">names</span><span class="o">.</span><span class="n">prune_namespace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span> <span class="o">==</span> <span class="n">that</span><span class="o">.</span><span class="n">props</span>
+
+<span class="k">class</span> <span class="nc">EnumSchema</span><span class="p">(</span><span class="n">NamedSchema</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">symbols</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">symbols</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Enum Schema requires a JSON array for the symbols property.&#39;</span>
+      <span class="k">raise</span> <span class="n">AvroException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="kc">False</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">symbols</span><span class="p">]:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Enum Schema requires all symbols to be JSON strings.&#39;</span>
+      <span class="k">raise</span> <span class="n">AvroException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">symbols</span><span class="p">))</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">symbols</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Duplicate symbol: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">symbols</span>
+      <span class="k">raise</span> <span class="n">AvroException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">NamedSchema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;enum&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+
+    <span class="c1"># Add class members</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;symbols&#39;</span><span class="p">,</span> <span class="n">symbols</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">doc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">symbols</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;symbols&#39;</span><span class="p">))</span>
+  <span class="n">doc</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fullname</span> <span class="ow">in</span> <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_ref</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">fullname</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+      <span class="k">return</span> <span class="n">names</span><span class="o">.</span><span class="n">prune_namespace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span> <span class="o">==</span> <span class="n">that</span><span class="o">.</span><span class="n">props</span>
+
+<span class="c1">#</span>
+<span class="c1"># Complex Types (recursive)</span>
+<span class="c1">#</span>
+
+<span class="k">class</span> <span class="nc">ArraySchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">Schema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;array&#39;</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+    <span class="c1"># Add class members</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">names</span><span class="o">.</span><span class="n">has_name</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="n">items_schema</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">get_name</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">items_schema</span> <span class="o">=</span> <span class="n">make_avsc_object</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+      <span class="k">except</span> <span class="n">SchemaParseException</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Items schema (</span><span class="si">%s</span><span class="s1">) not a valid Avro schema: </span><span class="si">%s</span><span class="s1"> (known names: </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;items&#39;</span><span class="p">,</span> <span class="n">items_schema</span><span class="p">)</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">items</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;items&#39;</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="n">to_dump</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">item_schema</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;items&#39;</span><span class="p">)</span>
+    <span class="n">to_dump</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item_schema</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">to_dump</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="n">to_cmp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_cmp</span> <span class="o">==</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">that</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">MapSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">Schema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;map&#39;</span><span class="p">,</span><span class="n">other_props</span><span class="p">)</span>
+
+    <span class="c1"># Add class members</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">names</span><span class="o">.</span><span class="n">has_name</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="n">values_schema</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">get_name</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">values_schema</span> <span class="o">=</span> <span class="n">make_avsc_object</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+      <span class="k">except</span><span class="p">:</span>
+        <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Values schema not a valid Avro schema.&#39;</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;values&#39;</span><span class="p">,</span> <span class="n">values_schema</span><span class="p">)</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">values</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;values&#39;</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="n">to_dump</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">to_dump</span><span class="p">[</span><span class="s1">&#39;values&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;values&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">to_dump</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="n">to_cmp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_cmp</span> <span class="o">==</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">that</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">UnionSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  names is a dictionary of schema objects</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schemas</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schemas</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Union schema requires a list of schemas.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># Call parent ctor</span>
+    <span class="n">Schema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;union&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Add class members</span>
+    <span class="n">schema_objects</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">schema</span> <span class="ow">in</span> <span class="n">schemas</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="n">names</span><span class="o">.</span><span class="n">has_name</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">new_schema</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">get_name</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">new_schema</span> <span class="o">=</span> <span class="n">make_avsc_object</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Union item must be a valid Avro schema: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+      <span class="c1"># check the new schema</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">new_schema</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="n">VALID_TYPES</span> <span class="ow">and</span> <span class="n">new_schema</span><span class="o">.</span><span class="n">type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">NAMED_TYPES</span>
+          <span class="ow">and</span> <span class="n">new_schema</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">schema</span><span class="o">.</span><span class="n">type</span> <span class="k">for</span> <span class="n">schema</span> <span class="ow">in</span> <span class="n">schema_objects</span><span class="p">]):</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> type already in Union&#39;</span> <span class="o">%</span> <span class="n">new_schema</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">new_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;union&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Unions cannot contain other unions.&#39;</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">schema_objects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_schema</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_schemas</span> <span class="o">=</span> <span class="n">schema_objects</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">schemas</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_schemas</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="n">to_dump</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">schemas</span><span class="p">:</span>
+      <span class="n">to_dump</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_dump</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="n">to_cmp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_cmp</span> <span class="o">==</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">that</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">ErrorUnionSchema</span><span class="p">(</span><span class="n">UnionSchema</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schemas</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Prepend &quot;string&quot; to handle system errors</span>
+    <span class="n">UnionSchema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;string&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">schemas</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="n">to_dump</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">schemas</span><span class="p">:</span>
+      <span class="c1"># Don&#39;t print the system error schema</span>
+      <span class="k">if</span> <span class="n">schema</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;string&#39;</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">to_dump</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_dump</span>
+
+<span class="k">class</span> <span class="nc">RecordSchema</span><span class="p">(</span><span class="n">NamedSchema</span><span class="p">):</span>
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">make_field_objects</span><span class="p">(</span><span class="n">field_data</span><span class="p">,</span> <span class="n">names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;We&#39;re going to need to make message parameters too.&quot;&quot;&quot;</span>
+    <span class="n">field_objects</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">field_names</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">field_data</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">callable</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">get</span><span class="p">):</span>
+        <span class="nb">type</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">)</span>        
+        <span class="n">name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
+
+        <span class="c1"># null values can have a default value of None</span>
+        <span class="n">has_default</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">):</span>
+          <span class="n">has_default</span> <span class="o">=</span> <span class="kc">True</span>
+          <span class="n">default</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">)</span>
+
+        <span class="n">order</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;order&#39;</span><span class="p">)</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">)</span>
+        <span class="n">other_props</span> <span class="o">=</span> <span class="n">get_other_props</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">FIELD_RESERVED_PROPS</span><span class="p">)</span>
+        <span class="n">new_field</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">has_default</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">order</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span>
+                         <span class="n">other_props</span><span class="p">)</span>
+        <span class="c1"># make sure field name has not been used yet</span>
+        <span class="k">if</span> <span class="n">new_field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">:</span>
+          <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Field name </span><span class="si">%s</span><span class="s1"> already in use.&#39;</span> <span class="o">%</span> <span class="n">new_field</span><span class="o">.</span><span class="n">name</span>
+          <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+        <span class="n">field_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Not a valid field: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">field</span><span class="p">)</span>
+      <span class="n">field_objects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_field</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">field_objects</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">schema_type</span><span class="o">=</span><span class="s1">&#39;record&#39;</span><span class="p">,</span>
+               <span class="n">doc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_props</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Ensure valid ctor args</span>
+    <span class="k">if</span> <span class="n">fields</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Record schema requires a non-empty fields property.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+      <span class="n">fail_msg</span> <span class="o">=</span> <span class="s1">&#39;Fields property must be a list of Avro schemas.&#39;</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+    <span class="c1"># Call parent ctor (adds own name to namespace, too)</span>
+    <span class="k">if</span> <span class="n">schema_type</span> <span class="o">==</span> <span class="s1">&#39;request&#39;</span><span class="p">:</span>
+      <span class="n">Schema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_type</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">NamedSchema</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_type</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span>
+                           <span class="n">other_props</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">schema_type</span> <span class="o">==</span> <span class="s1">&#39;record&#39;</span><span class="p">:</span> 
+      <span class="n">old_default</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">default_namespace</span>
+      <span class="n">names</span><span class="o">.</span><span class="n">default_namespace</span> <span class="o">=</span> <span class="n">Name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span>
+                                     <span class="n">names</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">)</span><span class="o">.</span><span class="n">get_space</span><span class="p">()</span>
+
+    <span class="c1"># Add class members</span>
+    <span class="n">field_objects</span> <span class="o">=</span> <span class="n">RecordSchema</span><span class="o">.</span><span class="n">make_field_objects</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;fields&#39;</span><span class="p">,</span> <span class="n">field_objects</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">doc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_prop</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">schema_type</span> <span class="o">==</span> <span class="s1">&#39;record&#39;</span><span class="p">:</span>
+      <span class="n">names</span><span class="o">.</span><span class="n">default_namespace</span> <span class="o">=</span> <span class="n">old_default</span>
+
+  <span class="c1"># read-only properties</span>
+  <span class="n">fields</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;fields&#39;</span><span class="p">))</span>
+  <span class="n">doc</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prop</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">))</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">fields_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">fields_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+      <span class="n">fields_dict</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+    <span class="k">return</span> <span class="n">fields_dict</span>
+
+  <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+    <span class="c1"># Request records don&#39;t have names</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;request&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">[</span> <span class="n">f</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="p">]</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fullname</span> <span class="ow">in</span> <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_ref</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">names</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">fullname</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+    <span class="n">to_dump</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">prune_namespace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+    <span class="n">to_dump</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span> <span class="n">f</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="p">]</span>
+    <span class="k">return</span> <span class="n">to_dump</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">that</span><span class="p">):</span>
+    <span class="n">to_cmp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">to_cmp</span> <span class="o">==</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">that</span><span class="p">))</span>
+
+<span class="c1">#</span>
+<span class="c1"># Module Methods</span>
+<span class="c1">#</span>
+<span class="k">def</span> <span class="nf">get_other_props</span><span class="p">(</span><span class="n">all_props</span><span class="p">,</span><span class="n">reserved_props</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  Retrieve the non-reserved properties from a dictionary of properties</span>
+<span class="sd">  @args reserved_props: The set of reserved properties to exclude</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">all_props</span><span class="p">,</span> <span class="s1">&#39;items&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">callable</span><span class="p">(</span><span class="n">all_props</span><span class="o">.</span><span class="n">items</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">all_props</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span>
+                 <span class="n">reserved_props</span> <span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">make_avsc_object</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  Build Avro Schema from data parsed out of JSON string.</span>
+
+<span class="sd">  @arg names: A Name object (tracks seen names and default space)</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">names</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+  
+  <span class="c1"># JSON object (non-union)</span>
+  <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">callable</span><span class="p">(</span><span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">):</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">)</span>
+    <span class="n">other_props</span> <span class="o">=</span> <span class="n">get_other_props</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">SCHEMA_RESERVED_PROPS</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">PRIMITIVE_TYPES</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">PrimitiveSchema</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">NAMED_TYPES</span><span class="p">:</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
+      <span class="n">namespace</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="n">names</span><span class="o">.</span><span class="n">default_namespace</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;fixed&#39;</span><span class="p">:</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;size&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">FixedSchema</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;enum&#39;</span><span class="p">:</span>
+        <span class="n">symbols</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;symbols&#39;</span><span class="p">)</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">EnumSchema</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">symbols</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;record&#39;</span><span class="p">,</span> <span class="s1">&#39;error&#39;</span><span class="p">]:</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fields&#39;</span><span class="p">)</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;doc&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">RecordSchema</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Unknown Named Type: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">VALID_TYPES</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;array&#39;</span><span class="p">:</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;items&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ArraySchema</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;map&#39;</span><span class="p">:</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;values&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">MapSchema</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">other_props</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;error_union&#39;</span><span class="p">:</span>
+        <span class="n">declared_errors</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;declared_errors&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ErrorUnionSchema</span><span class="p">(</span><span class="n">declared_errors</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Unknown Valid Type: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;No &quot;type&quot; property: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">json_data</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Undefined type: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">)</span>
+  <span class="c1"># JSON array (union)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">UnionSchema</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+  <span class="c1"># JSON string (primitive)</span>
+  <span class="k">elif</span> <span class="n">json_data</span> <span class="ow">in</span> <span class="n">PRIMITIVE_TYPES</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">PrimitiveSchema</span><span class="p">(</span><span class="n">json_data</span><span class="p">)</span>
+  <span class="c1"># not for us!</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">fail_msg</span> <span class="o">=</span> <span class="s2">&quot;Could not make an Avro Schema object from </span><span class="si">%s</span><span class="s2">.&quot;</span> <span class="o">%</span> <span class="n">json_data</span>
+    <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="n">fail_msg</span><span class="p">)</span>
+
+<span class="c1"># TODO(hammer): make method for reading from a file?</span>
+<span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="n">json_string</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Constructs the Schema from the JSON text.&quot;&quot;&quot;</span>
+  <span class="c1"># parse the JSON</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">json_string</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">sys</span>
+    <span class="k">raise</span> <span class="n">SchemaParseException</span><span class="p">(</span><span class="s1">&#39;Error parsing JSON: </span><span class="si">%s</span><span class="s1">, error = </span><span class="si">%s</span><span class="s1">&#39;</span>
+                               <span class="o">%</span> <span class="p">(</span><span class="n">json_string</span><span class="p">,</span> <span class="n">e</span><span class="p">)),</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+
+  <span class="c1"># Initialize the names object</span>
+  <span class="n">names</span> <span class="o">=</span> <span class="n">Names</span><span class="p">()</span>
+
+  <span class="c1"># construct the Avro Schema object</span>
+  <span class="k">return</span> <span class="n">make_avsc_object</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

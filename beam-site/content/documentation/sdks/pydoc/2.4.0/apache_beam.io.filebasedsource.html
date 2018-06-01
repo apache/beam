@@ -1,0 +1,402 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.filebasedsource module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.filesystem module" href="apache_beam.io.filesystem.html"/>
+        <link rel="prev" title="apache_beam.io.filebasedsink module" href="apache_beam.io.filebasedsink.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystemio.html">apache_beam.io.filesystemio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.filebasedsource module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.filebasedsource.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.filebasedsource">
+<span id="apache-beam-io-filebasedsource-module"></span><h1>apache_beam.io.filebasedsource module<a class="headerlink" href="#module-apache_beam.io.filebasedsource" title="Permalink to this headline">¶</a></h1>
+<p>A framework for developing sources for new file types.</p>
+<p>To create a source for a new file type a sub-class of <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a>
+should be created. Sub-classes of <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a> must implement the
+method <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource.read_records" title="apache_beam.io.filebasedsource.FileBasedSource.read_records"><code class="xref py py-meth docutils literal"><span class="pre">FileBasedSource.read_records()</span></code></a>. Please read the documentation of
+that method for more details.</p>
+<p>For an example implementation of <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a> see
+<code class="xref py py-class docutils literal"><span class="pre">_AvroSource</span></code>.</p>
+<dl class="class">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filebasedsource.</code><code class="descname">FileBasedSource</code><span class="sig-paren">(</span><em>file_pattern</em>, <em>min_bundle_size=0</em>, <em>compression_type='auto'</em>, <em>splittable=True</em>, <em>validate=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.iobase.BoundedSource</span></code></a></p>
+<p>A <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource" title="apache_beam.io.iobase.BoundedSource"><code class="xref py py-class docutils literal"><span class="pre">BoundedSource</span></code></a> for reading a file glob of
+a given type.</p>
+<p>Initializes <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>file_pattern</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – the file glob to read a string or a
+<a class="reference internal" href="apache_beam.options.value_provider.html#apache_beam.options.value_provider.ValueProvider" title="apache_beam.options.value_provider.ValueProvider"><code class="xref py py-class docutils literal"><span class="pre">ValueProvider</span></code></a>
+(placeholder to inject a runtime value).</li>
+<li><strong>min_bundle_size</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – minimum size of bundles that should be generated
+when performing initial splitting on this source.</li>
+<li><strong>compression_type</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Used to handle compressed output files.
+Typical value is <a class="reference internal" href="apache_beam.io.filesystem.html#apache_beam.io.filesystem.CompressionTypes.AUTO" title="apache_beam.io.filesystem.CompressionTypes.AUTO"><code class="xref py py-attr docutils literal"><span class="pre">CompressionTypes.AUTO</span></code></a>,
+in which case the final file path’s extension will be used to detect
+the compression.</li>
+<li><strong>splittable</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – whether <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a> should try to
+logically split a single file into data ranges so that different parts
+of the same file can be read in parallel. If set to <a class="reference external" href="https://docs.python.org/2/library/constants.html#False" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">False</span></code></a>,
+<a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a> will prevent both initial and dynamic splitting
+of sources for single files. File patterns that represent multiple files
+may still get split into sources for individual files. Even if set to
+<a class="reference external" href="https://docs.python.org/2/library/constants.html#True" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">True</span></code></a> by the user, <a class="reference internal" href="#apache_beam.io.filebasedsource.FileBasedSource" title="apache_beam.io.filebasedsource.FileBasedSource"><code class="xref py py-class docutils literal"><span class="pre">FileBasedSource</span></code></a> may choose to not
+split the file, for example, for compressed files where currently it is
+not possible to efficiently read a data range without decompressing the
+whole file.</li>
+<li><strong>validate</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Boolean flag to verify that the files exist during the
+pipeline creation time.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – when <strong>compression_type</strong> is not valid or if
+<strong>file_pattern</strong> is not a <a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">str</span></code></a> or a
+<a class="reference internal" href="apache_beam.options.value_provider.html#apache_beam.options.value_provider.ValueProvider" title="apache_beam.options.value_provider.ValueProvider"><code class="xref py py-class docutils literal"><span class="pre">ValueProvider</span></code></a>.</li>
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – when compression and splittable files are
+specified.</li>
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.IOError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">IOError</span></code></a> – when the file pattern specified yields an empty
+result.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT">
+<code class="descname">MIN_NUMBER_OF_FILES_TO_STAT</code><em class="property"> = 100</em><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT">
+<code class="descname">MIN_FRACTION_OF_FILES_TO_STAT</code><em class="property"> = 0.01</em><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.open_file">
+<code class="descname">open_file</code><span class="sig-paren">(</span><em>file_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.open_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.open_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.split">
+<code class="descname">split</code><span class="sig-paren">(</span><em>desired_bundle_size=None</em>, <em>start_position=None</em>, <em>stop_position=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.split" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.estimate_size">
+<code class="descname">estimate_size</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.estimate_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.estimate_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>range_tracker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.get_range_tracker">
+<code class="descname">get_range_tracker</code><span class="sig-paren">(</span><em>start_position</em>, <em>stop_position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.get_range_tracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.get_range_tracker" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.read_records">
+<code class="descname">read_records</code><span class="sig-paren">(</span><em>file_name</em>, <em>offset_range_tracker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filebasedsource.html#FileBasedSource.read_records"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.read_records" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a generator of records created by reading file ‘file_name’.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>file_name</strong> – a <code class="docutils literal"><span class="pre">string</span></code> that gives the name of the file to be read. Method
+<code class="docutils literal"><span class="pre">FileBasedSource.open_file()</span></code> must be used to open the file
+and create a seekable file object.</li>
+<li><strong>offset_range_tracker</strong> – a object of type <code class="docutils literal"><span class="pre">OffsetRangeTracker</span></code>. This
+defines the byte range of the file that should be
+read. See documentation in
+<code class="docutils literal"><span class="pre">iobase.BoundedSource.read()</span></code> for more information
+on reading records while complying to the range
+defined by a given <code class="docutils literal"><span class="pre">RangeTracker</span></code>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">an iterator that gives the records read from the given file.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.filebasedsource.FileBasedSource.splittable">
+<code class="descname">splittable</code><a class="headerlink" href="#apache_beam.io.filebasedsource.FileBasedSource.splittable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.filesystem.html" class="btn btn-neutral float-right" title="apache_beam.io.filesystem module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.filebasedsink.html" class="btn btn-neutral" title="apache_beam.io.filebasedsink module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.urns &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.urns</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">wrappers_pb2</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">proto_utils</span>
+
+
+<span class="n">PICKLED_WINDOW_FN</span> <span class="o">=</span> <span class="s2">&quot;beam:window_fn:pickled_python:v0.1&quot;</span>
+<span class="n">GLOBAL_WINDOWS_FN</span> <span class="o">=</span> <span class="s2">&quot;beam:window_fn:global_windows:v0.1&quot;</span>
+<span class="n">FIXED_WINDOWS_FN</span> <span class="o">=</span> <span class="s2">&quot;beam:window_fn:fixed_windows:v0.1&quot;</span>
+<span class="n">SLIDING_WINDOWS_FN</span> <span class="o">=</span> <span class="s2">&quot;beam:window_fn:sliding_windows:v0.1&quot;</span>
+<span class="n">SESSION_WINDOWS_FN</span> <span class="o">=</span> <span class="s2">&quot;beam:window_fn:session_windows:v0.1&quot;</span>
+
+<span class="n">PICKLED_CODER</span> <span class="o">=</span> <span class="s2">&quot;beam:coder:pickled_python:v0.1&quot;</span>
+
+<span class="n">PICKLED_TRANSFORM</span> <span class="o">=</span> <span class="s2">&quot;beam:ptransform:pickled_python:v0.1&quot;</span>
+<span class="n">FLATTEN_TRANSFORM</span> <span class="o">=</span> <span class="s2">&quot;beam:ptransform:flatten:v0.1&quot;</span>
+<span class="n">WINDOW_INTO_TRANSFORM</span> <span class="o">=</span> <span class="s2">&quot;beam:ptransform:window_into:v0.1&quot;</span>
+
+
+<div class="viewcode-block" id="RunnerApiFn"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.transforms.window.RunnerApiFn">[docs]</a><span class="k">class</span> <span class="nc">RunnerApiFn</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Abstract base class that provides urn registration utilities.</span>
+
+<span class="sd">  A class that inherits from this class will get a registration-based</span>
+<span class="sd">  from_runner_api and to_runner_api method that convert to and from</span>
+<span class="sd">  beam_runner_api_pb2.SdkFunctionSpec.</span>
+
+<span class="sd">  Additionally, register_pickle_urn can be called from the body of a class</span>
+<span class="sd">  to register serialization via pickling.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+
+  <span class="n">_known_urns</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+<div class="viewcode-block" id="RunnerApiFn.to_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.transforms.window.RunnerApiFn.to_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the urn and payload for this Fn.</span>
+
+<span class="sd">    The returned urn(s) should be registered with `register_urn`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RunnerApiFn.register_urn"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.transforms.window.RunnerApiFn.register_urn">[docs]</a>  <span class="k">def</span> <span class="nf">register_urn</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">urn</span><span class="p">,</span> <span class="n">parameter_type</span><span class="p">,</span> <span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Registeres a urn with a constructor.</span>
+
+<span class="sd">    For example, if &#39;beam:fn:foo&#39; had paramter type FooPayload, one could</span>
+<span class="sd">    write `RunnerApiFn.register_urn(&#39;bean:fn:foo&#39;, FooPayload, foo_from_proto)`</span>
+<span class="sd">    where foo_from_proto took as arguments a FooPayload and a PipelineContext.</span>
+<span class="sd">    This function can also be used as a decorator rather than passing the</span>
+<span class="sd">    callable in as the final parameter.</span>
+
+<span class="sd">    A corresponding to_runner_api_parameter method would be expected that</span>
+<span class="sd">    returns the tuple (&#39;beam:fn:foo&#39;, FooPayload)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+      <span class="bp">cls</span><span class="o">.</span><span class="n">_known_urns</span><span class="p">[</span><span class="n">urn</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter_type</span><span class="p">,</span> <span class="n">fn</span>
+      <span class="k">return</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">fn</span><span class="p">:</span>
+      <span class="c1"># Used as a statement.</span>
+      <span class="n">register</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Used as a decorator.</span>
+      <span class="k">return</span> <span class="n">register</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RunnerApiFn.register_pickle_urn"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.transforms.window.RunnerApiFn.register_pickle_urn">[docs]</a>  <span class="k">def</span> <span class="nf">register_pickle_urn</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pickle_urn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Registers and implements the given urn via pickling.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">inspect</span><span class="o">.</span><span class="n">currentframe</span><span class="p">()</span><span class="o">.</span><span class="n">f_back</span><span class="o">.</span><span class="n">f_locals</span><span class="p">[</span><span class="s1">&#39;to_runner_api_parameter&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">pickle_urn</span><span class="p">,</span> <span class="n">wrappers_pb2</span><span class="o">.</span><span class="n">BytesValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">))))</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">register_urn</span><span class="p">(</span>
+        <span class="n">pickle_urn</span><span class="p">,</span>
+        <span class="n">wrappers_pb2</span><span class="o">.</span><span class="n">BytesValue</span><span class="p">,</span>
+        <span class="k">lambda</span> <span class="n">proto</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">:</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">proto</span><span class="o">.</span><span class="n">value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="RunnerApiFn.to_runner_api"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.transforms.window.RunnerApiFn.to_runner_api">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an SdkFunctionSpec encoding this Fn.</span>
+
+<span class="sd">    Prefer overriding self.to_runner_api_parameter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.api</span> <span class="k">import</span> <span class="n">beam_runner_api_pb2</span>
+    <span class="n">urn</span><span class="p">,</span> <span class="n">typed_param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_runner_api_parameter</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">SdkFunctionSpec</span><span class="p">(</span>
+        <span class="n">spec</span><span class="o">=</span><span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">FunctionSpec</span><span class="p">(</span>
+            <span class="n">urn</span><span class="o">=</span><span class="n">urn</span><span class="p">,</span>
+            <span class="n">parameter</span><span class="o">=</span><span class="n">proto_utils</span><span class="o">.</span><span class="n">pack_Any</span><span class="p">(</span><span class="n">typed_param</span><span class="p">)))</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RunnerApiFn.from_runner_api"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.transforms.window.RunnerApiFn.from_runner_api">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fn_proto</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts from an SdkFunctionSpec to a Fn object.</span>
+
+<span class="sd">    Prefer registering a urn with its parameter type and constructor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parameter_type</span><span class="p">,</span> <span class="n">constructor</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_known_urns</span><span class="p">[</span><span class="n">fn_proto</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">urn</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">constructor</span><span class="p">(</span>
+        <span class="n">proto_utils</span><span class="o">.</span><span class="n">unpack_Any</span><span class="p">(</span><span class="n">fn_proto</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">parameter</span><span class="p">,</span> <span class="n">parameter_type</span><span class="p">),</span>
+        <span class="n">context</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

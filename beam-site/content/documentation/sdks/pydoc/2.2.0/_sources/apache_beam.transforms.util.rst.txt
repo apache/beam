@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.util module
+=====================================
+
+.. automodule:: apache_beam.transforms.util
+    :members:
+    :undoc-members:
+    :show-inheritance:

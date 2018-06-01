@@ -1,0 +1,740 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.typehints.opcodes module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.typehints package" href="apache_beam.typehints.html"/>
+        <link rel="next" title="apache_beam.typehints.trivial_inference module" href="apache_beam.typehints.trivial_inference.html"/>
+        <link rel="prev" title="apache_beam.typehints.native_type_compatibility module" href="apache_beam.typehints.native_type_compatibility.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.decorators.html">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.native_type_compatibility.html">apache_beam.typehints.native_type_compatibility module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.trivial_inference.html">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typecheck.html">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typehints.html">apache_beam.typehints.typehints module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.typehints.html">apache_beam.typehints package</a> &raquo;</li>
+        
+      <li>apache_beam.typehints.opcodes module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.typehints.opcodes.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.typehints.opcodes">
+<span id="apache-beam-typehints-opcodes-module"></span><h1>apache_beam.typehints.opcodes module<a class="headerlink" href="#module-apache_beam.typehints.opcodes" title="Permalink to this headline">¶</a></h1>
+<p>Defines the actions various bytecodes have on the frame.</p>
+<p>Each function here corresponds to a bytecode documented in
+<a class="reference external" href="https://docs.python.org/2/library/dis.html">https://docs.python.org/2/library/dis.html</a>.  The first argument is a (mutable)
+FrameState object, the second the integer opcode argument.</p>
+<p>Bytecodes with more complicated behavior (e.g. modifying the program counter)
+are handled inline rather than here.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.pop_one">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">pop_one</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#pop_one"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.pop_one" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.pop_two">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">pop_two</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#pop_two"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.pop_two" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.pop_three">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">pop_three</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#pop_three"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.pop_three" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.push_value">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">push_value</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#push_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.push_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.nop">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">nop</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#nop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.nop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.pop_top">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">pop_top</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#pop_top"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.pop_top" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.rot_n">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">rot_n</code><span class="sig-paren">(</span><em>state</em>, <em>n</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#rot_n"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.rot_n" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.rot_two">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">rot_two</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#rot_two"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.rot_two" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.rot_three">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">rot_three</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#rot_three"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.rot_three" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.rot_four">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">rot_four</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#rot_four"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.rot_four" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.dup_top">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">dup_top</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#dup_top"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.dup_top" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unary">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unary</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#unary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.unary" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unary_positive">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unary_positive</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.unary_positive" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unary_negative">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unary_negative</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.unary_negative" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unary_invert">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unary_invert</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.unary_invert" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unary_not">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unary_not</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#unary_not"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.unary_not" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unary_convert">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unary_convert</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#unary_convert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.unary_convert" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.get_iter">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">get_iter</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#get_iter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.get_iter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.symmetric_binary_op">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">symmetric_binary_op</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#symmetric_binary_op"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.symmetric_binary_op" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_power">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_power</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_power" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_power">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_power</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_power" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_multiply">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_multiply</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_multiply" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_multiply">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_multiply</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_multiply" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_divide">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_divide</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_divide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_floor_divide">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_floor_divide</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_floor_divide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_true_divide">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_true_divide</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#binary_true_divide"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_true_divide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_true_divide">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_true_divide</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_true_divide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_modulo">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_modulo</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_modulo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_add">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_add</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_add">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_add</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_subtract">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_subtract</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_subtract" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_subtract">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_subtract</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_subtract" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_subscr">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_subscr</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#binary_subscr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_subscr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_lshift">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_lshift</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_lshift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_lshift">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_lshift</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_lshift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_rshift">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_rshift</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_rshift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_rshift">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_rshift</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_rshift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_and">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_and</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_and" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_and">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_and</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_and" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_xor">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_xor</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_xor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inplace_xor">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inplace_xor</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inplace_xor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_or">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_or</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_or" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.inpalce_or">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">inpalce_or</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.inpalce_or" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.slice_0">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">slice_0</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.slice_0" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.slice_1">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">slice_1</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.slice_1" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.slice_2">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">slice_2</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.slice_2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.slice_3">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">slice_3</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.slice_3" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_slice_0">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_slice_0</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_slice_0" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_slice_1">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_slice_1</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_slice_1" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_slice_2">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_slice_2</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_slice_2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_slice_3">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_slice_3</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_slice_3" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_slice_0">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_slice_0</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_slice_0" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_slice_1">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_slice_1</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_slice_1" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_slice_2">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_slice_2</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_slice_2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_slice_3">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_slice_3</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_slice_3" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_subscr">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_subscr</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#store_subscr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.store_subscr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_divide">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_divide</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_divide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_floor_divide">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_floor_divide</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_floor_divide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.binary_modulo">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">binary_modulo</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.binary_modulo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.print_item">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">print_item</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.print_item" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.print_newline">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">print_newline</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.print_newline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.list_append">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">list_append</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#list_append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.list_append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_locals">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_locals</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.load_locals" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.exec_stmt">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">exec_stmt</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.exec_stmt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.build_class">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">build_class</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.build_class" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.unpack_sequence">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">unpack_sequence</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#unpack_sequence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.unpack_sequence" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.dup_topx">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">dup_topx</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#dup_topx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.dup_topx" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_attr">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_attr</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_attr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_attr">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_attr</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_attr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_global">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_global</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_global" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_global">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_global</code><span class="sig-paren">(</span><em>unused_state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_global" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_const">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_const</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#load_const"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.load_const" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_name">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_name</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.load_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.build_tuple">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">build_tuple</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#build_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.build_tuple" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.build_list">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">build_list</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#build_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.build_list" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.build_map">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">build_map</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.build_map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_attr">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_attr</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#load_attr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.load_attr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replaces the top of the stack, TOS, with
+getattr(TOS, co_names[arg])</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.compare_op">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">compare_op</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#compare_op"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.compare_op" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.import_name">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">import_name</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#import_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.import_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.import_from">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">import_from</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.import_from" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_global">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_global</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#load_global"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.load_global" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_map">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_map</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.typehints.opcodes.store_map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_fast">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_fast</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#load_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.load_fast" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.store_fast">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">store_fast</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#store_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.store_fast" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.delete_fast">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">delete_fast</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#delete_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.delete_fast" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_closure">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_closure</code><span class="sig-paren">(</span><em>state</em>, <em>unused_arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#load_closure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.load_closure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.load_deref">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">load_deref</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#load_deref"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.load_deref" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.call_function">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">call_function</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em>, <em>has_var=False</em>, <em>has_kw=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#call_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.call_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.make_function">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">make_function</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#make_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.make_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a function with the arguments at the top of the stack.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.make_closure">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">make_closure</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#make_closure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.make_closure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.build_slice">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">build_slice</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#build_slice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.build_slice" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.call_function_var">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">call_function_var</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#call_function_var"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.call_function_var" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.call_function_kw">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">call_function_kw</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#call_function_kw"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.call_function_kw" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.opcodes.call_function_var_wk">
+<code class="descclassname">apache_beam.typehints.opcodes.</code><code class="descname">call_function_var_wk</code><span class="sig-paren">(</span><em>state</em>, <em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/opcodes.html#call_function_var_wk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.opcodes.call_function_var_wk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.typehints.trivial_inference.html" class="btn btn-neutral float-right" title="apache_beam.typehints.trivial_inference module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.typehints.native_type_compatibility.html" class="btn btn-neutral" title="apache_beam.typehints.native_type_compatibility module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

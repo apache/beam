@@ -1,0 +1,329 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.typehints.typehints module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.typehints package" href="apache_beam.typehints.html"/>
+        <link rel="next" title="apache_beam.utils package" href="apache_beam.utils.html"/>
+        <link rel="prev" title="apache_beam.typehints.typecheck module" href="apache_beam.typehints.typecheck.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.decorators.html">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.native_type_compatibility.html">apache_beam.typehints.native_type_compatibility module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.opcodes.html">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.trivial_inference.html">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typecheck.html">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.typehints.typehints module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.typehints.html">apache_beam.typehints package</a> &raquo;</li>
+        
+      <li>apache_beam.typehints.typehints module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.typehints.typehints.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.typehints.typehints">
+<span id="apache-beam-typehints-typehints-module"></span><h1>apache_beam.typehints.typehints module<a class="headerlink" href="#module-apache_beam.typehints.typehints" title="Permalink to this headline">¶</a></h1>
+<p>Syntax &amp; semantics for type-hinting custom-functions/PTransforms in the SDK.</p>
+<p>This module defines type-hinting objects and the corresponding syntax for
+type-hinting function arguments, function return types, or PTransform object
+themselves. TypeHint’s defined in the module can be used to implement either
+static or run-time type-checking in regular Python code.</p>
+<p>Type-hints are defined by ‘indexing’ a type-parameter into a defined
+CompositeTypeHint instance:</p>
+<blockquote>
+<div><ul class="simple">
+<li>‘List[int]’.</li>
+</ul>
+</div></blockquote>
+<p>Valid type-hints are partitioned into two categories: simple, and composite.</p>
+<p>Simple type hints are type hints based on a subset of Python primitive types:
+int, bool, float, str, object, None, and bytes. No other primitive types are
+allowed.</p>
+<p>Composite type-hints are reserved for hinting the types of container-like
+Python objects such as ‘list’. Composite type-hints can be parameterized by an
+inner simple or composite type-hint, using the ‘indexing’ syntax. In order to
+avoid conflicting with the namespace of the built-in container types, when
+specifying this category of type-hints, the first letter should capitalized.
+The following composite type-hints are permitted. NOTE: ‘T’ can be any of the
+type-hints listed or a simple Python type:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Any</li>
+<li>Union[T, T, T]</li>
+<li>Optional[T]</li>
+<li>Tuple[T, T]</li>
+<li>Tuple[T, …]</li>
+<li>List[T]</li>
+<li>KV[T, T]</li>
+<li>Dict[T, T]</li>
+<li>Set[T]</li>
+<li>Iterable[T]</li>
+<li>Iterator[T]</li>
+<li>Generator[T]</li>
+</ul>
+</div></blockquote>
+<p>Type-hints can be nested, allowing one to define type-hints for complex types:</p>
+<blockquote>
+<div><ul class="simple">
+<li>‘List[Tuple[int, int, str]]</li>
+</ul>
+</div></blockquote>
+<p>In addition, type-hints can be used to implement run-time type-checking via the
+‘type_check’ method on each TypeConstraint.</p>
+<dl class="class">
+<dt id="apache_beam.typehints.typehints.TypeVariable">
+<em class="property">class </em><code class="descclassname">apache_beam.typehints.typehints.</code><code class="descname">TypeVariable</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/typehints.html#TypeVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.typehints.TypeVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.typehints.typehints.AnyTypeConstraint</span></code></p>
+<dl class="method">
+<dt id="apache_beam.typehints.typehints.TypeVariable.match_type_variables">
+<code class="descname">match_type_variables</code><span class="sig-paren">(</span><em>concrete_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/typehints.html#TypeVariable.match_type_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.typehints.TypeVariable.match_type_variables" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.typehints.TypeVariable.bind_type_variables">
+<code class="descname">bind_type_variables</code><span class="sig-paren">(</span><em>bindings</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/typehints.html#TypeVariable.bind_type_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.typehints.TypeVariable.bind_type_variables" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.typehints.typehints.WindowedValue">
+<code class="descclassname">apache_beam.typehints.typehints.</code><code class="descname">WindowedValue</code><a class="headerlink" href="#apache_beam.typehints.typehints.WindowedValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal"><span class="pre">WindowedTypeConstraint</span></code></p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.utils.html" class="btn btn-neutral float-right" title="apache_beam.utils package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.typehints.typecheck.html" class="btn btn-neutral" title="apache_beam.typehints.typecheck module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
