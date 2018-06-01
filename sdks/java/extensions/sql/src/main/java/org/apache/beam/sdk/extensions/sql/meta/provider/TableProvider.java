@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
  * <p>So there will be a provider to handle textfile(CSV) based tables, there is a provider to
  * handle MySQL based tables, a provider to handle Casandra based tables etc.
  */
+@Internal
 public interface TableProvider {
   /** Gets the table type this provider handles. */
   String getTableType();
