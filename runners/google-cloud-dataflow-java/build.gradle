@@ -125,6 +125,10 @@ task validatesRunnerTest(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+
+    // https://issues.apache.org/jira/browse/BEAM-4253
+    // This should be removed after regenerating Dataflow worker container
+    excludeCategories 'org.apache.beam.sdk.transforms.ParDoTest'
   }
 }
 
