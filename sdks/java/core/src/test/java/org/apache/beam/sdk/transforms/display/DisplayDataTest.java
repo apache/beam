@@ -184,7 +184,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
 
     @SuppressWarnings("unchecked")
-    Matcher<Item> matchesAllOf = Matchers.allOf(
+    Matcher<Item> matchesAllOf = allOf(
         hasKey("foo"),
         hasType(DisplayData.Type.TIMESTAMP),
         hasValue(ISO_FORMATTER.print(value)));
@@ -286,7 +286,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
 
     @SuppressWarnings("unchecked")
-    Matcher<Item> matchesAllOf = Matchers.allOf(
+    Matcher<Item> matchesAllOf = allOf(
         hasNamespace(DisplayDataTest.class),
         hasKey("now"),
         hasType(DisplayData.Type.TIMESTAMP),
@@ -421,7 +421,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testRootPath() {
     DisplayData.Path root = DisplayData.Path.root();
-    assertThat(root.getComponents(), Matchers.empty());
+    assertThat(root.getComponents(), empty());
   }
 
   @Test

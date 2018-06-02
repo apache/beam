@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Core Java"
 ext.summary = "Beam Runners Core provides utilities to aid runner authors."
@@ -41,11 +41,12 @@ dependencies {
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.joda_time
-  shadow library.java.slf4j_api
+  testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
+  shadowTest library.java.slf4j_api
   shadowTest library.java.slf4j_simple
   shadowTest library.java.jackson_dataformat_yaml
 }

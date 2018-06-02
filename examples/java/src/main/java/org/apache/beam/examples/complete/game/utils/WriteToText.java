@@ -52,7 +52,7 @@ public class WriteToText<InputT>
 
   private static final DateTimeFormatter formatter =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
+          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("America/Los_Angeles")));
 
   protected String filenamePrefix;
   protected Map<String, FieldFn<InputT>> fieldFn;
@@ -98,7 +98,7 @@ public class WriteToText<InputT>
    * A {@link DoFn} that writes elements to files with names deterministically derived from the
    * lower and upper bounds of their key (an {@link IntervalWindow}).
    */
-  protected class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
+  protected static class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
 
     private final String filenamePrefix;
 

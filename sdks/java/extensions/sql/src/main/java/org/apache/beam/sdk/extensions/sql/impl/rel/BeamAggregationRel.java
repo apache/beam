@@ -78,6 +78,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
 
+    @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
       RelNode input = getInput();
       String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";

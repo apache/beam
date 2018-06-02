@@ -93,7 +93,7 @@ public class MonitoringUtil {
           continue;
         }
 
-        @Nullable Instant time = TimeUtil.fromCloudTime(message.getTime());
+        @Nullable Instant time = fromCloudTime(message.getTime());
         String logMessage = (time == null ? "UNKNOWN TIMESTAMP: " : time + ": ")
             + message.getMessageText();
         switch (message.getMessageImportance()) {

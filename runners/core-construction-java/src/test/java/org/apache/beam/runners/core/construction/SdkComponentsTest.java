@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -78,7 +77,7 @@ public class SdkComponentsTest {
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
     Coder<?> otherCoder =
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    assertThat(coder, Matchers.equalTo(otherCoder));
+    assertThat(coder, equalTo(otherCoder));
     String id = components.registerCoder(coder);
     String otherId = components.registerCoder(otherCoder);
     assertThat(otherId, not(equalTo(id)));

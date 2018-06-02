@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -52,14 +53,15 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     if (method == null) {
       reConstructMethod();
     }
     try {
       List<Object> paras = new ArrayList<>();
       for (BeamSqlExpression e : getOperands()) {
-        paras.add(e.evaluate(inputRow, window).getValue());
+        paras.add(e.evaluate(inputRow, window, correlateEnv).getValue());
       }
 
       return BeamSqlPrimitive.of(

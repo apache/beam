@@ -39,7 +39,6 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -254,7 +253,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     validator.validateOutputFilePrefixSupported(stagingLocation);
 
-    if (!Strings.isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
+    if (!isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
     }
 

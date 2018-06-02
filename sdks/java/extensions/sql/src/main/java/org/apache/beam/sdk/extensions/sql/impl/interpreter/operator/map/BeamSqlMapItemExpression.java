@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -39,10 +40,10 @@ public class BeamSqlMapItemExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    Map<Object, Object> map = opValueEvaluated(0, inputRow, window);
-    Object key = opValueEvaluated(1, inputRow, window);
-
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    Map<Object, Object> map = opValueEvaluated(0, inputRow, window, correlateEnv);
+    Object key = opValueEvaluated(1, inputRow, window, correlateEnv);
     return BeamSqlPrimitive.of(outputType, map.get(key));
   }
 }

@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -100,8 +104,8 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
   @Test
   public void testFromInvalidTableName1() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Object 'TABLE_B' not found");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Object 'TABLE_B' not found")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
@@ -114,8 +118,8 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
   @Test
   public void testInvalidFilter() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Column 'f_int_na' not found in any table");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Column 'f_int_na' not found in any table")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";

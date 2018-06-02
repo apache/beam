@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.options;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -28,6 +27,8 @@ import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
+import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -49,8 +50,11 @@ import java.lang.reflect.Field;
 import java.util.Map;
 
 /**
- * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer}
- * for {@link AWSCredentialsProvider} and some subclasses. The serialized form is a JSON map.
+ * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
+ * {@link AWSCredentialsProvider} and some subclasses. The serialized form is a JSON map.
+ *
+ * <p>It also adds serializers for S3 encryption objects {@link SSECustomerKey} and {@link
+ * SSEAwsKeyManagementParams}.
  */
 @AutoService(Module.class)
 public class AwsModule extends SimpleModule {
@@ -62,33 +66,31 @@ public class AwsModule extends SimpleModule {
   public AwsModule() {
     super("AwsModule");
     setMixInAnnotation(AWSCredentialsProvider.class, AWSCredentialsProviderMixin.class);
+    setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
+    setMixInAnnotation(SSEAwsKeyManagementParams.class, SSEAwsKeyManagementParamsMixin.class);
   }
 
-  /**
-   * A mixin to add Jackson annotations to {@link AWSCredentialsProvider}.
-   */
+  /** A mixin to add Jackson annotations to {@link AWSCredentialsProvider}. */
   @JsonDeserialize(using = AWSCredentialsProviderDeserializer.class)
   @JsonSerialize(using = AWSCredentialsProviderSerializer.class)
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY)
-  private static class AWSCredentialsProviderMixin {
-
-  }
+  private static class AWSCredentialsProviderMixin {}
 
   private static class AWSCredentialsProviderDeserializer
       extends JsonDeserializer<AWSCredentialsProvider> {
 
     @Override
-    public AWSCredentialsProvider deserialize(
-        JsonParser jsonParser, DeserializationContext context) throws IOException {
+    public AWSCredentialsProvider deserialize(JsonParser jsonParser, DeserializationContext context)
+        throws IOException {
       return context.readValue(jsonParser, AWSCredentialsProvider.class);
     }
 
     @Override
-    public AWSCredentialsProvider deserializeWithType(JsonParser jsonParser,
-        DeserializationContext context, TypeDeserializer typeDeserializer) throws IOException {
+    public AWSCredentialsProvider deserializeWithType(
+        JsonParser jsonParser, DeserializationContext context, TypeDeserializer typeDeserializer)
+        throws IOException {
       Map<String, String> asMap =
-          jsonParser.readValueAs(new TypeReference<Map<String, String>>() {
-          });
+          jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
 
       String typeNameKey = typeDeserializer.getPropertyName();
       String typeName = asMap.get(typeNameKey);
@@ -102,8 +104,8 @@ public class AwsModule extends SimpleModule {
             new BasicAWSCredentials(asMap.get(AWS_ACCESS_KEY_ID), asMap.get(AWS_SECRET_KEY)));
       } else if (typeName.equals(PropertiesFileCredentialsProvider.class.getSimpleName())) {
         return new PropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
-      } else if (typeName
-          .equals(ClasspathPropertiesFileCredentialsProvider.class.getSimpleName())) {
+      } else if (typeName.equals(
+          ClasspathPropertiesFileCredentialsProvider.class.getSimpleName())) {
         return new ClasspathPropertiesFileCredentialsProvider(asMap.get(CREDENTIALS_FILE_PATH));
       } else if (typeName.equals(DefaultAWSCredentialsProviderChain.class.getSimpleName())) {
         return new DefaultAWSCredentialsProviderChain();
@@ -122,7 +124,8 @@ public class AwsModule extends SimpleModule {
     }
   }
 
-  static class AWSCredentialsProviderSerializer extends JsonSerializer<AWSCredentialsProvider> {
+  private static class AWSCredentialsProviderSerializer
+      extends JsonSerializer<AWSCredentialsProvider> {
     // These providers are singletons, so don't require any serialization, other than type.
     private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS =
         ImmutableSet.of(
@@ -133,14 +136,20 @@ public class AwsModule extends SimpleModule {
             EC2ContainerCredentialsProviderWrapper.class);
 
     @Override
-    public void serialize(AWSCredentialsProvider credentialsProvider, JsonGenerator jsonGenerator,
-        SerializerProvider serializers) throws IOException {
+    public void serialize(
+        AWSCredentialsProvider credentialsProvider,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializers)
+        throws IOException {
       serializers.defaultSerializeValue(credentialsProvider, jsonGenerator);
     }
 
     @Override
-    public void serializeWithType(AWSCredentialsProvider credentialsProvider,
-        JsonGenerator jsonGenerator, SerializerProvider serializers, TypeSerializer typeSerializer)
+    public void serializeWithType(
+        AWSCredentialsProvider credentialsProvider,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializers,
+        TypeSerializer typeSerializer)
         throws IOException {
       typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
 
@@ -163,14 +172,15 @@ public class AwsModule extends SimpleModule {
           throw new IOException("failed to access private field with reflection", e);
         }
 
-      } else if (credentialsProvider.getClass()
+      } else if (credentialsProvider
+          .getClass()
           .equals(ClasspathPropertiesFileCredentialsProvider.class)) {
         try {
           ClasspathPropertiesFileCredentialsProvider specificProvider =
               (ClasspathPropertiesFileCredentialsProvider) credentialsProvider;
           Field field =
-              ClasspathPropertiesFileCredentialsProvider.class
-                  .getDeclaredField(CREDENTIALS_FILE_PATH);
+              ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField(
+                  CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
           String credentialsFilePath = ((String) field.get(specificProvider));
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
@@ -183,6 +193,45 @@ public class AwsModule extends SimpleModule {
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
       typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
+    }
+  }
+
+  /** A mixin to add Jackson annotations to {@link SSECustomerKey}. */
+  @JsonDeserialize(using = SSECustomerKeyDeserializer.class)
+  private static class SSECustomerKeyMixin {}
+
+  private static class SSECustomerKeyDeserializer extends JsonDeserializer<SSECustomerKey> {
+    @Override
+    public SSECustomerKey deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      Map<String, String> asMap = parser.readValueAs(new TypeReference<Map<String, String>>() {});
+
+      final String key = asMap.getOrDefault("key", null);
+      final String algorithm = asMap.getOrDefault("algorithm", null);
+      final String md5 = asMap.getOrDefault("md5", null);
+      SSECustomerKey sseCustomerKey = new SSECustomerKey(key);
+      if (algorithm != null) {
+        sseCustomerKey.setAlgorithm(algorithm);
+      }
+      if (md5 != null) {
+        sseCustomerKey.setMd5(md5);
+      }
+      return sseCustomerKey;
+    }
+  }
+
+  /** A mixin to add Jackson annotations to {@link SSEAwsKeyManagementParams}. */
+  @JsonDeserialize(using = SSEAwsKeyManagementParamsDeserializer.class)
+  private static class SSEAwsKeyManagementParamsMixin {}
+
+  private static class SSEAwsKeyManagementParamsDeserializer
+      extends JsonDeserializer<SSEAwsKeyManagementParams> {
+    @Override
+    public SSEAwsKeyManagementParams deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      Map<String, String> asMap = parser.readValueAs(new TypeReference<Map<String, String>>() {});
+      final String awsKmsKeyId = asMap.getOrDefault("awsKmsKeyId", null);
+      return new SSEAwsKeyManagementParams(awsKmsKeyId);
     }
   }
 }

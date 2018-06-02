@@ -295,7 +295,7 @@ public class ApexStateInternals<K> implements StateInternals {
 
   }
 
-  private final class ApexCombiningState<K, InputT, AccumT, OutputT>
+  private final class ApexCombiningState<InputT, AccumT, OutputT>
       extends AbstractState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
@@ -309,7 +309,7 @@ public class ApexStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ApexCombiningState<K, InputT, AccumT, OutputT> readLater() {
+    public ApexCombiningState<InputT, AccumT, OutputT> readLater() {
       return this;
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -38,11 +39,12 @@ public class BeamSqlArrayExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     List<Object> elements =
         operands
             .stream()
-            .map(op -> op.evaluate(inputRow, window).getValue())
+            .map(op -> op.evaluate(inputRow, window, correlateEnv).getValue())
             .collect(Collectors.toList());
 
     return BeamSqlPrimitive.of(outputType, elements);

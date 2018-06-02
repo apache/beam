@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
@@ -252,33 +251,33 @@ public class BeamSqlComparisonOperatorsIntegrationTest
   @Override
   protected PCollection<Row> getTestPCollection() {
     Schema type =
-        RowSqlTypes.builder()
-            .withTinyIntField("c_tinyint_0")
-            .withTinyIntField("c_tinyint_1")
-            .withTinyIntField("c_tinyint_2")
-            .withSmallIntField("c_smallint_0")
-            .withSmallIntField("c_smallint_1")
-            .withSmallIntField("c_smallint_2")
-            .withIntegerField("c_integer_0")
-            .withIntegerField("c_integer_1")
-            .withIntegerField("c_integer_2")
-            .withBigIntField("c_bigint_0")
-            .withBigIntField("c_bigint_1")
-            .withBigIntField("c_bigint_2")
-            .withFloatField("c_float_0")
-            .withFloatField("c_float_1")
-            .withFloatField("c_float_2")
-            .withDoubleField("c_double_0")
-            .withDoubleField("c_double_1")
-            .withDoubleField("c_double_2")
-            .withDecimalField("c_decimal_0")
-            .withDecimalField("c_decimal_1")
-            .withDecimalField("c_decimal_2")
-            .withVarcharField("c_varchar_0")
-            .withVarcharField("c_varchar_1")
-            .withVarcharField("c_varchar_2")
-            .withBooleanField("c_boolean_false")
-            .withBooleanField("c_boolean_true")
+        Schema.builder()
+            .addByteField("c_tinyint_0")
+            .addByteField("c_tinyint_1")
+            .addByteField("c_tinyint_2")
+            .addInt16Field("c_smallint_0")
+            .addInt16Field("c_smallint_1")
+            .addInt16Field("c_smallint_2")
+            .addInt32Field("c_integer_0")
+            .addInt32Field("c_integer_1")
+            .addInt32Field("c_integer_2")
+            .addInt64Field("c_bigint_0")
+            .addInt64Field("c_bigint_1")
+            .addInt64Field("c_bigint_2")
+            .addFloatField("c_float_0")
+            .addFloatField("c_float_1")
+            .addFloatField("c_float_2")
+            .addDoubleField("c_double_0")
+            .addDoubleField("c_double_1")
+            .addDoubleField("c_double_2")
+            .addDecimalField("c_decimal_0")
+            .addDecimalField("c_decimal_1")
+            .addDecimalField("c_decimal_2")
+            .addStringField("c_varchar_0")
+            .addStringField("c_varchar_1")
+            .addStringField("c_varchar_2")
+            .addBooleanField("c_boolean_false")
+            .addBooleanField("c_boolean_true")
             .build();
 
     try {

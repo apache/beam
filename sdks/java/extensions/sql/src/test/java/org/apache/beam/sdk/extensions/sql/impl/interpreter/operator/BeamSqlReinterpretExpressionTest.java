@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
@@ -119,7 +120,9 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
   }
 
   private static long evaluateReinterpretExpression(BeamSqlExpression operand) {
-    return reinterpretExpression(operand).evaluate(NULL_ROW, NULL_WINDOW).getLong();
+    return reinterpretExpression(operand)
+        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of())
+        .getLong();
   }
 
   private static BeamSqlReinterpretExpression reinterpretExpression(BeamSqlExpression... operands) {

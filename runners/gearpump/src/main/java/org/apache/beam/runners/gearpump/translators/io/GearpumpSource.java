@@ -96,7 +96,7 @@ public abstract class GearpumpSource<T> implements DataSource {
     if (reader instanceof UnboundedSource.UnboundedReader) {
       org.joda.time.Instant watermark =
           ((UnboundedSource.UnboundedReader) reader).getWatermark();
-      if (watermark == BoundedWindow.TIMESTAMP_MAX_VALUE) {
+      if (watermark.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         return Watermark.MAX();
       } else {
         return TranslatorUtils.jodaTimeToJava8Time(watermark);

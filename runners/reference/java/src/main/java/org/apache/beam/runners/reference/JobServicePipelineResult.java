@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -64,6 +65,7 @@ class JobServicePipelineResult implements PipelineResult {
     return getJavaState(response.getState());
   }
 
+  @Nullable
   @Override
   public State waitUntilFinish(Duration duration) {
     if (duration.compareTo(Duration.millis(1)) < 1) {

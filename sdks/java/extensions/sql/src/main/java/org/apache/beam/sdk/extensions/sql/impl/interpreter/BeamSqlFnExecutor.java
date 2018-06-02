@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCorrelVariableExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefaultExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -103,6 +105,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
@@ -202,6 +205,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
       ret = new BeamSqlInputRefExpression(node.getType().getSqlTypeName(), node.getIndex());
+    } else if (rexNode instanceof RexCorrelVariable) {
+      RexCorrelVariable correlVariable = (RexCorrelVariable) rexNode;
+      ret =
+          new BeamSqlCorrelVariableExpression(
+              correlVariable.getType().getSqlTypeName(), correlVariable.id.getId());
     } else if (rexNode instanceof RexFieldAccess) {
       RexFieldAccess fieldAccessNode = (RexFieldAccess) rexNode;
       BeamSqlExpression referenceExpression = buildExpression(fieldAccessNode.getReferenceExpr());
@@ -495,10 +503,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   public void prepare() {}
 
   @Override
-  public List<Object> execute(Row inputRow, BoundedWindow window) {
+  public List<Object> execute(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
-      results.add(exp.evaluate(inputRow, window).getValue());
+      results.add(exp.evaluate(inputRow, window, correlateEnv).getValue());
     }
     return results;
   }

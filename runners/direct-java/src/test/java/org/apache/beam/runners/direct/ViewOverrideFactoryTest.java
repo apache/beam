@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,10 +77,10 @@ public class ViewOverrideFactoryTest implements Serializable {
               // so not asserted one way or the other
               assertThat(
                   replacementView.getTagInternal(), equalTo((TupleTag) view.getTagInternal()));
-              assertThat(replacementView.getViewFn(), Matchers.equalTo(view.getViewFn()));
+              assertThat(replacementView.getViewFn(), equalTo(view.getViewFn()));
               assertThat(
                   replacementView.getWindowMappingFn(),
-                  Matchers.equalTo(view.getWindowMappingFn()));
+                  equalTo(view.getWindowMappingFn()));
               assertThat(node.getInputs().entrySet(), hasSize(1));
             }
           }

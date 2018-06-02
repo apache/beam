@@ -1322,8 +1322,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public void verifyDeterministic()
-        throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(this, "Expected transform coder to be deterministic.", transformCoder);
       verifyDeterministic(this, "Expected map coder to be deterministic.", originalMapCoder);
     }

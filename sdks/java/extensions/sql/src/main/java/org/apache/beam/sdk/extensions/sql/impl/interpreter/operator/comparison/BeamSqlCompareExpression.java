@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -48,9 +49,10 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(Row inputRow, BoundedWindow window) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window).getValue();
-    Object rightValue = operands.get(1).evaluate(inputRow, window).getValue();
+  public BeamSqlPrimitive<Boolean> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    Object leftValue = operands.get(0).evaluate(inputRow, window, correlateEnv).getValue();
+    Object rightValue = operands.get(1).evaluate(inputRow, window, correlateEnv).getValue();
     switch (operands.get(0).getOutputType()) {
       case BIGINT:
       case DECIMAL:

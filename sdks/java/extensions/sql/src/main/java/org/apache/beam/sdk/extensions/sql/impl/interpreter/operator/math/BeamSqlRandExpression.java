@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -41,9 +42,10 @@ public class BeamSqlRandExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     if (operands.size() == 1) {
-      int rowSeed = opValueEvaluated(0, inputRow, window);
+      int rowSeed = opValueEvaluated(0, inputRow, window, correlateEnv);
       if (seed == null || seed != rowSeed) {
         rand.setSeed(rowSeed);
       }

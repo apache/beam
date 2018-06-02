@@ -48,7 +48,7 @@ public class FlattenPCollectionsTranslatorTest {
   private FlattenPCollectionsTranslator translator = new FlattenPCollectionsTranslator();
   private Flatten.PCollections transform = mock(Flatten.PCollections.class);
 
-  class UnboundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
+  private static class UnboundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
     @Override
     public boolean matches(Object o) {
       return o instanceof UnboundedSourceWrapper;

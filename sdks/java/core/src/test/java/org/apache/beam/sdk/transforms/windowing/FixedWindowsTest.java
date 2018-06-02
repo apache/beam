@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -101,7 +100,7 @@ public class FixedWindowsTest {
                 return new Instant(100L);
               }
             }),
-        Matchers.equalTo(
+        equalTo(
             new IntervalWindow(
                 new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(20L)))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));

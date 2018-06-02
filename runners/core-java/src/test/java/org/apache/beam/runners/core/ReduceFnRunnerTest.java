@@ -39,8 +39,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.google.common.collect.Iterables;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -142,7 +142,7 @@ public class ReduceFnRunnerTest {
       ReduceFnTester<Integer, ?, IntervalWindow> tester, Iterable<Integer> values)
       throws Exception {
     doNothing().when(mockTriggerStateMachine).onElement(anyElementContext());
-    List<TimestampedValue<Integer>> timestampedValues = new LinkedList<>();
+    List<TimestampedValue<Integer>> timestampedValues = new ArrayList<>();
     for (int value : values) {
       timestampedValues.add(TimestampedValue.of(value, new Instant(value)));
     }
@@ -389,8 +389,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isWindowedValue(equalTo(value1)));
-    assertThat(output.get(1), WindowMatchers.isWindowedValue(equalTo(value1 + value2)));
+    assertThat(output.get(0), isWindowedValue(equalTo(value1)));
+    assertThat(output.get(1), isWindowedValue(equalTo(value1 + value2)));
 
     assertThat(
         output.get(0),
@@ -403,7 +403,6 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementCombiningDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -513,7 +512,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testFixedWindowEndOfTimeGarbageCollection() throws Exception {
-
     Duration allowedLateness = Duration.standardDays(365);
     Duration windowSize = Duration.millis(10);
     WindowFn<Object, IntervalWindow> windowFn = FixedWindows.of(windowSize);
@@ -639,7 +637,6 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementCombiningAccumulating() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and accumulating mode.
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -695,7 +692,7 @@ public class ReduceFnRunnerTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     options.setValue(expectedValue);
 
-    when(mockSideInputReader.contains(org.mockito.Matchers.any(PCollectionView.class)))
+    when(mockSideInputReader.contains(any(PCollectionView.class)))
         .thenReturn(true);
     when(mockSideInputReader.get(any(PCollectionView.class), any(BoundedWindow.class)))
         .then(
@@ -1035,7 +1032,7 @@ public class ReduceFnRunnerTest {
     assertEquals(null, tester.getOutputWatermark());
 
     // All on time data, verify watermark hold.
-    List<Integer> times = new LinkedList<>();
+    List<Integer> times = new ArrayList<>();
 
     int numTs = 3 + r.nextInt(100);
     int maxTs = 1 + r.nextInt(400);
@@ -1207,7 +1204,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
 
     tester.advanceInputWatermark(new Instant(50));
 
@@ -1221,7 +1218,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
+            isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
     tester.advanceInputWatermark(new Instant(150));
@@ -1233,7 +1230,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
+            isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
   }
 
   @Test
@@ -1258,9 +1255,9 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, contains(
         // Trigger with 2 elements
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
         // Trigger for the empty on time pane
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   @Test
@@ -1285,11 +1282,11 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, contains(
         // Trigger with 2 elements
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
         // Trigger for the empty on time pane
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10),
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10),
         // Trigger for the final pane
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   /**
@@ -1364,7 +1361,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
 
     tester.advanceInputWatermark(new Instant(50));
 
@@ -1378,7 +1375,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
     tester.advanceInputWatermark(new Instant(150));
@@ -1390,7 +1387,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   @Test
@@ -1457,7 +1454,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)),
             mockTriggerStateMachine,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(0),
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.ZERO,
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // All on time data, verify watermark hold.
@@ -1863,7 +1860,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeFromOrFinally() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -1900,8 +1896,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(4, 9, 0, 10));
 
     assertThat(
         output.get(0),
@@ -1916,7 +1912,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeWithOnTimeBehaviorFireIfNonEmpty() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -1958,8 +1953,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(4, 9, 0, 10));
 
     assertThat(
         output.get(0),
@@ -1977,14 +1972,13 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeWithOnTimeBehaviorBackwardCompatibility() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(AfterWatermark.pastEndOfWindow()
                 .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
-            .withAllowedLateness(Duration.millis(0))
+            .withAllowedLateness(Duration.ZERO)
             .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
@@ -2016,7 +2010,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testEmptyOnTimeWithOnTimeBehaviorFireIfNonEmptyAndLateData() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -2060,8 +2053,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(5, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(5, 9, 0, 10));
 
     assertThat(
         output.get(0),
@@ -2078,7 +2071,6 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testProcessingTime() throws Exception {
-
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
@@ -2138,10 +2130,10 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(4, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(6, 4, 0, 10));
-    assertThat(output.get(2), WindowMatchers.isSingleWindowedValue(11, 9, 0, 10));
-    assertThat(output.get(3), WindowMatchers.isSingleWindowedValue(12, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(6, 4, 0, 10));
+    assertThat(output.get(2), isSingleWindowedValue(11, 9, 0, 10));
+    assertThat(output.get(3), isSingleWindowedValue(12, 9, 0, 10));
 
     assertThat(
         output.get(0),

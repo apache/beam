@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -45,7 +46,7 @@ public class BeamSqlCardinalityExpressionTest {
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(inputWith2Elements, SqlTypeName.INTEGER);
 
-    assertEquals(2, expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals(2, expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -56,7 +57,7 @@ public class BeamSqlCardinalityExpressionTest {
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(emptyInput, SqlTypeName.INTEGER);
 
-    assertEquals(0, expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals(0, expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test

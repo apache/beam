@@ -84,6 +84,11 @@ public class BeamSqlFnExecutorTestBase {
             .typeSystem(TYPE_FACTORY.getTypeSystem())
             .build();
 
+    try {
+      Class.forName("org.apache.calcite.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     relBuilder = RelBuilder.create(config);
   }
 }

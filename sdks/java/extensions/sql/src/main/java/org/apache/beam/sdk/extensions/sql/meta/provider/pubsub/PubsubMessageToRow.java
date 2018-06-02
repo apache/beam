@@ -27,7 +27,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -58,7 +57,7 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
    * <p>Required to have exactly 3 top level fields at the moment:
    *
    * <ul>
-   *   <li>'event_timestamp' of type {@link RowSqlTypes#TIMESTAMP}
+   *   <li>'event_timestamp' of type {@link Schema.FieldType#DATETIME}
    *   <li>'attributes' of type {@link TypeName#MAP MAP&lt;VARCHAR,VARCHAR&gt;}
    *   <li>'payload' of type {@link TypeName#ROW ROW&lt;...&gt;}
    * </ul>

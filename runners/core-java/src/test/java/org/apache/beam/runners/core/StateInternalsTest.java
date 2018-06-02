@@ -108,7 +108,7 @@ public abstract class StateInternalsTest {
     assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
     assertThat(
         underTest.state(NAMESPACE_2, STRING_VALUE_ADDR),
-        Matchers.not(equalTo(value)));
+        not(equalTo(value)));
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");
@@ -299,27 +299,34 @@ public abstract class StateInternalsTest {
       return new MapEntry<>(k, v);
     }
 
+    @Override
     public final K getKey() {
       return key;
     }
+
+    @Override
     public final V getValue() {
       return value;
     }
 
+    @Override
     public final String toString() {
       return key + "=" + value;
     }
 
+    @Override
     public final int hashCode() {
       return Objects.hashCode(key) ^ Objects.hashCode(value);
     }
 
+    @Override
     public final V setValue(V newValue) {
       V oldValue = value;
       value = newValue;
       return oldValue;
     }
 
+    @Override
     public final boolean equals(Object o) {
       if (o == this) {
         return true;

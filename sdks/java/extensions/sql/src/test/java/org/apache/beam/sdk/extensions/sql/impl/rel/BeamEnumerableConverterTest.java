@@ -60,7 +60,7 @@ public class BeamEnumerableConverterTest {
 
   @Test
   public void testToEnumerable_collectSingle() {
-    Schema schema = Schema.builder().addInt64Field("id", false).build();
+    Schema schema = Schema.builder().addInt64Field("id").build();
     RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)));
@@ -77,8 +77,7 @@ public class BeamEnumerableConverterTest {
 
   @Test
   public void testToEnumerable_collectMultiple() {
-    Schema schema =
-        Schema.builder().addInt64Field("id", false).addInt64Field("otherid", false).build();
+    Schema schema = Schema.builder().addInt64Field("id").addInt64Field("otherid").build();
     RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(
@@ -100,18 +99,22 @@ public class BeamEnumerableConverterTest {
   }
 
   private static class FakeTable implements BeamSqlTable {
+    @Override
     public BeamIOType getSourceType() {
       return null;
     }
 
+    @Override
     public PCollection<Row> buildIOReader(Pipeline pipeline) {
       return null;
     }
 
+    @Override
     public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
       return new FakeIOWriter();
     }
 
+    @Override
     public Schema getSchema() {
       return null;
     }
@@ -132,7 +135,7 @@ public class BeamEnumerableConverterTest {
 
   @Test
   public void testToEnumerable_count() {
-    Schema schema = Schema.builder().addInt64Field("id", false).build();
+    Schema schema = Schema.builder().addInt64Field("id").build();
     RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
     ImmutableList<ImmutableList<RexLiteral>> tuples =
         ImmutableList.of(

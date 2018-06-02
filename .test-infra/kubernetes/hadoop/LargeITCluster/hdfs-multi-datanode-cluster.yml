@@ -1,0 +1,135 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# This scripts creates one namenode and three datanode cluster.
+# Service "hadoop" allow to access namenode from outside cluster and is sufficient to
+# run tests using Dataflow runner(for Direct runner please use setup-all.sh script).
+# Service "datanodes" allow to reach any datanode using its FQDN.
+# StatefulSet "datanode" creates 3 replicas of hadoop datanode. Env variable NODE_TYPE
+# is being used to autodetect by kubernetes pod his role in the cluster.
+# Pod "namenode-0" is our master node - hadoop namenode. NODE_TYPE is set to namenode.
+# Additionally we specify number of datanodes that namenode will provision with hdfs
+# configuration and add to hadoop cluster by setting DATANODE_COUNT to 3.
+# On Jenkins we run tests in namespaces. This value is passed to pod environment in
+# NODE_NAMESPACE variable and being used to create list of FQDN of datanodes:
+#  datanode-x.hadoop-datanodes.NODE_NAMESPACE.svc.cluster.local
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop
+  labels:
+    name: hadoop
+spec:
+  ports:
+    - name: hdfs
+      port: 9000
+    - name: web
+      port: 50070
+  selector:
+    name: namenode
+  type: LoadBalancer
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-datanodes
+spec:
+  selector:
+    name: datanode
+  clusterIP: None
+  ports:
+   - name: hdfs
+     port: 9000
+     targetPort: 9000
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: datanode
+spec:
+  selector:
+    matchLabels:
+      name: datanode
+  serviceName: "hadoop-datanodes"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        name: datanode
+    spec:
+      containers:
+      - name: datanode
+        image: szewi/kubernetes-hadoop:2.7.1
+        imagePullPolicy: Always
+        env:
+          - name: NODE_TYPE
+            value: datanode
+        ports:
+          - name: sshd
+            containerPort: 22
+          - name: namenode-hdfs
+            containerPort: 9000
+          - name: web
+            containerPort: 50070
+          - name: datanode
+            containerPort: 50010
+          - name: datanode-icp
+            containerPort: 50020
+          - name: datanode-http
+            containerPort: 50075
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: namenode-0
+  labels:
+    name: namenode
+spec:
+  hostname: namenode-0
+  subdomain: hadoop-namenodes
+  containers:
+  - image: szewi/kubernetes-hadoop:2.7.1
+    imagePullPolicy: Always
+    name: namenode
+    env:
+      - name: NODE_TYPE
+        value: namenode
+      - name: DATANODE_COUNT
+        value: '3'
+      - name: NODE_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+    ports:
+      - name: sshd
+        containerPort: 22
+      - name: namenode-hdfs
+        containerPort: 9000
+      - name: web
+        containerPort: 50070
+      - name: datanode
+        containerPort: 50010
+      - name: datanode-icp
+        containerPort: 50020
+      - name: datanode-http
+        containerPort: 50075
