@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -199,7 +200,7 @@ public class BeamSqlTimestampMinusTimestampExpressionTest {
   }
 
   private long eval(BeamSqlTimestampMinusTimestampExpression minusExpression) {
-    return minusExpression.evaluate(NULL_ROW, NULL_WINDOW).getLong();
+    return minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getLong();
   }
 
   private long applyMultiplier(long value, TimeUnit timeUnit) {

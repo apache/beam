@@ -172,19 +172,16 @@ public interface NexmarkOptions
   void setUseWallclockEventTime(Boolean useWallclockEventTime);
 
   @Description("Assert pipeline results match model results.")
-  @Nullable
   boolean getAssertCorrectness();
 
   void setAssertCorrectness(boolean assertCorrectness);
 
   @Description("Log all input events.")
-  @Nullable
   boolean getLogEvents();
 
   void setLogEvents(boolean logEvents);
 
   @Description("Log all query results.")
-  @Nullable
   boolean getLogResults();
 
   void setLogResults(boolean logResults);
@@ -282,7 +279,6 @@ public interface NexmarkOptions
 
   @Description("If true, don't run the actual query. Instead, calculate the distribution "
                + "of number of query results per (event time) minute according to the query model.")
-  @Nullable
   boolean getJustModelResultRate();
 
   void setJustModelResultRate(boolean justModelResultRate);

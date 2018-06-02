@@ -117,7 +117,7 @@ public class DirectGraphVisitorTest implements Serializable {
     assertThat(graph.getRootTransforms(),
                Matchers.containsInAnyOrder(new Object[] {graph.getProducer(empty)}));
     AppliedPTransform<?, ?, ?> onlyRoot = Iterables.getOnlyElement(graph.getRootTransforms());
-    assertThat((Object) onlyRoot.getTransform(), Matchers.equalTo(flatten));
+    assertThat((Object) onlyRoot.getTransform(), equalTo(flatten));
     assertThat(onlyRoot.getInputs().entrySet(), emptyIterable());
     assertThat(onlyRoot.getOutputs(), equalTo(empty.expand()));
   }

@@ -85,11 +85,11 @@ public class PipelineOptionsReflectorTest {
     Set<PipelineOptionSpec> props =
         PipelineOptionsReflector.getOptionSpecs(ExtendsSimpleOptions.class);
 
-    assertThat(props, Matchers.hasItem(
+    assertThat(props, hasItem(
         allOf(hasName("foo"), hasClass(SimpleOptions.class))));
-    assertThat(props, Matchers.hasItem(
+    assertThat(props, hasItem(
         allOf(hasName("foo"), hasClass(ExtendsSimpleOptions.class))));
-    assertThat(props, Matchers.hasItem(
+    assertThat(props, hasItem(
         allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
   }
 
@@ -155,10 +155,10 @@ public class PipelineOptionsReflectorTest {
 
     Set<PipelineOptionSpec> props = PipelineOptionsReflector.getOptionSpecs(interfaces);
 
-    assertThat(props, Matchers.hasItem(allOf(hasName("baseOption"), hasClass(BaseOptions.class))));
-    assertThat(props, Matchers.hasItem(
+    assertThat(props, hasItem(allOf(hasName("baseOption"), hasClass(BaseOptions.class))));
+    assertThat(props, hasItem(
         allOf(hasName("extendOption1"), hasClass(ExtendOptions1.class))));
-    assertThat(props, Matchers.hasItem(
+    assertThat(props, hasItem(
         allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
   }
 

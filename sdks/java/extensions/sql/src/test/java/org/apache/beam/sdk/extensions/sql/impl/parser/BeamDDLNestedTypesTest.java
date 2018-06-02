@@ -19,21 +19,19 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static java.util.stream.Collectors.joining;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators;
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.AnyFieldType;
 import org.apache.beam.sdk.extensions.sql.utils.QuickCheckGenerators.PrimitiveTypes;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.runner.RunWith;
 
 /**
@@ -47,7 +45,8 @@ import org.junit.runner.RunWith;
 public class BeamDDLNestedTypesTest {
 
   @Property
-  public void supportsNestedTypes(@From(AnyFieldType.class) FieldType generatedFieldType) {
+  public void supportsNestedTypes(@From(AnyFieldType.class) FieldType generatedFieldType)
+      throws SqlParseException {
     String fieldTypeDeclaration = unparse(generatedFieldType);
 
     Table table = executeCreateTableWith(fieldTypeDeclaration);
@@ -58,7 +57,8 @@ public class BeamDDLNestedTypesTest {
   }
 
   @Property
-  public void supportsPrimitiveTypes(@From(PrimitiveTypes.class) FieldType fieldType) {
+  public void supportsPrimitiveTypes(@From(PrimitiveTypes.class) FieldType fieldType)
+      throws SqlParseException {
     String fieldTypeDeclaration = unparse(fieldType);
 
     Table table = executeCreateTableWith(fieldTypeDeclaration);
@@ -68,7 +68,7 @@ public class BeamDDLNestedTypesTest {
     assertEquals(expectedSchema, table.getSchema());
   }
 
-  private Table executeCreateTableWith(String fieldType) {
+  private Table executeCreateTableWith(String fieldType) throws SqlParseException {
     String createTable =
         "create table tablename ( "
             + "fieldName "
@@ -78,21 +78,14 @@ public class BeamDDLNestedTypesTest {
             + "LOCATION '/home/admin/person'\n";
     System.out.println(createTable);
 
-    SqlNode sqlNode;
-    try {
-      sqlNode = ParserTestUtils.parse(createTable);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-
-    assertNotNull(sqlNode);
-    assertTrue(sqlNode instanceof SqlCreateTable);
-    SqlCreateTable stmt = (SqlCreateTable) sqlNode;
-    return stmt.toTable();
+    TestTableProvider tableProvider = new TestTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+    env.executeDdl(createTable);
+    return tableProvider.getTables().get("tablename");
   }
 
   private Schema newSimpleSchemaWith(FieldType fieldType) {
-    return Schema.builder().addField(Field.of("fieldname", fieldType).withNullable(true)).build();
+    return Schema.builder().addNullableField("fieldname", fieldType).build();
   }
 
   private String unparse(FieldType fieldType) {

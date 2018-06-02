@@ -140,7 +140,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_extra_mvn_properties: '["filesystem=hdfs"]',
                 bigquery_table           : testConfiguration.bqTable,
                 beam_options_config_file : makePathAbsolute('pkb-config.yml'),
-                beam_kubernetes_scripts  : makePathAbsolute('hdfs-single-datanode-cluster.yml') + ',' + makePathAbsolute('hdfs-single-datanode-cluster-for-local-dev.yml')
+                beam_kubernetes_scripts  : makePathAbsolute('hdfs-multi-datanode-cluster.yml')
         ]
         common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
         common_job_properties.buildPerformanceTest(delegate, argMap)
@@ -149,5 +149,5 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
 }
 
 static def makePathAbsolute(String path) {
-    return '"$WORKSPACE/src/.test-infra/kubernetes/hadoop/SmallITCluster/' + path + '"'
+    return '"$WORKSPACE/src/.test-infra/kubernetes/hadoop/LargeITCluster/' + path + '"'
 }

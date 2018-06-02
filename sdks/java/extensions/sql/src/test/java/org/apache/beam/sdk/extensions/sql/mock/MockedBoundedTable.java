@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.mock;
 
-import static org.apache.beam.sdk.extensions.sql.TestUtils.buildBeamSqlRowType;
+import static org.apache.beam.sdk.extensions.sql.TestUtils.buildBeamSqlSchema;
 import static org.apache.beam.sdk.extensions.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
@@ -62,7 +62,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedBoundedTable of(final Object... args) {
-    return new MockedBoundedTable(buildBeamSqlRowType(args));
+    return new MockedBoundedTable(buildBeamSqlSchema(args));
   }
 
   /** Build a mocked bounded table with the specified type. */

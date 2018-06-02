@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -75,13 +76,18 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
    * YEAR" is equivalent tot this: "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1984-04-19 01:02:03')"
    */
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     BeamSqlPrimitive intervalOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.INTERVAL_TYPES).get().evaluate(inputRow, window);
+        findExpressionOfType(operands, SqlTypeName.INTERVAL_TYPES)
+            .get()
+            .evaluate(inputRow, window, correlateEnv);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
 
     BeamSqlPrimitive integerOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.INTEGER).get().evaluate(inputRow, window);
+        findExpressionOfType(operands, SqlTypeName.INTEGER)
+            .get()
+            .evaluate(inputRow, window, correlateEnv);
     BigDecimal integerOperandValue = new BigDecimal(integerOperandPrimitive.getInteger());
 
     BigDecimal multiplicationResult =

@@ -41,11 +41,14 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests for {@link MetricsContainerStepMap}.
  */
 public class MetricsContainerStepMapTest {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 
   private static final String NAMESPACE = MetricsContainerStepMapTest.class.getName();
   private static final String STEP1 = "myStep1";
@@ -73,7 +76,7 @@ public class MetricsContainerStepMapTest {
       distribution.update(VALUE * 2);
       gauge.set(VALUE);
     } catch (IOException e) {
-      e.printStackTrace();
+      LOG.error(e.getMessage(), e);
     }
   }
 

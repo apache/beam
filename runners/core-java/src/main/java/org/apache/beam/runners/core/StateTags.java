@@ -125,7 +125,7 @@ public class StateTags {
     SYSTEM('s'),
     USER('u');
 
-    private char prefix;
+    private final char prefix;
 
     StateKind(char prefix) {
       this.prefix = prefix;

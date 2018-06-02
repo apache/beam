@@ -413,6 +413,7 @@ public class PTransformTranslation {
     }
 
     @Nullable
+    @Override
     public abstract RunnerApi.FunctionSpec getSpec();
 
     public static UnknownRawPTransform forSpec(RunnerApi.FunctionSpec spec) {

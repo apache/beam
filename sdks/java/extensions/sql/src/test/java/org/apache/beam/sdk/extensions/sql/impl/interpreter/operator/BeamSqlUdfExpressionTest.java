@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -36,7 +37,7 @@ public class BeamSqlUdfExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlUdfExpression(
             UdfFn.class.getMethod("negative", Integer.class), operands, SqlTypeName.INTEGER);
 
-    Assert.assertEquals(-10, exp.evaluate(row, null).getValue());
+    Assert.assertEquals(-10, exp.evaluate(row, null, ImmutableMap.of()).getValue());
   }
 
   /** UDF example. */

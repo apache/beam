@@ -168,7 +168,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     assertThat(residual.getTimestamp(), Matchers.lessThan(DateTime.now().toInstant()));
     UnboundedSourceShard<Long, ?> residualShard =
         (UnboundedSourceShard<Long, ?>) residual.getValue();
-    assertThat(residualShard.getSource(), Matchers.equalTo(inputShard.getSource()));
+    assertThat(residualShard.getSource(), equalTo(inputShard.getSource()));
     assertThat(residualShard.getCheckpoint(), not(nullValue()));
     assertThat(
         output.commit(Instant.now()).getElements(),
@@ -228,7 +228,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     // Read with a very slow rate so by the second read there are no more elements
     PCollection<Long> pcollection =
         p.apply(Read.from(new TestUnboundedSource<>(VarLongCoder.of(), 1L)));
-    AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getProducer(pcollection);
+    AppliedPTransform<?, ?, ?> sourceTransform = getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =

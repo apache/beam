@@ -22,7 +22,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -236,7 +235,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       // committing the output.
       if (!watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         PCollection<OutputT> outputPc =
-            (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
+            (PCollection<OutputT>) getOnlyElement(transform.getOutputs().values());
         evaluationContext.scheduleAfterOutputWouldBeProduced(
             outputPc,
             GlobalWindow.INSTANCE,

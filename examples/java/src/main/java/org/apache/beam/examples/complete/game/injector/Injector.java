@@ -351,6 +351,7 @@ class Injector {
         out.println(message);
       }
     } catch (Exception e) {
+      System.err.print("Error in writing generated events to file");
       e.printStackTrace();
     } finally {
       out.flush();

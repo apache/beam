@@ -109,7 +109,7 @@ import org.apache.beam.sdk.values.PCollection;
  * {@literal PCollection<KV<Double, Double>>} quantiles = pc.apply(ParDo.of(
  *        {@literal new DoFn<MergingDigest, KV<Double, Double>>()} {
  *          {@literal @ProcessElement}
- *           public void procesElement(ProcessContext c) {
+ *           public void processElement(ProcessContext c) {
  *             double[] quantiles = {0.01, 0.25, 0.5, 0.75, 0.99}
  *             for (double q : quantiles) {
  *                c.output(KV.of(q, c.element().quantile(q));

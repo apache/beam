@@ -29,7 +29,6 @@ import org.junit.Test;
 
 /** JsonToRowSqlTest. */
 public class JsonToRowSqlTest {
-  private static final boolean NOT_NULLABLE = false;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -37,9 +36,9 @@ public class JsonToRowSqlTest {
   public void testParsesRows() throws Exception {
     Schema personSchema =
         Schema.builder()
-            .addStringField("name", NOT_NULLABLE)
-            .addInt32Field("height", NOT_NULLABLE)
-            .addBooleanField("knowsJavascript", NOT_NULLABLE)
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
             .build();
 
     PCollection<String> jsonPersons =
@@ -51,7 +50,7 @@ public class JsonToRowSqlTest {
                 jsonPerson("person4", "50", "false"),
                 jsonPerson("person5", "40", "true")));
 
-    Schema resultSchema = Schema.builder().addInt32Field("avg_height", NOT_NULLABLE).build();
+    Schema resultSchema = Schema.builder().addInt32Field("avg_height").build();
 
     PCollection<Row> sqlResult =
         jsonPersons

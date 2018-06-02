@@ -56,7 +56,7 @@ public class ByteStringCoderTest {
   static {
     ImmutableList.Builder<ByteString> builder = ImmutableList.builder();
     for (String s : TEST_STRING_VALUES) {
-      builder.add(ByteString.copyFrom(s.getBytes()));
+      builder.add(ByteString.copyFromUtf8(s));
     }
     TEST_VALUES = builder.build();
   }

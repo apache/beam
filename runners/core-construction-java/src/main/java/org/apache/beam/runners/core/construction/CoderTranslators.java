@@ -107,6 +107,7 @@ class CoderTranslators {
 
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
       implements CoderTranslator<T> {
+    @Override
     public final T fromComponents(List<Coder<?>> components, byte[] payload) {
       return fromComponents(components);
     }

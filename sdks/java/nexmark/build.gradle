@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
@@ -43,6 +43,7 @@ configurations {
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
@@ -63,6 +64,7 @@ dependencies {
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
+  testCompileOnly library.java.findbugs_annotations
 
   gradleRun project(path: project.path, configuration: "shadow")
   gradleRun project(path: nexmarkRunnerDependency, configuration: "shadow")

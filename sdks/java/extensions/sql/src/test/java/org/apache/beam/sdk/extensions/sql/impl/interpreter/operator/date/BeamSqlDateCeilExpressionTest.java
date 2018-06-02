@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -39,14 +40,14 @@ public class BeamSqlDateCeilExpressionTest extends BeamSqlDateExpressionTestBase
     Assert.assertEquals(
         str2DateTime("2018-01-01 00:00:00"),
         new BeamSqlDateCeilExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of())
             .getDate());
 
     operands.set(1, BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
     Assert.assertEquals(
         str2DateTime("2017-06-01 00:00:00"),
         new BeamSqlDateCeilExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null)
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of())
             .getDate());
   }
 }

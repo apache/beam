@@ -35,7 +35,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
 
   FlattenEvaluatorFactory(
-      BundleFactory bundleFactory, ExecutableGraph<PTransformNode, PCollectionNode> graph) {
+      ExecutableGraph<PTransformNode, PCollectionNode> graph, BundleFactory bundleFactory) {
     this.bundleFactory = bundleFactory;
     this.graph = graph;
   }

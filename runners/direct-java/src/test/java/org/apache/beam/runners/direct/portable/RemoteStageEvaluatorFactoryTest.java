@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct.portable;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -42,6 +43,7 @@ import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
@@ -51,11 +53,14 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -103,7 +108,8 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
 
     bundleFactory = ImmutableListBundleFactory.create();
     JobBundleFactory jobBundleFactory =
-        DirectJobBundleFactory.create(environmentFactory, dataServer, stateServer);
+        SingleEnvironmentInstanceJobBundleFactory.create(
+            environmentFactory, dataServer, stateServer);
     factory = new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory);
   }
 
@@ -162,6 +168,67 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     WindowedValue<byte[]> impulse = WindowedValue.valueInGlobalWindow(new byte[0]);
     CommittedBundle<byte[]> inputBundle =
         bundleFactory.<byte[]>createBundle(impulseOutput).add(impulse).commit(Instant.now());
+    TransformEvaluator<byte[]> evaluator = factory.forApplication(stage, inputBundle);
+    evaluator.processElement(impulse);
+    TransformResult<byte[]> result = evaluator.finishBundle();
+    assertThat(Iterables.size(result.getOutputBundles()), equalTo(1));
+    CommittedBundle<?> outputs = getOnlyElement(result.getOutputBundles()).commit(Instant.now());
+    assertThat(Iterables.size(outputs), equalTo(3));
+  }
+
+  @Test
+  public void executesStageWithFlatten() throws Exception {
+    ParDo.SingleOutput<byte[], KV<Integer, String>> parDo =
+        ParDo.of(
+            new DoFn<byte[], KV<Integer, String>>() {
+              @ProcessElement
+              public void process(ProcessContext ctxt) {
+                ctxt.output(KV.of(1, "foo"));
+                ctxt.output(KV.of(1, "bar"));
+                ctxt.output(KV.of(2, "foo"));
+              }
+            });
+    Pipeline p = Pipeline.create();
+
+    PCollection<KV<Integer, String>> left = p.apply("left", Impulse.create()).apply(parDo);
+    PCollection<KV<Integer, String>> right = p.apply("right", Impulse.create()).apply(parDo);
+    PCollectionList.of(left).and(right).apply(Flatten.pCollections()).apply(GroupByKey.create());
+
+    RunnerApi.Pipeline fusedPipeline =
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).toPipeline();
+    QueryablePipeline fusedQP = QueryablePipeline.forPipeline(fusedPipeline);
+    PTransformNode leftRoot = null;
+    PTransformNode rightRoot = null;
+    for (PTransformNode root : fusedQP.getRootTransforms()) {
+      if (root.getId().equals("left")) {
+        leftRoot = root;
+      } else {
+        rightRoot = root;
+      }
+    }
+    checkState(leftRoot != null);
+    checkState(rightRoot != null);
+    PTransformNode stage =
+        fusedPipeline
+            .getRootTransformIdsList()
+            .stream()
+            .map(
+                id ->
+                    PipelineNode.pTransform(
+                        id, fusedPipeline.getComponents().getTransformsOrThrow(id)))
+            .filter(node -> node.getTransform().getSpec().getUrn().equals(ExecutableStage.URN))
+            .findFirst()
+            .orElseThrow(IllegalArgumentException::new);
+
+    WindowedValue<byte[]> impulse = WindowedValue.valueInGlobalWindow(new byte[0]);
+    String inputId = getOnlyElement(stage.getTransform().getInputsMap().values());
+    CommittedBundle<byte[]> inputBundle =
+        bundleFactory
+            .<byte[]>createBundle(
+                PipelineNode.pCollection(
+                    inputId, fusedPipeline.getComponents().getPcollectionsOrThrow(inputId)))
+            .add(impulse)
+            .commit(Instant.now());
     TransformEvaluator<byte[]> evaluator = factory.forApplication(stage, inputBundle);
     evaluator.processElement(impulse);
     TransformResult<byte[]> result = evaluator.finishBundle();

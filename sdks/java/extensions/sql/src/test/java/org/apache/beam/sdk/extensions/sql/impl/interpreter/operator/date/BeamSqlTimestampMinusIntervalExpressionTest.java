@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -157,7 +158,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
 
-    BeamSqlPrimitive subtractionResult = minusExpression.evaluate(NULL_ROW, NULL_WINDOW);
+    BeamSqlPrimitive subtractionResult =
+        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of());
 
     assertEquals(SqlTypeName.TIMESTAMP, subtractionResult.getOutputType());
     assertEquals(DATE_MINUS_2_SEC, subtractionResult.getDate());

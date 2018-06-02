@@ -37,7 +37,7 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
   private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
 
   ImpulseEvaluatorFactory(
-      BundleFactory bundleFactory, ExecutableGraph<PTransformNode, PCollectionNode> graph) {
+      ExecutableGraph<PTransformNode, PCollectionNode> graph, BundleFactory bundleFactory) {
     this.bundleFactory = bundleFactory;
     this.graph = graph;
   }
