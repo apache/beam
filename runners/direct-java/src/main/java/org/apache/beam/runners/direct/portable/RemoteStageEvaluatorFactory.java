@@ -67,7 +67,7 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
           ExecutableStage.fromPayload(
               ExecutableStagePayload.parseFrom(transform.getTransform().getSpec().getPayload()));
       outputs = new ArrayList<>();
-      StageBundleFactory stageFactory = jobFactory.forStage(stage);
+      StageBundleFactory<T> stageFactory = jobFactory.forStage(stage);
       bundle =
           stageFactory.getBundle(
               BundleFactoryOutputRecieverFactory.create(
