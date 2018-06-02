@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 
 /**
@@ -63,6 +64,10 @@ public class FieldAccessDescriptor {
 
   /**
    * Return a descriptor that access the specified fields.
+   *
+   * <p>By default, if the field is a nested row (or a container containing a row), all fields of
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
+   * pass in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(String... names) {
     return withFieldNames(Arrays.asList(names));
@@ -70,6 +75,10 @@ public class FieldAccessDescriptor {
 
   /**
    * Return a descriptor that access the specified fields.
+   *
+   * <p>By default, if the field is a nested row (or a container containing a row), all fields of
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
+   * pass in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(Iterable<String> fieldNames) {
     return new FieldAccessDescriptor(false, Collections.emptySet(),
@@ -78,6 +87,10 @@ public class FieldAccessDescriptor {
 
   /**
    * Return a descriptor that access the specified fields.
+   *
+   * <p>By default, if the field is a nested row (or a container containing a row), all fields of
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
+   * pass in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Integer... ids) {
     return withFieldIds(Arrays.asList(ids));
@@ -85,6 +98,10 @@ public class FieldAccessDescriptor {
 
   /**
    * Return a descriptor that access the specified fields.
+   *
+   * <p>By default, if the field is a nested row (or a container containing a row), all fields of
+   * said rows are accessed. For finer-grained acccess to nested rows, call withNestedField and
+   * pass in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Iterable<Integer> ids) {
     return new FieldAccessDescriptor(false, Sets.newHashSet(ids),
@@ -128,11 +145,29 @@ public class FieldAccessDescriptor {
     return allFields;
   }
 
+  public Set<Integer> fieldIdsAccessed() {
+    return fieldIdsAccessed;
+  }
+
+  public Map<Integer, FieldAccessDescriptor> nestedFields() {
+    return nestedFieldsAccessedById;
+  }
+
   public FieldAccessDescriptor resolve(Schema schema) {
+    Set<Integer> fieldIdsAccessed = resolveFieldIdsAccessed(schema);
+    Map<Integer, FieldAccessDescriptor> nestedFieldsAccessed = resolveNestedFieldsAccessed(schema);
+
+    checkState(!allFields || nestedFieldsAccessed.isEmpty(),
+    "nested fields cannot be set if allFields is also set");
+
+    // If a recursive access is set for any nested fields, remove those fields from
+    // fieldIdsAccessed.
+    fieldIdsAccessed.removeAll(nestedFieldsAccessed.keySet());
+
     return new FieldAccessDescriptor(this.allFields,
-        resolveFieldIdsAccessed(schema),
+        fieldIdsAccessed,
         Collections.emptySet(),
-        resolveNestedFieldsAccessed(schema),
+        nestedFieldsAccessed,
         Collections.emptyMap());
   }
 
@@ -147,10 +182,26 @@ public class FieldAccessDescriptor {
     return fieldsIds;
   }
 
+  private Schema getFieldSchema(Field field) {
+    FieldType type = field.getType();
+    if (TypeName.ROW.equals(type.getTypeName())) {
+      return type.getRowSchema();
+    } else if (TypeName.ARRAY.equals(type.getTypeName())
+        && TypeName.ROW.equals(type.getCollectionElementType().getTypeName())) {
+      return type.getCollectionElementType().getRowSchema();
+    } else if (TypeName.MAP.equals(type.getTypeName())
+      && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
+      return type.getMapValueType().getRowSchema();
+    } else {
+      checkState(false, "Field " + field + " must be either a row or "
+      + " a container containing rows");
+    }
+    return null;
+  }
+
   private FieldAccessDescriptor resolvedNestedFieldsHelper(Field field,
                                                            FieldAccessDescriptor subDescriptor) {
-    checkState(TypeName.ROW.equals(field.getType().getTypeName()));
-    return subDescriptor.resolve(field.getType().getRowSchema());
+    return subDescriptor.resolve(getFieldSchema(field));
   }
 
   private Map<Integer, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
