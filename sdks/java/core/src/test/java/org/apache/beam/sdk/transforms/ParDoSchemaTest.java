@@ -60,8 +60,8 @@ public class ParDoSchemaTest implements Serializable {
         new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
 
     Schema schema = Schema.builder()
-        .addStringField("string_field", false)
-        .addInt32Field("integer_field", false)
+        .addStringField("string_field")
+        .addInt32Field("integer_field")
         .build();
 
     PCollection<String> output = pipeline
@@ -87,13 +87,13 @@ public class ParDoSchemaTest implements Serializable {
         new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
 
     Schema schema1 = Schema.builder()
-        .addStringField("string_field", false)
-        .addInt32Field("integer_field", false)
+        .addStringField("string_field")
+        .addInt32Field("integer_field")
         .build();
 
     Schema schema2 = Schema.builder()
-        .addStringField("string2_field", false)
-        .addInt32Field("integer2_field", false)
+        .addStringField("string2_field")
+        .addInt32Field("integer2_field")
         .build();
 
     PCollection<String> output = pipeline
@@ -128,18 +128,18 @@ public class ParDoSchemaTest implements Serializable {
         new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
 
     Schema schema1 = Schema.builder()
-        .addStringField("string_field", false)
-        .addInt32Field("integer_field", false)
+        .addStringField("string_field")
+        .addInt32Field("integer_field")
         .build();
 
     Schema schema2 = Schema.builder()
-        .addStringField("string2_field", false)
-        .addInt32Field("integer2_field", false)
+        .addStringField("string2_field")
+        .addInt32Field("integer2_field")
         .build();
 
     Schema schema3 = Schema.builder()
-        .addStringField("string3_field", false)
-        .addInt32Field("integer3_field", false)
+        .addStringField("string3_field")
+        .addInt32Field("integer3_field")
         .build();
 
     TupleTag<MyPojo> firstOutput = new TupleTag<>("first");
@@ -197,8 +197,8 @@ public class ParDoSchemaTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testReadAndWriteWithSchemaRegistry() {
     Schema schema = Schema.builder()
-        .addStringField("string_field", false)
-        .addInt32Field("integer_field", false)
+        .addStringField("string_field")
+        .addInt32Field("integer_field")
         .build();
 
     pipeline.getSchemaRegistry()

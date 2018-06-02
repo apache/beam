@@ -35,6 +35,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>Types registered in a pipeline's schema registry will automatically be discovered by any
  * {@link org.apache.beam.sdk.values.PCollection} that uses {@link SchemaCoder}. This allows users
  * to write pipelines in terms of their own Java types, yet still register schemas for these types.
+ *
+ * <p>TODO: Provide support for schemas registered via a ServiceLoader interface. This will allow
+ * optional modules to register schemas as well.
  */
 @Experimental
 public class SchemaRegistry {
