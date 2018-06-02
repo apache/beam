@@ -90,7 +90,6 @@ class TransformEvaluatorRegistry {
 
     TransformEvaluatorFactory factory =
         checkNotNull(factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
-    LOG.warn("Evaluator Factory {} for PTransform {}", factory, application);
     return factory.forApplication(application, inputBundle);
   }
 

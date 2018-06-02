@@ -41,7 +41,6 @@ import java.util.concurrent.ThreadFactory;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
@@ -67,6 +66,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -117,9 +117,7 @@ public class RemoteExecutionTest implements Serializable {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     stateDelegator = GrpcStateService.create();
-    stateServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            stateDelegator, serverFactory);
+    stateServer = GrpcFnServer.allocatePortAndCreateFor(stateDelegator, serverFactory);
 
     ControlClientPool clientPool = MapControlClientPool.create();
     controlServer =
@@ -186,7 +184,6 @@ public class RemoteExecutionTest implements Serializable {
         .apply("gbk", GroupByKey.create());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-    Components components = pipelineProto.getComponents();
     FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
     checkState(fused.getFusedStages().size() == 1, "Expected exactly one fused stage");
     ExecutableStage stage = fused.getFusedStages().iterator().next();
@@ -201,21 +198,24 @@ public class RemoteExecutionTest implements Serializable {
 
     BundleProcessor<byte[]> processor =
         controlClient.getProcessor(descriptor.getProcessBundleDescriptor(), remoteDestination);
-    Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
-    Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, ? super Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
     Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
-      List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
+    for (Entry<Target, ? super Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
       outputValues.put(targetCoder.getKey(), outputContents);
       outputReceivers.put(
           targetCoder.getKey(),
-          RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
+          RemoteOutputReceiver.of(
+              (Coder) targetCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
     // The impulse example
     try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers)) {
       bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
-    for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
+    for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
@@ -228,40 +228,44 @@ public class RemoteExecutionTest implements Serializable {
   @Test
   public void testExecutionWithSideInput() throws Exception {
     Pipeline p = Pipeline.create();
-    PCollection<String> input = p.apply("impulse", Impulse.create())
-        .apply(
-            "create",
-            ParDo.of(
-                new DoFn<byte[], String>() {
-                  @ProcessElement
-                  public void process(ProcessContext ctxt) {
-                    ctxt.output("zero");
-                    ctxt.output("one");
-                    ctxt.output("two");
-                  }
-                })).setCoder(StringUtf8Coder.of());
-    PCollectionView<Iterable<String>> view =
-        input.apply("createSideInput", View.asIterable());
+    PCollection<String> input =
+        p.apply("impulse", Impulse.create())
+            .apply(
+                "create",
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      @ProcessElement
+                      public void process(ProcessContext ctxt) {
+                        ctxt.output("zero");
+                        ctxt.output("one");
+                        ctxt.output("two");
+                      }
+                    }))
+            .setCoder(StringUtf8Coder.of());
+    PCollectionView<Iterable<String>> view = input.apply("createSideInput", View.asIterable());
 
     input
-        .apply("readSideInput", ParDo.of(new DoFn<String, KV<String, String>>() {
-          @ProcessElement
-          public void processElement(ProcessContext context) {
-            for (String value : context.sideInput(view)) {
-              context.output(KV.of(context.element(), value));
-            }
-          }
-        }).withSideInputs(view))
+        .apply(
+            "readSideInput",
+            ParDo.of(
+                    new DoFn<String, KV<String, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext context) {
+                        for (String value : context.sideInput(view)) {
+                          context.output(KV.of(context.element(), value));
+                        }
+                      }
+                    })
+                .withSideInputs(view))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Force the output to be materialized
         .apply("gbk", GroupByKey.create());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-    Components components = pipelineProto.getComponents();
     FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
-    Optional<ExecutableStage> optionalStage = Iterables.tryFind(
-        fused.getFusedStages(),
-        (ExecutableStage stage) -> !stage.getSideInputs().isEmpty());
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(
+            fused.getFusedStages(), (ExecutableStage stage) -> !stage.getSideInputs().isEmpty());
     checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
     ExecutableStage stage = optionalStage.get();
 
@@ -276,8 +280,9 @@ public class RemoteExecutionTest implements Serializable {
         (RemoteInputDestination<WindowedValue<byte[]>>)
             (RemoteInputDestination) descriptor.getRemoteInputDestination();
 
-    BundleProcessor<byte[]> processor = controlClient.getProcessor(
-        descriptor.getProcessBundleDescriptor(), remoteDestination, stateDelegator);
+    BundleProcessor<byte[]> processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), remoteDestination, stateDelegator);
     Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
     Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
@@ -289,17 +294,21 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
 
-    Iterable<byte[]> sideInputData = Arrays.asList(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+    Iterable<byte[]> sideInputData =
+        Arrays.asList(
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forMultimapSideInputHandlerFactory(
             descriptor,
             new MultimapSideInputHandlerFactory() {
               @Override
               public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
-                  String pTransformId, String sideInputId, Coder<K> keyCoder, Coder<V> valueCoder,
+                  String pTransformId,
+                  String sideInputId,
+                  Coder<K> keyCoder,
+                  Coder<V> valueCoder,
                   Coder<W> windowCoder) {
                 return new MultimapSideInputHandler<K, V, W>() {
                   @Override
@@ -311,10 +320,16 @@ public class RemoteExecutionTest implements Serializable {
             });
 
     try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers, stateRequestHandler)) {
-      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
-      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+      bundle
+          .getInputReceiver()
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      bundle
+          .getInputReceiver()
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
