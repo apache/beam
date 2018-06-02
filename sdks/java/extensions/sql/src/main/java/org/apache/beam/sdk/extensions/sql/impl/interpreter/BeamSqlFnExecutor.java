@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCorrelVariableExpression;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefau
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlLocalRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlOperatorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlUdfExpression;
@@ -93,8 +95,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlTruncateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row.BeamSqlFieldAccessExpression;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
@@ -103,7 +103,9 @@ import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -117,24 +119,29 @@ import org.joda.time.DateTime;
  * evaluated against the {@link Row}.
  */
 public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
-  protected List<BeamSqlExpression> exps;
+  private List<BeamSqlExpression> exprs;
+  private BeamSqlExpression filterCondition;
+  private List<BeamSqlExpression> projections;
 
-  public BeamSqlFnExecutor(BeamRelNode relNode) {
-    this.exps = new ArrayList<>();
-    if (relNode instanceof BeamFilterRel) {
-      BeamFilterRel filterNode = (BeamFilterRel) relNode;
-      RexNode condition = filterNode.getCondition();
-      exps.add(buildExpression(condition));
-    } else if (relNode instanceof BeamProjectRel) {
-      BeamProjectRel projectNode = (BeamProjectRel) relNode;
-      List<RexNode> projects = projectNode.getProjects();
-      for (RexNode rexNode : projects) {
-        exps.add(buildExpression(rexNode));
-      }
-    } else {
-      throw new UnsupportedOperationException(
-          String.format("%s is not supported yet!", relNode.getClass().toString()));
-    }
+  public BeamSqlFnExecutor(RexProgram program) {
+    this.exprs =
+        program
+            .getExprList()
+            .stream()
+            .map(BeamSqlFnExecutor::buildExpression)
+            .collect(Collectors.toList());
+
+    this.filterCondition =
+        program.getCondition() == null
+            ? BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true)
+            : buildExpression(program.getCondition());
+
+    this.projections =
+        program
+            .getProjectList()
+            .stream()
+            .map(BeamSqlFnExecutor::buildExpression)
+            .collect(Collectors.toList());
   }
 
   /**
@@ -204,6 +211,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       ret =
           new BeamSqlCorrelVariableExpression(
               correlVariable.getType().getSqlTypeName(), correlVariable.id.getId());
+    } else if (rexNode instanceof RexLocalRef) {
+      RexLocalRef localRef = (RexLocalRef) rexNode;
+      ret = new BeamSqlLocalRefExpression(localRef.getType().getSqlTypeName(), localRef.getIndex());
     } else if (rexNode instanceof RexFieldAccess) {
       RexFieldAccess fieldAccessNode = (RexFieldAccess) rexNode;
       BeamSqlExpression referenceExpression = buildExpression(fieldAccessNode.getReferenceExpr());
@@ -500,13 +510,21 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   public void prepare() {}
 
   @Override
-  public List<Object> execute(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    List<Object> results = new ArrayList<>();
-    for (BeamSqlExpression exp : exps) {
-      results.add(exp.evaluate(inputRow, window, correlateEnv).getValue());
+  public @Nullable List<Object> execute(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+
+    final BeamSqlExpressionEnvironment localEnv = env.copyWithLocalRefExprs(exprs);
+
+    boolean conditionResult = filterCondition.evaluate(inputRow, window, localEnv).getBoolean();
+
+    if (conditionResult) {
+      return projections
+          .stream()
+          .map(project -> project.evaluate(inputRow, window, localEnv).getValue())
+          .collect(Collectors.toList());
+    } else {
+      return null;
     }
-    return results;
   }
 
   @Override

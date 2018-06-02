@@ -22,9 +22,9 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -77,17 +77,15 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     BeamSqlPrimitive intervalOperandPrimitive =
         findExpressionOfType(operands, SqlTypeName.INTERVAL_TYPES)
             .get()
-            .evaluate(inputRow, window, correlateEnv);
+            .evaluate(inputRow, window, env);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
 
     BeamSqlPrimitive integerOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.INTEGER)
-            .get()
-            .evaluate(inputRow, window, correlateEnv);
+        findExpressionOfType(operands, SqlTypeName.INTEGER).get().evaluate(inputRow, window, env);
     BigDecimal integerOperandValue = new BigDecimal(integerOperandPrimitive.getInteger());
 
     BigDecimal multiplicationResult =

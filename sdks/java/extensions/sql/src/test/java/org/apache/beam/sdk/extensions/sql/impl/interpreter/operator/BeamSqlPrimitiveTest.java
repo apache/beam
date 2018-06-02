@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
@@ -30,34 +30,39 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
   public void testPrimitiveInt() {
     BeamSqlPrimitive<Integer> expInt = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100);
     Assert.assertEquals(
-        expInt.getValue(), expInt.evaluate(row, null, ImmutableMap.of()).getValue());
+        expInt.getValue(),
+        expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch1() {
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100L);
     Assert.assertEquals(
-        expInt.getValue(), expInt.evaluate(row, null, ImmutableMap.of()).getValue());
+        expInt.getValue(),
+        expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch2() {
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.DECIMAL, 100L);
     Assert.assertEquals(
-        expInt.getValue(), expInt.evaluate(row, null, ImmutableMap.of()).getValue());
+        expInt.getValue(),
+        expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch3() {
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.FLOAT, 100L);
     Assert.assertEquals(
-        expInt.getValue(), expInt.evaluate(row, null, ImmutableMap.of()).getValue());
+        expInt.getValue(),
+        expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch4() {
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 100L);
     Assert.assertEquals(
-        expInt.getValue(), expInt.evaluate(row, null, ImmutableMap.of()).getValue());
+        expInt.getValue(),
+        expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 }

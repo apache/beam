@@ -20,8 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
@@ -93,7 +96,8 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
           innerSchema.getFieldCount() == 1, "Can only UNNEST a single column", getClass());
 
       BeamSqlExpressionExecutor expr =
-          new BeamSqlFnExecutor(BeamSqlRelUtils.getBeamRelInput(uncollect.getInput()));
+          new BeamSqlFnExecutor(
+              ((BeamCalcRel) BeamSqlRelUtils.getBeamRelInput(uncollect.getInput())).getProgram());
 
       Schema joinedSchema = CalciteUtils.toBeamSchema(rowType);
 
@@ -129,7 +133,16 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
     @ProcessElement
     public void process(@Element Row row, BoundedWindow window, OutputReceiver<Row> out) {
 
-      List<Object> rawValues = expr.execute(row, window, ImmutableMap.of(correlationId, row));
+      checkState(correlationId == 0, "Only one level of correlation nesting is supported");
+      BeamSqlExpressionEnvironment env =
+          BeamSqlExpressionEnvironments.forRowAndCorrelVariables(
+              row, window, ImmutableList.of(row));
+
+      @Nullable List<Object> rawValues = expr.execute(row, window, env);
+
+      if (rawValues == null) {
+        return;
+      }
 
       checkState(
           rawValues.size() == 1,
