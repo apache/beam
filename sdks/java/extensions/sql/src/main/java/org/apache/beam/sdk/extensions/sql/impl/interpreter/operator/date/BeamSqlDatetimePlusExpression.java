@@ -21,11 +21,11 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -74,9 +74,9 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    DateTime timestamp = getTimestampOperand(inputRow, window, correlateEnv);
-    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    DateTime timestamp = getTimestampOperand(inputRow, window, env);
+    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window, env);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
     int intervalMultiplier = getIntervalMultiplier(intervalOperandPrimitive);
 
@@ -94,18 +94,16 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   }
 
   private BeamSqlPrimitive getIntervalOperand(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES)
         .get()
-        .evaluate(inputRow, window, correlateEnv);
+        .evaluate(inputRow, window, env);
   }
 
   private DateTime getTimestampOperand(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     BeamSqlPrimitive timestampOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.TIMESTAMP)
-            .get()
-            .evaluate(inputRow, window, correlateEnv);
+        findExpressionOfType(operands, SqlTypeName.TIMESTAMP).get().evaluate(inputRow, window, env);
     return new DateTime(timestampOperandPrimitive.getDate());
   }
 

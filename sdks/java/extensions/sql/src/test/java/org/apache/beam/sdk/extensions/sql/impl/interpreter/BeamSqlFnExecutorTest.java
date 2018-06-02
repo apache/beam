@@ -25,15 +25,11 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlPlusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlEqualsExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
@@ -46,92 +42,17 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
-import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Assert;
 import org.junit.Test;
 
 /** Unit test cases for {@link BeamSqlFnExecutor}. */
 public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
-
-  @Test
-  public void testBeamFilterRel() {
-    RexNode condition =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.AND,
-            Arrays.asList(
-                rexBuilder.makeCall(
-                    SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
-                    Arrays.asList(
-                        rexBuilder.makeInputRef(relDataType, 0),
-                        rexBuilder.makeBigintLiteral(new BigDecimal(1000L)))),
-                rexBuilder.makeCall(
-                    SqlStdOperatorTable.EQUALS,
-                    Arrays.asList(
-                        rexBuilder.makeInputRef(relDataType, 1),
-                        rexBuilder.makeExactLiteral(BigDecimal.ZERO)))));
-
-    BeamFilterRel beamFilterRel =
-        new BeamFilterRel(cluster, RelTraitSet.createEmpty(), null, condition);
-
-    BeamSqlFnExecutor executor = new BeamSqlFnExecutor(beamFilterRel);
-    executor.prepare();
-
-    Assert.assertEquals(1, executor.exps.size());
-
-    BeamSqlExpression l1Exp = executor.exps.get(0);
-    assertTrue(l1Exp instanceof BeamSqlAndExpression);
-    Assert.assertEquals(SqlTypeName.BOOLEAN, l1Exp.getOutputType());
-
-    Assert.assertEquals(2, l1Exp.getOperands().size());
-    BeamSqlExpression l1Left = (BeamSqlExpression) l1Exp.getOperands().get(0);
-    BeamSqlExpression l1Right = (BeamSqlExpression) l1Exp.getOperands().get(1);
-
-    assertTrue(l1Left instanceof BeamSqlLessThanOrEqualsExpression);
-    assertTrue(l1Right instanceof BeamSqlEqualsExpression);
-
-    Assert.assertEquals(2, l1Left.getOperands().size());
-    BeamSqlExpression l1LeftLeft = (BeamSqlExpression) l1Left.getOperands().get(0);
-    BeamSqlExpression l1LeftRight = (BeamSqlExpression) l1Left.getOperands().get(1);
-    assertTrue(l1LeftLeft instanceof BeamSqlInputRefExpression);
-    assertTrue(l1LeftRight instanceof BeamSqlPrimitive);
-
-    Assert.assertEquals(2, l1Right.getOperands().size());
-    BeamSqlExpression l1RightLeft = (BeamSqlExpression) l1Right.getOperands().get(0);
-    BeamSqlExpression l1RightRight = (BeamSqlExpression) l1Right.getOperands().get(1);
-    assertTrue(l1RightLeft instanceof BeamSqlInputRefExpression);
-    assertTrue(l1RightRight instanceof BeamSqlPrimitive);
-  }
-
-  @Test
-  public void testBeamProjectRel() {
-    BeamRelNode relNode =
-        new BeamProjectRel(
-            cluster,
-            RelTraitSet.createEmpty(),
-            relBuilder.values(relDataType, 1234567L, 0, 8.9, null).build(),
-            rexBuilder.identityProjects(relDataType),
-            relDataType);
-    BeamSqlFnExecutor executor = new BeamSqlFnExecutor(relNode);
-
-    executor.prepare();
-    Assert.assertEquals(5, executor.exps.size());
-    assertTrue(executor.exps.get(0) instanceof BeamSqlInputRefExpression);
-    assertTrue(executor.exps.get(1) instanceof BeamSqlInputRefExpression);
-    assertTrue(executor.exps.get(2) instanceof BeamSqlInputRefExpression);
-    assertTrue(executor.exps.get(3) instanceof BeamSqlInputRefExpression);
-    assertTrue(executor.exps.get(4) instanceof BeamSqlInputRefExpression);
-  }
 
   @Test
   public void testBuildExpression_logical() {
