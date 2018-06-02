@@ -63,6 +63,15 @@ To prepare for each release, you should audit the project status in the JIRA iss
 
 You need to have a GPG key to sign the release artifacts. Please be aware of the ASF-wide [release signing guidelines](https://www.apache.org/dev/release-signing.html). If you don’t have a GPG key associated with your Apache account, please create one according to the guidelines.
 
+Get more entropy for creating a GPG key
+
+    sudo apt-get install rng-tools
+    sudo rngd -r /dev/urandom
+
+Create a GPG key
+    
+    gpg --full-generate-key
+
 Determine your Apache GPG Key and Key ID, as follows:
 
     gpg --list-keys
@@ -128,6 +137,8 @@ Release manager needs to have an account with PyPI. If you need one, [register a
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
 
+Attention: Only committer has permission to perform this.
+
 1. In JIRA, navigate to the [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
 1. Add a new release: choose the next minor version number compared to the one currently underway, select today’s date as the `Start Date`, and choose `Add`.
 
@@ -158,7 +169,52 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Verify that a Release Build Works
 
-From a new workspace, run `git clean -fdx` to clean, and then `./gradlew -PisRelease build --no-parallel` to ensure that the build processes necessary for release are in good shape.
+Pre-installation for python build
+* Install pip
+  
+  ```
+  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+  python get-pip.py
+  ```
+* Install virtualenv
+
+  ```
+  pip install --upgrade virtualenv
+  ```
+* Cython
+
+  ```
+  sudo pip install cython
+  sudo apt-get install gcc
+  sudo apt-get install python-dev
+  ```
+Make sure your ```time``` alias to ```/usr/bin/time```, if not:
+
+```
+sudo apt-get install time
+alias time='/usr/bin/time'
+```
+
+Run gradle release build
+
+* Clean current workspace
+
+  ```
+  git clean -fdx 
+  ./gradlew clean
+  ```
+
+* Unlock the secret key
+  ```
+  gpg --output ~/doc.sig --sign ~/.bashrc
+  ```
+
+* Run build command
+  ```
+  ./gradlew build -PisRelease --no-parallel --scan --stacktrace
+  ```
+  
+From a new workspace, run `git clean -fdx` and `./gradlew clean` to clean, and then `./gradlew -PisRelease build --no-parallel` to ensure that the build processes necessary for release are in good shape.
 
 ### Update and Verify Javadoc
 
@@ -177,7 +233,9 @@ Javadoc to the Javadoc for other modules that Beam depends on.
   the version number has changed, download a new version of the corresponding
   `<module>-docs/package-list` file.
 
-### Create a release branch
+### Create a release branch in apache/beam repository
+
+Attention: Only committer has permission to create release branch in apache/beam.
 
 Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
 
@@ -223,21 +281,25 @@ The rest of this guide assumes that commands are run in the root of a repository
 
 ### Update the Python SDK version
 
-In the release branch, update the Python SDK version to the release version (e.g. `1.2.3.dev` to `1.2.3`).
+Update [sdks/python/apache_beam/version.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) in both master branch and release branch.
+
+* In the master branch, change the Python SDK version to the next dev version(e.g, `2.5.0-dev` to `2.6.0-dev`).
+
+* In the release branch, update the Python SDK version to the release version(e.g. `2.5.0-dev` to `2.5.0`).
 
 ### Update release specific configurations
 
-1. Update archetypes:
-   [example](https://github.com/apache/beam/commit/d375cfa126fd7be9eeeec34f39c2b9b856f324bf)
-2. Update runner specific configurations:
+Update runner specific configurations:
    [example](https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d)
 
 ### Start a snapshot build
 
-Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/).
+Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the `master` branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.
+
+Comment  ```Run Gradle Publish``` in one pull request to trigger build.
 
 ### Checklist to proceed to the next step
 
@@ -259,12 +321,15 @@ so builds will be broken until a new snapshot is available.
 
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
-### Build and stage Java artifacts with Maven
+### Build and stage Java artifacts with Gradle
 
 Set up a few environment variables to simplify the commands that follow. These identify the release candidate being built, and the branch where you will stage files. Start with `RC_NUM` equal to `1` and increment it for each candidate.
 
     RC_NUM=1
 
+Make sure your git config will maintain your account:
+    
+    git config credential.helper store
 
 Use Gradle release plugin to build the release artifacts, and push code and
 release tag to the origin repository (this would be the Apache Beam repo):
@@ -282,6 +347,8 @@ Review all staged artifacts. They should contain all relevant parts for each mod
 Close the staging repository on Apache Nexus. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
 
 ### Stage source release on dist.apache.org
+
+Attention: Only committer has permissions to perform following steps.
 
 Copy the source release to the dev repository of `dist.apache.org`.
 
@@ -313,6 +380,12 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 ### Build the Pydoc API reference
 
+Make sure you have ```tox``` installed: 
+
+```
+pip install tox
+
+```
 Create the Python SDK documentation using sphinx by running a helper script.
 ```
 cd sdks/python && tox -e docs
