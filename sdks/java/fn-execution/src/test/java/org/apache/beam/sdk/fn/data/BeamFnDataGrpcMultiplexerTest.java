@@ -80,7 +80,7 @@ public class BeamFnDataGrpcMultiplexerTest {
           // Purposefully sleep to simulate a delay in a consumer connecting.
           Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
           multiplexer.registerConsumer(OUTPUT_LOCATION, inboundValues::add);
-        });
+        }).get();
     multiplexer.getInboundObserver().onNext(ELEMENTS);
     assertTrue(multiplexer.hasConsumer(OUTPUT_LOCATION));
     // Ensure that when we see a terminal Elements object, we remove the consumer
