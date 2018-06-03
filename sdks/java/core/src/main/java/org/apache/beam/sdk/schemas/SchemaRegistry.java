@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -39,7 +40,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>TODO: Provide support for schemas registered via a ServiceLoader interface. This will allow
  * optional modules to register schemas as well.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public class SchemaRegistry {
   private static class SchemaEntry<T> {
     Schema schema;

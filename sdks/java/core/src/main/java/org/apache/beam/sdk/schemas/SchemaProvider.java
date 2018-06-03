@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * a {@link Schema} for a specific type. One example use: creating a {@link SchemaProvider} that
  * contacts an external schema-registry service to determine the schema for a type.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public abstract class SchemaProvider {
 
   /**
