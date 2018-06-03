@@ -153,7 +153,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     if (rowParameter != null) {
       checkArgument(schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
-      + "DoFn " + fn.getClass() + " Coder " + inputCoder.getClass());
+      + "DoFn " + fn.getClass() + " Coder " + inputCoder.getClass().getSimpleName());
       String id = rowParameter.fieldAccessId();
       if (id == null) {
         // This is the case where no FieldId is defined, just an @Element Row row. Default to all
