@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.values.Row;
 /**
  * {@link SchemaCoder} is used as the coder for types that have schemas registered.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
   private Schema schema;
   private RowCoder rowCoder;

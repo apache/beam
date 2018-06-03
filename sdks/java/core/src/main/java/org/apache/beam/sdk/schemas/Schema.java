@@ -34,11 +34,15 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
-/** {@link Schema} describes the fields in {@link Row}. */
-@Experimental
+/**
+ * {@link Schema} describes the fields in {@link Row}.
+ *
+ */
+@Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // A mapping between field names an indices.
   private BiMap<String, Integer> fieldIndices = HashBiMap.create();

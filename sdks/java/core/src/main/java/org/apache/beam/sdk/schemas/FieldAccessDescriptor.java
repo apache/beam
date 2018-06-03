@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
  * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
  * type need to be accessed for processing.
  */
+@Experimental(Kind.SCHEMAS)
 public class FieldAccessDescriptor implements Serializable {
   private boolean allFields;
   private Set<Integer> fieldIdsAccessed;

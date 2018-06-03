@@ -25,6 +25,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
@@ -290,7 +291,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    * Sets a {@link Schema} on this {@link PCollection}. This is a wrapper around
    * {@link #setCoder(Coder)}.
    */
-  @Experimental
+  @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
