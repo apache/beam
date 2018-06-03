@@ -57,7 +57,7 @@ from apache_beam.utils import retry
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '1'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
 
 
 class Step(object):
