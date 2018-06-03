@@ -55,6 +55,7 @@ public class SchemaRegistry {
       this.fromRow = fromRow;
     }
   }
+  
   Map<TypeDescriptor, SchemaEntry> entries = Maps.newHashMap();
   List<SchemaProvider> providers = Lists.newArrayList();
 
@@ -103,9 +104,10 @@ public class SchemaRegistry {
   }
 
 
-  private <R> R getProviderResult(Function<SchemaProvider, R> f) throws NoSuchSchemaException {
+  private <ReturnT> ReturnT getProviderResult(Function<SchemaProvider, ReturnT> f)
+      throws NoSuchSchemaException {
     for (SchemaProvider provider : providers) {
-      R result = f.apply(provider);
+      ReturnT result = f.apply(provider);
       if (result != null) {
         return result;
       }

@@ -870,15 +870,18 @@ public class DoFnSignatures {
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
     } else if (rawType.equals(OutputReceiver.class)) {
-      boolean rowReceiver = paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)));
-      if (!rowReceiver) {
+      // It's a schemad row receiver if it's an OutputReceiver<Row> _and_ the output type is not
+      // already Row.
+      boolean schemaRowReceiver = paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
+          && !outputT.equals(TypeDescriptor.of(Row.class));
+      if (!schemaRowReceiver) {
         TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
         paramErrors.checkArgument(
             paramT.equals(expectedReceiverT),
             "OutputReceiver should be parameterized by %s",
             outputT);
       }
-      return Parameter.outputReceiverParameter(rowReceiver);
+      return Parameter.outputReceiverParameter(schemaRowReceiver);
     }  else if (rawType.equals(MultiOutputReceiver.class)) {
       return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {

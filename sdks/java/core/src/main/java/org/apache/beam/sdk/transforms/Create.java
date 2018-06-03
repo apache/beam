@@ -762,7 +762,8 @@ public class Create<T> {
     } else if (o instanceof Set) {
       return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Collection) {
-      return CollectionCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return CollectionCoder.of(inferCoderFromObjects(
+          coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Iterable) {
       return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Map) {

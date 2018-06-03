@@ -433,6 +433,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  /**
+   * Annotation for specifying specific fields that are accessed in a Schema PCollection.
+   */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.SCHEMAS)
