@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -50,6 +52,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -59,6 +63,7 @@ import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
@@ -391,6 +396,25 @@ public class CreateTest {
     Create.Values<Record> values =
         Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
+  }
+
+  private static final Schema STRING_SCHEMA = Schema.builder().addStringField("field").build();
+  @Test
+  public void testCreateRegisteredSchema() {
+    p.getSchemaRegistry().registerSchemaForClass(String.class, STRING_SCHEMA,
+        s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
+        r -> r.getString("field"));
+    PCollection<String> out = p.apply(Create.of("a", "b", "c", "d"));
+    assertThat(out.getCoder(), instanceOf(SchemaCoder.class));
+  }
+
+  @Test
+  public void testCreateExplicitSchema() {
+    PCollection<String> out = p.apply(Create.of("a", "b", "c", "d")
+        .withSchema(STRING_SCHEMA,
+            s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
+            r -> r.getString("field")));
+    assertThat(out.getCoder(), instanceOf(SchemaCoder.class));
   }
 
   @Test
