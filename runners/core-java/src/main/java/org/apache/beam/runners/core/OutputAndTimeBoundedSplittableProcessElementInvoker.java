@@ -123,7 +123,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
-          public Row asRow(DoFn<InputT,OutputT> doFn) {
+          public Row asRow(@Nullable String id) {
             throw new UnsupportedOperationException("Not supported in SplittableDoFn");
           }
 

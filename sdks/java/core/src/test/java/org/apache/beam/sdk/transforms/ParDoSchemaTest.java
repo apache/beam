@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -222,6 +223,36 @@ public class ParDoSchemaTest implements Serializable {
         .apply("second", ParDo.of(new DoFn<MyPojo, String>() {
           @ProcessElement
           public void process(@Element Row row, OutputReceiver<String> r) {
+            r.output(row.getString(0) + ":" + row.getInt32(1));
+          }
+        }));
+    PAssert.that(output)
+        .containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFieldAccessSchemaPipeline() {
+    List<MyPojo> pojoList = Lists.newArrayList(
+        new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
+
+    Schema schema = Schema.builder()
+        .addStringField("string_field")
+        .addInt32Field("integer_field")
+        .build();
+
+    PCollection<String> output = pipeline
+        .apply(Create.of(pojoList)
+            .withSchema(schema,
+                o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
+                r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
+        .apply(ParDo.of(new DoFn<MyPojo, String>() {
+          @FieldAccess("foo")
+          final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withAllFields();
+
+          @ProcessElement
+          public void process(@FieldAccess("foo") Row row, OutputReceiver<String> r) {
             r.output(row.getString(0) + ":" + row.getInt32(1));
           }
         }));

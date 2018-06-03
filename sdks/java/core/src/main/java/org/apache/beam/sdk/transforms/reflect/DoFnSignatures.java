@@ -41,6 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -140,6 +142,7 @@ public class DoFnSignatures {
 
     private final Map<String, StateDeclaration> stateDeclarations = new HashMap<>();
     private final Map<String, TimerDeclaration> timerDeclarations = new HashMap<>();
+    private final Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
 
     private FnAnalysisContext() {}
 
@@ -156,6 +159,12 @@ public class DoFnSignatures {
     /** Timer parameters declared in this context, keyed by {@link TimerId}. Unmodifiable. */
     public Map<String, TimerDeclaration> getTimerDeclarations() {
       return Collections.unmodifiableMap(timerDeclarations);
+    }
+
+    /** Field access declaration declared in this context. */
+    @Nullable
+    public Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
+      return fieldAccessDeclarations;
     }
 
     public void addStateDeclaration(StateDeclaration decl) {
@@ -175,6 +184,16 @@ public class DoFnSignatures {
     public void addTimerDeclarations(Iterable<TimerDeclaration> decls) {
       for (TimerDeclaration decl : decls) {
         addTimerDeclaration(decl);
+      }
+    }
+
+    public void addFieldAccessDeclaration(FieldAccessDeclaration decl) {
+      fieldAccessDeclarations.put(decl.id(), decl);
+    }
+
+    public void addFieldAccessDeclarations(Iterable<FieldAccessDeclaration> decls) {
+      for (FieldAccessDeclaration decl : decls) {
+        addFieldAccessDeclaration(decl);
       }
     }
   }
@@ -308,6 +327,7 @@ public class DoFnSignatures {
     FnAnalysisContext fnContext = FnAnalysisContext.create();
     fnContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
     fnContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
+    fnContext.addFieldAccessDeclarations(analyzeFieldAccessDeclaration(errors, fnClass).values());
 
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
@@ -427,6 +447,7 @@ public class DoFnSignatures {
 
     signatureBuilder.setStateDeclarations(fnContext.getStateDeclarations());
     signatureBuilder.setTimerDeclarations(fnContext.getTimerDeclarations());
+    signatureBuilder.setFieldAccessDeclarations(fnContext.getFieldAccessDeclarations());
 
     DoFnSignature signature = signatureBuilder.build();
 
@@ -813,7 +834,9 @@ public class DoFnSignatures {
 
     if (hasElementAnnotation(param.getAnnotations())) {
       if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
-        return Parameter.rowParameter(FieldAccessDescriptor.withAllFields());
+        // a null id means that there is no registered FieldAccessDescriptor, so we should default
+        // to all fields.
+        return Parameter.rowParameter(null);
       } else {
         methodErrors.checkArgument(paramT.equals(inputT),
             "@Element argument must have type %s", inputT);
@@ -941,6 +964,18 @@ public class DoFnSignatures {
           stateDecl.field().getDeclaringClass().getName());
 
       return Parameter.stateParameter(stateDecl);
+    } else if (rawType.equals(Row.class)) {
+      String id = getFieldAccessId(param.getAnnotations());
+      paramErrors.checkArgument(
+          id != null,
+          "missing %s annotation",
+          DoFn.FieldAccess.class.getSimpleName());
+      FieldAccessDeclaration fieldAccessDeclaration =
+          fnContext.getFieldAccessDeclarations().get(id);
+      paramErrors.checkArgument(
+          fieldAccessDeclaration != null,
+          "No FieldAccessDescriptor defined.");
+      return Parameter.rowParameter(id);
     } else {
       List<String> allowedParamTypes =
           Arrays.asList(
@@ -956,22 +991,27 @@ public class DoFnSignatures {
 
   @Nullable
   private static String getTimerId(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.TimerId.class)) {
-        return ((DoFn.TimerId) anno).value();
-      }
-    }
-    return null;
+    DoFn.TimerId stateId = findFirstOfType(annotations, DoFn.TimerId.class);
+    return stateId != null ? stateId.value() : null;
   }
 
   @Nullable
   private static String getStateId(List<Annotation> annotations) {
-    for (Annotation anno : annotations) {
-      if (anno.annotationType().equals(DoFn.StateId.class)) {
-        return ((DoFn.StateId) anno).value();
-      }
-    }
-    return null;
+    DoFn.StateId stateId = findFirstOfType(annotations, DoFn.StateId.class);
+    return stateId != null ? stateId.value() : null;
+  }
+
+  @Nullable
+  private static String getFieldAccessId(List<Annotation> annotations) {
+    DoFn.FieldAccess access = findFirstOfType(annotations, DoFn.FieldAccess.class);
+    return access != null ? access.value() : null;
+  }
+
+  @Nullable
+  static <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
+    Optional<Annotation> annotation =
+        annotations.stream().filter(a -> a.annotationType().equals(clazz)).findFirst();
+    return annotation.isPresent() ? (T) annotation.get() : null;
   }
 
   private static boolean hasElementAnnotation(List<Annotation> annotations) {
@@ -1263,6 +1303,35 @@ public class DoFnSignatures {
       }
     }
     return matches;
+  }
+
+  private static Map<String, DoFnSignature.FieldAccessDeclaration> analyzeFieldAccessDeclaration(
+      ErrorReporter errors,
+      Class<?> fnClazz) {
+    Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
+    for (Field field : declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
+      field.setAccessible(true);
+      DoFn.FieldAccess fieldAccessAnnotation = field.getAnnotation(DoFn.FieldAccess.class);
+      if (!Modifier.isFinal(field.getModifiers())) {
+        errors.throwIllegalArgument(
+            "Non-final field %s annotated with %s. Field access declarations must be final.",
+            field.toString(),
+            DoFn.FieldAccess.class.getSimpleName());
+        continue;
+      }
+      Class<?> fieldAccessRawType = field.getType();
+      if (!fieldAccessRawType.equals(FieldAccessDescriptor.class)) {
+        errors.throwIllegalArgument(
+            "Field %s annotated with %s, but the value was not of type %s",
+            field.toString(),
+            DoFn.FieldAccess.class.getSimpleName(),
+            FieldAccessDescriptor.class.getSimpleName());
+      }
+      fieldAccessDeclarations.put(
+          fieldAccessAnnotation.value(),
+          FieldAccessDeclaration.create(fieldAccessAnnotation.value(), field));
+    }
+    return fieldAccessDeclarations;
   }
 
   private static Map<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(

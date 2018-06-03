@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -139,7 +140,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * Provides a link to the input element converted to a {@link Row} object. The input
      * collection must have a schema registered for this to be called.
      */
-    Row asRow(DoFn<InputT, OutputT> doFn);
+    Row asRow(@Nullable String id);
 
     /** Provide a link to the time domain for a timer firing.
      */
@@ -193,7 +194,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
