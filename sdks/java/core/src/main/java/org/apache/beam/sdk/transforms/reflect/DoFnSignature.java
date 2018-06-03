@@ -87,6 +87,10 @@ public abstract class DoFnSignature {
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
 
+  /** Field access declaration. */
+  @Nullable
+  public abstract Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
+
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
   @Nullable
   public abstract GetInitialRestrictionMethod getInitialRestriction();
@@ -154,6 +158,9 @@ public abstract class DoFnSignature {
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+
+    abstract Builder setFieldAccessDeclarations(
+        Map<String, FieldAccessDeclaration> fieldAccessDeclaration);
 
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
 
@@ -384,8 +391,8 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
-    public static RowParameter rowParameter(FieldAccessDescriptor fieldAccessDescriptor) {
-      return new AutoValue_DoFnSignature_Parameter_RowParameter(fieldAccessDescriptor);
+    public static RowParameter rowParameter(@Nullable  String id) {
+      return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
     }
 
     public static TimestampParameter timestampParameter() {
@@ -495,7 +502,8 @@ public abstract class DoFnSignature {
     public abstract static class RowParameter extends  Parameter {
       RowParameter() { }
 
-      public abstract FieldAccessDescriptor fieldAccessDescriptor();
+      @Nullable
+      public abstract String fieldAccessId();
     }
 
     /**
@@ -681,13 +689,12 @@ public abstract class DoFnSignature {
      * {@link org.apache.beam.sdk.values.Row} object.
      */
     @Nullable
-    public FieldAccessDescriptor getFieldAccessDescriptor() {
+    public RowParameter getRowParameter() {
       Optional<Parameter> parameter = extraParameters()
           .stream()
           .filter(Predicates.instanceOf(RowParameter.class)::apply)
           .findFirst();
-      return parameter.isPresent() ? ((RowParameter) parameter.get()).fieldAccessDescriptor()
-          : null;
+      return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
     }
 
     /**
@@ -785,6 +792,22 @@ public abstract class DoFnSignature {
         String id, Field field, TypeDescriptor<? extends State> stateType) {
       field.setAccessible(true);
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
+    }
+  }
+
+  /**
+   * Decscribes a field access declation. This is used when the input {@link PCollection} has an
+   * associated schema, to specify exactly which fields in the row are accessed. Any fields not
+   * specified are not guaranteed to be present when reading the row.
+   */
+  @AutoValue
+  public abstract static class FieldAccessDeclaration {
+    public abstract String id();
+    public abstract Field field();
+
+    static FieldAccessDeclaration create(String id, Field field) {
+     field.setAccessible(true);
+     return new AutoValue_DoFnSignature_FieldAccessDeclaration(id, field);
     }
   }
 

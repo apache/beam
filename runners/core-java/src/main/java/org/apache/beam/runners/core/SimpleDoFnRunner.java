@@ -46,6 +46,8 @@ import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -141,13 +143,36 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.outputTags =
         Sets.newHashSet(FluentIterable.<TupleTag<?>>of(mainOutputTag).append(additionalOutputTags));
     this.stepContext = stepContext;
-    DoFnSignature.ProcessElementMethod processElementMethod =
-        DoFnSignatures.getSignature(fn.getClass()).processElement();
-    FieldAccessDescriptor fieldAccessDescriptor = processElementMethod.getFieldAccessDescriptor();
-    if (fieldAccessDescriptor != null) {
+
+    // Currently we only support a single FieldAccess on a processElement. We should decide
+    // whether to get rid of the FieldAccess ids, or find a use for multiple.
+    DoFnSignature doFnSignature = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignature.ProcessElementMethod processElementMethod = doFnSignature.processElement();
+    RowParameter rowParameter = processElementMethod.getRowParameter();
+    FieldAccessDescriptor fieldAccessDescriptor = null;
+    if (rowParameter != null) {
       checkArgument(schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
       + "DoFn " + fn.getClass() + " Coder " + inputCoder.getClass());
+      String id = rowParameter.fieldAccessId();
+      if (id == null) {
+        // This is the case where no FieldId is defined, just an @Element Row row. Default to all
+        // fields accessed.
+        fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
+      } else {
+        // In this case, we expect to have a FieldAccessDescriptor defined in the class.
+        FieldAccessDeclaration fieldAccessDeclaration =
+            doFnSignature.fieldAccessDeclarations().get(id);
+        checkArgument(fieldAccessDeclaration != null,
+            "No FieldAccessDescriptor defined with id", id);
+        checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
+        try {
+          fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(fn);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      // Resolve the FieldAccessDescriptor. This converts all field names into field ids.
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;
@@ -310,7 +335,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -424,7 +449,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -642,7 +667,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       checkState(fieldAccessDescriptor.allFields());
      return schemaCoder.getToRowFunction().apply(element());
     }
@@ -792,7 +817,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }

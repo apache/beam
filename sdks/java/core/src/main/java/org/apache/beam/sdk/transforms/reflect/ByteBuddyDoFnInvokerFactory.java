@@ -50,6 +50,7 @@ import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
@@ -609,11 +610,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(RowParameter p) {
+            StackManipulation parameter = (p.fieldAccessId() == null)
+                ? NullConstant.INSTANCE : new TextConstant(p.fieldAccessId());
             return new StackManipulation.Compound(
-                pushDelegate,
+                parameter,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        ROW_PARAMETER_METHOD, DoFn.class)));
+                    getExtraContextFactoryMethodDescription(ROW_PARAMETER_METHOD, String.class)));
           }
 
           @Override

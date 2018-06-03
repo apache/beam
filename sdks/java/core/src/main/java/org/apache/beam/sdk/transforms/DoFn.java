@@ -433,6 +433,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.SCHEMAS)
+  public @interface FieldAccess {
+    String value();
+  }
+
   /**
    * Annotation for registering a callback for a timer.
    *

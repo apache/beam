@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -172,7 +173,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     if (rowParameter != null) {
       checkArgument(schemaCoder != null,
           "Cannot access object as a row if the input PCollection does not have a schema ."
-              + "DoFn " + context.doFn.getClass() + " Coder " + context.inputCoder.getClass());
+              + "DoFn " + doFn.getClass() + " Coder " + inputCoder.getClass());
       String id = rowParameter.fieldAccessId();
       if (id == null) {
         // This is the case where no FieldId is defined, just an @Element Row row. Default to all
@@ -196,6 +197,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;
+
   }
 
   @Override
