@@ -39,7 +39,7 @@ public class DoFnOutputReceivers {
                              @Nullable TupleTag<T> outputTag,
                              SchemaCoder<T> schemaCoder) {
       outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
-      this.schemaCoder = schemaCoder;
+      this.schemaCoder = checkNotNull(schemaCoder);
     }
 
     @Override

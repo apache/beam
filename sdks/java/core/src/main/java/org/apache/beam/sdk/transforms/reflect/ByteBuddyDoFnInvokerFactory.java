@@ -638,8 +638,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(OutputReceiverParameter p) {
-            String method = p.isRowReceiver() ?
-                OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
+            String method = p.isRowReceiver()
+                ? OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(

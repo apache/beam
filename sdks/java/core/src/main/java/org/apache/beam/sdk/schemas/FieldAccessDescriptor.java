@@ -176,7 +176,7 @@ public class FieldAccessDescriptor implements Serializable {
   }
 
   private Set<Integer> resolveFieldIdsAccessed(Schema schema) {
-    Set<Integer> fieldIds = Sets.newHashSet(fieldIdsAccessed.size());
+    Set<Integer> fieldIds = Sets.newHashSetWithExpectedSize(fieldIdsAccessed.size());
     for (int fieldId : fieldIdsAccessed) {
       fieldIds.add(validateFieldId(schema, fieldId));
     }
