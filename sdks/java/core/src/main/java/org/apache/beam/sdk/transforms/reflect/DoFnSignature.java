@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -695,6 +696,18 @@ public abstract class DoFnSignature {
           .filter(Predicates.instanceOf(RowParameter.class)::apply)
           .findFirst();
       return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
+    }
+
+    /**
+     * The {@link OutputReceiverParameter} for a main output, or null if there is none.
+     */
+    @Nullable
+    public OutputReceiverParameter getMainOutputReceiver() {
+      Optional<Parameter> parameter = extraParameters()
+          .stream()
+          .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
+          .findFirst();
+      return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
     }
 
     /**

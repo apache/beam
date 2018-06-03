@@ -835,7 +835,8 @@ public class DoFnSignatures {
     if (hasElementAnnotation(param.getAnnotations())) {
       if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
         // a null id means that there is no registered FieldAccessDescriptor, so we should default
-        // to all fields.
+        // to all fields. If the input type of the DoFn is already Row, then no need to do
+        // anything special.
         return Parameter.rowParameter(null);
       } else {
         methodErrors.checkArgument(paramT.equals(inputT),

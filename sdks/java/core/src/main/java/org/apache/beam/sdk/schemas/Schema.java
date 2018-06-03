@@ -530,7 +530,8 @@ public class Schema implements Serializable {
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
     if (index == null) {
-      throw new IllegalArgumentException(String.format("Cannot find field %s", fieldName));
+      throw new IllegalArgumentException(String.format("Cannot find field %s in schema %s",
+          fieldName, this));
     }
     return index;
   }

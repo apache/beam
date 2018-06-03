@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -43,6 +44,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public transient ExpectedException thrown = ExpectedException.none();
 
   static class MyPojo implements Serializable {
     MyPojo(String stringField, Integer integerField) {
@@ -259,5 +262,43 @@ public class ParDoSchemaTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder("a:1", "b:2", "c:3");
     pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testNoSchema() {
+    thrown.expect(IllegalArgumentException.class);
+    pipeline.apply(Create.of("a", "b", "c"))
+        .apply(ParDo.of(new DoFn<String, Void>() {
+          @ProcessElement
+          public void process(@Element Row row) {
+          }}));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnmatchedSchema() {
+    List<MyPojo> pojoList = Lists.newArrayList(
+        new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
+
+    Schema schema = Schema.builder()
+        .addStringField("string_field")
+        .addInt32Field("integer_field")
+        .build();
+
+    thrown.expect(IllegalArgumentException.class);
+    pipeline
+        .apply(Create.of(pojoList)
+            .withSchema(schema,
+                o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
+                r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
+        .apply(ParDo.of(new DoFn<MyPojo, Void>() {
+          @FieldAccess("a")
+          FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames("baad");
+
+          @ProcessElement
+          public void process(@FieldAccess("a") Row row) {
+          }
+        }));
   }
 }

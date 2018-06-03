@@ -176,14 +176,17 @@ public class FieldAccessDescriptor implements Serializable {
   }
 
   private Set<Integer> resolveFieldIdsAccessed(Schema schema) {
-    Set<Integer> fieldsIds = Sets.newHashSet(fieldIdsAccessed);
+    Set<Integer> fieldIds = Sets.newHashSet(fieldIdsAccessed.size());
+    for (int fieldId : fieldIdsAccessed) {
+      fieldIds.add(validateFieldId(schema, fieldId));
+    }
     if (!fieldNamesAccessed.isEmpty()) {
-      fieldsIds.addAll(
+      fieldIds.addAll(
           StreamSupport.stream(fieldNamesAccessed.spliterator(), false)
               .map(name -> schema.indexOf(name))
               .collect(Collectors.toList()));
     }
-    return fieldsIds;
+    return fieldIds;
   }
 
   private Schema getFieldSchema(Field field) {
@@ -219,9 +222,17 @@ public class FieldAccessDescriptor implements Serializable {
     nestedFields.putAll(
         nestedFieldsAccessedById.entrySet().stream()
         .collect(Collectors.toMap(
-            e -> e.getKey(),
+            e -> validateFieldId(schema, e.getKey()),
             e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
 
     return nestedFields;
+  }
+
+  private int validateFieldId(Schema schema, int fieldId) {
+    if (fieldId < 0 || fieldId >= schema.getFieldCount()) {
+      throw new IllegalArgumentException(
+          "Invalid field id " + fieldId + " for schema " + schema);
+    }
+    return fieldId;
   }
 }
