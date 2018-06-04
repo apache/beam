@@ -136,8 +136,11 @@ public class BeamSqlEnv {
     return connection.createPrepareContext();
   }
 
-  public String explain(String sqlString)
-      throws SqlParseException, RelConversionException, ValidationException {
-    return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+  public String explain(String sqlString) throws ParseException {
+    try {
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
+      throw new ParseException("Unable to parse statement", e);
+    }
   }
 }
