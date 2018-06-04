@@ -69,12 +69,16 @@ message PrepareJobRequest {
 
 message PrepareJobResponse {
   // (required) The ID used to associate calls made while preparing the job. preparationId is used
-  // to run the job, as well as in other pre-execution APIs such as Artifact staging.
+  // to run the job.
   string preparation_id = 1;
 
   // An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
   // staged to this endpoint, and will be available during job execution.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_staging_endpoint = 2;
+
+  // (required) Token for the artifact staging. This token also represent an artifact
+  // staging session with the artifact staging service.
+  string staging_session_token = 3;
 }
 
 

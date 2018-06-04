@@ -38,17 +38,21 @@ class PortableStager(Stager):
   thread safety.
   """
 
-  def __init__(self, artifact_service_channel):
+  def __init__(self, artifact_service_channel, staging_session_token):
     """Creates a new Stager to stage file to ArtifactStagingService.
 
     Args:
       artifact_service_channel: Channel used to interact with
-        ArtifactStagingService.User owns the channel and should close it when
+        ArtifactStagingService. User owns the channel and should close it when
         finished.
+      staging_session_token: A token to stage artifacts on
+        ArtifactStagingService. The token is provided by the JobService prepare
+        call.
     """
     super(PortableStager, self).__init__()
     self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
         ArtifactStagingServiceStub(channel=artifact_service_channel)
+    self._staging_session_token = staging_session_token
     self._artifacts = []
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
@@ -64,7 +68,11 @@ class PortableStager(Stager):
           .format(local_path_to_artifact))
 
     def artifact_request_generator():
-      metadata = beam_artifact_api_pb2.ArtifactMetadata(name=artifact_name)
+      artifact_metadata = beam_artifact_api_pb2.ArtifactMetadata(
+          name=artifact_name)
+      metadata = beam_artifact_api_pb2.PutArtifactMetadata(
+          staging_session_token=self._staging_session_token,
+          metadata=artifact_metadata)
       request = beam_artifact_api_pb2.PutArtifactRequest(metadata=metadata)
       yield request
       with open(local_path_to_artifact, 'rb') as f:
@@ -75,7 +83,7 @@ class PortableStager(Stager):
           request = beam_artifact_api_pb2.PutArtifactRequest(
               data=beam_artifact_api_pb2.ArtifactChunk(data=chunk))
           yield request
-      self._artifacts.append(metadata)
+      self._artifacts.append(artifact_metadata)
 
     self._artifact_staging_stub.PutArtifact(artifact_request_generator())
 
@@ -83,4 +91,6 @@ class PortableStager(Stager):
     manifest = beam_artifact_api_pb2.Manifest(artifact=self._artifacts)
     self._artifacts = []
     self._artifact_staging_stub.CommitManifest(
-        beam_artifact_api_pb2.CommitManifestRequest(manifest=manifest))
+        beam_artifact_api_pb2.CommitManifestRequest(
+            manifest=manifest,
+            staging_session_token=self._staging_session_token))

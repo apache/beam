@@ -6,7 +6,7 @@ package fnexecution_v1
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import google_protobuf4 "github.com/golang/protobuf/ptypes/struct"
+import _struct "github.com/golang/protobuf/ptypes/struct"
 
 import (
 	context "golang.org/x/net/context"
@@ -18,24 +18,74 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 // A request to get the provision info of a SDK harness worker instance.
 type GetProvisionInfoRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetProvisionInfoRequest) Reset()                    { *m = GetProvisionInfoRequest{} }
-func (m *GetProvisionInfoRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetProvisionInfoRequest) ProtoMessage()               {}
-func (*GetProvisionInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (m *GetProvisionInfoRequest) Reset()         { *m = GetProvisionInfoRequest{} }
+func (m *GetProvisionInfoRequest) String() string { return proto.CompactTextString(m) }
+func (*GetProvisionInfoRequest) ProtoMessage()    {}
+func (*GetProvisionInfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{0}
+}
+func (m *GetProvisionInfoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetProvisionInfoRequest.Unmarshal(m, b)
+}
+func (m *GetProvisionInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetProvisionInfoRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetProvisionInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetProvisionInfoRequest.Merge(dst, src)
+}
+func (m *GetProvisionInfoRequest) XXX_Size() int {
+	return xxx_messageInfo_GetProvisionInfoRequest.Size(m)
+}
+func (m *GetProvisionInfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetProvisionInfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetProvisionInfoRequest proto.InternalMessageInfo
 
 // A response containing the provision info of a SDK harness worker instance.
 type GetProvisionInfoResponse struct {
-	Info *ProvisionInfo `protobuf:"bytes,1,opt,name=info" json:"info,omitempty"`
+	Info                 *ProvisionInfo `protobuf:"bytes,1,opt,name=info" json:"info,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *GetProvisionInfoResponse) Reset()                    { *m = GetProvisionInfoResponse{} }
-func (m *GetProvisionInfoResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetProvisionInfoResponse) ProtoMessage()               {}
-func (*GetProvisionInfoResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (m *GetProvisionInfoResponse) Reset()         { *m = GetProvisionInfoResponse{} }
+func (m *GetProvisionInfoResponse) String() string { return proto.CompactTextString(m) }
+func (*GetProvisionInfoResponse) ProtoMessage()    {}
+func (*GetProvisionInfoResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{1}
+}
+func (m *GetProvisionInfoResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetProvisionInfoResponse.Unmarshal(m, b)
+}
+func (m *GetProvisionInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetProvisionInfoResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetProvisionInfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetProvisionInfoResponse.Merge(dst, src)
+}
+func (m *GetProvisionInfoResponse) XXX_Size() int {
+	return xxx_messageInfo_GetProvisionInfoResponse.Size(m)
+}
+func (m *GetProvisionInfoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetProvisionInfoResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetProvisionInfoResponse proto.InternalMessageInfo
 
 func (m *GetProvisionInfoResponse) GetInfo() *ProvisionInfo {
 	if m != nil {
@@ -51,20 +101,45 @@ type ProvisionInfo struct {
 	JobId string `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
 	// (required) The job name.
 	JobName string `protobuf:"bytes,2,opt,name=job_name,json=jobName" json:"job_name,omitempty"`
-	// (required) The worker ID.
+	// (required) The worker ID. Often this will be the hostname.
+	//
+	// This is independent of the id passed to the SDK harness via the 'id'
+	// argument in the Beam container contract.
 	WorkerId string `protobuf:"bytes,5,opt,name=worker_id,json=workerId" json:"worker_id,omitempty"`
 	// (required) Pipeline options. For non-template jobs, the options are
 	// identical to what is passed to job submission.
-	PipelineOptions *google_protobuf4.Struct `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
+	PipelineOptions *_struct.Struct `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
 	// (optional) Resource limits that the SDK harness worker should respect.
 	// Runners may -- but are not required to -- enforce any limits provided.
-	ResourceLimits *Resources `protobuf:"bytes,4,opt,name=resource_limits,json=resourceLimits" json:"resource_limits,omitempty"`
+	ResourceLimits       *Resources `protobuf:"bytes,4,opt,name=resource_limits,json=resourceLimits" json:"resource_limits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
-func (m *ProvisionInfo) Reset()                    { *m = ProvisionInfo{} }
-func (m *ProvisionInfo) String() string            { return proto.CompactTextString(m) }
-func (*ProvisionInfo) ProtoMessage()               {}
-func (*ProvisionInfo) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (m *ProvisionInfo) Reset()         { *m = ProvisionInfo{} }
+func (m *ProvisionInfo) String() string { return proto.CompactTextString(m) }
+func (*ProvisionInfo) ProtoMessage()    {}
+func (*ProvisionInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{2}
+}
+func (m *ProvisionInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProvisionInfo.Unmarshal(m, b)
+}
+func (m *ProvisionInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProvisionInfo.Marshal(b, m, deterministic)
+}
+func (dst *ProvisionInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProvisionInfo.Merge(dst, src)
+}
+func (m *ProvisionInfo) XXX_Size() int {
+	return xxx_messageInfo_ProvisionInfo.Size(m)
+}
+func (m *ProvisionInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProvisionInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProvisionInfo proto.InternalMessageInfo
 
 func (m *ProvisionInfo) GetJobId() string {
 	if m != nil {
@@ -87,7 +162,7 @@ func (m *ProvisionInfo) GetWorkerId() string {
 	return ""
 }
 
-func (m *ProvisionInfo) GetPipelineOptions() *google_protobuf4.Struct {
+func (m *ProvisionInfo) GetPipelineOptions() *_struct.Struct {
 	if m != nil {
 		return m.PipelineOptions
 	}
@@ -110,13 +185,35 @@ type Resources struct {
 	// (optional) CPU usage limits.
 	Cpu *Resources_Cpu `protobuf:"bytes,2,opt,name=cpu" json:"cpu,omitempty"`
 	// (optional) Disk size limits for the semi-persistent location.
-	SemiPersistentDisk *Resources_Disk `protobuf:"bytes,3,opt,name=semi_persistent_disk,json=semiPersistentDisk" json:"semi_persistent_disk,omitempty"`
+	SemiPersistentDisk   *Resources_Disk `protobuf:"bytes,3,opt,name=semi_persistent_disk,json=semiPersistentDisk" json:"semi_persistent_disk,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
 }
 
-func (m *Resources) Reset()                    { *m = Resources{} }
-func (m *Resources) String() string            { return proto.CompactTextString(m) }
-func (*Resources) ProtoMessage()               {}
-func (*Resources) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (m *Resources) Reset()         { *m = Resources{} }
+func (m *Resources) String() string { return proto.CompactTextString(m) }
+func (*Resources) ProtoMessage()    {}
+func (*Resources) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{3}
+}
+func (m *Resources) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Resources.Unmarshal(m, b)
+}
+func (m *Resources) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Resources.Marshal(b, m, deterministic)
+}
+func (dst *Resources) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resources.Merge(dst, src)
+}
+func (m *Resources) XXX_Size() int {
+	return xxx_messageInfo_Resources.Size(m)
+}
+func (m *Resources) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resources.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Resources proto.InternalMessageInfo
 
 func (m *Resources) GetMemory() *Resources_Memory {
 	if m != nil {
@@ -142,13 +239,35 @@ func (m *Resources) GetSemiPersistentDisk() *Resources_Disk {
 // Memory limits.
 type Resources_Memory struct {
 	// (optional) Hard limit in bytes. A zero value means unspecified.
-	Size uint64 `protobuf:"varint,1,opt,name=size" json:"size,omitempty"`
+	Size                 uint64   `protobuf:"varint,1,opt,name=size" json:"size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Resources_Memory) Reset()                    { *m = Resources_Memory{} }
-func (m *Resources_Memory) String() string            { return proto.CompactTextString(m) }
-func (*Resources_Memory) ProtoMessage()               {}
-func (*Resources_Memory) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3, 0} }
+func (m *Resources_Memory) Reset()         { *m = Resources_Memory{} }
+func (m *Resources_Memory) String() string { return proto.CompactTextString(m) }
+func (*Resources_Memory) ProtoMessage()    {}
+func (*Resources_Memory) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{3, 0}
+}
+func (m *Resources_Memory) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Resources_Memory.Unmarshal(m, b)
+}
+func (m *Resources_Memory) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Resources_Memory.Marshal(b, m, deterministic)
+}
+func (dst *Resources_Memory) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resources_Memory.Merge(dst, src)
+}
+func (m *Resources_Memory) XXX_Size() int {
+	return xxx_messageInfo_Resources_Memory.Size(m)
+}
+func (m *Resources_Memory) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resources_Memory.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Resources_Memory proto.InternalMessageInfo
 
 func (m *Resources_Memory) GetSize() uint64 {
 	if m != nil {
@@ -161,13 +280,35 @@ func (m *Resources_Memory) GetSize() uint64 {
 type Resources_Cpu struct {
 	// (optional) Shares of a cpu to use. Fractional values, such as "0.2"
 	// or "2.5", are fine. Any value <= 0 means unspecified.
-	Shares float32 `protobuf:"fixed32,1,opt,name=shares" json:"shares,omitempty"`
+	Shares               float32  `protobuf:"fixed32,1,opt,name=shares" json:"shares,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Resources_Cpu) Reset()                    { *m = Resources_Cpu{} }
-func (m *Resources_Cpu) String() string            { return proto.CompactTextString(m) }
-func (*Resources_Cpu) ProtoMessage()               {}
-func (*Resources_Cpu) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3, 1} }
+func (m *Resources_Cpu) Reset()         { *m = Resources_Cpu{} }
+func (m *Resources_Cpu) String() string { return proto.CompactTextString(m) }
+func (*Resources_Cpu) ProtoMessage()    {}
+func (*Resources_Cpu) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{3, 1}
+}
+func (m *Resources_Cpu) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Resources_Cpu.Unmarshal(m, b)
+}
+func (m *Resources_Cpu) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Resources_Cpu.Marshal(b, m, deterministic)
+}
+func (dst *Resources_Cpu) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resources_Cpu.Merge(dst, src)
+}
+func (m *Resources_Cpu) XXX_Size() int {
+	return xxx_messageInfo_Resources_Cpu.Size(m)
+}
+func (m *Resources_Cpu) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resources_Cpu.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Resources_Cpu proto.InternalMessageInfo
 
 func (m *Resources_Cpu) GetShares() float32 {
 	if m != nil {
@@ -179,13 +320,35 @@ func (m *Resources_Cpu) GetShares() float32 {
 // Disk limits.
 type Resources_Disk struct {
 	// (optional) Hard limit in bytes. A zero value means unspecified.
-	Size uint64 `protobuf:"varint,1,opt,name=size" json:"size,omitempty"`
+	Size                 uint64   `protobuf:"varint,1,opt,name=size" json:"size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Resources_Disk) Reset()                    { *m = Resources_Disk{} }
-func (m *Resources_Disk) String() string            { return proto.CompactTextString(m) }
-func (*Resources_Disk) ProtoMessage()               {}
-func (*Resources_Disk) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3, 2} }
+func (m *Resources_Disk) Reset()         { *m = Resources_Disk{} }
+func (m *Resources_Disk) String() string { return proto.CompactTextString(m) }
+func (*Resources_Disk) ProtoMessage()    {}
+func (*Resources_Disk) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_provision_api_f914ba43f8ed88c8, []int{3, 2}
+}
+func (m *Resources_Disk) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Resources_Disk.Unmarshal(m, b)
+}
+func (m *Resources_Disk) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Resources_Disk.Marshal(b, m, deterministic)
+}
+func (dst *Resources_Disk) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resources_Disk.Merge(dst, src)
+}
+func (m *Resources_Disk) XXX_Size() int {
+	return xxx_messageInfo_Resources_Disk.Size(m)
+}
+func (m *Resources_Disk) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resources_Disk.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Resources_Disk proto.InternalMessageInfo
 
 func (m *Resources_Disk) GetSize() uint64 {
 	if m != nil {
@@ -212,8 +375,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for ProvisionService service
-
+// ProvisionServiceClient is the client API for ProvisionService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ProvisionServiceClient interface {
 	// Get provision information for the SDK harness worker instance.
 	GetProvisionInfo(ctx context.Context, in *GetProvisionInfoRequest, opts ...grpc.CallOption) (*GetProvisionInfoResponse, error)
@@ -229,15 +393,14 @@ func NewProvisionServiceClient(cc *grpc.ClientConn) ProvisionServiceClient {
 
 func (c *provisionServiceClient) GetProvisionInfo(ctx context.Context, in *GetProvisionInfoRequest, opts ...grpc.CallOption) (*GetProvisionInfoResponse, error) {
 	out := new(GetProvisionInfoResponse)
-	err := grpc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.ProvisionService/GetProvisionInfo", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.ProvisionService/GetProvisionInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for ProvisionService service
-
+// ProvisionServiceServer is the server API for ProvisionService service.
 type ProvisionServiceServer interface {
 	// Get provision information for the SDK harness worker instance.
 	GetProvisionInfo(context.Context, *GetProvisionInfoRequest) (*GetProvisionInfoResponse, error)
@@ -278,9 +441,11 @@ var _ProvisionService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "beam_provision_api.proto",
 }
 
-func init() { proto.RegisterFile("beam_provision_api.proto", fileDescriptor1) }
+func init() {
+	proto.RegisterFile("beam_provision_api.proto", fileDescriptor_beam_provision_api_f914ba43f8ed88c8)
+}
 
-var fileDescriptor1 = []byte{
+var fileDescriptor_beam_provision_api_f914ba43f8ed88c8 = []byte{
 	// 485 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x93, 0xdd, 0x6e, 0xd3, 0x40,
 	0x10, 0x85, 0x95, 0xc4, 0x35, 0xcd, 0x00, 0x6d, 0xb4, 0x02, 0xea, 0x9a, 0x22, 0xa1, 0x08, 0x24,

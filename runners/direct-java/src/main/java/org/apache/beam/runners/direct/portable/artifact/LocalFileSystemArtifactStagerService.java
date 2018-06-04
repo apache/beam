@@ -142,7 +142,7 @@ public class LocalFileSystemArtifactStagerService
                         value.getContentCase()))
                 .asRuntimeException();
           }
-          writer = createFile(value.getMetadata());
+          writer = createFile(value.getMetadata().getMetadata());
         } else {
           writer.onNext(value);
         }
