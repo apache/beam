@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
@@ -32,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
@@ -62,10 +65,8 @@ import org.apache.calcite.tools.RuleSets;
  */
 @Internal
 public class BeamRuleSets {
-  public static RuleSet[] getRuleSets() {
-    return new RuleSet[] {
-      RuleSets.ofList(
-          // translate to beam logical rel nodes
+  public static final List<RelOptRule> BEAM_CONVERSIONS =
+      ImmutableList.of(
           BeamAggregationRule.INSTANCE,
           BeamEnumerableConverterRule.INSTANCE,
           BeamFilterRule.INSTANCE,
@@ -81,8 +82,10 @@ public class BeamRuleSets {
           BeamUnnestRule.INSTANCE,
           BeamJoinRule.INSTANCE,
           BeamEnumerableConverterRule.INSTANCE,
-          BeamValuesRule.INSTANCE,
+          BeamValuesRule.INSTANCE);
 
+  public static final List<RelOptRule> CALCITE_LOGICAL_OPTIMIZATIONS =
+      ImmutableList.of(
           // push a filter into a join
           FilterJoinRule.FILTER_ON_JOIN,
           // push filter into the children of a join
@@ -133,7 +136,15 @@ public class BeamRuleSets {
           PruneEmptyRules.JOIN_RIGHT_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
           PruneEmptyRules.SORT_INSTANCE,
-          PruneEmptyRules.UNION_INSTANCE)
+          PruneEmptyRules.UNION_INSTANCE);
+
+  public static RuleSet[] getRuleSets() {
+    return new RuleSet[] {
+      RuleSets.ofList(
+          ImmutableList.<RelOptRule>builder()
+              .addAll(CALCITE_LOGICAL_OPTIMIZATIONS)
+              .addAll(BEAM_CONVERSIONS)
+              .build())
     };
   }
 }
