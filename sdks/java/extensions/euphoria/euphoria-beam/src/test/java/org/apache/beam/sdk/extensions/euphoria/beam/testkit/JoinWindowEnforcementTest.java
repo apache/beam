@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey.WindowByBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowingRequiredException;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.junit.Assert;
@@ -100,7 +101,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
               Dataset<Object> left, Dataset<Object> right) {
             // ~ prepare left input
             {
-              ReduceByKey.DatasetBuilder4<Object, Object, Object, Object> leftBuilder =
+              WindowByBuilder<Object, Object, Object, Object> leftBuilder =
                   ReduceByKey.of(left)
                       .keyBy(e -> e)
                       .valueBy(e -> e)
@@ -116,7 +117,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
 
             // ~ prepare right input
             {
-              ReduceByKey.DatasetBuilder4<Object, Object, Object, Object> rightBuilder =
+              WindowByBuilder<Object, Object, Object, Object> rightBuilder =
                   ReduceByKey.of(right)
                       .keyBy(e -> e)
                       .valueBy(e -> e)
@@ -149,6 +150,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
             return Collections.singletonList(new ArrayList<>());
           }
         };
+
     Exception thrown = null;
     try {
       execute(test);

@@ -370,8 +370,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
     private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
 
-    TriggerByBuilder(
-        JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
+    TriggerByBuilder(JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
       this.params = params;
     }
 
@@ -386,13 +385,13 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
     private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
 
-    AccumulatorModeBuilder(
-        JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
+    AccumulatorModeBuilder(JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
       this.params = params;
     }
 
     public OutputBuilder<LeftT, RightT, K, OutputT, W> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
+      params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
 
