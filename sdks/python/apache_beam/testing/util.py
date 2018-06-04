@@ -125,8 +125,8 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, use_global_window=True,
-                label='assert_that', reify_windows=False):
+def assert_that(actual, matcher, label='assert_that',
+                reify_windows=False, use_global_window=True):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -139,9 +139,9 @@ def assert_that(actual, matcher, use_global_window=True,
       expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
-    use_global_windows: If False, matcher is passed a dictionary of
-      (k, v) = (window, elements in the window).
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
+    use_global_window: If False, matcher is passed a dictionary of
+      (k, v) = (window, elements in the window).
 
   Returns:
     Ignored.
