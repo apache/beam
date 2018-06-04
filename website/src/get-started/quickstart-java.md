@@ -113,6 +113,11 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Pdataflow-runner
 ```
 
+{:.runner-samza-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
+```
 
 ## Inspect the results
 
@@ -146,6 +151,11 @@ $ ls counts*
 {:.runner-dataflow}
 ```
 $ gsutil ls gs://<your-gcs-bucket>/counts*
+```
+
+{:.runner-samza-local}
+```
+$ ls /tmp/counts*
 ```
 
 When you look into the contents of the file, you'll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.
@@ -225,6 +235,19 @@ Bashful: 1
 Below: 2
 deserves: 32
 barrenly: 1
+...
+```
+
+{:.runner-samza-local}
+```  
+$ more /tmp/counts*
+api: 7
+are: 2
+can: 2
+com: 14
+end: 14
+for: 14
+has: 2
 ...
 ```
 
