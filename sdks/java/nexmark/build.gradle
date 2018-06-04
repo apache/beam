@@ -42,7 +42,6 @@ configurations {
 }
 
 dependencies {
-  compile 'com.google.cloud:google-cloud-bigquery:1.28.0'
   compile library.java.guava
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
@@ -64,8 +63,13 @@ dependencies {
   shadow library.java.slf4j_jdk14
   provided library.java.junit
   provided library.java.hamcrest_core
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+
   testCompileOnly library.java.findbugs_annotations
 
   gradleRun project(path: project.path, configuration: "shadow")
