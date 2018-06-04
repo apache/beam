@@ -51,7 +51,7 @@ public class StateAwareWindowWiseSingleInputOperator<
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<KeyInT, K> extractor,
-      @Nullable WindowingDesc<WindowInT, W> windowing,
+      @Nullable WindowingDesc<Object, W> windowing,
       Set<OutputHint> outputHints) {
 
     super(name, flow, windowing, extractor);

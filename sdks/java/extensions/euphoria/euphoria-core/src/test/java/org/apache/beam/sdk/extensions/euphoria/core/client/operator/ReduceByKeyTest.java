@@ -21,24 +21,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test operator ReduceByKey.  */
+/**
+ * Test operator ReduceByKey.
+ */
 public class ReduceByKeyTest {
+
   @Test
   public void testBuild() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Time<String> windowing = Time.of(Duration.ofHours(1));
+    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    DefaultTrigger trigger = DefaultTrigger.of();
+
     Dataset<Pair<String, Long>> reduced =
         ReduceByKey.named("ReduceByKey1")
             .of(dataset)
@@ -46,6 +52,8 @@ public class ReduceByKeyTest {
             .valueBy(s -> 1L)
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
             .windowBy(windowing)
+            .triggeredBy(trigger)
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
 
     assertEquals(flow, reduced.getFlow());
@@ -58,7 +66,12 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueExtractor);
     assertNotNull(reduce.reducer);
     assertEquals(reduced, reduce.output());
-    assertSame(windowing, reduce.getWindowing());
+
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertSame(windowing, windowingDesc.getWindowFn());
+    assertSame(trigger, windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
   @Test
@@ -125,11 +138,19 @@ public class ReduceByKeyTest {
         .keyBy(s -> s)
         .valueBy(s -> 1L)
         .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(DefaultTrigger.of())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
         .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertTrue(reduce.getWindowing() instanceof Time);
+
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
     assertNull(reduce.valueComparator);
   }
 
@@ -143,7 +164,9 @@ public class ReduceByKeyTest {
         .valueBy(s -> 1L)
         .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
         .withSortedValues(Long::compare)
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(DefaultTrigger.of())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
         .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
@@ -166,6 +189,7 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueComparator);
   }
 
+  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -176,11 +200,16 @@ public class ReduceByKeyTest {
         .valueBy(s -> 1L)
         .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
         .withSortedValues(Long::compare)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1))))
         .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertTrue(reduce.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+
   }
 
   @Test
@@ -199,4 +228,5 @@ public class ReduceByKeyTest {
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
   }
+  */
 }

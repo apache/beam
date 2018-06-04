@@ -33,32 +33,32 @@ public interface OptionalMethodBuilder<BuilderT> {
    * Apply given modification to builder when condition evaluates to {@code true}.
    *
    * @param cond the condition
-   * @param apply the modification
+   * @param applyWhenConditionHolds the modification
    * @return next step builder
    */
   @SuppressWarnings("unchecked")
-  default BuilderT applyIf(boolean cond, UnaryFunction<BuilderT, BuilderT> apply) {
-    Objects.requireNonNull(apply);
-    return cond ? apply.apply((BuilderT) this) : (BuilderT) this;
+  default BuilderT applyIf(boolean cond, UnaryFunction<BuilderT, BuilderT> applyWhenConditionHolds) {
+    Objects.requireNonNull(applyWhenConditionHolds);
+    return cond ? applyWhenConditionHolds.apply((BuilderT) this) : (BuilderT) this;
   }
 
   /**
    * Apply given modifications to builder based on condition.
    *
    * @param cond the condition to evaluate
-   * @param applyTrue modification to ap ply when {@code cond} evaluates to {@code true}
-   * @param applyFalse modification to apply when {@code cond} evaluates to {@code false}
+   * @param applyIfTrue modification to ap ply when {@code cond} evaluates to {@code true}
+   * @param applyIfFalse modification to apply when {@code cond} evaluates to {@code false}
    * @return next step builder
    */
   @SuppressWarnings("unchecked")
   default BuilderT applyIf(
       boolean cond,
-      UnaryFunction<BuilderT, BuilderT> applyTrue,
-      UnaryFunction<BuilderT, BuilderT> applyFalse) {
+      UnaryFunction<BuilderT, BuilderT> applyIfTrue,
+      UnaryFunction<BuilderT, BuilderT> applyIfFalse) {
 
     if (cond) {
-      return applyTrue.apply((BuilderT) this);
+      return applyIfTrue.apply((BuilderT) this);
     }
-    return applyFalse.apply((BuilderT) this);
+    return applyIfFalse.apply((BuilderT) this);
   }
 }
