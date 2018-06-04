@@ -97,6 +97,8 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
+              // ReferenceRunner uses LocalFileSystemArtifactStagerService which only need local
+              // artifact directory.
               .setStagingSessionToken(tempDir.toFile().getAbsolutePath())
               .build());
       responseObserver.onCompleted();

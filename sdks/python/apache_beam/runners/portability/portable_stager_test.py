@@ -72,7 +72,7 @@ class PortableStagerTest(unittest.TestCase):
           local_path_to_artifact=os.path.join(self._temp_dir, from_file),
           artifact_name=to_file)
     stager.commit_manifest()
-    return staging_service.manifest.artifact
+    return staging_service.manifest.artifact, staging_service.staging_tokens
 
   def test_stage_single_file(self):
     from_file = 'test_local.txt'
@@ -81,7 +81,8 @@ class PortableStagerTest(unittest.TestCase):
     with open(os.path.join(self._temp_dir, from_file), 'wb') as f:
       f.write(b'abc')
 
-    copied_files = self._stage_files([('test_local.txt', 'test_remote.txt')])
+    copied_files, staging_tokens = self._stage_files([('test_local.txt',
+                                                       'test_remote.txt')])
     self.assertTrue(
         filecmp.cmp(
             os.path.join(self._temp_dir, from_file),
@@ -89,6 +90,7 @@ class PortableStagerTest(unittest.TestCase):
     self.assertEqual(
         [to_file],
         [staged_file_metadata.name for staged_file_metadata in copied_files])
+    self.assertEqual(staging_tokens, frozenset(['token']))
 
   def test_stage_multiple_files(self):
 
@@ -118,7 +120,7 @@ class PortableStagerTest(unittest.TestCase):
             buffering=2 << 22) as f:
           f.write(''.join(chars))
 
-    copied_files = self._stage_files(
+    copied_files, staging_tokens = self._stage_files(
         [(from_file, to_file) for (from_file, to_file, _, _) in files])
 
     for from_file, to_file, _, _ in files:
@@ -131,6 +133,7 @@ class PortableStagerTest(unittest.TestCase):
     self.assertEqual([to_file for _, to_file, _, _ in files].sort(), [
         staged_file_metadata.name for staged_file_metadata in copied_files
     ].sort())
+    self.assertEqual(staging_tokens, frozenset(['token']))
 
 
 class TestLocalFileSystemArtifactStagingServiceServicer(
@@ -140,6 +143,7 @@ class TestLocalFileSystemArtifactStagingServiceServicer(
     super(TestLocalFileSystemArtifactStagingServiceServicer, self).__init__()
     self.temp_dir = temp_dir
     self.manifest = None
+    self.staging_tokens = set()
 
   def PutArtifact(self, request_iterator, context):
     first = True
@@ -147,6 +151,7 @@ class TestLocalFileSystemArtifactStagingServiceServicer(
     for request in request_iterator:
       if first:
         first = False
+        self.staging_tokens.add(request.metadata.staging_session_token)
         file_name = request.metadata.metadata.name
       else:
         with open(os.path.join(self.temp_dir, file_name), 'ab') as f:
@@ -156,6 +161,7 @@ class TestLocalFileSystemArtifactStagingServiceServicer(
 
   def CommitManifest(self, request, context):
     self.manifest = request.manifest
+    self.staging_tokens.add(request.staging_session_token)
     return beam_artifact_api_pb2.CommitManifestResponse(staging_token='token')
 
 
