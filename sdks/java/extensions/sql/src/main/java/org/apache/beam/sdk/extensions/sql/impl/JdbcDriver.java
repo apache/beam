@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -37,6 +39,17 @@ public class JdbcDriver extends Driver {
   private static final String BEAM_CALCITE_SCHEMA = "beamCalciteSchema";
 
   static {
+    ClassLoader origLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(JdbcDriver.class.getClassLoader());
+
+      // init the compiler factory using correct class loader
+      getDefaultCompilerFactory();
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    } finally {
+      Thread.currentThread().setContextClassLoader(origLoader);
+    }
     INSTANCE.register();
   }
 
