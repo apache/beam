@@ -64,9 +64,11 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
       Join<LeftT, RightT, K, OutputT, W> operator, BeamExecutorContext context) {
     Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
 
-    @SuppressWarnings("unchecked") final PCollection<LeftT> left = (PCollection<LeftT>) context
+    @SuppressWarnings("unchecked")
+    final PCollection<LeftT> left = (PCollection<LeftT>) context
         .getInputs(operator).get(0);
-    @SuppressWarnings("unchecked") final PCollection<RightT> right = (PCollection<RightT>) context
+    @SuppressWarnings("unchecked")
+    final PCollection<RightT> right = (PCollection<RightT>) context
         .getInputs(operator).get(1);
 
     final PCollection<KV<K, LeftT>> leftKvInput =
@@ -111,7 +113,8 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
 
   @Override
   public boolean canTranslate(Join operator) {
-    @SuppressWarnings("unchecked") final ArrayList<Dataset> inputs = new ArrayList(operator.listInputs());
+    @SuppressWarnings("unchecked")
+    final ArrayList<Dataset> inputs = new ArrayList(operator.listInputs());
     if (inputs.size() != 2) {
       return false;
     }
