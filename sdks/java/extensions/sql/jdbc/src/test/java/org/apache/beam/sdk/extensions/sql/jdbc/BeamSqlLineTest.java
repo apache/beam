@@ -17,13 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.jdbc;
 
+import java.io.File;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Test for {@link org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine}. Note that this test only
  * tests for crashes (due to ClassNotFoundException for example). It does not test output.
  */
 public class BeamSqlLineTest {
+
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @Test
   public void testSqlLine_emptyArgs() throws Exception {
@@ -50,6 +55,23 @@ public class BeamSqlLineTest {
     BeamSqlLine.main(
         new String[] {
           "-e", "CREATE TABLE test (id INTEGER) TYPE 'text';", "-e", "DROP TABLE test;"
+        });
+  }
+
+  @Test
+  public void classLoader_readFile() throws Exception {
+    File simpleTable = folder.newFile();
+
+    BeamSqlLine.main(
+        new String[] {
+          "-e",
+          "CREATE TABLE test (id INTEGER) TYPE 'text' LOCATION '"
+              + simpleTable.getAbsolutePath()
+              + "';",
+          "-e",
+          "SELECT * FROM test;",
+          "-e",
+          "DROP TABLE test;"
         });
   }
 }
