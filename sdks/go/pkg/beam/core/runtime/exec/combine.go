@@ -284,7 +284,7 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value FullValue, val
 	return nil
 }
 
-// FinishBundle iterates through the cached key, accumulator pairs, and then
+// FinishBundle iterates through the cached (key, accumulator) pairs, and then
 // processes the value in the bundle as normal.
 func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
 	if n.status != Active {

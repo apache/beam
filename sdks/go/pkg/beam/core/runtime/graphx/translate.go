@@ -157,7 +157,8 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 
 // updateIfCombineComposite examines the scope tree and sets the PTransform Spec
 // to be a CombinePerKey with a CombinePayload if it's a liftable composite.
-// Beam Portability requires that composites
+// Beam Portability requires that composites contain an implementation for runners
+// that don't understand the URN and Payload, which this lightly checks for.
 func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTransform) {
 	if s.Scope.Name != graph.CombinePerKeyScope ||
 		len(s.Edges) != 2 ||

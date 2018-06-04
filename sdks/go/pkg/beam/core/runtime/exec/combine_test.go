@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -29,112 +30,59 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
+var strInput = []interface{}{"1", "2", "3", "4", "5", "6"}
+
+var tests = []struct {
+	Fn         interface{}
+	AccumCoder *coder.Coder
+	Input      []interface{}
+	Expected   interface{}
+}{
+	{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
+	{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
+	{Fn: &MyOtherCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: "21"},
+	{Fn: &MyThirdCombine{}, AccumCoder: intCoder(reflectx.Int), Input: strInput, Expected: int(21)},
+}
+
 // TestCombine verifies that the Combine node works correctly.
 func TestCombine(t *testing.T) {
-	tests := []struct {
-		Fn         interface{}
-		AccumCoder *coder.Coder
-	}{
-		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int)},
-		{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64)},
-	}
 	for _, test := range tests {
 		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
 			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
 			combine := &Combine{UID: 2, Fn: edge.CombineFn, Out: out}
-			n := &FixedRoot{UID: 3, Elements: makeKeyedInput(42, 1, 2, 3, 4, 5, 6), Out: combine}
+			n := &FixedRoot{UID: 3, Elements: makeKeyedInput(42, test.Input...), Out: combine}
 
 			constructAndExecutePlan(t, []Unit{n, combine, out})
 
-			expected := makeKV(42, 21)
+			expected := makeKV(42, test.Expected)
 			if !equalList(out.Elements, expected) {
-				t.Errorf("pardo(sumFn) = %v, want %v", extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
+				t.Errorf("combine(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 			}
 		})
 	}
 }
 
-// TestLiftedCombine verifies that the LiftedCombine node works correctly.
+// TestLiftedCombine verifies that the LiftedCombine, MergeAccumulators, and
+// ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
-	tests := []struct {
-		Fn         interface{}
-		AccumCoder *coder.Coder
-		Expected   interface{}
-	}{
-		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Expected: int(21)},
-		{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Expected: int64(21)},
-	}
-	for _, test := range tests {
-		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
-			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
-
-			out := &CaptureNode{UID: 1}
-			precombine := &LiftedCombine{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
-			n := &FixedRoot{UID: 3, Elements: makeKVInput(42, 1, 2, 3, 4, 5, 6), Out: precombine}
-
-			constructAndExecutePlan(t, []Unit{n, precombine, out})
-			expected := makeKV(42, test.Expected)
-			if !equalList(out.Elements, expected) {
-				t.Errorf("precombine(combineFn) = %v, want %v", extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
-			}
-		})
-	}
-}
-
-// TestMergeAccumulators verifies that the MergeAccumulators node works correctly.
-func TestMergeAccumulators(t *testing.T) {
-	tests := []struct {
-		Fn         interface{}
-		AccumCoder *coder.Coder
-		Expected   interface{}
-		Values     []interface{}
-	}{
-		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Values: []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}, Expected: int(21)},
-		{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Values: []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}, Expected: int64(21)},
-	}
-	for _, test := range tests {
-		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
-			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
-
-			out := &CaptureNode{UID: 1}
-			merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: out}}
-			n := &FixedRoot{UID: 3, Elements: makeKeyedInput(42, test.Values...), Out: merge}
-
-			constructAndExecutePlan(t, []Unit{n, merge, out})
-
-			expected := makeKV(42, test.Expected)
-			if !equalList(out.Elements, expected) {
-				t.Errorf("merge(combineFn) = %v, want %v", extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
-			}
-		})
-	}
-}
-
-// TestExtractOutput verifies that the ExtractOutput node works correctly.
-func TestExtractOutput(t *testing.T) {
-	tests := []struct {
-		Fn         interface{}
-		AccumCoder *coder.Coder
-		Input      interface{}
-	}{
-		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: int(21)},
-		{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: int64(21)},
-	}
 	for _, test := range tests {
 		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
 			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
 			extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
-			n := &FixedRoot{UID: 3, Elements: makeKVInput(42, test.Input), Out: extract}
+			merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
+			gbk := &simpleGBK{UID: 4, Out: merge}
+			precombine := &LiftedCombine{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}}
+			n := &FixedRoot{UID: 6, Elements: makeKVInput(42, test.Input...), Out: precombine}
 
-			constructAndExecutePlan(t, []Unit{n, extract, out})
-
-			expected := makeKV(42, 21)
+			constructAndExecutePlan(t, []Unit{n, precombine, gbk, merge, extract, out})
+			expected := makeKV(42, test.Expected)
 			if !equalList(out.Elements, expected) {
-				t.Errorf("extract(combineFn) = %v, want %v", extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
+				t.Errorf("liftedCombineChain(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
 			}
 		})
 	}
@@ -148,7 +96,14 @@ func getCombineEdge(t *testing.T, cfn interface{}, ac *coder.Coder) *graph.Multi
 	}
 
 	g := graph.New()
-	inT := typex.NewCoGBK(typex.New(reflectx.Int), typex.New(reflectx.Int))
+	var vtype reflect.Type
+	if fn.AddInputFn() != nil {
+		// This makes the assumption that the AddInput function is unkeyed.
+		vtype = fn.AddInputFn().Param[1].T
+	} else {
+		vtype = fn.MergeAccumulatorsFn().Param[0].T
+	}
+	inT := typex.NewCoGBK(typex.New(reflectx.Int), typex.New(vtype))
 	in := g.NewNode(inT, window.DefaultWindowingStrategy(), true)
 
 	edge, err := graph.NewCombine(g, g.Root(), fn, in, ac)
@@ -172,14 +127,51 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 	}
 }
 
+// The following functions and struct represent the combine contract implemented
+// in various ways.
+//
+// Instead of a ProcessElement method, a liftable combine can be written by
+// breaking down an operation into four component methods:
+//
+//   CreateAccumulator() AccumT
+//   AddInput(a AccumT, v InputT) AccumT
+//   MergeAccumulators(a, b AccumT) AccumT
+//   ExtractOutput(v AccumT) OutputT
+//
+// In addition, depending there can be three distinct types, depending on where
+// they are used in the combine, the input type, InputT, the output type, OutputT,
+// and the accumulator type AccumT. Depending on the equality of the types, one
+// or more of the methods can be unspecified.
+//
+// The only required method is MergeAccumulators.
+//
+// When InputT == OutputT == AccumT, the only required method is MergeAccumulators.
+//
+// When InputT == AccumT , then AddInput can be omitted, and MergeAccumulators used instead.
+// When AccumT == Output , then ExtractOutput can be omitted, and the identity used instead.
+//
+// These two combined mean that when InputT == OutputT == AccumT, only MergeAccumulators
+// needs to be specified.
+//
+// CreateAccumulator() is only required if the AccumT cannot be used in it's zero state,
+// and needs initialization.
+
+// mergeFn represents a combine that is just a binary merge, where
+//
+//  InputT == OutputT == AccumT == int
 func mergeFn(a, b int) int {
 	return a + b
 }
 
+// MyCombine represents a combine with the same Input and Output type (int), but a
+// distinct accumulator type (int64).
+//
+//  InputT == OutputT == int
+//  AccumT == int64
 type MyCombine struct{}
 
-func (*MyCombine) AddInput(k int64, a int) int64 {
-	return k + int64(a)
+func (*MyCombine) AddInput(a int64, v int) int64 {
+	return a + int64(v)
 }
 
 func (*MyCombine) MergeAccumulators(a, b int64) int64 {
@@ -190,10 +182,104 @@ func (*MyCombine) ExtractOutput(a int64) int {
 	return int(a)
 }
 
+// MyOtherCombine is the same as MyCombine, but has strings extracted as output.
+//
+//  InputT == int
+//  AccumT == int64
+//  OutputT == string
+type MyOtherCombine struct {
+	MyCombine // Embedding to re-use the exisitng AddInput and MergeAccumulators implementations
+}
+
+func (*MyOtherCombine) ExtractOutput(a int64) string {
+	return fmt.Sprintf("%d", a)
+}
+
+// MyThirdCombine has parses strings as Input, and doesn't specify an ExtractOutput
+//
+//  InputT == string
+//  AccumT == int
+//  OutputT == int
+type MyThirdCombine struct{}
+
+func (c *MyThirdCombine) AddInput(a int, s string) (int, error) {
+	v, err := strconv.ParseInt(s, 0, 0)
+	if err != nil {
+		return 0, err
+	}
+	return c.MergeAccumulators(a, int(v)), nil
+}
+
+func (*MyThirdCombine) MergeAccumulators(a, b int) int {
+	return a + b
+}
+
 func intCoder(t reflect.Type) *coder.Coder {
 	c, err := coderx.NewVarIntZ(t)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't get VarInt coder for %v: %v", t, err))
 	}
 	return &coder.Coder{Kind: coder.Custom, T: typex.New(t), Custom: c}
+}
+
+// simpleGBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.
+type simpleGBK struct {
+	UID  UnitID
+	Edge *graph.MultiEdge
+	Out  Node
+
+	m map[interface{}]*group
+}
+
+type group struct {
+	key    FullValue
+	values []FullValue
+}
+
+func (n *simpleGBK) ID() UnitID {
+	return n.UID
+}
+
+func (n *simpleGBK) Up(ctx context.Context) error {
+	n.m = make(map[interface{}]*group)
+	return nil
+}
+
+func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataManager) error {
+	return n.Out.StartBundle(ctx, id, data)
+}
+
+func (n *simpleGBK) ProcessElement(ctx context.Context, elm FullValue, _ ...ReStream) error {
+	key := elm.Elm.(int)
+	value := elm.Elm2
+
+	g, ok := n.m[key]
+	if !ok {
+		g = &group{
+			key:    FullValue{Elm: key, Timestamp: elm.Timestamp, Windows: elm.Windows},
+			values: make([]FullValue, 0),
+		}
+		n.m[key] = g
+	}
+	g.values = append(g.values, FullValue{Elm: value, Timestamp: elm.Timestamp})
+
+	return nil
+}
+
+func (n *simpleGBK) FinishBundle(ctx context.Context) error {
+	for _, g := range n.m {
+		values := &FixedReStream{Buf: g.values}
+		if err := n.Out.ProcessElement(ctx, g.key, values); err != nil {
+			return err
+		}
+	}
+	return n.Out.FinishBundle(ctx)
+}
+
+func (n *simpleGBK) Down(ctx context.Context) error {
+	return nil
+}
+
+func (n *simpleGBK) String() string {
+	return fmt.Sprintf("simpleGBK: %v Out:%v", n.ID(), n.Out.ID())
 }
