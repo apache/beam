@@ -19,13 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
  * Common methods used in operator builders to share related javadoc descriptions.
@@ -71,7 +71,7 @@ public class Builders {
    * @param <BuilderT> the builder
    */
   interface WindowBy<InputT, BuilderT extends WindowBy<InputT, BuilderT>>
-      extends OptionalMethodBuilder<BuilderT> {
+      /*extends OptionalMethodBuilder<BuilderT>*/ { //TODO discuss this
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
@@ -82,7 +82,7 @@ public class Builders {
      * @param windowing the windowing strategy to apply to the input dataset
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends Window<W>> Object windowBy(Windowing<InputT, W> windowing);
+    <W extends BoundedWindow> Object windowBy(WindowFn<Object, W> windowing);
   }
 
   /** TODO: complete javadoc. */
