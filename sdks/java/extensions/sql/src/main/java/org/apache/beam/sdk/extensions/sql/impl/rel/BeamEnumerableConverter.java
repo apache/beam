@@ -90,10 +90,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   public static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
-    if (node instanceof BeamIOSinkRel) {
-      return count(options, node);
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
+      if (node instanceof BeamIOSinkRel) {
+        return count(options, node);
+      }
+      return collect(options, node);
+    } finally {
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
-    return collect(options, node);
   }
 
   private static PipelineResult run(
