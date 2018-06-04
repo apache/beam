@@ -142,6 +142,10 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	md5W.Write(data)
 	hash := base64.StdEncoding.EncodeToString(md5W.Sum(nil))
 	md := makeArtifact(key, hash)
+	pmd := &pb.PutArtifactMetadata{
+	  Metadata           : md,
+	  StagingSessionToken: "token",
+	}
 
 	stream, err := scl.PutArtifact(ctx)
 	if err != nil {
@@ -149,7 +153,7 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	}
 	header := &pb.PutArtifactRequest{
 		Content: &pb.PutArtifactRequest_Metadata{
-			Metadata: md,
+			Metadata: pmd,
 		},
 	}
 	if err := stream.Send(header); err != nil {

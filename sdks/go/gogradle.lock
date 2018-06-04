@@ -200,7 +200,7 @@ dependencies:
     - "git@github.com:golang/protobuf.git"
     vcs: "git"
     name: "github.com/golang/protobuf"
-    commit: "bbd03ef6da3a115852eaf24c8a1c46aeb39aa175"
+    commit: "3a3da3a4e26776cc22a79ef46d5d58477532dede"
     transitive: false
   - urls:
     - "https://github.com/golang/snappy.git"
