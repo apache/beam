@@ -214,8 +214,6 @@ Run gradle release build
   ./gradlew build -PisRelease --no-parallel --scan --stacktrace
   ```
   
-From a new workspace, run `git clean -fdx` and `./gradlew clean` to clean, and then `./gradlew -PisRelease build --no-parallel` to ensure that the build processes necessary for release are in good shape.
-
 ### Update and Verify Javadoc
 
 The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
@@ -279,18 +277,22 @@ Check out the release branch.
 
 The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH_NAME}` with the above environment variables set.
 
+### Update the beam version on master to the next dev version
+* [beam/build_rules.gradle](https://github.com/apache/beam/blob/master/build_rules.gradle): update value of 'version'(e.g, '2.5.0' to '2.6.0') 
+* [beam/pom.xml](https://github.com/apache/beam/blob/master/pom.xml): update value of 'version' field(e.g, '2.5.0-SNAPSHOT' to '2.6.0-SNAPSHOT') 
+
 ### Update the Python SDK version
 
 Update [sdks/python/apache_beam/version.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) in both master branch and release branch.
 
 * In the master branch, change the Python SDK version to the next dev version(e.g, `2.5.0-dev` to `2.6.0-dev`).
-
 * In the release branch, update the Python SDK version to the release version(e.g. `2.5.0-dev` to `2.5.0`).
 
 ### Update release specific configurations
 
-Update runner specific configurations:
-   [example](https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d)
+Update Java runner specific configurations in release branch:
+* [beam/runners/google-cloud-dataflow-java/build.gradle](https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/build.gradle): change value of 'dataflow.container_version' to 'beam-release_version_number'(e.g, 'beam-master-20180601' to 'beam-2.5.0')
+* [beam/runners/google-cloud-dataflow-java/pom.xml](https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/pom.xml): change value of 'version' field (e.g, '2.5.0-SNAPSHOT' to '2.5.0') 
 
 ### Start a snapshot build
 
