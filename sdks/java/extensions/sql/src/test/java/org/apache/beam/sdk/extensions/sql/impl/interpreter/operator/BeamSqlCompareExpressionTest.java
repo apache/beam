@@ -143,7 +143,14 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlLikeExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.VARCHAR, 4),
-                BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "string_test_.")));
+                BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "This is an order_")));
     Assert.assertEquals(true, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+
+    BeamSqlLikeExpression exp2 =
+        new BeamSqlLikeExpression(
+            Arrays.asList(
+                new BeamSqlInputRefExpression(SqlTypeName.VARCHAR, 4),
+                BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "This is not%")));
+    Assert.assertEquals(false, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
   }
 }

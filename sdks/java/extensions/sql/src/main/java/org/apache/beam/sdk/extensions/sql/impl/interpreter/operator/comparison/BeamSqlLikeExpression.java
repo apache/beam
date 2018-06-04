@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
 import java.util.List;
-import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import org.apache.calcite.runtime.SqlFunctions;
 
 /** {@code BeamSqlExpression} for 'LIKE' operation. */
 public class BeamSqlLikeExpression extends BeamSqlCompareExpression {
@@ -30,9 +30,7 @@ public class BeamSqlLikeExpression extends BeamSqlCompareExpression {
 
   @Override
   public Boolean compare(CharSequence leftValue, CharSequence rightValue) {
-    String regexStr = rightValue.toString();
-
-    return Pattern.compile(regexStr).matcher(leftValue).matches();
+    return SqlFunctions.like(leftValue.toString(), rightValue.toString());
   }
 
   @Override
