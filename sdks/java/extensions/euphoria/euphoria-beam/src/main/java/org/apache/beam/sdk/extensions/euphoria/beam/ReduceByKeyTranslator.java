@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowFn;
+import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
@@ -35,7 +38,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -48,6 +50,9 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>>
   doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
 
+    //TODO Could we even do values sorting ?
+    checkState(operator.getValueComparator() == null, "Values sorting is not supported.");
+
     final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
     final UnaryFunction<InputT, V> valueExtractor = operator.getValueExtractor();
     final ReduceFunctor<V, OutputT> reducer = operator.getReducer();
@@ -56,24 +61,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     final Coder<K> keyCoder = context.getCoder(keyExtractor);
     final Coder<V> valueCoder = context.getCoder(valueExtractor);
 
-    final PCollection<InputT> input;
-
-    // ~ apply windowing if specified
-    if (operator.getWindowing() == null) {
-      input = context.getInput(operator);
-    } else {
-      input =
-          context
-              .getInput(operator)
-              .apply(
-                  operator.getName() + "::windowing",
-                  org.apache.beam.sdk.transforms.windowing.Window.into(
-                      BeamWindowFn.wrap(operator.getWindowing()))
-                      // TODO: trigger
-                      .triggering(AfterWatermark.pastEndOfWindow())
-                      .discardingFiredPanes()
-                      .withAllowedLateness(context.getAllowedLateness(operator)));
-    }
+    final PCollection<InputT> input = WindowingUtils.applyWindowingIfSpecified(operator,
+        context.getInput(operator), context.getAllowedLateness(operator));
 
     // ~ create key & value extractor
     final MapElements<InputT, KV<K, V>> extractor =
@@ -119,11 +108,17 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
   }
 
+  @Override
+  public boolean canTranslate(ReduceByKey operator) {
+    // translation of sorted values is not supported yet
+    return operator.getValueComparator() == null;
+  }
+
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
       ReduceFunctor<InputT, OutputT> reducer) {
 
-    @SuppressWarnings("unchecked")
-    final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
+    @SuppressWarnings("unchecked") final ReduceFunctor<InputT, InputT> combiner =
+        (ReduceFunctor<InputT, InputT>) reducer;
     final SingleValueCollector<InputT> collector = new SingleValueCollector<>();
     return (Iterable<InputT> input) -> {
       combiner.apply(StreamSupport.stream(input.spliterator(), false), collector);

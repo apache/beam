@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
+package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
 import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.beam.BeamExecutor;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
  */
 public interface BeamExecutorProvider extends ExecutorProvider {
 
+  @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     final String[] args = {"--runner=DirectRunner"};
     final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);

@@ -15,13 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.executor.local.testkit;
+package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
-import org.apache.beam.sdk.extensions.euphoria.operator.test.suite.OperatorsTestSuite;
-import org.junit.Ignore;
+import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+
 
 /**
- * Local operator test suite.
+ * Window used as type parameter of {@link BeamWindowing}.
  */
-@Ignore("Local executor do not supports beam widowing.")
-public class LocalOperatorTest extends OperatorsTestSuite implements LocalExecutorProvider {}
+final class UnsupportedWindow extends Window<UnsupportedWindow> {
+
+  private UnsupportedWindow(){
+    //Do not instantiate
+  }
+
+  @Override
+  public int compareTo(UnsupportedWindow o) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long maxTimestamp() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public int hashCode() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return Objects.equals(this, obj);
+  }
+
+
+}

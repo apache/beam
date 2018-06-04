@@ -15,13 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.executor.local.testkit;
+package org.apache.beam.sdk.extensions.euphoria.beam.common;
 
-import org.apache.beam.sdk.extensions.euphoria.operator.test.suite.OperatorsTestSuite;
-import org.junit.Ignore;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.KV;
 
 /**
- * Local operator test suite.
+ * {@link DoFn} which takes input elements and transforms them to {@link KV} using given key
+ * extractor.
  */
-@Ignore("Local executor do not supports beam widowing.")
-public class LocalOperatorTest extends OperatorsTestSuite implements LocalExecutorProvider {}
+public class InputToKvDoFn<InputT, K> extends DoFn<InputT, KV<K, InputT>> {
+
+  private final UnaryFunction<InputT, K> keyExtractor;
+
+  public InputToKvDoFn(UnaryFunction<InputT, K> keyExtractor) {
+    this.keyExtractor = keyExtractor;
+  }
+
+  @ProcessElement
+  public void processElement(ProcessContext c) {
+    InputT element = c.element();
+    K key = keyExtractor.apply(element);
+    c.output(KV.of(key, element));
+  }
+
+}

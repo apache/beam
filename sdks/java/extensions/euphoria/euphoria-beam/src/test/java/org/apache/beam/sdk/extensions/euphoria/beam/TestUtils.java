@@ -15,13 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.executor.local.testkit;
+package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import org.apache.beam.sdk.extensions.euphoria.operator.test.suite.OperatorsTestSuite;
-import org.junit.Ignore;
+import java.time.Duration;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /**
- * Local operator test suite.
+ * Collection of methods reused among tests.
  */
-@Ignore("Local executor do not supports beam widowing.")
-public class LocalOperatorTest extends OperatorsTestSuite implements LocalExecutorProvider {}
+public class TestUtils {
+
+  static BeamExecutor createExecutor() {
+    String[] args = {"--runner=DirectRunner"};
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
+    return new BeamExecutor(options).withAllowedLateness(Duration.ofHours(1));
+  }
+}

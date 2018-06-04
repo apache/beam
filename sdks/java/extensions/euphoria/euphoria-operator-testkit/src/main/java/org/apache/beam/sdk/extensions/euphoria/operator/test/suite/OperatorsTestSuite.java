@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
+package org.apache.beam.sdk.extensions.euphoria.operator.test.suite;
 
 import org.apache.beam.sdk.extensions.euphoria.operator.test.FlatMapTest;
+import org.apache.beam.sdk.extensions.euphoria.operator.test.JoinTest;
+import org.apache.beam.sdk.extensions.euphoria.operator.test.ReduceByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProvider;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.ExecutorProviderRunner;
@@ -25,21 +27,19 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
- * This is a copy of
- * {@link org.apache.beam.sdk.extensions.euphoria.operator.test.AllOperatorsSuite} to allow us track
- * progress on incrementally implementing operator and their tests.
- * TODO: When done, this class should go away and original should be used instead
+ * Euphoria operators test suite.
  */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({
+    //    BroadcastHashJoinTest.class,
     //    CountByKeyTest.class,
     //    DistinctTest.class,
     //    FilterTest.class,
     FlatMapTest.class,
-    //    JoinTest.class,
+    JoinTest.class,
     //    JoinWindowEnforcementTest.class,
     //    MapElementsTest.class,
-    //    ReduceByKeyTest.class,
+    ReduceByKeyTest.class,
     //    ReduceStateByKeyTest.class,
     //    SumByKeyTest.class,
     //    TopPerKeyTest.class,
@@ -48,6 +48,6 @@ import org.junit.runners.Suite;
     //    WindowingTest.class,
     //    WatermarkTest.class,
 })
-public abstract class BeamOperatorsSuite implements ExecutorProvider {
+public abstract class OperatorsTestSuite implements ExecutorProvider {
 
 }

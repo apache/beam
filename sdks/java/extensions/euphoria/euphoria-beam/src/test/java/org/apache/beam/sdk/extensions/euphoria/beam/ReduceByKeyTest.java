@@ -19,11 +19,10 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
@@ -48,8 +47,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -57,12 +57,6 @@ import org.junit.Test;
  * Simple test suite for RBK.
  */
 public class ReduceByKeyTest {
-
-  private BeamExecutor createExecutor() {
-    String[] args = {"--runner=DirectRunner"};
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    return new BeamExecutor(options).withAllowedLateness(Duration.ofHours(1));
-  }
 
   @Test
   public void testSimpleRBK() {
@@ -76,11 +70,14 @@ public class ReduceByKeyTest {
     ReduceByKey.of(flow.createInput(input, e -> 1000L * e))
         .keyBy(i -> i % 2)
         .reduceBy(Sums.ofInts())
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(BeamWindowing.of(
+            FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+            AfterWatermark.pastEndOfWindow(),
+            AccumulationMode.DISCARDING_FIRED_PANES))
         .output()
         .persist(output);
 
-    BeamExecutor executor = createExecutor();
+    BeamExecutor executor = TestUtils.createExecutor();
     executor.execute(flow);
 
     DatasetAssert.unorderedEquals(output.getOutputs(), Pair.of(0, 8), Pair.of(1, 7));
@@ -118,15 +115,19 @@ public class ReduceByKeyTest {
     ListDataSink<Pair<Integer, Long>> sink = ListDataSink.get();
     Dataset<Pair<Integer, Long>> input = flow.createInput(source);
     input = AssignEventTime.of(input).using(Pair::getSecond).output();
+
     ReduceByKey.of(input)
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(1)))
+        .windowBy(BeamWindowing.of(
+            FixedWindows.of(org.joda.time.Duration.standardSeconds(1)),
+            AfterWatermark.pastEndOfWindow(),
+            AccumulationMode.DISCARDING_FIRED_PANES))
         .output()
         .persist(sink);
 
-    BeamExecutor executor = createExecutor();
+    BeamExecutor executor = TestUtils.createExecutor();
     executor.execute(flow);
 
     DatasetAssert.unorderedEquals(
@@ -172,7 +173,10 @@ public class ReduceByKeyTest {
             .keyBy(e -> "", TypeHint.ofString())
             .valueBy(Pair::getFirst, TypeHint.ofInt())
             .combineBy(Sums.ofInts(), TypeHint.ofInt())
-            .windowBy(Time.of(Duration.ofSeconds(5)))
+            .windowBy(BeamWindowing.of(
+                FixedWindows.of(org.joda.time.Duration.standardSeconds(5)),
+                AfterWatermark.pastEndOfWindow(),
+                AccumulationMode.DISCARDING_FIRED_PANES))
             .output();
     // ~ now use a custom windowing with a trigger which does
     // the assertions subject to this test (use RSBK which has to
@@ -192,7 +196,7 @@ public class ReduceByKeyTest {
         .output()
         .persist(sink);
 
-    createExecutor().execute(flow);
+    TestUtils.createExecutor().execute(flow);
     DatasetAssert.unorderedEquals(sink.getOutputs(), 4, 6);
   }
 
