@@ -132,7 +132,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 		Permissions: uint32(stat.Mode()),
 		Md5:         hash,
 	}
-	// TODO (angoenka): Pass the appropriate staging_session_token
+	// TODO (angoenka): Pass the appropriate staging_session_token. The token can be obtained in PrepareJobReponse.
 	pmd := &pb.PutArtifactMetadata{
 		Metadata:            md,
 		StagingSessionToken: "token",

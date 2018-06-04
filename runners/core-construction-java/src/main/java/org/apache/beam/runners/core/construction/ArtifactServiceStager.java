@@ -146,6 +146,7 @@ public class ArtifactServiceStager {
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
       ArtifactMetadata metadata =
           ArtifactMetadata.newBuilder().setName(file.getStagingName()).build();
+      // TODO: Pass a valid StagingSessionToken. The token can be obtained in PrepareJob request.
       PutArtifactMetadata putMetadata = PutArtifactMetadata.newBuilder().setMetadata(metadata)
           .setStagingSessionToken("token").build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(putMetadata).build());

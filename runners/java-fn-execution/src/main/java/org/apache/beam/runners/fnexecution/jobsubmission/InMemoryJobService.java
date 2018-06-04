@@ -114,7 +114,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               .newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
-              // TODO: Pass the correct token for staging.
+              // TODO: Pass the correct token for staging. The token depends on the
+              // ArtifactStagingService implementation.
               .setStagingSessionToken("token")
               .build();
       responseObserver.onNext(response);
