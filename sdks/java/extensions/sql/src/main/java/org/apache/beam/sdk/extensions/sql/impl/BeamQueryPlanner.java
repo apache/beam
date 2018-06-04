@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import java.util.Collections;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -50,7 +50,6 @@ import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.RuleSet;
-import org.apache.calcite.tools.RuleSets;
 import org.apache.calcite.tools.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,7 +144,7 @@ class BeamQueryPlanner {
       RelNode originalRelNode = planner.transform(0, desiredTraits, root.rel);
 
       // optimized logical plan
-      beamRelNode = optimizeLogicPlan(root.rel, desiredTraits);
+      beamRelNode = optimizeLogicPlan(originalRelNode, desiredTraits);
       LOG.info("OptimizedPlan>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
@@ -173,7 +172,7 @@ class BeamQueryPlanner {
 
   private RelNode optimizeLogicPlan(RelNode relNode, RelTraitSet desiredTraits)
       throws CannotPlanException {
-    RuleSet logicalOptRuleSet = RuleSets.ofList(BeamRuleSets.LOGICAL_OPT_RULES);
+    RuleSet logicalOptRuleSet = BeamRuleSets.getRuleSets()[0];
 
     return runVolcanoPlanner(logicalOptRuleSet, relNode, desiredTraits);
   }
