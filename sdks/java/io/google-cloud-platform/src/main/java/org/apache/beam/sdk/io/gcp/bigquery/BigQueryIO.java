@@ -1452,7 +1452,10 @@ public class BigQueryIO {
     }
 
     @VisibleForTesting
-    Write<T> withTestServices(BigQueryServices testServices) {
+    /**
+     * This method is for test usage only
+     */
+    public Write<T> withTestServices(BigQueryServices testServices) {
       checkArgument(testServices != null, "testServices can not be null");
       return toBuilder().setBigQueryServices(testServices).build();
     }

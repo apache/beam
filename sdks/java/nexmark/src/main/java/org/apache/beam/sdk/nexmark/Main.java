@@ -23,6 +23,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -33,7 +35,13 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -91,7 +99,7 @@ public class Main<OptionT extends NexmarkOptions> {
         }
       }
       if (options.getExportSummaryToBigQuery()){
-        savePerfsToBigQuery(options, actual);
+        savePerfsToBigQuery(options, actual, null);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -106,11 +114,28 @@ public class Main<OptionT extends NexmarkOptions> {
   }
 
   @VisibleForTesting
-  static void savePerfsToBigQuery(NexmarkOptions options,
-      Map<NexmarkConfiguration, NexmarkPerf> perfs) {
+  static void savePerfsToBigQuery(
+      NexmarkOptions options,
+      Map<NexmarkConfiguration, NexmarkPerf> perfs,
+      @Nullable BigQueryServices testBigQueryServices) {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
-        pipeline.apply(Create.of(perfs));
+        pipeline.apply(
+            Create.of(perfs)
+                .withCoder(
+                    KvCoder.of(SerializableCoder.of(NexmarkConfiguration.class), new CustomCoder<NexmarkPerf>() {
+
+                      @Override public void encode(NexmarkPerf value, OutputStream outStream)
+                          throws CoderException, IOException {
+                        StringUtf8Coder.of().encode(value.toString(), outStream);
+                      }
+
+                      @Override public NexmarkPerf decode(InputStream inStream)
+                          throws CoderException, IOException {
+                        String perf = StringUtf8Coder.of().decode(inStream);
+                        return NexmarkPerf.fromString(perf);
+                      }
+                    })));
 
     TableSchema tableSchema =
         new TableSchema()
@@ -127,7 +152,8 @@ public class Main<OptionT extends NexmarkOptions> {
         tableFunction =
             input -> {
               String tableSpec =
-                  NexmarkUtils.tableSpec(options, "q" + input.getValue().getKey().query, 0L, null);
+                  NexmarkUtils.tableSpec(
+                      options, String.valueOf(input.getValue().getKey().query), 0L, null);
               return new TableDestination(tableSpec, "perfkit queries");
             };
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
@@ -145,7 +171,9 @@ public class Main<OptionT extends NexmarkOptions> {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withFormatFunction(rowFunction);
-
+    if (testBigQueryServices != null){
+      io = io.withTestServices(testBigQueryServices);
+    }
     perfsPCollection.apply("savePerfsToBigQuery", io);
     pipeline.run();
   }
