@@ -218,6 +218,7 @@ public class JoinTest {
     Join join = (Join) flow.operators().iterator().next();
     WindowingDesc windowing = join.getWindowing();
 
+    assertNotNull(windowing);
     assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
     assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
