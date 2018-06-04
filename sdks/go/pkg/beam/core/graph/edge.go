@@ -315,12 +315,12 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 	return edge, nil
 }
 
-// CombinePerKeyScope is the canonical name for the scope containing combine
-// composite. With Beam Portability, "primitive" composite transforms like
+// CombinePerKeyScope is the Go SDK canonical name for the combine composite
+// scope. With Beam Portability, "primitive" composite transforms like
 // combine have their URNs & payloads attached to a high level scope, with a
-// default representation beneath. This const permits the translation layer
-// to confirm the SDK expects this combine to be liftable by a runner
-// and should set this scope's URN and Payload accordingly.
+// default representation beneath. The use of this const permits the
+// translation layer to confirm the SDK expects this combine to be liftable
+// by a runner and should set this scope's URN and Payload accordingly.
 const CombinePerKeyScope = "CombinePerKey"
 
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
