@@ -27,12 +27,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 
 /** BeamRelNode to replace a {@code Filter} node. */
@@ -46,14 +43,6 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   @Override
   public Filter copy(RelTraitSet traitSet, RelNode input, RexNode condition) {
     return new BeamFilterRel(getCluster(), traitSet, input, condition);
-  }
-
-  @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    double rowCnt = mq.getRowCount(this);
-    return planner
-        .getCostFactory()
-        .makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType()));
   }
 
   @Override

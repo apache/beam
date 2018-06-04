@@ -62,7 +62,8 @@ import org.apache.calcite.tools.RuleSets;
  */
 @Internal
 public class BeamRuleSets {
-  public static final RuleSet LOGICAL_OPT_RULES =
+  public static RuleSet[] getRuleSets() {
+    return new RuleSet[] {
       RuleSets.ofList(
           // translate to beam logical rel nodes
           BeamAggregationRule.INSTANCE,
@@ -75,6 +76,11 @@ public class BeamRuleSets {
           BeamProjectRule.INSTANCE,
           BeamSortRule.INSTANCE,
           BeamUnionRule.INSTANCE,
+          BeamUncollectRule.INSTANCE,
+          BeamUnnestRule.INSTANCE,
+          BeamUnnestRule.INSTANCE,
+          BeamJoinRule.INSTANCE,
+          BeamEnumerableConverterRule.INSTANCE,
           BeamValuesRule.INSTANCE,
 
           // push a filter into a join
@@ -127,26 +133,7 @@ public class BeamRuleSets {
           PruneEmptyRules.JOIN_RIGHT_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
           PruneEmptyRules.SORT_INSTANCE,
-          PruneEmptyRules.UNION_INSTANCE);
-
-  public static RuleSet[] getRuleSets() {
-    return new RuleSet[] {
-      RuleSets.ofList(
-          BeamAggregationRule.INSTANCE,
-          BeamEnumerableConverterRule.INSTANCE,
-          BeamFilterRule.INSTANCE,
-          BeamIntersectRule.INSTANCE,
-          BeamIOSinkRule.INSTANCE,
-          BeamJoinRule.INSTANCE,
-          BeamMinusRule.INSTANCE,
-          BeamProjectRule.INSTANCE,
-          BeamSortRule.INSTANCE,
-          BeamUnionRule.INSTANCE,
-          BeamUncollectRule.INSTANCE,
-          BeamUnnestRule.INSTANCE,
-          BeamJoinRule.INSTANCE,
-          BeamEnumerableConverterRule.INSTANCE,
-          BeamValuesRule.INSTANCE)
+          PruneEmptyRules.UNION_INSTANCE)
     };
   }
 }

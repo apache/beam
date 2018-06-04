@@ -23,11 +23,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
@@ -37,14 +34,6 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   public BeamIOSourceRel(RelOptCluster cluster, RelOptTable table, BeamSqlTable sqlTable) {
     super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
     this.sqlTable = sqlTable;
-  }
-
-  @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    double rowCnt = mq.getRowCount(this);
-    return planner
-        .getCostFactory()
-        .makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType()));
   }
 
   @Override
