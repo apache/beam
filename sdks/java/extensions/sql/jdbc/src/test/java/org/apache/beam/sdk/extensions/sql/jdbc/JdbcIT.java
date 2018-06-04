@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.jdbc;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -49,5 +50,20 @@ public class JdbcIT {
     Statement statement = connection.createStatement();
     // SELECT 1 is a special case and does not reach the parser
     assertTrue(statement.execute("SELECT 1"));
+  }
+
+  @Test
+  public void classLoader_parse() throws Exception {
+    Connection connection = getConnection();
+    Statement statement = connection.createStatement();
+    assertTrue(statement.execute("SELECT 'beam'"));
+  }
+
+  @Test
+  public void classLoader_ddl() throws Exception {
+    Connection connection = getConnection();
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("CREATE TABLE test (id INTEGER) TYPE 'text'"));
+    assertEquals(0, statement.executeUpdate("DROP TABLE test"));
   }
 }
