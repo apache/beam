@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import com.sun.istack.internal.NotNull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -91,7 +92,7 @@ public class Builders {
      * @param windowing the windowing strategy to apply to the input dataset
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends BoundedWindow> OutTriggerBuilder windowBy(WindowFn<Object, W> windowing);
+    <W extends BoundedWindow> OutTriggerBuilder windowBy(@NotNull WindowFn<Object, W> windowing);
   }
 
   /**
@@ -100,7 +101,7 @@ public class Builders {
    * @param <OutAccBuilderT> following {@link AccumulatorMode} builder type
    */
   interface TriggeredBy<OutAccBuilderT extends AccumulatorMode>{
-    OutAccBuilderT triggeredBy(Trigger trigger);
+    OutAccBuilderT triggeredBy(@NotNull Trigger trigger);
   }
 
   /**
@@ -108,7 +109,7 @@ public class Builders {
    * @param <OutBuilderT> output builder type
    */
   interface AccumulatorMode<OutBuilderT>{
-    OutBuilderT accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
+    OutBuilderT accumulationMode(@NotNull WindowingStrategy.AccumulationMode accumulationMode);
   }
 
   /** TODO: complete javadoc. */
