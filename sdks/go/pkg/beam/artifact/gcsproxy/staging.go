@@ -126,7 +126,7 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 	if err != nil {
 		return fmt.Errorf("failed to receive header: %v", err)
 	}
-	md := header.GetMetadata()
+	md := header.GetMetadata().GetMetadata()
 	if md == nil {
 		return fmt.Errorf("expected header as first message: %v", header)
 	}
