@@ -64,9 +64,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * on all extracted values on each key-window.
  *
  * <p>If provided function is {@link CombinableReduceFunction} partial reduction is performed
- * before
- * shuffle. If the function is not combinable all values must be first sent through the network and
- * the reduction is done afterwards on target machines.
+ * before shuffle. If the function is not combinable all values must be first sent through the
+ * network and the reduction is done afterwards on target machines.
  *
  * <p>Custom {@link Windowing} can be set, otherwise values from input operator are used.
  *
@@ -281,7 +280,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  private static final class ReduceByKeyBuilderParams<InputT, K, V, OutputT, W extends BoundedWindow> {
+  private static final class BuilderParams<InputT, K, V, OutputT, W extends BoundedWindow>
+      extends WindowingParams<W> {
 
     String name;
     Dataset<InputT> input;
@@ -290,18 +290,6 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     ReduceFunctor<V, OutputT> reducer;
     @Nullable
     BinaryFunction<V, V, Integer> valuesComparator;
-    WindowFn<Object, W> windowFn;
-    Trigger trigger;
-    WindowingStrategy.AccumulationMode accumulationMode;
-
-    @Nullable
-    private WindowingDesc<Object, W> getWindowing() {
-      if (windowFn == null || trigger == null || accumulationMode == null) {
-        return null;
-      }
-
-      return new WindowingDesc<>(windowFn, trigger, accumulationMode);
-    }
   }
 
   /**
@@ -326,8 +314,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
    */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
-    private final ReduceByKeyBuilderParams<InputT, ?, ?, ?, ?> params =
-        new ReduceByKeyBuilderParams<>();
+    private final BuilderParams<InputT, ?, ?, ?, ?> params =
+        new BuilderParams<>();
 
     KeyByBuilder(String name, Dataset<InputT> input) {
       params.name = Objects.requireNonNull(name);
@@ -338,8 +326,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <K> ValueByReduceByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
 
       @SuppressWarnings("unchecked")
-      ReduceByKeyBuilderParams<InputT, K, ?, ?, ?> paramsCasted =
-          (ReduceByKeyBuilderParams<InputT, K, ?, ?, ?>) params;
+      BuilderParams<InputT, K, ?, ?, ?> paramsCasted =
+          (BuilderParams<InputT, K, ?, ?, ?>) params;
 
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
 
@@ -351,8 +339,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
         UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
 
       @SuppressWarnings("unchecked")
-      ReduceByKeyBuilderParams<InputT, K, ?, ?, ?> paramsCasted =
-          (ReduceByKeyBuilderParams<InputT, K, ?, ?, ?>) params;
+      BuilderParams<InputT, K, ?, ?, ?> paramsCasted =
+          (BuilderParams<InputT, K, ?, ?, ?>) params;
 
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
 
@@ -365,9 +353,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
    */
   public static class ValueByReduceByBuilder<InputT, K> implements ReduceBy<InputT, K, InputT> {
 
-    private final ReduceByKeyBuilderParams<InputT, K, ?, ?, ?> params;
+    private final BuilderParams<InputT, K, ?, ?, ?> params;
 
-    ValueByReduceByBuilder(ReduceByKeyBuilderParams<InputT, K, ?, ?, ?> params) {
+    ValueByReduceByBuilder(BuilderParams<InputT, K, ?, ?, ?> params) {
       this.params = params;
     }
 
@@ -384,8 +372,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
         UnaryFunction<InputT, V> valueExtractor) {
 
       @SuppressWarnings("unchecked")
-      ReduceByKeyBuilderParams<InputT, K, V, ?, ?> paramsCasted =
-          (ReduceByKeyBuilderParams<InputT, K, V, ?, ?>) params;
+      BuilderParams<InputT, K, V, ?, ?> paramsCasted =
+          (BuilderParams<InputT, K, V, ?, ?>) params;
 
       paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
       return new ReduceByCombineByBuilder<>(paramsCasted);
@@ -400,8 +388,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <OutputT> WithSortedValuesBuilder<InputT, K, InputT, OutputT> reduceBy(
         ReduceFunctor<InputT, OutputT> reducer) {
 
-      @SuppressWarnings("unchecked") final ReduceByKeyBuilderParams<InputT, K, InputT, OutputT, ?> paramsCasted =
-          (ReduceByKeyBuilderParams<InputT, K, InputT, OutputT, ?>) params;
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, InputT, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = e -> e;
       paramsCasted.reducer = Objects.requireNonNull(reducer);
@@ -415,9 +403,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
    */
   public static class ReduceByCombineByBuilder<InputT, K, V> implements ReduceBy<InputT, K, V> {
 
-    private final ReduceByKeyBuilderParams<InputT, K, V, ?, ?> params;
+    private final BuilderParams<InputT, K, V, ?, ?> params;
 
-    ReduceByCombineByBuilder(ReduceByKeyBuilderParams<InputT, K, V, ?, ?> params) {
+    ReduceByCombineByBuilder(BuilderParams<InputT, K, V, ?, ?> params) {
       this.params = params;
     }
 
@@ -425,8 +413,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
         ReduceFunctor<V, OutputT> reducer) {
 
-      @SuppressWarnings("unchecked") final ReduceByKeyBuilderParams<InputT, K, V, OutputT, ?> paramsCasted =
-          (ReduceByKeyBuilderParams<InputT, K, V, OutputT, ?>) params;
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, K, V, OutputT, ?>) params;
 
       paramsCasted.reducer = Objects.requireNonNull(reducer);
 
@@ -442,9 +430,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       Builders.OutputValues<K, OutputT>,
       Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>> {
 
-    final ReduceByKeyBuilderParams<InputT, K, V, OutputT, ?> params;
+    final BuilderParams<InputT, K, V, OutputT, ?> params;
 
-    WindowByBuilder(ReduceByKeyBuilderParams<InputT, K, V, OutputT, ?> params) {
+    WindowByBuilder(BuilderParams<InputT, K, V, OutputT, ?> params) {
       this.params = params;
     }
 
@@ -453,8 +441,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
         WindowFn<Object, W> windowing) {
 
       @SuppressWarnings("unchecked")
-      ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> paramsCast =
-          (ReduceByKeyBuilderParams<InputT, K, V, OutputT, W>) params;
+      BuilderParams<InputT, K, V, OutputT, W> paramsCast =
+          (BuilderParams<InputT, K, V, OutputT, W>) params;
 
       paramsCast.windowFn = Objects.requireNonNull(windowing);
       return new TriggerByBuilder<>(paramsCast);
@@ -472,7 +460,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   public static class WithSortedValuesBuilder<InputT, K, V, OutputT>
       extends WindowByBuilder<InputT, K, V, OutputT> { //TODO chceme tady tenhle extends ?
 
-    WithSortedValuesBuilder(ReduceByKeyBuilderParams<InputT, K, V, OutputT, ?> params) {
+    WithSortedValuesBuilder(BuilderParams<InputT, K, V, OutputT, ?> params) {
       super(params);
     }
 
@@ -498,9 +486,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       /*extends WindowByBuilder<InputT, K, V, OutputT>*/ implements
       Builders.OutputValues<K, OutputT> {
 
-    private final ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params;
+    private final BuilderParams<InputT, K, V, OutputT, W> params;
 
-    OutputBuilder(ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params) {
+    OutputBuilder(BuilderParams<InputT, K, V, OutputT, W> params) {
       this.params = params;
     }
 
@@ -524,11 +512,11 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   }
 
   public static class TriggerByBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
-  implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, W>>{
+      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, W>> {
 
-    private final ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params;
+    private final BuilderParams<InputT, K, V, OutputT, W> params;
 
-    TriggerByBuilder(ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params) {
+    TriggerByBuilder(BuilderParams<InputT, K, V, OutputT, W> params) {
       this.params = params;
     }
 
@@ -540,11 +528,11 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   }
 
   public static class AccumulatorModeBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
-  implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, W>>{
+      implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, W>> {
 
-    private final ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params;
+    private final BuilderParams<InputT, K, V, OutputT, W> params;
 
-    AccumulatorModeBuilder(ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params) {
+    AccumulatorModeBuilder(BuilderParams<InputT, K, V, OutputT, W> params) {
       this.params = params;
     }
 

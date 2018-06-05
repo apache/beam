@@ -184,7 +184,8 @@ public class ReduceStateByKey<
   }
 
   public static class BuilderParams<
-      InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow> {
+      InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+      extends WindowingParams<W>{
 
     String name;
     Dataset<InputT> input;
@@ -192,24 +193,12 @@ public class ReduceStateByKey<
     UnaryFunction<InputT, V> valueExtractor;
     StateFactory<V, OutputT, StateT> stateFactory;
     StateMerger<V, OutputT, StateT> stateMerger;
-    WindowFn<Object, W> windowFn;
-    Trigger trigger;
-    WindowingStrategy.AccumulationMode accumulationMode;
 
     public BuilderParams(String name, Dataset<InputT> input,
         UnaryFunction<InputT, K> keyExtractor) {
       this.name = name;
       this.input = input;
       this.keyExtractor = keyExtractor;
-    }
-
-    @Nullable
-    private WindowingDesc<Object, W> getWindowing() {
-      if (windowFn == null || trigger == null || accumulationMode == null) {
-        return null;
-      }
-
-      return new WindowingDesc<>(windowFn, trigger, accumulationMode);
     }
   }
 

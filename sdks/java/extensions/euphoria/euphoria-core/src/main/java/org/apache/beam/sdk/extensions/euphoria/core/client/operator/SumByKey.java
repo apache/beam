@@ -133,30 +133,19 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     return DAG.of(reduceByKey);
   }
 
-  private static class BuilderParams<InputT, K, W extends BoundedWindow> {
-
+  private static class BuilderParams<InputT, K, W extends BoundedWindow>
+  extends WindowingParams<W>{
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
     UnaryFunction<InputT, Long> valueExtractor;
-    WindowFn<Object, W> windowFn;
-    Trigger trigger;
-    WindowingStrategy.AccumulationMode accumulationMode;
 
-    public BuilderParams(String name,
+    BuilderParams(String name,
         Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
 
-    @Nullable
-    private WindowingDesc<Object, W> getWindowing() {
-      if (windowFn == null || trigger == null || accumulationMode == null) {
-        return null;
-      }
-
-      return new WindowingDesc<>(windowFn, trigger, accumulationMode);
-    }
   }
 
   /**
