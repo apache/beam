@@ -227,7 +227,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     FULL
   }
 
-  static class JoinBuilderParams<LeftT, RightT, K, OutputT, W extends BoundedWindow> {
+  static class BuilderParams<LeftT, RightT, K, OutputT, W extends BoundedWindow>
+      extends WindowingParams<W> {
 
     String name;
     Dataset<LeftT> left;
@@ -236,25 +237,14 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     UnaryFunction<RightT, K> rightKeyExtractor;
     BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
     Type type;
-    WindowFn<Object, W> windowFn;
-    Trigger trigger; //TODO potrebujeme to vzdycky nastavit ?? Necheme defaultni hodnoty ?
-    WindowingStrategy.AccumulationMode accumulationMode;
 
-    JoinBuilderParams(String name, Dataset<LeftT> left, Dataset<RightT> right, Type type) {
+    BuilderParams(String name, Dataset<LeftT> left, Dataset<RightT> right, Type type) {
       this.name = name;
       this.left = left;
       this.right = right;
       this.type = type;
     }
 
-    @Nullable
-    private WindowingDesc<Object, W> getWindowing() {
-      if (windowFn == null || trigger == null || accumulationMode == null) {
-        return null;
-      }
-
-      return new WindowingDesc<>(windowFn, trigger, accumulationMode);
-    }
   }
 
   /**
@@ -273,8 +263,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
         throw new IllegalArgumentException("Pass inputs from the same flow");
       }
 
-      final JoinBuilderParams<LeftT, RightT, ?, ?, ?> params =
-          new JoinBuilderParams<>(
+      final BuilderParams<LeftT, RightT, ?, ?, ?> params =
+          new BuilderParams<>(
               Objects.requireNonNull(name),
               Objects.requireNonNull(left),
               Objects.requireNonNull(right),
@@ -289,9 +279,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
    */
   public static class ByBuilder<LeftT, RightT> {
 
-    private final JoinBuilderParams<LeftT, RightT, ?, ?, ?> params;
+    private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
 
-    ByBuilder(JoinBuilderParams<LeftT, RightT, ?, ?, ?> params) {
+    ByBuilder(BuilderParams<LeftT, RightT, ?, ?, ?> params) {
       this.params = params;
     }
 
@@ -299,8 +289,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
         UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
 
       @SuppressWarnings("unchecked")
-      JoinBuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
-          (JoinBuilderParams<LeftT, RightT, K, ?, ?>) this.params;
+      BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, ?, ?>) this.params;
 
       paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
@@ -313,10 +303,10 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
    */
   public static class UsingBuilder<LeftT, RightT, K> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, ?, ?> params;
+    private final BuilderParams<LeftT, RightT, K, ?, ?> params;
 
     UsingBuilder(
-        JoinBuilderParams<LeftT, RightT, K, ?, ?> params) {
+        BuilderParams<LeftT, RightT, K, ?, ?> params) {
       this.params = params;
     }
 
@@ -324,8 +314,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
         BinaryFunctor<LeftT, RightT, OutputT> joinFunc) {
 
       @SuppressWarnings("unchecked")
-      JoinBuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted
-          = (JoinBuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted
+          = (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
 
       paramsCasted.joinFunc = Objects.requireNonNull(joinFunc);
 
@@ -341,11 +331,11 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
       OptionalMethodBuilder<WindowingBuilder<LeftT, RightT, K, OutputT>>,
-      Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>>{
+      Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, OutputT, ?> params;
+    private final BuilderParams<LeftT, RightT, K, OutputT, ?> params;
 
-    WindowingBuilder(JoinBuilderParams<LeftT, RightT, K, OutputT, ?> params) {
+    WindowingBuilder(BuilderParams<LeftT, RightT, K, OutputT, ?> params) {
       this.params = params;
     }
 
@@ -358,8 +348,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
         WindowFn<Object, W> windowing) {
 
       @SuppressWarnings("unchecked")
-      JoinBuilderParams<LeftT, RightT, K, OutputT, W> paramsCasted =
-          (JoinBuilderParams<LeftT, RightT, K, OutputT, W>) params;
+      BuilderParams<LeftT, RightT, K, OutputT, W> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, OutputT, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
 
@@ -368,11 +358,11 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   }
 
   public static class TriggerByBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-  implements Builders.TriggeredBy<AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W>>{
+      implements Builders.TriggeredBy<AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W>> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
+    private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
 
-    TriggerByBuilder(JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
+    TriggerByBuilder(BuilderParams<LeftT, RightT, K, OutputT, W> params) {
       this.params = params;
     }
 
@@ -384,11 +374,11 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   }
 
   public static class AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-  implements Builders.AccumulatorMode<OutputBuilder<LeftT, RightT, K, OutputT, W>>{
+      implements Builders.AccumulatorMode<OutputBuilder<LeftT, RightT, K, OutputT, W>> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
+    private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
 
-    AccumulatorModeBuilder(JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
+    AccumulatorModeBuilder(BuilderParams<LeftT, RightT, K, OutputT, W> params) {
       this.params = params;
     }
 
@@ -406,9 +396,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   public static class OutputBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.OutputValues<K, OutputT>, Builders.Output<Pair<K, OutputT>> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
+    private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
 
-    OutputBuilder(JoinBuilderParams<LeftT, RightT, K, OutputT, W> params) {
+    OutputBuilder(BuilderParams<LeftT, RightT, K, OutputT, W> params) {
       this.params = params;
     }
 

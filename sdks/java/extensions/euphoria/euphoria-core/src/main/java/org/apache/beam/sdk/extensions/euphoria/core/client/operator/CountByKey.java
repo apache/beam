@@ -99,28 +99,17 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     return DAG.of(sum);
   }
 
-  private static class BuilderParams<InputT, K, W extends BoundedWindow> {
+  private static class BuilderParams<InputT, K, W extends BoundedWindow>
+      extends WindowingParams<W> {
 
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
-    WindowFn<Object, W> windowFn;
-    Trigger trigger;
-    WindowingStrategy.AccumulationMode accumulationMode;
 
-    public BuilderParams(String name,
+    private BuilderParams(String name,
         Dataset<InputT> input) {
       this.name = name;
       this.input = input;
-    }
-
-    @Nullable
-    private WindowingDesc<Object, W> getWindowing() {
-      if (windowFn == null || trigger == null || accumulationMode == null) {
-        return null;
-      }
-
-      return new WindowingDesc<>(windowFn, trigger, accumulationMode);
     }
   }
 
