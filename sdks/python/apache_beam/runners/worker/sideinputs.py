@@ -123,7 +123,7 @@ class PrefetchingSourceSetIterable(object):
               # The tracking of time spend reading and bytes read from side
               # inputs is kept behind an experiment flag to test performance
               # impact.
-              if 'sideinput_io_metrics' in RuntimeValueProvider.experiments:
+              if 'sideinput_io_metrics' in RuntimeValueProvider.get_value('experiments', list, []):
                 self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
