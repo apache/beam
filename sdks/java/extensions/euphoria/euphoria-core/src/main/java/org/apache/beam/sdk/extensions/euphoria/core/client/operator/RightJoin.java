@@ -25,7 +25,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.JoinBuilderParams;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 
 /**
@@ -84,8 +84,8 @@ public class RightJoin {
         throw new IllegalArgumentException("Pass inputs from the same flow");
       }
 
-      final JoinBuilderParams<LeftT, RightT, ?, ?, ?> params =
-          new JoinBuilderParams<>(
+      final BuilderParams<LeftT, RightT, ?, ?, ?> params =
+          new BuilderParams<>(
               Objects.requireNonNull(name),
               Objects.requireNonNull(left),
               Objects.requireNonNull(right),
@@ -100,9 +100,9 @@ public class RightJoin {
    */
   public static class ByBuilder<LeftT, RightT> {
 
-    private final JoinBuilderParams<LeftT, RightT, ?, ?, ?> params;
+    private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
 
-    ByBuilder(JoinBuilderParams<LeftT, RightT, ?, ?, ?> params) {
+    ByBuilder(BuilderParams<LeftT, RightT, ?, ?, ?> params) {
       this.params = params;
     }
 
@@ -110,8 +110,8 @@ public class RightJoin {
         UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
 
       @SuppressWarnings("unchecked")
-      JoinBuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
-          (JoinBuilderParams<LeftT, RightT, K, ?, ?>) params;
+      BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, ?, ?>) params;
 
       paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
@@ -124,9 +124,9 @@ public class RightJoin {
    */
   public static class UsingBuilder<LeftT, RightT, K> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, ?, ?> params;
+    private final BuilderParams<LeftT, RightT, K, ?, ?> params;
 
-    UsingBuilder(JoinBuilderParams<LeftT, RightT, K, ?, ?> params) {
+    UsingBuilder(BuilderParams<LeftT, RightT, K, ?, ?> params) {
       this.params = params;
     }
 
@@ -136,8 +136,8 @@ public class RightJoin {
       Objects.requireNonNull(joinFunc);
 
       @SuppressWarnings("unchecked")
-      JoinBuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
-          (JoinBuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
 
       paramsCasted.joinFunc = (left, right, context) ->
           joinFunc.apply(Optional.ofNullable(left), right, context);
