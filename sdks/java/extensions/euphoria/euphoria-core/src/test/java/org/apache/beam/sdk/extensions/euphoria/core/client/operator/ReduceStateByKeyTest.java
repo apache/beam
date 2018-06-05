@@ -22,16 +22,18 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
 /** Test operator ReduceStateByKey.  */
@@ -42,7 +44,8 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Time<String> windowing = Time.of(Duration.ofHours(1));
+    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    DefaultTrigger trigger = DefaultTrigger.of();
     Dataset<Pair<String, Long>> reduced =
         ReduceStateByKey.named("ReduceStateByKey1")
             .of(dataset)
@@ -51,6 +54,8 @@ public class ReduceStateByKeyTest {
             .stateFactory(WordCountState::new)
             .mergeStatesBy(WordCountState::combine)
             .windowBy(windowing)
+            .triggeredBy(trigger)
+            .accumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .output();
 
     assertEquals(flow, reduced.getFlow());
@@ -64,7 +69,11 @@ public class ReduceStateByKeyTest {
     assertNotNull(reduce.getStateMerger());
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
-    assertSame(windowing, reduce.getWindowing());
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertSame(windowing, windowingDesc.getWindowFn());
+    assertSame(trigger, windowingDesc.getTrigger());
+    assertSame(AccumulationMode.ACCUMULATING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
   @Test
@@ -94,13 +103,20 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .mergeStatesBy(WordCountState::combine)
-            .windowBy(Time.of(Duration.ofHours(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
-    assertTrue(reduce.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertTrue(windowingDesc.getWindowFn() instanceof FixedWindows);
+    assertTrue(windowingDesc.getTrigger() instanceof  DefaultTrigger);
+    assertNotNull(windowingDesc.getAccumulationMode());
   }
 
+  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -117,6 +133,7 @@ public class ReduceStateByKeyTest {
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
   }
+  */
 
   /** Simple aggregating state. */
   private static class WordCountState implements State<Long, Long> {

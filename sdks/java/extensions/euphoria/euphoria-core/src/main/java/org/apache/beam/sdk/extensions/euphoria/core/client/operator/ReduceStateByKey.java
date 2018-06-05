@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -39,6 +38,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFu
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api, but very powerful
@@ -66,7 +68,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  *         .output();
  * }</pre>
  *
- * <p>This example constitutes a windowed word-count program. Each input element is treated as a key
+ * <p>This example constitutes a windowed word-count program. Each input element is treated as a
+ * key
  * to identify an imaginary {@code WordCountState} within each time window assigned to the input
  * element. For such a key/window combination the value {@code 1} gets sent to the corresponding
  * state.
@@ -82,30 +85,30 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * <h3>Builders:</h3>
  *
  * <ol>
- *   <li>{@code [named] ..................} give name to the operator [optional]
- *   <li>{@code of .......................} input dataset
- *   <li>{@code keyBy ....................} key extractor function
- *   <li>{@code valueBy ..................} value extractor function
- *   <li>{@code stateFactory .............} factory method for {@link State} (see {@link
- *       StateFactory})
- *   <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
- *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- *       attached windowing
- *   <li>{@code (output | outputValues) ..} build output dataset
+ * <li>{@code [named] ..................} give name to the operator [optional]
+ * <li>{@code of .......................} input dataset
+ * <li>{@code keyBy ....................} key extractor function
+ * <li>{@code valueBy ..................} value extractor function
+ * <li>{@code stateFactory .............} factory method for {@link State} (see {@link
+ * StateFactory})
+ * <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
+ * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
+ * attached windowing
+ * <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
  * @param <InputT> the type of input elements
  * @param <K> the type of the key (result type of {@code #keyBy}
  * @param <V> the type of the accumulated values (result type of {@code #valueBy})
  * @param <OutputT> the type of the output elements (result type of the accumulated state)
- */
+ */ //TODO update javadoc
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceStateByKey<
-        InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+    InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, K, Pair<K, OutputT>, W,
-        ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
+    InputT, InputT, InputT, K, Pair<K, OutputT>, W,
+    ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
 
   private final StateFactory<V, OutputT, StateT> stateFactory;
 
@@ -119,7 +122,7 @@ public class ReduceStateByKey<
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, V> valueExtractor,
-      @Nullable WindowingDesc<InputT, W> windowing,
+      @Nullable WindowingDesc<Object, W> windowing,
       StateFactory<V, OutputT, StateT> stateFactory,
       StateMerger<V, OutputT, StateT> stateMerger,
       Set<OutputHint> outputHints) {
@@ -140,7 +143,7 @@ public class ReduceStateByKey<
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new KeyByBuilder<>("ReduceStateByKey", input);
+    return new KeyByBuilder<>("ReduceStateByKey", Objects.requireNonNull(input));
   }
 
   /**
@@ -150,7 +153,7 @@ public class ReduceStateByKey<
    * @return a builder to complete the setup of the new operator
    */
   public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+    return new OfBuilder(Objects.requireNonNull(name));
   }
 
   /**
@@ -180,8 +183,41 @@ public class ReduceStateByKey<
     return valueExtractor;
   }
 
-  /** TODO: complete javadoc. */
+  public static class BuilderParams<
+      InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow> {
+
+    String name;
+    Dataset<InputT> input;
+    UnaryFunction<InputT, K> keyExtractor;
+    UnaryFunction<InputT, V> valueExtractor;
+    StateFactory<V, OutputT, StateT> stateFactory;
+    StateMerger<V, OutputT, StateT> stateMerger;
+    WindowFn<Object, W> windowFn;
+    Trigger trigger;
+    WindowingStrategy.AccumulationMode accumulationMode;
+
+    public BuilderParams(String name, Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyExtractor) {
+      this.name = name;
+      this.input = input;
+      this.keyExtractor = keyExtractor;
+    }
+
+    @Nullable
+    private WindowingDesc<Object, W> getWindowing() {
+      if (windowFn == null || trigger == null || accumulationMode == null) {
+        return null;
+      }
+
+      return new WindowingDesc<>(windowFn, trigger, accumulationMode);
+    }
+  }
+
+  /**
+   * TODO: complete javadoc.
+   */
   public static class OfBuilder implements Builders.Of {
+
     private final String name;
 
     OfBuilder(String name) {
@@ -190,42 +226,54 @@ public class ReduceStateByKey<
 
     @Override
     public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-      return new KeyByBuilder<>(name, input);
+      return new KeyByBuilder<>(name, Objects.requireNonNull(input));
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final String name;
     private final Dataset<InputT> input;
 
     KeyByBuilder(String name, Dataset<InputT> input) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
+      this.name = name;
+      this.input = input;
     }
 
     @Override
-    public <K> DatasetBuilder2<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
-      return new DatasetBuilder2<>(name, input, keyExtractor);
+    public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
+
+      BuilderParams<InputT, K, ?, ?, ?, ?> params = new BuilderParams<>(
+          name, input, Objects.requireNonNull(keyExtractor));
+
+      return new ValueByBuilder<>(params);
     }
 
-    public <K> DatasetBuilder2<InputT, K> keyBy(
+    public <K> ValueByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
-      return new DatasetBuilder2<>(name, input, TypeAwareUnaryFunction.of(keyExtractor, typeHint));
+
+      TypeAwareUnaryFunction<InputT, K> typeAwareKeyExtractor =
+          TypeAwareUnaryFunction.of(Objects.requireNonNull(keyExtractor), typeHint);
+
+      BuilderParams<InputT, K, ?, ?, ?, ?> params = new BuilderParams<>(
+          name, input, typeAwareKeyExtractor);
+
+      return new ValueByBuilder<>(params);
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class DatasetBuilder2<InputT, K> {
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryFunction<InputT, K> keyExtractor;
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class ValueByBuilder<InputT, K> {
 
-    DatasetBuilder2(String name, Dataset<InputT> input, UnaryFunction<InputT, K> keyExtractor) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+    private final BuilderParams<InputT, K, ?, ?, ?, ?> params;
+
+    ValueByBuilder(BuilderParams<InputT, K, ?, ?, ?, ?> params) {
+      this.params = params;
     }
 
     /**
@@ -234,168 +282,171 @@ public class ReduceStateByKey<
      *
      * @param <V> the type of the extracted values
      * @param valueExtractor a user defined function to extract values from the processed input
-     *     dataset's elements for later accumulation
+     * dataset's elements for later accumulation
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public <V> DatasetBuilder3<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
-      return new DatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
+    public <V> StateFactoryBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, ?, ?, ?> paramsCasted =
+          (BuilderParams<InputT, K, V, ?, ?, ?>) params;
+
+      paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
+      return new StateFactoryBuilder<>(paramsCasted);
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class DatasetBuilder3<InputT, K, V> {
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryFunction<InputT, K> keyExtractor;
-    private final UnaryFunction<InputT, V> valueExtractor;
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class StateFactoryBuilder<InputT, K, V> {
 
-    DatasetBuilder3(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunction<InputT, K> keyExtractor,
-        UnaryFunction<InputT, V> valueExtractor) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+    private final BuilderParams<InputT, K, V, ?, ?, ?> params;
+
+    StateFactoryBuilder(BuilderParams<InputT, K, V, ?, ?, ?> params) {
+      this.params = params;
     }
 
     /**
      * Specifies a factory for creating new/empty/blank state instances.
      *
      * @param <OutputT> the type of output elements state instances will produce; along with the
-     *     "key", this is part of the type of output elements the {@link ReduceStateByKey} operator
-     *     will produce as such
+     * "key", this is part of the type of output elements the {@link ReduceStateByKey} operator will
+     * produce as such
      * @param <StateT> the type of the state (implementation)
      * @param stateFactory a user supplied function to create new state instances
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public <OutputT, StateT extends State<V, OutputT>>
-        DatasetBuilder4<InputT, K, V, OutputT, StateT> stateFactory(
-            StateFactory<V, OutputT, StateT> stateFactory) {
-      return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
+    MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
+        StateFactory<V, OutputT, StateT> stateFactory) {
+
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, ?> paramsCasted =
+          (BuilderParams<InputT, K, V, OutputT, StateT, ?>) params;
+
+      paramsCasted.stateFactory = Objects.requireNonNull(stateFactory);
+
+      return new MergeStateByBuilder<>(paramsCasted);
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class DatasetBuilder4<InputT, K, V, OutputT, StateT extends State<V, OutputT>> {
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryFunction<InputT, K> keyExtractor;
-    private final UnaryFunction<InputT, V> valueExtractor;
-    private final StateFactory<V, OutputT, StateT> stateFactory;
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class MergeStateByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>> {
 
-    DatasetBuilder4(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunction<InputT, K> keyExtractor,
-        UnaryFunction<InputT, V> valueExtractor,
-        StateFactory<V, OutputT, StateT> stateFactory) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.stateFactory = Objects.requireNonNull(stateFactory);
+    private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
+
+    MergeStateByBuilder(BuilderParams<InputT, K, V, OutputT, StateT, ?> params) {
+      this.params = params;
     }
 
     /**
-     * Specifies the merging function to be utilized when states get merged as part of
-     * {@link MergingWindowing window merging}.
+     * Specifies the merging function to be utilized when states get merged as part of {@link
+     * MergingWindowing window merging}.
      *
      * @param stateMerger a user defined function to merge mutilple states into a specified target
-     *     state
+     * state
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
-    public DatasetBuilder5<InputT, K, V, OutputT, StateT> mergeStatesBy(
+    public WindowOfBuilder<InputT, K, V, OutputT, StateT> mergeStatesBy(
         StateMerger<V, OutputT, StateT> stateMerger) {
-      return new DatasetBuilder5<>(
-          name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
+
+      params.stateMerger = Objects.requireNonNull(stateMerger);
+      return new WindowOfBuilder<>(params);
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class DatasetBuilder5<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
-      implements Builders.WindowBy<InputT, DatasetBuilder5<InputT, K, V, OutputT, StateT>>,
-          Builders.Output<Pair<K, OutputT>>,
-          Builders.OutputValues<K, OutputT> {
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class WindowOfBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
+      implements Builders.WindowBy<InputT, WindowOfBuilder<InputT, K, V, OutputT, StateT>>,
+      Builders.Output<Pair<K, OutputT>>,
+      Builders.OutputValues<K, OutputT> {
 
-    final String name;
-    final Dataset<InputT> input;
-    final UnaryFunction<InputT, K> keyExtractor;
-    final UnaryFunction<InputT, V> valueExtractor;
-    final StateFactory<V, OutputT, StateT> stateFactory;
-    final StateMerger<V, OutputT, StateT> stateMerger;
+    private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
 
-    DatasetBuilder5(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunction<InputT, K> keyExtractor,
-        UnaryFunction<InputT, V> valueExtractor,
-        StateFactory<V, OutputT, StateT> stateFactory,
-        StateMerger<V, OutputT, StateT> stateMerger) {
-
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.stateFactory = Objects.requireNonNull(stateFactory);
-      this.stateMerger = Objects.requireNonNull(stateMerger);
+    WindowOfBuilder(BuilderParams<InputT, K, V, OutputT, StateT, ?> params) {
+      this.params = params;
     }
 
     @Override
-    public <W extends Window<W>> DatasetBuilder6<InputT, K, V, OutputT, StateT, W> windowBy(
-        Windowing<InputT, W> windowing) {
-      return new DatasetBuilder6<>(
-          name,
-          input,
-          keyExtractor,
-          valueExtractor,
-          stateFactory,
-          stateMerger,
-          Objects.requireNonNull(windowing));
+    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, V, OutputT, StateT, W> windowBy(
+        WindowFn<Object, W> windowing) {
+
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, W> paramsCasted =
+          (BuilderParams<InputT, K, V, OutputT, StateT, W>) params;
+
+      paramsCasted.windowFn = Objects.requireNonNull(windowing);
+
+      return new TriggerByBuilder<>(paramsCasted);
     }
 
     @Override
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
-      return new DatasetBuilder6<>(
-              name, input, keyExtractor, valueExtractor, stateFactory, stateMerger, null)
-          .output(outputHints);
+      return new OutputBuilder<>(params).output(outputHints);
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class DatasetBuilder6<
-          InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends Window<W>>
-      extends DatasetBuilder5<InputT, K, V, OutputT, StateT> {
+  public static class TriggerByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow> { //TODO propojit interfacema
 
-    @Nullable private final Windowing<InputT, W> windowing;
+    private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
-    DatasetBuilder6(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunction<InputT, K> keyExtractor,
-        UnaryFunction<InputT, V> valueExtractor,
-        StateFactory<V, OutputT, StateT> stateFactory,
-        StateMerger<V, OutputT, StateT> stateMerger,
-        @Nullable Windowing<InputT, W> windowing) {
-      super(name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
-      this.windowing = windowing;
+    TriggerByBuilder(BuilderParams<InputT, K, V, OutputT, StateT, W> params) {
+      this.params = params;
+    }
+
+    public AccumulatorModeBuilder<InputT, K, V, OutputT, StateT, W> triggeredBy(Trigger trigger) {
+      params.trigger = Objects.requireNonNull(trigger);
+      return new AccumulatorModeBuilder<>(params);
+    }
+
+  }
+
+  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow> {
+
+    private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
+
+    AccumulatorModeBuilder(BuilderParams<InputT, K, V, OutputT, StateT, W> params) {
+      this.params = params;
+    }
+
+    public OutputBuilder<InputT, K, V, OutputT, StateT, W> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode) {
+
+      params.accumulationMode = Objects.requireNonNull(accumulationMode);
+      return new OutputBuilder<>(params);
+    }
+
+
+  }
+
+  public static class OutputBuilder<
+      InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+      implements Builders.Output<Pair<K, OutputT>>, Builders.OutputValues<K, OutputT> {
+
+    /**
+     * TODO: complete javadoc.
+     */
+    private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
+
+    OutputBuilder(BuilderParams<InputT, K, V, OutputT, StateT, W> params) {
+      this.params = params;
     }
 
     @Override
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
-      Flow flow = input.getFlow();
+      Flow flow = params.input.getFlow();
 
       ReduceStateByKey<InputT, K, V, OutputT, StateT, W> reduceStateByKey =
           new ReduceStateByKey<>(
-              name,
+              params.name,
               flow,
-              input,
-              keyExtractor,
-              valueExtractor,
-              windowing,
-              stateFactory,
-              stateMerger,
+              params.input,
+              params.keyExtractor,
+              params.valueExtractor,
+              params.getWindowing(),
+              params.stateFactory,
+              params.stateMerger,
               Sets.newHashSet(outputHints));
       flow.add(reduceStateByKey);
 
