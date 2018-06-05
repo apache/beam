@@ -340,7 +340,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   public static class WindowingBuilder<LeftT, RightT, K, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
-      OptionalMethodBuilder<WindowingBuilder<LeftT, RightT, K, OutputT>> {
+      OptionalMethodBuilder<WindowingBuilder<LeftT, RightT, K, OutputT>>,
+      Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>>{
 
     private final JoinBuilderParams<LeftT, RightT, K, OutputT, ?> params;
 
@@ -366,7 +367,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
-  public static class TriggerByBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow> {
+  public static class TriggerByBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
+  implements Builders.TriggeredBy<AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W>>{
 
     private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
 
@@ -381,7 +383,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
   }
 
-  public static class AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow> {
+  public static class AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
+  implements Builders.AccumulatorMode<OutputBuilder<LeftT, RightT, K, OutputT, W>>{
 
     private final JoinBuilderParams<LeftT, RightT, K, OutputT, W> params;
 
