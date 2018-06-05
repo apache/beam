@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
@@ -33,8 +34,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Reduces all elements in a window. The operator corresponds to {@link ReduceByKey} with the same
@@ -45,23 +51,23 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
  * <h3>Builders:</h3>
  *
  * <ol>
- *   <li>{@code [named] ..................} give name to the operator [optional]
- *   <li>{@code of .......................} input dataset
- *   <li>{@code [valueBy] ................} value extractor function (default: identity)
- *   <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link
- *       ReduceFunction} for combinable or non-combinable function
- *   <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
- *       to {@link ReduceFunction} function (applicable only for non-combinable version)
- *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- *       attached windowing
- *   <li>{@code output ...................} build output dataset
+ * <li>{@code [named] ..................} give name to the operator [optional]
+ * <li>{@code of .......................} input dataset
+ * <li>{@code [valueBy] ................} value extractor function (default: identity)
+ * <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link
+ * ReduceFunction} for combinable or non-combinable function
+ * <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
+ * to {@link ReduceFunction} function (applicable only for non-combinable version)
+ * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
+ * attached windowing
+ * <li>{@code output ...................} build output dataset
  * </ol>
- */
+ */ //TODO update javadoc
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
-public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
+public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
+    InputT, InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
 
   private static final Byte B_ZERO = (byte) 0;
   final UnaryFunction<InputT, V> valueExtractor;
@@ -73,7 +79,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, V> valueExtractor,
-      @Nullable Windowing<InputT, W> windowing,
+      @Nullable WindowingDesc<Object, W> windowing,
       ReduceFunctor<V, OutputT> reducer,
       @Nullable BinaryFunction<V, V, Integer> valueComparator) {
 
@@ -103,7 +109,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
    * @return a builder to complete the setup of the new operator
    */
   public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+    return new OfBuilder(Objects.requireNonNull(name));
   }
 
   public ReduceFunctor<V, OutputT> getReducer() {
@@ -165,7 +171,33 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
     return dag;
   }
 
-  /** TODO: complete javadoc. */
+  private static <V, OutputT> ReduceFunctor<V, OutputT> reduceFunctionToFunctor(
+      ReduceFunction<V, OutputT> reducer) {
+    return (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in));
+  }
+
+  private static class BuilderParams<InputT, V, OutputT, W extends BoundedWindow>
+      extends WindowingParams<W> {
+
+    String name;
+    Dataset<InputT> input;
+    UnaryFunction<InputT, V> valueExtractor;
+    ReduceFunctor<V, OutputT> reducer;
+    @Nullable
+    BinaryFunction<V, V, Integer> valueComparator;
+
+    public BuilderParams(String name,
+        Dataset<InputT> input) {
+      this.name = name;
+      this.input = input;
+    }
+
+  }
+
+  /**
+   * TODO: complete javadoc.
+   */
+
   public static class OfBuilder implements Builders.Of {
 
     final String name;
@@ -176,154 +208,199 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
 
     @Override
     public <T> ValueBuilder<T> of(Dataset<T> input) {
-      return new ValueBuilder<>(name, input);
+      return new ValueBuilder<>(name, Objects.requireNonNull(input));
     }
+
   }
 
-  /** TODO: complete javadoc. */
-  public static class ValueBuilder<T> {
-    final String name;
-    final Dataset<T> input;
+  public static class ValueBuilder<InputT> {
 
-    ValueBuilder(String name, Dataset<T> input) {
-      this.name = name;
-      this.input = input;
+    private final BuilderParams<InputT, ?, ?, ?> params;
+
+    ValueBuilder(String name, Dataset<InputT> input) {
+      this.params = new BuilderParams<>(name, input);
     }
 
-    public <V> ReduceBuilder<T, V> valueBy(UnaryFunction<T, V> valueExtractor) {
-      return new ReduceBuilder<>(name, input, valueExtractor);
+    public <V> ReduceBuilder<InputT, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+
+      @SuppressWarnings("unchecked") BuilderParams<InputT, V, ?, ?> paramsCasted =
+          (BuilderParams<InputT, V, ?, ?>) params;
+
+      paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
+      return new ReduceBuilder<>(paramsCasted);
     }
 
-    public <OutputT> SortableOutputBuilder<T, T, OutputT> reduceBy(
-        ReduceFunction<T, OutputT> reducer) {
+    public <OutputT> SortableOutputBuilder<InputT, InputT, OutputT> reduceBy(
+        ReduceFunction<InputT, OutputT> reducer) {
 
-      return new SortableOutputBuilder<>(
-          name,
-          input,
-          e -> e,
-          (Stream<T> s, Collector<OutputT> c) -> {
-            c.collect(reducer.apply(s));
-          },
-          null);
+      Objects.requireNonNull(reducer);
+      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, InputT, OutputT, ?>) params;
+
+      paramsCasted.valueExtractor = e -> e;
+      paramsCasted.reducer = reduceFunctionToFunctor(reducer);
+
+      return new SortableOutputBuilder<>(paramsCasted);
     }
 
-    public <OutputT> SortableOutputBuilder<T, T, OutputT> reduceBy(
-        ReduceFunctor<T, OutputT> reducer) {
+    public <OutputT> SortableOutputBuilder<InputT, InputT, OutputT> reduceBy(
+        ReduceFunctor<InputT, OutputT> reducer) {
 
-      return new SortableOutputBuilder<>(name, input, e -> e, reducer, null);
+      Objects.requireNonNull(reducer);
+      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, InputT, OutputT, ?>) params;
+
+      paramsCasted.valueExtractor = e -> e;
+      paramsCasted.reducer = reducer;
+
+      return new SortableOutputBuilder<>(paramsCasted);
     }
 
-    public OutputBuilder<T, T, T> combineBy(CombinableReduceFunction<T> reducer) {
-      return new OutputBuilder<>(name, input, e -> e, reducer, null, null);
+    public WindowByBuilder<InputT, InputT, InputT> combineBy(
+        CombinableReduceFunction<InputT> reducer) {
+
+      Objects.requireNonNull(reducer);
+      @SuppressWarnings("unchecked") BuilderParams<InputT, InputT, InputT, ?> paramsCasted =
+          (BuilderParams<InputT, InputT, InputT, ?>) params;
+
+      paramsCasted.valueExtractor = e -> e;
+      paramsCasted.reducer = reduceFunctionToFunctor(reducer);
+
+      return new WindowByBuilder<>(paramsCasted);
     }
+
   }
 
-  /** TODO: complete javadoc. */
-  public static class ReduceBuilder<T, V> {
-    final String name;
-    final Dataset<T> input;
-    final UnaryFunction<T, V> valueExtractor;
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class ReduceBuilder<InputT, V> {
 
-    public ReduceBuilder(String name, Dataset<T> input, UnaryFunction<T, V> valueExtractor) {
+    private final BuilderParams<InputT, V, ?, ?> params;
 
-      this.name = name;
-      this.input = input;
-      this.valueExtractor = valueExtractor;
+    public ReduceBuilder(BuilderParams<InputT, V, ?, ?> params) {
+      this.params = params;
     }
 
-    public <OutputT> SortableOutputBuilder<T, V, OutputT> reduceBy(
+    public <OutputT> SortableOutputBuilder<InputT, V, OutputT> reduceBy(
         ReduceFunction<V, OutputT> reducer) {
-      return reduceBy(
-          (Stream<V> in, Collector<OutputT> ctx) -> {
-            ctx.collect(reducer.apply(in));
-          });
+      return reduceBy(reduceFunctionToFunctor(Objects.requireNonNull(reducer)));
     }
 
-    public <OutputT> SortableOutputBuilder<T, V, OutputT> reduceBy(
+    public <OutputT> SortableOutputBuilder<InputT, V, OutputT> reduceBy(
         ReduceFunctor<V, OutputT> reducer) {
 
-      return new SortableOutputBuilder<>(name, input, valueExtractor, reducer, null);
+      @SuppressWarnings("unchecked") BuilderParams<InputT, V, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, V, OutputT, ?>) params;
+
+      paramsCasted.reducer = Objects.requireNonNull(reducer);
+
+      return new SortableOutputBuilder<>(paramsCasted);
     }
 
-    public OutputBuilder<T, V, V> combineBy(CombinableReduceFunction<V> reducer) {
-      return new OutputBuilder<>(
-          name, input, valueExtractor, ReduceByKey.toReduceFunctor(reducer), null, null);
+    public WindowByBuilder<InputT, V, V> combineBy(CombinableReduceFunction<V> reducer) {
+
+      @SuppressWarnings("unchecked") BuilderParams<InputT, V, V, ?> paramsCasted =
+          (BuilderParams<InputT, V, V, ?>) params;
+
+      Objects.requireNonNull(reducer);
+      paramsCasted.reducer = ReduceByKey.toReduceFunctor(reducer);
+      return new WindowByBuilder<>(paramsCasted);
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class OutputBuilder<T, V, OutputT>
-      implements Builders.WindowBy<T, OutputBuilder<T, V, OutputT>> {
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class WindowByBuilder<InputT, V, OutputT>
+      implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>> {
 
-    final String name;
-    final Dataset<T> input;
-    final UnaryFunction<T, V> valueExtractor;
-    final ReduceFunctor<V, OutputT> reducer;
-    final Windowing<T, ?> windowing;
-    @Nullable final BinaryFunction<V, V, Integer> valueComparator;
+    private final BuilderParams<InputT, V, OutputT, ?> params;
 
-    public OutputBuilder(
-        String name,
-        Dataset<T> input,
-        UnaryFunction<T, V> valueExtractor,
-        ReduceFunction<V, OutputT> reducer,
-        @Nullable Windowing<T, ?> windowing,
-        @Nullable BinaryFunction<V, V, Integer> valueComparator) {
-
-      this(
-          name,
-          input,
-          valueExtractor,
-          (Stream<V> in, Collector<OutputT> ctx) -> {
-            ctx.collect(reducer.apply(in));
-          },
-          windowing,
-          valueComparator);
+    public WindowByBuilder(BuilderParams<InputT, V, OutputT, ?> params) {
+      this.params = params;
     }
 
-    public OutputBuilder(
-        String name,
-        Dataset<T> input,
-        UnaryFunction<T, V> valueExtractor,
-        ReduceFunctor<V, OutputT> reducer,
-        Windowing<T, ?> windowing,
-        @Nullable BinaryFunction<V, V, Integer> valueComparator) {
-
-      this.name = name;
-      this.input = input;
-      this.valueExtractor = valueExtractor;
-      this.reducer = reducer;
-      this.windowing = windowing;
-      this.valueComparator = valueComparator;
-    }
-
-    @SuppressWarnings("unchecked")
     public Dataset<OutputT> output() {
-      Flow flow = input.getFlow();
-      ReduceWindow<T, V, OutputT, ?> operator =
+      return new OutputBuilder<>(params).output();
+    }
+
+    @Override
+    public <W extends BoundedWindow> TriggerByBuilder<InputT, V, OutputT, W> windowBy(
+        WindowFn<Object, W> windowing) {
+
+      @SuppressWarnings("unchecked") BuilderParams<InputT, V, OutputT, W> paramsCasted =
+          (BuilderParams<InputT, V, OutputT, W>) params;
+
+      paramsCasted.windowFn = Objects.requireNonNull(windowing);
+      return new TriggerByBuilder<>(paramsCasted);
+    }
+  }
+
+  public static class OutputBuilder<InputT, V, OutputT, W extends BoundedWindow> {
+
+    private final BuilderParams<InputT, V, OutputT, W> params;
+
+    public OutputBuilder(BuilderParams<InputT, V, OutputT, W> params) {
+      this.params = params;
+    }
+
+    public Dataset<OutputT> output() {
+      Flow flow = params.input.getFlow();
+      ReduceWindow<InputT, V, OutputT, ?> operator =
           new ReduceWindow<>(
-              name, flow, input, valueExtractor, (Windowing) windowing, reducer, valueComparator);
+              params.name, flow, params.input, params.valueExtractor, params.getWindowing(),
+              params.reducer, params.valueComparator);
       flow.add(operator);
       return operator.output();
     }
 
-    @Override
-    public <W extends Window<W>> OutputBuilder<T, V, OutputT> windowBy(Windowing<T, W> windowing) {
-      return new OutputBuilder<>(name, input, valueExtractor, reducer, windowing, valueComparator);
-    }
   }
 
-  /** TODO: complete javadoc. */
-  public static class SortableOutputBuilder<T, V, OutputT> extends OutputBuilder<T, V, OutputT> {
+  public static class TriggerByBuilder<InputT, V, OutputT, W extends BoundedWindow>
+      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, V, OutputT, W>> {
 
-    public SortableOutputBuilder(
-        String name,
-        Dataset<T> input,
-        UnaryFunction<T, V> valueExtractor,
-        ReduceFunctor<V, OutputT> reducer,
-        @Nullable Windowing<T, ?> windowing) {
+    private final BuilderParams<InputT, V, OutputT, W> params;
 
-      super(name, input, valueExtractor, reducer, windowing, null);
+    TriggerByBuilder(BuilderParams<InputT, V, OutputT, W> params) {
+      this.params = params;
+    }
+
+    public AccumulatorModeBuilder<InputT, V, OutputT, W> triggeredBy(Trigger trigger) {
+      params.trigger = Objects.requireNonNull(trigger);
+      return new AccumulatorModeBuilder<>(params);
+    }
+
+  }
+
+  public static class AccumulatorModeBuilder<InputT, V, OutputT, W extends BoundedWindow>
+      implements Builders.AccumulatorMode<OutputBuilder<InputT, V, OutputT, W>> {
+
+    private final BuilderParams<InputT, V, OutputT, W> params;
+
+    AccumulatorModeBuilder(BuilderParams<InputT, V, OutputT, W> params) {
+      this.params = params;
+    }
+
+    public OutputBuilder<InputT, V, OutputT, W> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode) {
+
+      params.accumulationMode = Objects.requireNonNull(accumulationMode);
+      return new OutputBuilder<>(params);
+    }
+
+  }
+
+  /**
+   * TODO: complete javadoc.
+   */
+  public static class SortableOutputBuilder<InputT, V, OutputT>
+      implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>> {
+
+    private final BuilderParams<InputT, V, OutputT, ?> params;
+
+    public SortableOutputBuilder(BuilderParams<InputT, V, OutputT, ?> params) {
+      this.params = params;
     }
 
     /**
@@ -332,9 +409,22 @@ public class ReduceWindow<InputT, V, OutputT, W extends Window<W>>
      * @param comparator function with contract defined by {@code java.util.Comparator#compare}.
      * @return next step builder
      */
-    public OutputBuilder<T, V, OutputT> withSortedValues(BinaryFunction<V, V, Integer> comparator) {
+    public WindowByBuilder<InputT, V, OutputT> withSortedValues(
+        BinaryFunction<V, V, Integer> comparator) {
+      params.valueComparator = Objects.requireNonNull(comparator);
 
-      return new OutputBuilder<>(name, input, valueExtractor, reducer, windowing, comparator);
+      return new WindowByBuilder<>(params);
+    }
+
+    public Dataset<OutputT> output() {
+      return new OutputBuilder<>(params).output();
+    }
+
+    @Override
+    public <W extends BoundedWindow> TriggerByBuilder<InputT, V, OutputT, ?> windowBy(
+        WindowFn<Object, W> windowing) {
+
+      return new WindowByBuilder<>(params).windowBy(windowing);
     }
   }
 }
