@@ -11,7 +11,7 @@ class WindowingParams<W extends BoundedWindow> {
 
   WindowFn<Object, W> windowFn;
   Trigger trigger;
-  WindowingStrategy.AccumulationMode accumulationMode; //TODO potrebujeme to vzdycky nastavit ?? Necheme defaultni hodnoty ?
+  WindowingStrategy.AccumulationMode accumulationMode; //TODO do we always need this to be set explicitly ?
 
   @Nullable
   WindowingDesc<Object, W> getWindowing() {

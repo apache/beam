@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -25,9 +26,15 @@ import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test operator Distinct.  */
+/**
+ * Test operator Distinct.
+ */
 public class DistinctTest {
 
   @Test
@@ -35,8 +42,12 @@ public class DistinctTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<String> uniq = Distinct.named("Distinct1").of(dataset).windowBy(windowing).output();
+    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    DefaultTrigger trigger = DefaultTrigger.of();
+    Dataset<String> uniq = Distinct.named("Distinct1").of(dataset)
+        .windowBy(windowing).triggeredBy(trigger)
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+        .output();
 
     assertEquals(flow, uniq.getFlow());
     assertEquals(1, flow.size());
@@ -45,7 +56,13 @@ public class DistinctTest {
     assertEquals(flow, distinct.getFlow());
     assertEquals("Distinct1", distinct.getName());
     assertEquals(uniq, distinct.output());
-    assertSame(windowing, distinct.getWindowing());
+
+    WindowingDesc windowingDesc = distinct.getWindowing();
+    assertNotNull(windowingDesc);
+    assertSame(windowing, windowingDesc.getWindowFn());
+    assertSame(trigger, windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+
   }
 
   @Test
@@ -64,12 +81,21 @@ public class DistinctTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<String> uniq = Distinct.of(dataset).windowBy(Time.of(Duration.ofHours(1))).output();
+    Dataset<String> uniq = Distinct.of(dataset)
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(DefaultTrigger.of()).accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+        .output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertTrue(distinct.getWindowing() instanceof Time);
+
+    WindowingDesc windowingDesc = distinct.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
   }
 
+  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -80,4 +106,5 @@ public class DistinctTest {
     Distinct distinct = (Distinct) flow.operators().iterator().next();
     assertTrue(distinct.getWindowing() instanceof Time);
   }
+  */
 }
