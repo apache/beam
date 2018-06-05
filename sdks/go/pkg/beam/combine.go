@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // Combine inserts a global Combine transform into the pipeline. It
@@ -59,8 +60,16 @@ func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollect
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)
 	}
+	// This seems like the best place to infer the accumulator coder type, unless
+	// it's a universal type.
+	// We can get the fulltype from the return value of the mergeAccumulatorFn
+	// TODO(lostluck): 2018/05/28 Correctly infer universal type coder if necessary.
+	accumCoder, err := inferCoder(typex.New(fn.MergeAccumulatorsFn().Ret[0].T))
+	if err != nil {
+		return PCollection{}, fmt.Errorf("unable to infer CombineFn accumulator coder: %v", err)
+	}
 
-	edge, err := graph.NewCombine(s.real, s.scope, fn, col.n)
+	edge, err := graph.NewCombine(s.real, s.scope, fn, col.n, accumCoder)
 	if err != nil {
 		return PCollection{}, err
 	}
