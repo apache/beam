@@ -138,11 +138,11 @@ When running via Gradle, the following two parameters control the execution:
 
 Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,
-or may be published to Pub/Sub.
+or may be published to Pub/Sub or Kafka.
 
 The query results may be:
 
-* Published to Pub/Sub.
+* Published to Pub/Sub or Kafka.
 * Written to text files as plain text.
 * Written to text files using an Avro encoding.
 * Sent to BigQuery.
@@ -205,6 +205,28 @@ Available suites are:
     --manageResources=false --monitorJobs=true \
     --sparkMaster=local \
     -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
+	
+### Kafka source/sink configuration parameters
+
+Set Kafka host/ip (for example, "localhost:9092"):
+
+    --bootstrapServers=<kafka host/ip> 
+
+Write results into Kafka topic:
+
+    --sinkType=KAFKA
+
+Set topic name which will be used for benchmark results:
+
+	--kafkaResultsTopic=<topic name>
+
+Write or/and read events into/from Kafka topic:
+
+    --sourceType=KAFKA
+	
+Set topic name which will be used for benchmark events:
+
+	--kafkaTopic=<topic name>
 
 ## Current status
 
