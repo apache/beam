@@ -25,7 +25,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFu
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Common methods used in operator builders to share related javadoc descriptions.
@@ -65,16 +67,21 @@ public class Builders {
   }
 
   /**
-   * Interface for builders of windowing.
+   * First windowing builder which starts builders chain defining Beam windowing.
    *
-   * @param <InputT> data type of the input elements
-   * @param <BuilderT> the builder
+   * <p>
+   *   It consumes {@link WindowFn} and it is followed by {@link TriggeredBy} and
+   *   {@link AccumulatorMode} builders.
+   * </p>
+   *
+   *
+   * @param <OutTriggerBuilder> type of following {@link TriggeredBy} builder.
+   *
    */
-  interface WindowBy<InputT, BuilderT extends WindowBy<InputT, BuilderT>>
+  interface WindowBy<OutTriggerBuilder extends TriggeredBy>
       /*extends OptionalMethodBuilder<BuilderT>*/ { //TODO discuss this
 
         //TODO add backward compatible method
-        //TODO add triggeredBy and AccumulatedBy builders in chain ...
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
      * already preceded by an event time assignment, it will process the input elements in ingestion
@@ -84,7 +91,24 @@ public class Builders {
      * @param windowing the windowing strategy to apply to the input dataset
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends BoundedWindow> Object windowBy(WindowFn<Object, W> windowing);
+    <W extends BoundedWindow> OutTriggerBuilder windowBy(WindowFn<Object, W> windowing);
+  }
+
+  /**
+   * Second builder in windowing builders chain. It introduces a {@link Trigger}.
+   *
+   * @param <OutAccBuilderT> following {@link AccumulatorMode} builder type
+   */
+  interface TriggeredBy<OutAccBuilderT extends AccumulatorMode>{
+    OutAccBuilderT triggeredBy(Trigger trigger);
+  }
+
+  /**
+   * Third and last builder in windowing chain introducing {@link WindowingStrategy.AccumulationMode}.
+   * @param <OutBuilderT> output builder type
+   */
+  interface AccumulatorMode<OutBuilderT>{
+    OutBuilderT accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
   }
 
   /** TODO: complete javadoc. */

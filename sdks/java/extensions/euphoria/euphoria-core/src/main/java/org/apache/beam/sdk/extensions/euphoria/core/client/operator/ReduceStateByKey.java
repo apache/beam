@@ -359,7 +359,7 @@ public class ReduceStateByKey<
    * TODO: complete javadoc.
    */
   public static class WindowOfBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
-      implements Builders.WindowBy<InputT, WindowOfBuilder<InputT, K, V, OutputT, StateT>>,
+      implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, StateT, ?>>,
       Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT> {
 
@@ -387,7 +387,8 @@ public class ReduceStateByKey<
     }
   }
 
-  public static class TriggerByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow> { //TODO propojit interfacema
+  public static class TriggerByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+  implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, StateT, W>>{
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
@@ -402,7 +403,8 @@ public class ReduceStateByKey<
 
   }
 
-  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow> {
+  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+  implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, StateT, W>>{
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
@@ -416,7 +418,6 @@ public class ReduceStateByKey<
       params.accumulationMode = Objects.requireNonNull(accumulationMode);
       return new OutputBuilder<>(params);
     }
-
 
   }
 
