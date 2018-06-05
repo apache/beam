@@ -197,7 +197,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     }
 
     private Object readResolve() throws IOException, ClassNotFoundException {
-      return new SerializableSchemaSupplier(Schema.parse(schema));
+      return new SerializableSchemaSupplier(new Schema.Parser().parse(schema));
     }
   }
 
