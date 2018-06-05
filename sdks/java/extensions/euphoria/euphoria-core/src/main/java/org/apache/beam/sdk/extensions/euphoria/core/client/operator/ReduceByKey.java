@@ -440,7 +440,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   public static class WindowByBuilder<InputT, K, V, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
-      Builders.WindowBy<InputT, WindowByBuilder<InputT, K, V, OutputT>> {
+      Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>> {
 
     final ReduceByKeyBuilderParams<InputT, K, V, OutputT, ?> params;
 
@@ -523,7 +523,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
-  public static class TriggerByBuilder<InputT, K, V, OutputT, W extends BoundedWindow> { //TODO propojit interfacema
+  public static class TriggerByBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
+  implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, W>>{
 
     private final ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params;
 
@@ -538,7 +539,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
 
   }
 
-  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, W extends BoundedWindow> {
+  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
+  implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, W>>{
 
     private final ReduceByKeyBuilderParams<InputT, K, V, OutputT, W> params;
 
