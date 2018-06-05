@@ -125,8 +125,10 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
         ParDo.of(
             new DoFn<InputT, OutputT>() {
               @ProcessElement
-              public void processElement(ProcessContext c) throws Exception {
-                c.output(fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c)));
+              public void processElement(@Element InputT element,
+                                         OutputReceiver<OutputT> receiver,
+                                         ProcessContext c) throws Exception {
+                receiver.output(fn.getClosure().apply(element, Fn.Context.wrapProcessContext(c)));
               }
 
               @Override
