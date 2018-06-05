@@ -255,7 +255,7 @@ Version represents the release currently underway, while next version specifies 
 
     BASE_RELEASE=2.5.0
     RELEASE=2.5.1
-    NEXT_VERSION_IN_BASE_BRANCH=2.5.0
+    NEXT_VERSION_IN_BASE_BRANCH=2.6.0
     git checkout tags/${BASE_RELEASE}
 
 Create a new branch, and update version files in the master branch.
@@ -274,18 +274,13 @@ Create a new branch, and update version files in the master branch.
 Check out the release branch.
 
     git checkout ${BRANCH}
-
-The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH_NAME}` with the above environment variables set.
-
-### Update the beam version on master to the next dev version
-* [beam/build_rules.gradle](https://github.com/apache/beam/blob/master/build_rules.gradle): update value of 'version'(e.g, '2.5.0' to '2.6.0') 
-* [beam/pom.xml](https://github.com/apache/beam/blob/master/pom.xml): update value of 'version' field(e.g, '2.5.0-SNAPSHOT' to '2.6.0-SNAPSHOT') 
+    
+The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH}` with the above environment variables set.
 
 ### Update the Python SDK version
 
 Update [sdks/python/apache_beam/version.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) in both master branch and release branch.
 
-* In the master branch, change the Python SDK version to the next dev version(e.g, `2.5.0-dev` to `2.6.0-dev`).
 * In the release branch, update the Python SDK version to the release version(e.g. `2.5.0-dev` to `2.5.0`).
 
 ### Update release specific configurations
