@@ -289,8 +289,6 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     UnaryFunction<InputT, V> valueExtractor;
     ReduceFunctor<V, OutputT> reducer;
     @Nullable
-    WindowingDesc<Objects, W> windowing;
-    @Nullable
     BinaryFunction<V, V, Integer> valuesComparator;
     WindowFn<Object, W> windowFn;
     Trigger trigger;

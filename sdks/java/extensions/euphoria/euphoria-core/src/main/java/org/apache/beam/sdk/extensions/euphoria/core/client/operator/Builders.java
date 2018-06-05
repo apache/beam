@@ -73,6 +73,8 @@ public class Builders {
   interface WindowBy<InputT, BuilderT extends WindowBy<InputT, BuilderT>>
       /*extends OptionalMethodBuilder<BuilderT>*/ { //TODO discuss this
 
+        //TODO add backward compatible method
+        //TODO add triggeredBy and AccumulatedBy builders in chain ...
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
      * already preceded by an event time assignment, it will process the input elements in ingestion
