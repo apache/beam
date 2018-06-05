@@ -59,13 +59,14 @@ public class ReferenceRunnerTest implements Serializable {
                 ParDo.of(
                         new DoFn<Integer, KV<String, Integer>>() {
                           @ProcessElement
-                          public void process(ProcessContext ctxt) {
-                            for (int i = 0; i < ctxt.element(); i++) {
-                              ctxt.outputWithTimestamp(
-                                  KV.of("foo", ctxt.element()),
+                          public void process(@Element Integer e,
+                                              MultiOutputReceiver r) {
+                            for (int i = 0; i < e; i++) {
+                              r.get(food).outputWithTimestamp(
+                                  KV.of("foo", e),
                                   new Instant(0).plus(Duration.standardHours(i)));
                             }
-                            ctxt.output(originals, ctxt.element());
+                            r.get(originals).output(e);
                           }
                         })
                     .withOutputTags(food, TupleTagList.of(originals)));
@@ -79,11 +80,10 @@ public class ReferenceRunnerTest implements Serializable {
                 ParDo.of(
                     new DoFn<KV<String, Iterable<Integer>>, KV<String, Set<Integer>>>() {
                       @ProcessElement
-                      public void process(ProcessContext ctxt) {
-                        ctxt.output(
-                            KV.of(
-                                ctxt.element().getKey(),
-                                ImmutableSet.copyOf(ctxt.element().getValue())));
+                      public void process(@Element KV<String, Iterable<Integer>> e,
+                                          OutputReceiver<KV<String, Set<Integer>>> r) {
+                        r.output(
+                            KV.of(e.getKey(), ImmutableSet.copyOf(e.getValue())));
                       }
                     }));
 
