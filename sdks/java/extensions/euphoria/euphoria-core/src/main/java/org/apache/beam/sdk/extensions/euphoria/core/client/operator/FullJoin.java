@@ -25,16 +25,15 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.JoinBuilderParams;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 
 /**
  * Full outer join of two input datasets producing single new dataset.
  *
  * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements
- * from
- * streams into {@link Window}s. The join operation is performed within same windows produced on
- * left and right side of input {@link Dataset}s.
+ * from streams into {@link Window}s. The join operation is performed within same windows produced
+ * on left and right side of input {@link Dataset}s.
  *
  * <h3>Builders:</h3>
  *
@@ -81,8 +80,8 @@ public class FullJoin {
         throw new IllegalArgumentException("Pass inputs from the same flow");
       }
 
-      final JoinBuilderParams<LeftT, RightT, ?, ?, ?> params =
-          new JoinBuilderParams<>(
+      final BuilderParams<LeftT, RightT, ?, ?, ?> params =
+          new BuilderParams<>(
               Objects.requireNonNull(name),
               Objects.requireNonNull(left),
               Objects.requireNonNull(right),
@@ -97,17 +96,17 @@ public class FullJoin {
    */
   public static class ByBuilder<LeftT, RightT> {
 
-    private final JoinBuilderParams<LeftT, RightT, ?, ?, ?> params;
+    private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
 
-    ByBuilder(JoinBuilderParams<LeftT, RightT, ?, ?, ?> params) {
+    ByBuilder(BuilderParams<LeftT, RightT, ?, ?, ?> params) {
       this.params = params;
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
         UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
 
-      @SuppressWarnings("unchecked") final JoinBuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
-          (JoinBuilderParams<LeftT, RightT, K, ?, ?>) params;
+      @SuppressWarnings("unchecked") final BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, ?, ?>) params;
 
       paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
@@ -121,9 +120,9 @@ public class FullJoin {
    */
   public static class UsingBuilder<LeftT, RightT, K> {
 
-    private final JoinBuilderParams<LeftT, RightT, K, ?, ?> params;
+    private final BuilderParams<LeftT, RightT, K, ?, ?> params;
 
-    UsingBuilder(JoinBuilderParams<LeftT, RightT, K, ?, ?> params) {
+    UsingBuilder(BuilderParams<LeftT, RightT, K, ?, ?> params) {
       this.params = params;
     }
 
@@ -133,8 +132,8 @@ public class FullJoin {
       Objects.requireNonNull(joinFunc);
 
       @SuppressWarnings("unchecked")
-      JoinBuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
-          (JoinBuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
 
       paramsCasted.joinFunc = (left, right, context) ->
           joinFunc.apply(Optional.ofNullable(left), Optional.ofNullable(right), context);
