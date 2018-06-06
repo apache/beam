@@ -72,7 +72,7 @@ The Samza Runner is built on Samza version greater than 0.14.1, and uses Scala v
 
 ## Executing a pipeline with Samza Runner
 
-If you run your pipeline locally or deploy it to a standalone cluster bundled with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:
+If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:
 
 ```
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -82,7 +82,7 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --output=/path/to/counts"
 ```
 
-To deploy your pipeline to a YARN cluster, you need to package your application jars and resource files into a `.tgz` archive file. In your config, you need to specify the URI of the TGZ file for Samza Runner to download:
+To deploy your pipeline to a YARN cluster, here is the [instructions](https://samza.apache.org/startup/hello-samza/latest/) of deploying a sample Samza job. First you need to package your application jars and resource files into a `.tgz` archive file, and make it available to download for Yarn containers. In your config, you need to specify the URI of this TGZ file location:
 
 ```
 yarn.package.path=${your_job_tgz_URI}
@@ -93,7 +93,9 @@ job.coordinator.system=${job_coordinator_system}
 job.default.system=${job_default_system}
 ```
 
-The config file can be passed to Samza Runner by setting the command line arg `--configFilePath=/path/to/config.properties`. For more details on the Samza configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
+For more details on the configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
+
+The config file will be passed in by setting the command line arg `--configFilePath=/path/to/config.properties`. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood. 
 
 ## Pipeline options for the Samza Runner
 
@@ -111,14 +113,14 @@ When executing your pipeline with the Samza Runner, you can use the following pi
   <td>Set to <code>SamzaRunner</code> to run using Samza.</td>
 </tr>
 <tr>
-  <td><code>samzaConfig</code></td>
-  <td>The config for Samza runner.</td>
-  <td>Config for running locally.</td>
+  <td><code>configFilePath</code></td>
+  <td>The config for Samza using a properties file.</td>
+  <td><code>empty</code>, i.e. use local execution.</td>
 </tr>
 <tr>
-  <td><code>ConfigFilePath</code></td>
-  <td>The config for Samza runner using a properties file.</td>
-  <td><code>empty</code>, i.e. use default samzaConfig</td>
+  <td><code>configOverride</code></td>
+  <td>The config override to set programmatically.</td>
+  <td><code>empty</code>, i.e. use config file or local execution.</td>
 </tr>
 <tr>
   <td><code>watermarkInterval</code></td>
