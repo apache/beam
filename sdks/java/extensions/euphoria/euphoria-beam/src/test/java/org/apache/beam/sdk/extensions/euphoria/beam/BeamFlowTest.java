@@ -43,6 +43,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Ignore;
@@ -189,7 +191,9 @@ public class BeamFlowTest implements Serializable {
         ReduceWindow.of(timeAssigned)
             .valueBy(Pair::getFirst)
             .combineBy(Sums.ofInts())
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output();
     PCollection<Integer> beamOut = flow.unwrapped(output);
     PAssert.that(beamOut).containsInAnyOrder(6, 9);
