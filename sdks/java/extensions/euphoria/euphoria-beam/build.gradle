@@ -36,6 +36,8 @@ dependencies {
     testCompile 'org.slf4j:slf4j-simple:1.7.+'
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
+    testCompile 'org.slf4j:slf4j-simple:1.7.+'
+    testCompile  project(path: ":beam-sdks-java-core", configuration: "testArtifact")
 }
 
 test {
