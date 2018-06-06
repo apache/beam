@@ -375,6 +375,28 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
+### Stage python binaries on dist.apache.org
+
+Build python binaries in release branch in sdks/python dir.
+
+    python setup.py sdist --format=zip
+    cd dist
+    mv apache-beam-${RELEASE}.zip apache-beam-${RELEASE}-python.zip
+
+Create hashes and sign the binaries
+
+    gpg --armor --detach-sig apache-beam-${RELEASE}-python.zip
+    sha512sum apache-beam-${RELEASE}-python.zip > apache-beam-${RELEASE}-python.zip.sha512
+
+Staging binaries
+
+    svn co https://dist.apache.org/repos/dist/dev/beam
+    cd beam/${RELEASE}
+    svn add *
+    svn commit
+
+Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
+
 ### Build the Pydoc API reference
 
 Make sure you have ```tox``` installed: 
