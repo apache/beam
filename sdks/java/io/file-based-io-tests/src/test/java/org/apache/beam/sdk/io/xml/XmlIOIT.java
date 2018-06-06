@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;

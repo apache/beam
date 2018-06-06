@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.io.common;
 
 import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.testing.TestPipeline;
 
 /**
  * Methods common to all types of IOITs.
@@ -35,5 +38,16 @@ public class IOITHelper {
       );
     }
     return hash;
+  }
+
+  public static <T extends IOTestPipelineOptions> T readIOTestPipelineOptions(
+    Class<T> optionsType) {
+
+    PipelineOptionsFactory.register(optionsType);
+    IOTestPipelineOptions options = TestPipeline
+        .testingPipelineOptions()
+        .as(optionsType);
+
+    return PipelineOptionsValidator.validate(optionsType, options);
   }
 }
