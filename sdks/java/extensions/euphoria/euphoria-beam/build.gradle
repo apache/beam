@@ -19,6 +19,8 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
+
 ext {
     kryoVersion = '2.24.0'
 }
@@ -33,6 +35,13 @@ dependencies {
     testCompile project(':beam-runners-direct-java')
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
+}
+
+test {
+    // Tests in testkit are not designed to run as standalone test. They need a context to run
+    // which is provided by org.apache.beam.sdk.extensions.euphoria.beam.OperatorsTestSuite.
+    exclude 'org/apache/beam/sdk/extensions/euphoria/beam/testkit/**'
+    include "**/*TestSuite.class"
 }
 
 test.testLogging.showStandardStreams = true
