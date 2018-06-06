@@ -18,6 +18,6 @@
 
 /**
  * Euphoria operators test suite, see
- * {@link org.apache.beam.sdk.extensions.euphoria.operator.test.AllOperatorsSuite}.
+ * {@link org.apache.beam.sdk.extensions.euphoria.beam.OperatorsTestSuite}.
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.testkit;

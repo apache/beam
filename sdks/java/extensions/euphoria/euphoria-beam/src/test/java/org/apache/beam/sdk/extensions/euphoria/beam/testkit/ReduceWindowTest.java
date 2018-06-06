@@ -27,6 +27,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Tim
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Test operator {@code ReduceByKey}. */
@@ -44,7 +46,9 @@ public class ReduceWindowTest extends AbstractOperatorTest {
 
             return ReduceWindow.of(withEventTime)
                 .combineBy(Sums.ofInts())
-                .windowBy(Time.of(Duration.ofHours(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -72,7 +76,9 @@ public class ReduceWindowTest extends AbstractOperatorTest {
             Dataset<Integer> first =
                 ReduceWindow.of(withEventTime)
                     .combineBy(Sums.ofInts())
-                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
 
             return ReduceWindow.of(first).combineBy(Sums.ofInts()).output();
