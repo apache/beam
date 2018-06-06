@@ -26,6 +26,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Test operator {@code SumByKey}. */
@@ -41,7 +43,9 @@ public class SumByKeyTest extends AbstractOperatorTest {
             return SumByKey.of(input)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> (long) e)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 

@@ -35,6 +35,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventT
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Test that a sub-flow applied on sink is correctly preserved. */
@@ -50,7 +52,9 @@ public class SinkTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(e -> 0).output();
             return CountByKey.of(input)
                 .keyBy(e -> e)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 

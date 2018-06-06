@@ -47,6 +47,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Ignore;
@@ -69,10 +70,9 @@ public class ReduceByKeyTest {
     ReduceByKey.of(flow.createInput(input, e -> 1000L * e))
         .keyBy(i -> i % 2)
         .reduceBy(Sums.ofInts())
-        .windowBy(BeamWindowing.of(
-            FixedWindows.of(org.joda.time.Duration.standardHours(1)),
-            AfterWatermark.pastEndOfWindow(),
-            AccumulationMode.DISCARDING_FIRED_PANES))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(AfterWatermark.pastEndOfWindow())
+        .discardingFiredPanes()
         .output()
         .persist(output);
 
@@ -119,10 +119,9 @@ public class ReduceByKeyTest {
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(BeamWindowing.of(
-            FixedWindows.of(org.joda.time.Duration.standardSeconds(1)),
-            AfterWatermark.pastEndOfWindow(),
-            AccumulationMode.DISCARDING_FIRED_PANES))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(AfterWatermark.pastEndOfWindow())
+        .discardingFiredPanes()
         .output()
         .persist(sink);
 
@@ -172,10 +171,9 @@ public class ReduceByKeyTest {
             .keyBy(e -> "", TypeHint.ofString())
             .valueBy(Pair::getFirst, TypeHint.ofInt())
             .combineBy(Sums.ofInts(), TypeHint.ofInt())
-            .windowBy(BeamWindowing.of(
-                FixedWindows.of(org.joda.time.Duration.standardSeconds(5)),
-                AfterWatermark.pastEndOfWindow(),
-                AccumulationMode.DISCARDING_FIRED_PANES))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(AfterWatermark.pastEndOfWindow())
+            .discardingFiredPanes()
             .output();
     // ~ now use a custom windowing with a trigger which does
     // the assertions subject to this test (use RSBK which has to
@@ -186,7 +184,7 @@ public class ReduceByKeyTest {
             .valueBy(Pair::getSecond)
             .stateFactory(SumState::new)
             .mergeStatesBy(SumState::combine)
-            .windowBy(new AssertingWindowing<>())
+            //.windowBy(new AssertingWindowing<>()) //TODO apply Beam windowing
             .output();
     FlatMap.of(output)
         .using(

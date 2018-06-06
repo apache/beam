@@ -43,7 +43,6 @@ import org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators.Snapsho
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Count;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
@@ -75,7 +74,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -104,10 +102,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> e % 2)
                 .valueBy(e -> e)
                 .reduceBy(s -> s.collect(Collectors.toSet()))
-                .windowBy(BeamWindowing.of(
-                    new GlobalWindows(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(new GlobalWindows())
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -138,10 +135,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> e % 2)
                 .valueBy(e -> e)
                 .reduceBy(s -> s.collect(Collectors.toSet()))
-                .windowBy(BeamWindowing.of(
-                    new GlobalWindows(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(new GlobalWindows())
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .outputValues();
           }
 
@@ -177,7 +173,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                     .valueBy(e -> e)
                     .reduceBy(s -> s.collect(Collectors.toList()))
                     .withSortedValues(Integer::compare)
-                    .windowBy(Count.of(3))
+                    //.windowBy(Count.of(3)) //TODO rewrite to Beam windowing
                     .output();
 
             return ReduceWindow.of(reducedByWindow)
@@ -192,10 +188,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                       }
                       return cmp;
                     })
-                .windowBy(BeamWindowing.of(
-                    new GlobalWindows(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(new GlobalWindows())
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -236,11 +231,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             return ReduceByKey.of(input)
                 .keyBy(e -> e % 2)
                 .reduceBy(Fold.whileEmittingEach(0, (a, b) -> a + b))
-//                .windowBy(Count.of(3))
-                .windowBy(BeamWindowing.of(
-                    new GlobalWindows(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(new GlobalWindows())
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -284,11 +277,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(Pair::getFirst)
                 .valueBy(e -> 1L)
                 .combineBy(Sums.ofLongs())
-//                .windowBy(Time.of(Duration.ofSeconds(1)))
-                .windowBy(BeamWindowing.of(
-                    FixedWindows.of(org.joda.time.Duration.standardSeconds(1)),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -346,15 +337,15 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, Pair<Integer, Long>>() {
           @Override
           protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+            WindowFn<Object, CountWindow> windowing = (WindowFn) new TestWindowFn();
+
             return ReduceByKey.of(input)
                 .keyBy(e -> e % 3)
                 .valueBy(e -> 1L)
                 .combineBy(Sums.ofLongs())
-//                .windowBy(new TestWindowing())
-                .windowBy(BeamWindowing.of(
-                    new TestWindowFn(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(windowing)
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -505,11 +496,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(Pair::getFirst)
                 .valueBy(Pair::getSecond)
                 .combineBy(Sums.ofLongs())
-//                .windowBy(new CWindowing<>(3))
-                .windowBy(BeamWindowing.of(
-                    new MergingByBucketSizeWindowFn<>(3),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(new MergingByBucketSizeWindowFn<>(3))
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -556,10 +545,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                     .keyBy(e -> e.getFirst().charAt(0) - '0')
                     .valueBy(Pair::getFirst)
                     .reduceBy(s -> s.collect(Collectors.toSet()))
-                    .windowBy(BeamWindowing.of(
-                        FixedWindows.of(org.joda.time.Duration.millis(5)),
-                        AfterWatermark.pastEndOfWindow(),
-                        AccumulationMode.DISCARDING_FIRED_PANES))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.millis(5)))
+                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
                     .output();
 
             return FlatMap.of(reduced)
@@ -657,10 +645,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst, TypeHint.ofInt())
                     .combineBy(Sums.ofInts(), TypeHint.ofInt())
 //                    .windowBy(Time.of(Duration.ofSeconds(5)))
-                    .windowBy(BeamWindowing.of(
-                        FixedWindows.of(org.joda.time.Duration.standardSeconds(5)),
-                        AfterWatermark.pastEndOfWindow(),
-                        AccumulationMode.DISCARDING_FIRED_PANES))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(5)))
+                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
                     .output();
             // ~ now use a custom windowing with a trigger which does
             // the assertions subject to this test (use RSBK which has to
@@ -671,10 +658,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getSecond)
                     .stateFactory(SumState::new)
                     .mergeStatesBy(SumState::combine)
-                    .windowBy(BeamWindowing.of(
-                        new AssertingWindowFn<>(),
-                        AfterWatermark.pastEndOfWindow(),
-                        AccumulationMode.DISCARDING_FIRED_PANES))
+                    .windowBy(new AssertingWindowFn<>())
+                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
                     .output();
             return FlatMap.of(output)
                 .using(
@@ -702,11 +688,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(Pair::getFirst)
                 .valueBy(e -> 1L)
                 .combineBy(Sums.ofLongs())
-//                .windowBy(Time.of(Duration.ofSeconds(1)))
-                .windowBy(BeamWindowing.of(
-                    FixedWindows.of(org.joda.time.Duration.standardSeconds(1)),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -758,11 +742,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                           }
                           ctx.collect(a + b);
                         }))
-//                .windowBy(GlobalWindowing.get())
-                .windowBy(BeamWindowing.of(
-                    new GlobalWindows(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(new GlobalWindows())
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
