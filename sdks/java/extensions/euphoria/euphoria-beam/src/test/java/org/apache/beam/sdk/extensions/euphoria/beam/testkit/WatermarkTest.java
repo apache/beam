@@ -31,6 +31,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /**
@@ -74,7 +76,9 @@ public class WatermarkTest extends AbstractOperatorTest {
                             c.collect(
                                 Triple.of(
                                     (TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
-                    .windowBy(Time.of(Duration.ofMillis(10)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.millis(10)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
             return MapElements.of(joined).using(Pair::getSecond).output();
           }

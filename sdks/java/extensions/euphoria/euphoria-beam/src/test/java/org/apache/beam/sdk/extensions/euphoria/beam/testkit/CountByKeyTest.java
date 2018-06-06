@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
@@ -28,6 +27,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Tim
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test operator {@code CountByKey}. */
@@ -44,7 +46,9 @@ public class CountByKeyTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(e -> 0).output();
             return CountByKey.of(input)
                 .keyBy(e -> e)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -79,7 +83,9 @@ public class CountByKeyTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(Pair::getSecond).output();
             return CountByKey.of(input)
                 .keyBy(Pair::getFirst)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 

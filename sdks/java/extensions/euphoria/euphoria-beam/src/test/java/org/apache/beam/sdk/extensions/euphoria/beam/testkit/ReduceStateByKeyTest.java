@@ -168,7 +168,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(e -> e)
                     .stateFactory(SortState::new)
                     .mergeStatesBy(SortState::combine)
-                    .windowBy(new ReduceByKeyTest.TestWindowing())
+                    //.windowBy(new ReduceByKeyTest.TestWindowing()) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
             return FlatMap.of(output)
                 .using(
@@ -270,7 +270,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .mergeStatesBy(CountState::combine)
                 // TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase
                 // stronger
-                .windowBy(Count.of(3))
+//                .windowBy(Count.of(3)) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                 .output();
           }
 
@@ -313,7 +313,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst)
                     .stateFactory(AccState<String>::new)
                     .mergeStatesBy(AccState::combine)
-                    .windowBy(Time.of(Duration.ofMillis(5)))
+                    //.windowBy(Time.of(Duration.ofMillis(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
 
             return FlatMap.of(reduced)
@@ -372,7 +372,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(e -> e.getFirst().substring(2))
                     .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                     .mergeStatesBy(AccState::combine)
-                    .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
+                    //.windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
 
             return FlatMap.of(reduced)
@@ -441,7 +441,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst)
                     .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                     .mergeStatesBy(AccState::combine)
-                    .windowBy(Session.of(Duration.ofMillis(5)))
+                    //.windowBy(Session.of(Duration.ofMillis(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
 
             return FlatMap.of(reduced)
@@ -495,7 +495,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst)
                     .stateFactory(ReduceByKeyTest.SumState::new)
                     .mergeStatesBy(ReduceByKeyTest.SumState::combine)
-                    .windowBy(Time.of(Duration.ofSeconds(5)))
+                    //.windowBy(Time.of(Duration.ofSeconds(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
             // ~ now use a custom windowing with a trigger which does
             // the assertions subject to this test (use RSBK which has to
@@ -506,7 +506,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getSecond)
                     .stateFactory(ReduceByKeyTest.SumState::new)
                     .mergeStatesBy(ReduceByKeyTest.SumState::combine)
-                    .windowBy(new TimeAssertingWindowing<>())
+                    //.windowBy(new TimeAssertingWindowing<>()) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
             return FlatMap.of(output)
                 .using(
@@ -535,7 +535,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<Word, Long, CountState<Word>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                //.windowBy(Time.of(Duration.ofSeconds(1))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
                 .output();
           }
 
