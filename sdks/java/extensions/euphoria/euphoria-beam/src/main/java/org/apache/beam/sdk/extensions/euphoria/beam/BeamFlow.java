@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.BeamWriteSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
@@ -50,7 +49,7 @@ public class BeamFlow extends Flow {
   private final transient BeamExecutorContext context;
   private final transient Pipeline pipeline;
   private Duration allowedLateness = Duration.ZERO;
-  private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
+  private AccumulatorProvider.Factory accumulatorFactory = BeamAccumulatorProvider.getFactory();
 
   /**
    * Construct the {@link BeamFlow}.

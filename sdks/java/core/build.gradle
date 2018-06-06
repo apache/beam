@@ -76,3 +76,18 @@ dependencies {
   shadowTest library.java.hamcrest_library
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
 }
+
+configurations {
+  testArtifact
+}
+
+task testJar(type: Jar) {
+  from sourceSets.test.output
+  classifier = 'test'
+}
+
+artifacts {
+  testArtifact testJar
+}
+
+
