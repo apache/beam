@@ -24,16 +24,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowingRequiredException;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 
 /** Validate invariants. Throw exceptions if any invariant is violated. */
 class FlowValidator {
@@ -97,9 +97,9 @@ class FlowValidator {
       return true;
     }
     if (operator instanceof WindowWiseOperator) {
-      Windowing windowing = ((WindowWiseOperator) operator).getWindowing();
+      WindowingDesc windowing = ((WindowWiseOperator) operator).getWindowing();
       if (windowing != null) {
-        return windowing instanceof GlobalWindowing;
+        return windowing.getWindowFn() instanceof GlobalWindows;
       }
     }
     List<Node<Operator<?, ?>>> parents = node.getParents();
