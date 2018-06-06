@@ -27,39 +27,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  * that were passed on the command line.
  */
 public interface IOTestPipelineOptions extends TestPipelineOptions {
-  /* Postgres */
-  @Description("Server name for postgres server (host name/ip address)")
-  @Default.String("postgres-server-name")
-  String getPostgresServerName();
-  void setPostgresServerName(String value);
-
-  @Description("Username for postgres server")
-  @Default.String("postgres-username")
-  String getPostgresUsername();
-  void setPostgresUsername(String value);
-
-  // Note that passwords are not as secure an authentication as other methods, and used here for
-  // a test environment only.
-  @Description("Password for postgres server")
-  @Default.String("postgres-password")
-  String getPostgresPassword();
-  void setPostgresPassword(String value);
-
-  @Description("Database name for postgres server")
-  @Default.String("postgres-database-name")
-  String getPostgresDatabaseName();
-  void setPostgresDatabaseName(String value);
-
-  @Description("Port for postgres server")
-  @Default.Integer(0)
-  Integer getPostgresPort();
-  void setPostgresPort(Integer value);
-
-  @Description("Whether the postgres server uses SSL")
-  @Default.Boolean(true)
-  Boolean getPostgresSsl();
-  void setPostgresSsl(Boolean value);
-
   /* Elasticsearch */
   @Description("Server name for Elasticsearch server (host name/ip address)")
   @Default.String("elasticsearch-server-name")
