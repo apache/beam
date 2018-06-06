@@ -32,7 +32,6 @@ import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
-import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
