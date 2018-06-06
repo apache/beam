@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import com.sun.istack.internal.NotNull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 
 /**
  * Common methods used in operator builders to share related javadoc descriptions.
@@ -82,7 +85,6 @@ public class Builders {
   interface WindowBy<OutTriggerBuilder extends TriggeredBy>
       /*extends OptionalMethodBuilder<BuilderT>*/ { //TODO discuss this
 
-        //TODO add backward compatible method
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
      * already preceded by an event time assignment, it will process the input elements in ingestion
@@ -93,6 +95,21 @@ public class Builders {
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     <W extends BoundedWindow> OutTriggerBuilder windowBy(@NotNull WindowFn<Object, W> windowing);
+
+//    /**
+//     * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
+//     * already preceded by an event time assignment, it will process the input elements in ingestion
+//     * time.
+//     * <p>
+//     *   This method is deprecated and will be removed in future.
+//     * </p>
+//     *
+//     * @param <W> the type of the windowing
+//     * @param windowing the windowing strategy to apply to the input dataset
+//     * @return the next builder to complete the setup of the {@link ReduceByKey} operator
+//     */
+//    @Deprecated
+//    <W extends Window<W>> Object windowBy(Windowing<?, W> windowing);
   }
 
   /**
@@ -110,6 +127,14 @@ public class Builders {
    */
   interface AccumulatorMode<OutBuilderT>{
     OutBuilderT accumulationMode(@NotNull WindowingStrategy.AccumulationMode accumulationMode);
+
+    default OutBuilderT discardingFiredPanes(){
+      return accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES);
+    }
+
+    default OutBuilderT accumulatingFiredPanes(){
+      return accumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
+    }
   }
 
   /** TODO: complete javadoc. */
