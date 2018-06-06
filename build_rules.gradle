@@ -69,7 +69,7 @@ group = 'org.apache.beam'
 
 // Automatically use the official release version if we are performing a release
 // otherwise append '-SNAPSHOT'
-version = '2.5.0'
+version = '2.6.0'
 if (!isRelease()) {
   version += '-SNAPSHOT'
 }
