@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -48,6 +47,7 @@ import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
@@ -80,7 +80,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
-  public static DockerJobBundleFactory create(ArtifactSource artifactSource) throws Exception {
+  public static DockerJobBundleFactory create(JobInfo jobInfo, ArtifactSource artifactSource)
+      throws Exception {
     ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
     ControlClientPool clientPool = MapControlClientPool.create();
@@ -99,7 +100,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
             new UnimplementedArtifactRetrievalService(), serverFactory);
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            StaticGrpcProvisionService.create(ProvisionInfo.newBuilder().build()), serverFactory);
+            StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
     DockerEnvironmentFactory environmentFactory =
         DockerEnvironmentFactory.forServices(
             controlServer,
