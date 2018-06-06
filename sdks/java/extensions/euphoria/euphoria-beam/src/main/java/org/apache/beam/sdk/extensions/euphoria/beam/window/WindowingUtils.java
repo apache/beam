@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowWiseOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -29,34 +29,25 @@ import org.joda.time.Duration;
  */
 public class WindowingUtils {
 
-  public static <InputT, OutputT, W extends Window<W>>
+  public static <InputT, OutputT, W extends BoundedWindow>
   PCollection<InputT> applyWindowingIfSpecified(
       WindowWiseOperator<?, ?, OutputT, W> operator,
       PCollection<InputT> input,
       Duration allowedLateness) {
 
-    Windowing<?, W> userSpecifiedWindowing = operator.getWindowing();
+    WindowingDesc<Object, W> userSpecifiedWindowing = operator.getWindowing();
 
     if (userSpecifiedWindowing == null) {
       return input;
     }
 
-    if (!(userSpecifiedWindowing instanceof BeamWindowing)) {
-      throw new IllegalStateException(String.format(
-          "Use of '%s' is only way supported to specify windowing.",
-          BeamWindowing.class.getSimpleName()));
-    }
-
-    @SuppressWarnings("unchecked")
-    BeamWindowing<InputT, ?> beamWindowing = (BeamWindowing) userSpecifiedWindowing;
-
     @SuppressWarnings("unchecked")
     org.apache.beam.sdk.transforms.windowing.Window<InputT> beamWindow =
         org.apache.beam.sdk.transforms.windowing.Window
-            .into((WindowFn<InputT, ?>) beamWindowing.getWindowFn())
-            .triggering(beamWindowing.getBeamTrigger());
+            .into((WindowFn<InputT, ?>) userSpecifiedWindowing.getWindowFn())
+            .triggering(userSpecifiedWindowing.getTrigger());
 
-    switch (beamWindowing.getAccumulationMode()) {
+    switch (userSpecifiedWindowing.getAccumulationMode()) {
       case DISCARDING_FIRED_PANES:
         beamWindow = beamWindow.discardingFiredPanes();
         break;
@@ -65,7 +56,7 @@ public class WindowingUtils {
         break;
       default:
         throw new IllegalStateException(
-            "Unsupported accumulation mode '" + beamWindowing.getAccumulationMode() + "'");
+            "Unsupported accumulation mode '" + userSpecifiedWindowing.getAccumulationMode() + "'");
     }
 
     beamWindow = beamWindow.withAllowedLateness(allowedLateness);

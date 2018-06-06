@@ -26,7 +26,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @SuppressWarnings("unchecked")
-  private static <InputT, K, V, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>>
+  private static <InputT, K, V, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>>
   doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
 
     //TODO Could we even do values sorting ?
