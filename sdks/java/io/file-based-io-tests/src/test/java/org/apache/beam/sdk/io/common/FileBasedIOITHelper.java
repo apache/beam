@@ -44,13 +44,19 @@ public class FileBasedIOITHelper {
   private FileBasedIOITHelper() {
   }
 
-  public static IOTestPipelineOptions readTestPipelineOptions() {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+  public static FileBasedIOTestPipelineOptions readFileBasedIOITPipelineOptions() {
+    return readIOTestPipelineOptions(FileBasedIOTestPipelineOptions.class);
+  }
+
+  public static <T extends IOTestPipelineOptions> T readIOTestPipelineOptions(
+    Class<T> optionsType) {
+
+    PipelineOptionsFactory.register(optionsType);
     IOTestPipelineOptions options = TestPipeline
         .testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+        .as(optionsType);
 
-    return PipelineOptionsValidator.validate(IOTestPipelineOptions.class, options);
+    return PipelineOptionsValidator.validate(optionsType, options);
   }
 
   public static String appendTimestampSuffix(String text) {

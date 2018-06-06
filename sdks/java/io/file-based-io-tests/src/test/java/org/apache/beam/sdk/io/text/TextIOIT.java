@@ -21,15 +21,15 @@ package org.apache.beam.sdk.io.text;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -74,7 +74,7 @@ public class TextIOIT {
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -84,32 +84,27 @@ public class TextIOIT {
   @Test
   public void writeThenReadAll() {
     TextIO.TypedWrite<String, Object> write = TextIO
-        .write()
-        .to(filenamePrefix)
-        .withOutputFilenames()
-        .withCompression(compressionType);
+      .write()
+      .to(filenamePrefix)
+      .withOutputFilenames()
+      .withCompression(compressionType);
 
-    PCollection<String> testFilenames =
-        pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-            .apply(
-                "Produce text lines",
-                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-            .apply("Write content to files", write)
-            .getPerDestinationOutputFilenames()
-            .apply(Values.create());
+    PCollection<String> testFilenames = pipeline
+      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+      .apply("Produce text lines",
+        ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+      .apply("Write content to files", write).getPerDestinationOutputFilenames()
+      .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
-        .apply("Read all files", TextIO.readAll().withCompression(AUTO))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+      .apply("Read all files", TextIO.readAll().withCompression(AUTO))
+      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply(
-        "Delete test files",
-        ParDo.of(new DeleteFileFn())
-            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+    testFilenames.apply("Delete test files",
+      ParDo.of(new DeleteFileFn()).withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }
