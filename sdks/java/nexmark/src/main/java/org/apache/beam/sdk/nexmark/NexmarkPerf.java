@@ -20,7 +20,6 @@ package org.apache.beam.sdk.nexmark;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
 

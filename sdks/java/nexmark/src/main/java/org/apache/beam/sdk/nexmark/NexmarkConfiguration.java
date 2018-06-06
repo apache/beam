@@ -47,9 +47,12 @@ public class NexmarkConfiguration implements Serializable {
   @JsonProperty
   public NexmarkUtils.SinkType sinkType = NexmarkUtils.SinkType.DEVNULL;
 
-  /** Shall we export the summary to BigQuery. */
-  @JsonProperty
-  public boolean exportSummaryToBigQuery  = false;
+  /**
+   * If false, the summary is only output to the console. If true the summary is output to the
+   * console and it's content is written to bigquery tables according to {@link
+   * NexmarkOptions#getResourceNameMode()}.
+   */
+  @JsonProperty public boolean exportSummaryToBigQuery = false;
 
   /**
    * Control whether pub/sub publishing is done in a stand-alone pipeline or is integrated
