@@ -92,22 +92,22 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         new StateTag.StateBinder() {
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T2> ValueState<T2> bindValue(
+              StateTag<ValueState<T2>> address, Coder<T2> coder) {
 
             return new FlinkBroadcastValueState<>(stateBackend, address, namespace, coder);
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T2> BagState<T2> bindBag(
+              StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkBroadcastBagState<>(stateBackend, address, namespace, elemCoder);
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T2> SetState<T2> bindSet(
+              StateTag<SetState<T2>> address, Coder<T2> elemCoder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", SetState.class.getSimpleName()));
           }
@@ -289,7 +289,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
 
   }
 
-  private class FlinkBroadcastValueState<K, T>
+  private class FlinkBroadcastValueState<T>
       extends AbstractBroadcastState<T> implements ValueState<T> {
 
     private final StateNamespace namespace;
@@ -331,7 +331,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         return false;
       }
 
-      FlinkBroadcastValueState<?, ?> that = (FlinkBroadcastValueState<?, ?>) o;
+      FlinkBroadcastValueState<?> that = (FlinkBroadcastValueState<?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -350,7 +350,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkBroadcastBagState<K, T> extends AbstractBroadcastState<List<T>>
+  private class FlinkBroadcastBagState<T> extends AbstractBroadcastState<List<T>>
       implements BagState<T> {
 
     private final StateNamespace namespace;
@@ -423,7 +423,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         return false;
       }
 
-      FlinkBroadcastBagState<?, ?> that = (FlinkBroadcastBagState<?, ?>) o;
+      FlinkBroadcastBagState<?> that = (FlinkBroadcastBagState<?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -437,7 +437,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkCombiningState<K, InputT, AccumT, OutputT>
+  private class FlinkCombiningState<InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
 
@@ -539,8 +539,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         return false;
       }
 
-      FlinkCombiningState<?, ?, ?, ?> that =
-          (FlinkCombiningState<?, ?, ?, ?>) o;
+      FlinkCombiningState<?, ?, ?> that =
+          (FlinkCombiningState<?, ?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -554,14 +554,14 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkKeyedCombiningState<K, InputT, AccumT, OutputT>
+  private class FlinkKeyedCombiningState<K2, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
     private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
-    private final FlinkBroadcastStateInternals<K> flinkStateInternals;
+    private final FlinkBroadcastStateInternals<K2> flinkStateInternals;
 
     FlinkKeyedCombiningState(
         OperatorStateBackend flinkStateBackend,
@@ -569,7 +569,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        FlinkBroadcastStateInternals<K> flinkStateInternals) {
+        FlinkBroadcastStateInternals<K2> flinkStateInternals) {
       super(flinkStateBackend, address.getId(), namespace, accumCoder);
 
       this.namespace = namespace;
@@ -690,14 +690,14 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkCombiningStateWithContext<K, InputT, AccumT, OutputT>
+  private class FlinkCombiningStateWithContext<K2, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
     private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
     private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
-    private final FlinkBroadcastStateInternals<K> flinkStateInternals;
+    private final FlinkBroadcastStateInternals<K2> flinkStateInternals;
     private final CombineWithContext.Context context;
 
     FlinkCombiningStateWithContext(
@@ -706,7 +706,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        FlinkBroadcastStateInternals<K> flinkStateInternals,
+        FlinkBroadcastStateInternals<K2> flinkStateInternals,
         CombineWithContext.Context context) {
       super(flinkStateBackend, address.getId(), namespace, accumCoder);
 
