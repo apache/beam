@@ -22,7 +22,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectRunner;
@@ -52,7 +54,7 @@ public class PerfsToBigQueryTest {
 
 
   @Before
-  public void before() {
+  public void before() throws IOException, InterruptedException {
     options = PipelineOptionsFactory.create().as(NexmarkOptions.class);
     options.setBigQueryTable("nexmark");
     options.setBigQueryDataset("nexmark");
@@ -60,25 +62,34 @@ public class PerfsToBigQueryTest {
     options.setStreaming(true);
     options.setProject("nexmark-test");
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
-
+    options.setResourceNameMode(NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE);
+    FakeDatasetService.setUp();
+    //    BigQueryIO.clearCreatedTables();
+    fakeDatasetService.createDataset(
+        options.getProject(), options.getBigQueryDataset(), "", "", null);
   }
 
   @Test
   public void testSavePerfsToBigQuery() throws IOException, InterruptedException {
     NexmarkConfiguration nexmarkConfiguration1 = new NexmarkConfiguration();
     nexmarkConfiguration1.query = QUERY;
+    // just for the 2 configurations to be different to have different keys
+    nexmarkConfiguration1.cpuDelayMs = 100L;
     NexmarkPerf nexmarkPerf1 = new NexmarkPerf();
     nexmarkPerf1.numResults = 1000L;
     nexmarkPerf1.eventsPerSec = 0.5F;
     nexmarkPerf1.runtimeSec = 0.325F;
 
     NexmarkConfiguration nexmarkConfiguration2 = new NexmarkConfiguration();
-    nexmarkConfiguration1.query = QUERY;
+    nexmarkConfiguration2.query = QUERY;
+    // just for the 2 configurations to be different to have different keys
+    nexmarkConfiguration1.cpuDelayMs = 200L;
     NexmarkPerf nexmarkPerf2 = new NexmarkPerf();
     nexmarkPerf2.numResults = 1001L;
     nexmarkPerf2.eventsPerSec = 1.5F;
     nexmarkPerf2.runtimeSec = 1.325F;
 
+    // simulate 2 runs of the same query just to check that rows are apened correctly.
     HashMap<NexmarkConfiguration, NexmarkPerf> perfs = new HashMap<>(2);
     perfs.put(nexmarkConfiguration1, nexmarkPerf1);
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
@@ -91,16 +102,20 @@ public class PerfsToBigQueryTest {
             options.getBigQueryDataset(),
             BigQueryHelpers.parseTableSpec(tableSpec).getTableId());
     assertEquals("Wrong number of rows inserted", 2, actualRows.size());
-    assertThat(
-        actualRows,
-        containsInAnyOrder(
-            new TableRow()
-                .set("Runtime(sec)", nexmarkPerf1.runtimeSec)
-                .set("Events(/sec)", nexmarkPerf1.eventsPerSec)
-                .set("Size of the result collection", nexmarkPerf1.numResults),
-            new TableRow()
-                .set("Runtime(sec)", nexmarkPerf2.runtimeSec)
-                .set("Events(/sec)", nexmarkPerf2.eventsPerSec)
-                .set("Size of the result collection", nexmarkPerf2.numResults)));
+    List<TableRow> expectedRows = new ArrayList<>();
+    TableRow row1 = new TableRow()
+        .set("Runtime(sec)", nexmarkPerf1.runtimeSec).set("Events(/sec)", nexmarkPerf1.eventsPerSec)
+        // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
+        // to for bowing into Integer in the expectedRows.
+        .set("Size of the result collection", (int) nexmarkPerf1.numResults);
+    expectedRows.add(row1);
+    TableRow row2 = new TableRow()
+        .set("Runtime(sec)", nexmarkPerf2.runtimeSec).set("Events(/sec)", nexmarkPerf2.eventsPerSec)
+        // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
+        // to for bowing into Integer in the expectedRows.
+        .set("Size of the result collection", (int) nexmarkPerf2.numResults);
+    expectedRows.add(row2);
+    assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
+
   }
 }

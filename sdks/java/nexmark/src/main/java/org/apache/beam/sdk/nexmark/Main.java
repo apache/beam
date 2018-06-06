@@ -123,46 +123,50 @@ public class Main<OptionT extends NexmarkOptions> {
         pipeline.apply(
             Create.of(perfs)
                 .withCoder(
-                    KvCoder.of(SerializableCoder.of(NexmarkConfiguration.class), new CustomCoder<NexmarkPerf>() {
+                    KvCoder.of(
+                        SerializableCoder.of(NexmarkConfiguration.class),
+                        new CustomCoder<NexmarkPerf>() {
 
-                      @Override public void encode(NexmarkPerf value, OutputStream outStream)
-                          throws CoderException, IOException {
-                        StringUtf8Coder.of().encode(value.toString(), outStream);
-                      }
+                          @Override
+                          public void encode(NexmarkPerf value, OutputStream outStream)
+                              throws CoderException, IOException {
+                            StringUtf8Coder.of().encode(value.toString(), outStream);
+                          }
 
-                      @Override public NexmarkPerf decode(InputStream inStream)
-                          throws CoderException, IOException {
-                        String perf = StringUtf8Coder.of().decode(inStream);
-                        return NexmarkPerf.fromString(perf);
-                      }
-                    })));
+                          @Override
+                          public NexmarkPerf decode(InputStream inStream)
+                              throws CoderException, IOException {
+                            String perf = StringUtf8Coder.of().decode(inStream);
+                            return NexmarkPerf.fromString(perf);
+                          }
+                        })));
 
     TableSchema tableSchema =
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT64"),
-                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT64"),
+                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT"),
+                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT"),
                     new TableFieldSchema()
                         .setName("Size of the result collection")
-                        .setType("INT64")));
+                        .setType("INTEGER")));
 
+    String tableSpec =
+        NexmarkUtils.tableSpec(options, "{query}", 0L, null);
     SerializableFunction<
             ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
         tableFunction =
-            input -> {
-              String tableSpec =
-                  NexmarkUtils.tableSpec(
-                      options, String.valueOf(input.getValue().getKey().query), 0L, null);
-              return new TableDestination(tableSpec, "perfkit queries");
-            };
+            input -> new TableDestination(
+                tableSpec.replace("{query}", String.valueOf(input.getValue().getKey().query)),
+                "perfkit queries");
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
         input -> {
           NexmarkPerf nexmarkPerf = input.getValue();
-          return new TableRow()
+          TableRow row = new TableRow()
               .set("Runtime(sec)", nexmarkPerf.runtimeSec)
               .set("Events(/sec)", nexmarkPerf.eventsPerSec)
               .set("Size of the result collection", nexmarkPerf.numResults);
+          return row;
         };
     BigQueryIO.Write io =
         BigQueryIO.<KV<NexmarkConfiguration, NexmarkPerf>>write()
@@ -390,6 +394,4 @@ public class Main<OptionT extends NexmarkOptions> {
     NexmarkLauncher<NexmarkOptions> nexmarkLauncher = new NexmarkLauncher<>(options);
     new Main<>().runAll(options, nexmarkLauncher);
   }
-
-
 }

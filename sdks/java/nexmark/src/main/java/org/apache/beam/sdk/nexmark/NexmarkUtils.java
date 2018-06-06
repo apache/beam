@@ -190,6 +190,7 @@ public class NexmarkUtils {
     /** Names are suffixed with the runner being used and a the mode (streaming/batch). */
     QUERY_RUNNER_AND_MODE
   }
+
   /** Return a BigQuery table spec. */
   static String tableSpec(NexmarkOptions options, String queryName, long now, String version) {
     String baseTableName = options.getBigQueryTable();
@@ -217,22 +218,22 @@ public class NexmarkUtils {
       case QUERY_RUNNER_AND_MODE:
         return (version != null)
             ? String.format(
-            "%s:%s.%s_%s_%s_%s_%s",
-            options.getProject(),
-            options.getBigQueryDataset(),
-            baseTableName,
-            queryName,
-            options.getRunner().getSimpleName(),
-            options.isStreaming(),
-            version)
+                "%s:%s.%s_%s_%s_%s_%s",
+                options.getProject(),
+                options.getBigQueryDataset(),
+                baseTableName,
+                queryName,
+                options.getRunner().getSimpleName(),
+                options.isStreaming(),
+                version)
             : String.format(
-            "%s:%s.%s_%s_%s_%s",
-            options.getProject(),
-            options.getBigQueryDataset(),
-            baseTableName,
-            queryName,
-            options.getRunner().getSimpleName(),
-            options.isStreaming());
+                "%s:%s.%s_%s_%s_%s",
+                options.getProject(),
+                options.getBigQueryDataset(),
+                baseTableName,
+                queryName,
+                options.getRunner().getSimpleName(),
+                options.isStreaming());
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }

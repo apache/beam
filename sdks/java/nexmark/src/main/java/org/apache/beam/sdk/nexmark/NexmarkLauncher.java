@@ -685,6 +685,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return String.format("%s_%s_source", baseTopic, queryName);
       case QUERY_AND_SALT:
         return String.format("%s_%s_%d_source", baseTopic, queryName, now);
+      case QUERY_RUNNER_AND_MODE:
+        return String.format(
+            "%s_%s_%s_%s_source",
+            baseTopic,
+            queryName,
+            options.getRunner().getSimpleName(),
+            options.isStreaming());
+
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
@@ -704,6 +712,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return String.format("%s_%s_source", baseSubscription, queryName);
       case QUERY_AND_SALT:
         return String.format("%s_%s_%d_source", baseSubscription, queryName, now);
+      case QUERY_RUNNER_AND_MODE:
+        return String.format(
+            "%s_%s_%s_%s_source",
+            baseSubscription,
+            queryName,
+            options.getRunner().getSimpleName(),
+            options.isStreaming());
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
@@ -723,6 +738,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return String.format("%s/nexmark_%s.txt", baseFilename, queryName);
       case QUERY_AND_SALT:
         return String.format("%s/nexmark_%s_%d.txt", baseFilename, queryName, now);
+      case QUERY_RUNNER_AND_MODE:
+        return String.format(
+            "%s/nexmark_%s_%s_%s",
+            baseFilename,
+            queryName,
+            options.getRunner().getSimpleName(),
+            options.isStreaming());
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
@@ -743,6 +765,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return String.format("%s/logs_%s", baseFilename, queryName);
       case QUERY_AND_SALT:
         return String.format("%s/logs_%s_%d", baseFilename, queryName, now);
+      case QUERY_RUNNER_AND_MODE:
+        return String.format(
+            "%s/logs_%s_%s_%s",
+            baseFilename,
+            queryName,
+            options.getRunner().getSimpleName(),
+            options.isStreaming());
+
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
