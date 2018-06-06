@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.avro;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -29,8 +29,8 @@ import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -66,7 +66,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class AvroIOIT {
 
-
   private static final Schema AVRO_SCHEMA = new Schema.Parser().parse("{\n"
       + " \"namespace\": \"ioitavro\",\n"
       + " \"type\": \"record\",\n"
@@ -84,7 +83,7 @@ public class AvroIOIT {
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -93,35 +92,27 @@ public class AvroIOIT {
   @Test
   public void writeThenReadAll() {
 
-    PCollection<String> testFilenames =
-        pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-            .apply(
-                "Produce text lines",
-                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-            .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
-            .setCoder(AvroCoder.of(AVRO_SCHEMA))
-            .apply(
-                "Write Avro records to files",
-                AvroIO.writeGenericRecords(AVRO_SCHEMA)
-                    .to(filenamePrefix)
-                    .withOutputFilenames()
-                    .withSuffix(".avro"))
-            .getPerDestinationOutputFilenames()
-            .apply(Values.create());
+    PCollection<String> testFilenames = pipeline
+      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+      .apply("Produce text lines",
+        ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+      .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
+      .setCoder(AvroCoder.of(AVRO_SCHEMA))
+      .apply("Write Avro records to files",
+        AvroIO.writeGenericRecords(AVRO_SCHEMA).to(filenamePrefix).withOutputFilenames()
+          .withSuffix(".avro")).getPerDestinationOutputFilenames()
+      .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
-        .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
-        .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+      .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
+      .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
+      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply(
-        "Delete test files",
-        ParDo.of(new DeleteFileFn())
-            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+    testFilenames.apply("Delete test files",
+      ParDo.of(new DeleteFileFn()).withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }
@@ -129,9 +120,7 @@ public class AvroIOIT {
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(
-          new GenericRecordBuilder(AVRO_SCHEMA).set("row", c.element()).build()
-      );
+      c.output(new GenericRecordBuilder(AVRO_SCHEMA).set("row", c.element()).build());
     }
   }
 
@@ -141,5 +130,4 @@ public class AvroIOIT {
       c.output(String.valueOf(c.element().get("row")));
     }
   }
-
 }
