@@ -25,7 +25,7 @@ There are lots of opportunities:
  - review proposed design ideas on [dev@beam.apache.org]({{ site.baseurl
 }}/community/contact-us/)
  - improve the documentation
- - contribute bug reports
+ - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
  - write new examples
  - add new user-facing libraries (new statistical libraries, new IO connectors,
    etc)
@@ -114,12 +114,12 @@ Generate an IDEA project .ipr file with:
 ### Pull requests
 
 When your change is ready to be reviewed and merged, create a pull request.
-Format the pull request title like [BEAM-XXX] Fixes bug in ApproximateQuantiles,
+Format the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
 where you replace BEAM-XXX with the appropriate JIRA issue.
 This will automatically link the pull request to the issue.
 
-Pull requests can only be merged by a [beam committer]
-(http://people.apache.org/phonebook.html?unix=beam).
+Pull requests can only be merged by a
+[beam committer](https://people.apache.org/phonebook.html?unix=beam).
 To find a committer for your area, look for similar code merges or ask on 
 [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
@@ -183,6 +183,12 @@ You can deactivate the virtualenv when done.
 To check just for Python lint errors, run the following command.
 
     $ ../../gradlew lint
+
+Or use `tox` commands to run the lint tasks:
+
+    $ tox -e py27-lint    # For python 2.7
+    $ tox -e py3-lint     # For python 3 
+    $ tox -e py27-lint3   # For python 2-3 compatibility
 
 #### Remote testing
 
