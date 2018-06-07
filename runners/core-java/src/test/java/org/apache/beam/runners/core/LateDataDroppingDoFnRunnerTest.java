@@ -73,7 +73,7 @@ public class LateDataDroppingDoFnRunnerTest {
             createDatum(16, 16L),
             createDatum(18, 18L)));
 
-    Iterable<WindowedValue<Integer>> expected =  ImmutableList.of(
+    Iterable<WindowedValue<Integer>> expected = ImmutableList.of(
         createDatum(13, 13L),
         createDatum(16, 16L),
         createDatum(18, 18L));

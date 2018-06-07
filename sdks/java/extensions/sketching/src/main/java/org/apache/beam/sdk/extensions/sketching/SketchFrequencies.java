@@ -195,7 +195,7 @@ public final class SketchFrequencies {
 
   /**
    * Like {@link #globally()} but per key, i.e a Count-min sketch per key
-   * in {@code  PCollection<KV<K, V>>} and returns a
+   * in {@code PCollection<KV<K, V>>} and returns a
    * {@code PCollection<KV<K, {@link CountMinSketch}>>}.
    *
    * @param <K> type of the keys mapping the elements
