@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
@@ -29,6 +33,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,17 +48,11 @@ import org.junit.runners.JUnit4;
 /** Integration tests form writing to BigQuery with Beam SQL. */
 @RunWith(JUnit4.class)
 public class BigQueryWriteIT implements Serializable {
-
   private static final Schema SOURCE_SCHEMA =
       Schema.builder()
-          .addNullableField("id", Schema.FieldType.INT64)
-          .addNullableField("name", Schema.FieldType.STRING)
-          .build();
-
-  private static final Schema RESULT_SCHEMA =
-      Schema.builder()
-          .addNullableField("id", Schema.FieldType.STRING)
-          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("id", INT64)
+          .addNullableField("name", STRING)
+          .addNullableField("arr", FieldType.array(STRING))
           .build();
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -66,20 +65,24 @@ public class BigQueryWriteIT implements Serializable {
     String createTableStatement =
         "CREATE TABLE ORDERS( \n"
             + "   id BIGINT, \n"
-            + "   name VARCHAR ) \n"
+            + "   name VARCHAR, \n "
+            + "   arr ARRAY<VARCHAR> \n"
+            + ") \n"
             + "TYPE 'bigquery' \n"
             + "LOCATION '"
             + bigQuery.tableSpec()
             + "'";
     sqlEnv.executeDdl(createTableStatement);
 
-    String insertStatement = "INSERT INTO ORDERS VALUES (1, 'foo')";
+    String insertStatement = "INSERT INTO ORDERS VALUES (1, 'foo', ARRAY['123', '456'])";
 
     PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(insertStatement));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
-    bigQuery.assertContainsInAnyOrder(toTableRow(row(RESULT_SCHEMA, "1", "foo")));
+    assertThat(
+        bigQuery.getFlatJsonRows(SOURCE_SCHEMA),
+        containsInAnyOrder(row(SOURCE_SCHEMA, 1L, "foo", Arrays.asList("123", "456"))));
   }
 
   @Test
@@ -89,30 +92,42 @@ public class BigQueryWriteIT implements Serializable {
             readOnlyTableProvider(
                 pipeline,
                 "ORDERS_IN_MEMORY",
-                row(SOURCE_SCHEMA, 1L, "foo"),
-                row(SOURCE_SCHEMA, 2L, "bar"),
-                row(SOURCE_SCHEMA, 3L, "baz")),
+                row(SOURCE_SCHEMA, 1L, "foo", Arrays.asList("111", "aaa")),
+                row(SOURCE_SCHEMA, 2L, "bar", Arrays.asList("222", "bbb")),
+                row(SOURCE_SCHEMA, 3L, "baz", Arrays.asList("333", "ccc"))),
             new BigQueryTableProvider());
 
     String createTableStatement =
         "CREATE TABLE ORDERS_BQ( \n"
             + "   id BIGINT, \n"
-            + "   name VARCHAR ) \n"
+            + "   name VARCHAR, \n "
+            + "   arr ARRAY<VARCHAR> \n"
+            + ") \n"
             + "TYPE 'bigquery' \n"
             + "LOCATION '"
             + bigQuery.tableSpec()
             + "'";
     sqlEnv.executeDdl(createTableStatement);
 
-    String insertStatement = "INSERT INTO ORDERS_BQ \n" + "SELECT id, name FROM ORDERS_IN_MEMORY";
+    String insertStatement =
+        "INSERT INTO ORDERS_BQ \n"
+            + " SELECT \n"
+            + "    id as `id`, \n"
+            + "    name as `name`, \n"
+            + "    arr as `arr` \n"
+            + " FROM ORDERS_IN_MEMORY";
     PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(insertStatement));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
-    bigQuery.assertContainsInAnyOrder(
-        toTableRow(row(RESULT_SCHEMA, "1", "foo")),
-        toTableRow(row(RESULT_SCHEMA, "2", "bar")),
-        toTableRow(row(RESULT_SCHEMA, "3", "baz")));
+    List<Row> allJsonRows = bigQuery.getFlatJsonRows(SOURCE_SCHEMA);
+
+    assertThat(
+        allJsonRows,
+        containsInAnyOrder(
+            row(SOURCE_SCHEMA, 1L, "foo", Arrays.asList("111", "aaa")),
+            row(SOURCE_SCHEMA, 2L, "bar", Arrays.asList("222", "bbb")),
+            row(SOURCE_SCHEMA, 3L, "baz", Arrays.asList("333", "ccc"))));
   }
 
   private TableProvider readOnlyTableProvider(Pipeline pipeline, String tableName, Row... rows) {
