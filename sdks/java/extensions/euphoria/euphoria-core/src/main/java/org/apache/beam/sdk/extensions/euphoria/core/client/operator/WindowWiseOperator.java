@@ -19,25 +19,42 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
-/** Operator working on some context. */
+/**
+ * Operator working on some context.
+ */
 @Audience(Audience.Type.INTERNAL)
 public abstract class WindowWiseOperator<InputT, WindowInT, OutputT, W extends BoundedWindow>
-    extends Operator<InputT, OutputT> implements WindowAware<Object, W> { //TODO remove WindowInT
+    extends Operator<InputT, OutputT> implements
+    WindowAware<Object, W> { //TODO remove WindowInT
 
-  @Nullable protected WindowingDesc<Object, W> windowing;
+  @Nullable
+  protected WindowingDesc<Object, W> windowing;
 
-  public WindowWiseOperator(String name, Flow flow, @Nullable WindowingDesc<Object, W> windowing) {
+  // left for backward compatibility
+  @Nullable
+  protected Windowing euphoriaWindowing;
+
+  public WindowWiseOperator(String name, Flow flow, @Nullable WindowingDesc<Object, W> windowing,
+      Windowing euphoriaWindowing) {
     super(name, flow);
     this.windowing = windowing;
+    this.euphoriaWindowing = euphoriaWindowing;
   }
 
   @Nullable
   @Override
   public WindowingDesc<Object, W> getWindowing() {
     return windowing;
+  }
+
+  @Nullable
+  @Override
+  public Windowing getEuphoriaWindowing() {
+    return euphoriaWindowing;
   }
 }
