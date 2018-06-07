@@ -27,6 +27,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+
   <artifactId>beam-examples-parent</artifactId>
 
   <packaging>pom</packaging>
