@@ -17,19 +17,30 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toBeamRow;
+
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.Pipeline;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -38,10 +49,8 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Test rule which creates a new table with specified schema,
- * with randomized name and exposes few APIs to work with it.
- *
- * <p>Uses a {@link TestPipeline} to load the data from BigQuery for assertions.
+ * Test rule which creates a new table with specified schema, with randomized name and exposes few
+ * APIs to work with it.
  *
  * <p>Deletes the table on test shutdown.
  */
@@ -51,7 +60,6 @@ public class TestBigQuery implements TestRule {
 
   private TestBigQueryOptions pipelineOptions;
   private Schema schema;
-  private TestPipeline resultsPipelineRule;
   private Table table;
   private BigQueryServices.DatasetService datasetService;
 
@@ -63,43 +71,38 @@ public class TestBigQuery implements TestRule {
   public static TestBigQuery create(Schema tableSchema) {
     return new TestBigQuery(
         TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class),
-        tableSchema,
-        TestPipeline.create());
+        tableSchema);
   }
 
   private TestBigQuery(
-      TestBigQueryOptions pipelineOptions,
-      Schema tableSchema,
-      TestPipeline resultsPipelineRule) {
+      TestBigQueryOptions pipelineOptions, Schema tableSchema) {
     this.pipelineOptions = pipelineOptions;
     this.schema = tableSchema;
-    this.resultsPipelineRule = resultsPipelineRule;
   }
 
   @Override
   public Statement apply(Statement base, Description description) {
-    return resultsPipelineRule.apply(testBigQuery(base, description), description);
-  }
-
-  private Statement testBigQuery(Statement base, Description description) {
     return new Statement() {
-        @Override
-        public void evaluate() throws Throwable {
-          if (TestBigQuery.this.datasetService != null) {
-            throw new AssertionError(
-                "BigQuery test was not shutdown previously. "
-                + "Table is'" + table + "'. "
-                + "Current test: " + description.getDisplayName());
-          }
-
-          try {
-            initializeBigQuery(description);
-            base.evaluate();
-          } finally {
-            tearDown();
-          }
+      @Override
+      public void evaluate() throws Throwable {
+        if (TestBigQuery.this.datasetService != null) {
+          throw new AssertionError(
+              "BigQuery test was not shutdown previously. "
+                  + "Table is'"
+                  + table
+                  + "'. "
+                  + "Current test: "
+                  + description.getDisplayName());
         }
-      };
+
+        try {
+          initializeBigQuery(description);
+          base.evaluate();
+        } finally {
+          tearDown();
+        }
+      }
+    };
   }
 
   private void initializeBigQuery(Description description)
@@ -120,13 +123,18 @@ public class TestBigQuery implements TestRule {
         new Table()
             .setTableReference(tableReference)
             .setSchema(BigQueryUtils.toTableSchema(schema))
-            .setDescription("Table created for "
-                            + description.getDisplayName() + " by TestBigQueryRule. "
-                            + "Should be automatically cleaned up after test completion.");
+            .setDescription(
+                "Table created for "
+                    + description.getDisplayName()
+                    + " by TestBigQueryRule. "
+                    + "Should be automatically cleaned up after test completion.");
 
     if (datasetService.getTable(tableReference) != null) {
-      throw new IllegalStateException("Table '" + tableReference + "' already exists. "
-                                      + "It should have been cleaned up by the test rule.");
+      throw new IllegalStateException(
+          "Table '"
+              + tableReference
+              + "' already exists. "
+              + "It should have been cleaned up by the test rule.");
     }
 
     datasetService.createTable(table);
@@ -153,9 +161,7 @@ public class TestBigQuery implements TestRule {
 
     if (description.getClassName() != null) {
       try {
-        topicName
-            .append(Class.forName(description.getClassName()).getSimpleName())
-            .append("_");
+        topicName.append(Class.forName(description.getClassName()).getSimpleName()).append("_");
       } catch (ClassNotFoundException e) {
         throw new RuntimeException(e);
       }
@@ -167,8 +173,9 @@ public class TestBigQuery implements TestRule {
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString() + "_"
-           + String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()));
+    return topicName.toString()
+        + "_"
+        + String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()));
   }
 
   public String tableSpec() {
@@ -179,18 +186,67 @@ public class TestBigQuery implements TestRule {
         table.getTableReference().getTableId());
   }
 
-  public void assertContainsInAnyOrder(TableRow ... tableRows) {
-    PAssert
-        .that(readAllRowsFromBQ(resultsPipelineRule, tableSpec()))
-        .containsInAnyOrder(Arrays.asList(tableRows));
-    resultsPipelineRule.run().waitUntilFinish(Duration.standardMinutes(5));
+  /**
+   * Loads rows from BigQuery into {@link Row Rows} with given {@link Schema}.
+   *
+   * <p>Current implementation only supports flat {@link Row Rows} and target {@link Schema Schemas}
+   * with {@link FieldType#STRING} fields only.
+   */
+  public List<Row> getFlatJsonRows(Schema rowSchema) throws IOException {
+    Bigquery bq = newBigQueryClient(pipelineOptions);
+    return bqRowsToBeamRows(getSchema(bq), getTableRows(bq), rowSchema);
   }
 
-  private PCollection<TableRow> readAllRowsFromBQ(Pipeline pipeline, String tableSpec) {
-    return pipeline
-        .apply(
-            BigQueryIO
-                .readTableRows()
-                .from(tableSpec));
+  private List<Row> bqRowsToBeamRows(
+      TableSchema bqSchema, List<TableRow> bqRows, Schema rowSchema) {
+    return bqRows
+        .stream()
+        .map(bqRow -> toBeamRow(rowSchema, bqSchema, bqRow))
+        .collect(Collectors.toList());
+  }
+
+  private TableSchema getSchema(Bigquery bq) throws IOException {
+    return bq.tables()
+        .get(
+            pipelineOptions.getProject(),
+            pipelineOptions.getTargetDataset(),
+            table.getTableReference().getTableId())
+        .execute()
+        .getSchema();
+  }
+
+  private List<TableRow> getTableRows(Bigquery bq) throws IOException {
+    return bq.tabledata()
+        .list(
+            pipelineOptions.getProject(),
+            pipelineOptions.getTargetDataset(),
+            table.getTableReference().getTableId())
+        .execute()
+        .getRows();
+  }
+
+  private static Bigquery newBigQueryClient(BigQueryOptions options) {
+    return new Bigquery.Builder(
+            Transport.getTransport(),
+            Transport.getJsonFactory(),
+            chainHttpRequestInitializer(
+                options.getGcpCredential(),
+                // Do not log 404. It clutters the output and is possibly even required by the
+                // caller.
+                new RetryHttpRequestInitializer(ImmutableList.of(404))))
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
+        .build();
+  }
+
+  private static HttpRequestInitializer chainHttpRequestInitializer(
+      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
+    if (credential == null) {
+      return new ChainingHttpRequestInitializer(
+          new NullCredentialInitializer(), httpRequestInitializer);
+    } else {
+      return new ChainingHttpRequestInitializer(
+          new HttpCredentialsAdapter(credential), httpRequestInitializer);
+    }
   }
 }
