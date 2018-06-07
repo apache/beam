@@ -40,9 +40,7 @@ job('beam_PreCommit_TriggerPrototype') {
       allowMembersOfWhitelistedOrgsAsAdmin()
       permitAll()
       triggerPhrase('abracadabra')
-
-      // TODO: Remove once triggering is added
-      onlyTriggerPhrase()
+      userWhitelist('swegner@google.com')
 
       extensions {
         commitStatus {
