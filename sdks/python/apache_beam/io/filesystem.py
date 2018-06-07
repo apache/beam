@@ -528,8 +528,7 @@ class FileSystem(BeamPlugin):
     """
     raise NotImplementedError
 
-  @staticmethod
-  def _url_dirname(url_or_path):
+  def _url_dirname(self, url_or_path):
     """Like posixpath.dirname, but preserves scheme:// prefix.
 
     Args:

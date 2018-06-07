@@ -81,6 +81,17 @@ class LocalFileSystem(FileSystem):
     """Whether this FileSystem supports directories."""
     return True
 
+  def _url_dirname(self, url_or_path):
+    """Pass through to os.path.dirname.
+
+    This version uses os.path instead of posixpath to be compatible with the
+    host OS.
+
+    Args:
+      url_or_path: A string in the form of /some/path.
+    """
+    return os.path.dirname(url_or_path)
+
   def _list(self, dir_or_prefix):
     """List files in a location.
 
