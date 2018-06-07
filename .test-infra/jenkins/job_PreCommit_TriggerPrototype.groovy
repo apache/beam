@@ -31,12 +31,6 @@ job('beam_PreCommit_TriggerPrototype') {
     'master',
     90)
 
-  // Publish all test results to Jenkins. Note that Nose documentation
-  // specifically mentions that it produces JUnit compatible test results.
-  publishers {
-    archiveJunit('**/nosetests.xml')
-  }
-
   // Sets that this is a PreCommit job.
   triggers {
     githubPullRequest {
