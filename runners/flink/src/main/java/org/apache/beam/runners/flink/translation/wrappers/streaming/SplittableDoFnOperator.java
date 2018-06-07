@@ -48,6 +48,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -73,7 +75,8 @@ public class SplittableDoFnOperator<
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
-      Coder<?> keyCoder) {
+      Coder<?> keyCoder,
+      KeySelector<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, ?> keySelector) {
     super(
         doFn,
         stepName,
@@ -85,7 +88,8 @@ public class SplittableDoFnOperator<
         sideInputTagMapping,
         sideInputs,
         options,
-        keyCoder);
+        keyCoder,
+        keySelector);
   }
 
   @Override
@@ -98,8 +102,8 @@ public class SplittableDoFnOperator<
   }
 
   @Override
-  public void open() throws Exception {
-    super.open();
+  public void initializeState(StateInitializationContext context) throws Exception {
+    super.initializeState(context);
 
     checkState(doFn instanceof ProcessFn);
 

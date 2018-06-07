@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -41,7 +42,6 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
 import org.junit.Test;
@@ -114,7 +114,7 @@ public class BoundedSourceRestoreTest {
     assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
     // draw a snapshot
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     // finalize checkpoint
     final ArrayList<Integer> finalizeList = new ArrayList<>();

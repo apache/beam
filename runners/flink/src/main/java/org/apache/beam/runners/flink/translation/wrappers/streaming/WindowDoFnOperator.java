@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 
 /**
@@ -62,7 +63,8 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
-      Coder<K> keyCoder) {
+      Coder<K> keyCoder,
+      KeySelector<WindowedValue<KeyedWorkItem<K, InputT>>, ?> keySelector) {
     super(
         null,
         stepName,
@@ -74,7 +76,8 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         sideInputTagMapping,
         sideInputs,
         options,
-        keyCoder);
+        keyCoder,
+        keySelector);
 
     this.systemReduceFn = systemReduceFn;
 
