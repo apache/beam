@@ -176,6 +176,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     return (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in));
   }
 
+  /**
+   * Parameters of this operator used in builders.
+   */
   private static class BuilderParams<InputT, V, OutputT, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -197,7 +200,6 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
   /**
    * TODO: complete javadoc.
    */
-
   public static class OfBuilder implements Builders.Of {
 
     final String name;
@@ -213,6 +215,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
 
   }
 
+  /**
+   * TODO: complete javadoc.
+   */
   public static class ValueBuilder<InputT> {
 
     private final BuilderParams<InputT, ?, ?, ?> params;
@@ -337,6 +342,10 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     }
   }
 
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output()}.
+   */
   public static class OutputBuilder<InputT, V, OutputT, W extends BoundedWindow> {
 
     private final BuilderParams<InputT, V, OutputT, W> params;
@@ -357,6 +366,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
 
   }
 
+  /**
+   * Trigger defining operator builder.
+   */
   public static class TriggerByBuilder<InputT, V, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, V, OutputT, W>> {
 
@@ -373,6 +385,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
 
   }
 
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
   public static class AccumulatorModeBuilder<InputT, V, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, V, OutputT, W>> {
 

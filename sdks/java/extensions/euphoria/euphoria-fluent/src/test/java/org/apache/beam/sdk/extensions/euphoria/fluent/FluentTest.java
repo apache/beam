@@ -17,21 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
 
-import static java.util.Arrays.asList;
-
 import java.time.Duration;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.beam.BeamExecutor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Count;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Test;
 
 /** Test behavior of Fluent API. */
 public class FluentTest {

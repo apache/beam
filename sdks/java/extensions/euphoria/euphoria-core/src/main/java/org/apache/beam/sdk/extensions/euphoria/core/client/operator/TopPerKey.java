@@ -168,6 +168,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     return dag;
   }
 
+  /**
+   * Parameters of this operator used in builders.
+   */
   private static final class BuiderParams<InputT, K, V, ScoreT extends Comparable<ScoreT>,
       W extends BoundedWindow>
       extends WindowingParams<W> {
@@ -345,6 +348,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
+  /**
+   * Trigger defining operator builder.
+   */
   public static class TriggerByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>,
       W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, ScoreT, W>> {
@@ -362,6 +368,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
   }
 
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
   public static class AccumulatorModeBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>,
       W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, ScoreT, W>> {
@@ -382,7 +391,8 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
   }
 
   /**
-   * TODO: complete javadoc.
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
    */
   public static class OutputBuilder<
       InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>

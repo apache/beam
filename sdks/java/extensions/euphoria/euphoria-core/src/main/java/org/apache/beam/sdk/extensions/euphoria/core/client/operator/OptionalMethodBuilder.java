@@ -37,7 +37,8 @@ public interface OptionalMethodBuilder<BuilderT> {
    * @return next step builder
    */
   @SuppressWarnings("unchecked")
-  default BuilderT applyIf(boolean cond, UnaryFunction<BuilderT, BuilderT> applyWhenConditionHolds) {
+  default BuilderT applyIf(
+      boolean cond, UnaryFunction<BuilderT, BuilderT> applyWhenConditionHolds) {
     Objects.requireNonNull(applyWhenConditionHolds);
     return cond ? applyWhenConditionHolds.apply((BuilderT) this) : (BuilderT) this;
   }
