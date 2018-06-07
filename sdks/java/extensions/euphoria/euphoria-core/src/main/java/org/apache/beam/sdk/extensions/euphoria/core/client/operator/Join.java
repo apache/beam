@@ -113,11 +113,13 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       BinaryFunctor<LeftT, RightT, OutputT> functor,
       Type type,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
     super(
         name,
         flow,
         windowing,
+        euphoriaWindowing,
         (Either<LeftT, RightT> elem) -> {
           if (elem.isLeft()) {
             return leftKeyExtractor.apply(elem.left());
@@ -202,6 +204,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
             keyExtractor,
             e -> e,
             getWindowing(),
+            euphoriaWindowing,
             (StateContext context, Collector ctx) -> {
               StorageProvider storages = context.getStorageProvider();
               return ctx == null
@@ -358,6 +361,13 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
       return new TriggerByBuilder<>(paramsCasted);
     }
+
+    @Override
+    public <W extends Window<W>> OutputBuilder<LeftT, RightT, K, OutputT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = windowing;
+      return new OutputBuilder<>(params);
+    }
   }
 
   /**
@@ -426,6 +436,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
               params.joinFunc,
               params.type,
               params.getWindowing(),
+              params.euphoriaWindowing,
               Sets.newHashSet(outputHints));
       flow.add(join);
       return join.output();

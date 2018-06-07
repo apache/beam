@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import com.sun.istack.internal.NotNull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
@@ -86,26 +88,26 @@ public class Builders {
      * already preceded by an event time assignment, it will process the input elements in ingestion
      * time.
      *
-     * @param <W> the type of the windowing
-     * @param windowing the windowing strategy to apply to the input dataset
+     * @param <W> the type of the windowing, subclass of {@link BoundedWindow}
+     * @param windowing {@link BoundedWindow} subclass used to represent the windows used by given
+     * {@link WindowFn}.It represents windowing strategy to apply to the input elements.
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     <W extends BoundedWindow> OutTriggerBuilderT windowBy(@NotNull WindowFn<Object, W> windowing);
 
-//    /**
-//    * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
-//   * already preceded by an event time assignment, it will process the input elements in ingestion
-//     * time.
-//     * <p>
-//     *   This method is deprecated and will be removed in future.
-//     * </p>
-//     *
-//     * @param <W> the type of the windowing
-//     * @param windowing the windowing strategy to apply to the input dataset
-//     * @return the next builder to complete the setup of the {@link ReduceByKey} operator
-//     */
-//    @Deprecated
-//    <W extends Window<W>> Object windowBy(Windowing<?, W> windowing);
+    /**
+     * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
+     * already preceded by an event time assignment, it will process the input elements in ingestion
+     * time.
+     *
+     * @param <W> the type of the windowing
+     * @param windowing the windowing strategy to apply to the input dataset
+     * @return the next builder to complete the setup of the {@link ReduceByKey} operator
+     * @deprecated This method is deprecated and will be removed in future. It is left here for
+     * backward compatibility.
+     */
+    @Deprecated
+    <W extends Window<W>> Object windowBy(Windowing<?, W> windowing);
   }
 
   /**
