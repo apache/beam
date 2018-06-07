@@ -159,7 +159,8 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
    */
   public static class WindowingBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-      Builders.Output<Pair<K, Long>> {
+      Builders.Output<Pair<K, Long>>,
+      OptionalMethodBuilder<WindowingBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
 
     private final BuilderParams<InputT, K, ?> params;
 
@@ -187,6 +188,19 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     @Override
     public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
+    }
+
+    @Override
+    public OutputBuilder<InputT, K, ?> applyIf(boolean cond,
+        UnaryFunction<WindowingBuilder<InputT, K>,
+            OutputBuilder<InputT, K, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
+      return new OutputBuilder<>(params);
     }
   }
 

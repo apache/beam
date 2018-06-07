@@ -327,7 +327,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
    */
   public static class WindowByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, ScoreT, ?>>,
-      Builders.Output<Triple<K, V, ScoreT>> {
+      Builders.Output<Triple<K, V, ScoreT>>,
+      OptionalMethodBuilder<WindowByBuilder<InputT, K, V, ScoreT>,
+          OutputBuilder<InputT, K, V, ScoreT, ?>> {
 
     private final BuiderParams<InputT, K, V, ScoreT, ?> params;
 
@@ -356,6 +358,19 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     @Override
     public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
+    }
+
+    @Override
+    public OutputBuilder<InputT, K, V, ScoreT, ?> applyIf(boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, K, V, ScoreT>,
+            OutputBuilder<InputT, K, V, ScoreT, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
+      return new OutputBuilder<>(params);
     }
   }
 
