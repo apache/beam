@@ -550,7 +550,7 @@ public class CombineFns {
 
     public ComposedAccumulatorCoder(List<Coder<Object>> coders) {
       this.coders = ImmutableList.copyOf(coders);
-      this.codersCount  = coders.size();
+      this.codersCount = coders.size();
     }
 
     @Override

@@ -459,7 +459,7 @@ public class UnboundedSourceWrapper<
 
   private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
     if (this.isRunning) {
-      long watermarkInterval =  runtime.getExecutionConfig().getAutoWatermarkInterval();
+      long watermarkInterval = runtime.getExecutionConfig().getAutoWatermarkInterval();
       long timeToNextWatermark = getTimeToNextWatermark(watermarkInterval);
       runtime.getProcessingTimeService().registerTimer(timeToNextWatermark, this);
     }

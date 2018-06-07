@@ -447,7 +447,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             // new "i" element in outer loop.
             i--;
             j = specs.size();
-          } else  if (iface2.isAssignableFrom(iface1)) {
+          } else if (iface2.isAssignableFrom(iface1)) {
             optionsMap.remove(entry.getKey(), specs.get(j));
             specs.remove(j);
 

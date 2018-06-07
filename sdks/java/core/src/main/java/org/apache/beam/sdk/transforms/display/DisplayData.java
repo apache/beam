@@ -687,17 +687,17 @@ public class DisplayData implements Serializable {
       if (value instanceof Integer || value instanceof Long) {
         return INTEGER;
       } else if (value instanceof Double || value instanceof Float) {
-        return  FLOAT;
+        return FLOAT;
       } else if (value instanceof Boolean) {
-        return  BOOLEAN;
+        return BOOLEAN;
       } else if (value instanceof Instant) {
-        return  TIMESTAMP;
+        return TIMESTAMP;
       } else if (value instanceof Duration) {
-        return  DURATION;
+        return DURATION;
       } else if (value instanceof Class<?>) {
-        return  JAVA_CLASS;
+        return JAVA_CLASS;
       } else if (value instanceof String) {
-        return  STRING;
+        return STRING;
       } else {
         return null;
       }

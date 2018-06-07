@@ -121,7 +121,7 @@ public class TriggerExampleTest {
         flow.apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
             .apply(new TotalFlow("default"));
 
-    PCollection<String> results =  totalFlow.apply(ParDo.of(new FormatResults()));
+    PCollection<String> results = totalFlow.apply(ParDo.of(new FormatResults()));
 
     PAssert.that(results)
         .containsInAnyOrder(canonicalFormat(OUT_ROW_1), canonicalFormat(OUT_ROW_2));

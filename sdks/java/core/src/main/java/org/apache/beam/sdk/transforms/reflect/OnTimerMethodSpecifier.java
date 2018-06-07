@@ -32,6 +32,6 @@ abstract class OnTimerMethodSpecifier {
     public abstract String timerId();
     public static OnTimerMethodSpecifier
     forClassAndTimerId(Class<? extends DoFn<?, ?>> fnClass, String timerId) {
-        return  new AutoValue_OnTimerMethodSpecifier(fnClass, timerId);
+        return new AutoValue_OnTimerMethodSpecifier(fnClass, timerId);
     }
 }

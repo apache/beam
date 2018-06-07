@@ -515,7 +515,7 @@ public final class TransformTranslator {
                     output.getWindowingStrategyInternal().getWindowFn().windowCoder()));
 
         @SuppressWarnings("unchecked")
-        Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
+        Iterable<WindowedValue<?>> iterCast = (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
       }
