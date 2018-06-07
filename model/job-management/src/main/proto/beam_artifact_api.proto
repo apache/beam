@@ -81,7 +81,11 @@ message ProxyManifest {
 }
 
 // A request to get the manifest of a Job.
-message GetManifestRequest {}
+message GetManifestRequest {
+  // (Required) An opaque token representing the entirety of the staged artifacts.
+  // Returned in CommitManifestResponse.
+  string retrieval_token = 1;
+}
 
 // A response containing a job manifest.
 message GetManifestResponse {
@@ -92,6 +96,9 @@ message GetManifestResponse {
 message GetArtifactRequest {
   // (Required) The name of the artifact to retrieve.
   string name = 1;
+  // (Required) An opaque token representing the entirety of the staged artifacts.
+  // Returned in CommitManifestResponse.
+  string retrieval_token = 2;
 }
 
 // Part of an artifact.
@@ -136,6 +143,8 @@ message CommitManifestRequest {
 // The result of committing a manifest.
 message CommitManifestResponse {
   // (Required) An opaque token representing the entirety of the staged artifacts.
-  string staging_token = 1;
+  // This can be used to retrieve the manifest and artifacts from an associated
+  // ArtifactRetrievalService.
+  string retrieval_token = 1;
 }
 

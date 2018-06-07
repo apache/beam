@@ -90,9 +90,9 @@ message RunJobRequest {
   // (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
   // must have been completed.
   string preparation_id = 1;
-  // (optional) If any artifacts have been staged for this job, contains the staging_token returned
+  // (optional) If any artifacts have been staged for this job, contains the retrieval_token returned
   // from the CommitManifestResponse.
-  string staging_token = 2;
+  string retrieval_token = 2;
 }
 
 
