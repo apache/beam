@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
+import com.google.auto.service.AutoService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -33,6 +34,7 @@ import org.apache.calcite.jdbc.Driver;
 import org.apache.calcite.schema.SchemaPlus;
 
 /** Calcite JDBC driver with Beam defaults. */
+@AutoService(java.sql.Driver.class)
 public class JdbcDriver extends Driver {
   public static final JdbcDriver INSTANCE = new JdbcDriver();
   public static final String CONNECT_STRING_PREFIX = "jdbc:beam:";

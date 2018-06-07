@@ -155,6 +155,9 @@ task integrationTest(type: Test) {
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
   def pipelineOptions = [
           "--project=${gcpProject}",
           "--tempLocation=${gcsTempRoot}",
