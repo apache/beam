@@ -41,9 +41,10 @@ job('beam_PreCommit_TriggerPrototype') {
       permitAll()
       triggerPhrase('abracadabra')
       userWhitelist('swegner@google.com')
-      includedRegions([
-        'examples',
-      ].join('\n'))
+      // includedRegions([
+      //   '^examples/',
+      //   '^model/'
+      // ].join('\n'))
 
       extensions {
         commitStatus {
