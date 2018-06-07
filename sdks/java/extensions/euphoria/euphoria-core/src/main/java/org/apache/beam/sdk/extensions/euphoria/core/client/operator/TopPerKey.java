@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -96,8 +97,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       UnaryFunction<InputT, V> valueFn,
       UnaryFunction<InputT, ScoreT> scoreFn,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, keyFn, windowing, outputHints);
+    super(name, flow, input, keyFn, windowing, euphoriaWindowing, outputHints);
 
     this.valueFn = valueFn;
     this.scoreFn = scoreFn;
@@ -148,6 +150,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
             keyExtractor,
             e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
             windowing,
+            euphoriaWindowing,
             (StateContext context, Collector<Pair<V, ScoreT>> collector) -> {
               return new MaxScored<>(context.getStorageProvider());
             },
@@ -241,6 +244,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
    * TODO: complete javadoc.
    */
   public static class OfBuilder implements Builders.Of {
+
     private final String name;
 
     OfBuilder(String name) {
@@ -343,6 +347,13 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
 
     @Override
+    public <W extends Window<W>> OutputBuilder<InputT, K, V, ScoreT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
     public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
@@ -410,7 +421,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       TopPerKey<InputT, K, V, ScoreT, W> top =
           new TopPerKey<>(
               flow, params.name, params.input, params.keyFn, params.valueFn, params.scoreFn,
-              params.getWindowing(), Sets.newHashSet(outputHints));
+              params.getWindowing(), params.euphoriaWindowing, Sets.newHashSet(outputHints));
       flow.add(top);
       return top.output();
     }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
@@ -31,4 +32,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 public interface WindowAware<InputT, W extends BoundedWindow> {
 
   WindowingDesc<InputT, W> getWindowing();
+
+  Windowing getEuphoriaWindowing();
 }

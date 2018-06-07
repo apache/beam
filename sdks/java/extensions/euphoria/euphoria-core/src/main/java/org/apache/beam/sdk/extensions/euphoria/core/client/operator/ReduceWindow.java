@@ -80,10 +80,11 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       Dataset<InputT> input,
       UnaryFunction<InputT, V> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       ReduceFunctor<V, OutputT> reducer,
       @Nullable BinaryFunction<V, V, Integer> valueComparator) {
 
-    super(name, flow, input, e -> B_ZERO, windowing, Collections.emptySet());
+    super(name, flow, input, e -> B_ZERO, windowing, euphoriaWindowing, Collections.emptySet());
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
     this.valueComparator = valueComparator;
@@ -131,6 +132,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
               getKeyExtractor(),
               valueExtractor,
               windowing,
+              euphoriaWindowing,
               reducer,
               valueComparator,
               getHints());
@@ -155,6 +157,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
               map.output(),
               Pair::getFirst,
               p -> valueExtractor.apply(p.getSecond()),
+              null,
               null,
               reducer,
               valueComparator,
@@ -340,11 +343,17 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
       return new TriggerByBuilder<>(paramsCasted);
     }
+
+    @Override
+    public <W extends Window<W>> OutputBuilder<InputT, V, OutputT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
   }
 
   /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output()}.
+   * Last builder in a chain. It concludes this operators creation by calling {@link #output()}.
    */
   public static class OutputBuilder<InputT, V, OutputT, W extends BoundedWindow> {
 
@@ -359,7 +368,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
       ReduceWindow<InputT, V, OutputT, ?> operator =
           new ReduceWindow<>(
               params.name, flow, params.input, params.valueExtractor, params.getWindowing(),
-              params.reducer, params.valueComparator);
+              params.euphoriaWindowing, params.reducer, params.valueComparator);
       flow.add(operator);
       return operator.output();
     }
@@ -440,6 +449,13 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
         WindowFn<Object, W> windowing) {
 
       return new WindowByBuilder<>(params).windowBy(windowing);
+    }
+
+    @Override
+    public <W extends Window<W>> OutputBuilder<InputT, V, OutputT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
     }
   }
 }

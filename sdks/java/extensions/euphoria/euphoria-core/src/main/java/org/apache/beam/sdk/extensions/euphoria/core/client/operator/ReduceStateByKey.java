@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -122,10 +123,11 @@ public class ReduceStateByKey<
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, V> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       StateFactory<V, OutputT, StateT> stateFactory,
       StateMerger<V, OutputT, StateT> stateMerger,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, keyExtractor, windowing, outputHints);
+    super(name, flow, input, keyExtractor, windowing, euphoriaWindowing, outputHints);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateMerger;
@@ -373,6 +375,13 @@ public class ReduceStateByKey<
     }
 
     @Override
+    public <W extends Window<W>> OutputBuilder<InputT, K, V, OutputT, StateT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
@@ -449,6 +458,7 @@ public class ReduceStateByKey<
               params.keyExtractor,
               params.valueExtractor,
               params.getWindowing(),
+              params.euphoriaWindowing,
               params.stateFactory,
               params.stateMerger,
               Sets.newHashSet(outputHints));

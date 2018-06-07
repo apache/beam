@@ -18,26 +18,36 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-class WindowingParams<W extends BoundedWindow> {
+class WindowingParams<W extends BoundedWindow>
+implements WindowAware<Object, W>{
 
   WindowFn<Object, W> windowFn;
-  //TODO do we always need to set  folowing fielnds explicitly ? Do default values ?
+  //TODO do we always need to set following fields explicitly ? No default values ?
   Trigger trigger;
   WindowingStrategy.AccumulationMode accumulationMode;
 
+  // left for backward compatibility
+  Windowing euphoriaWindowing;
+
   @Nullable
-  WindowingDesc<Object, W> getWindowing() {
+  public WindowingDesc<Object, W> getWindowing() {
     if (windowFn == null || trigger == null || accumulationMode == null) {
       return null;
     }
 
     return new WindowingDesc<>(windowFn, trigger, accumulationMode);
+  }
+
+  @Override
+  public Windowing getEuphoriaWindowing() {
+    return euphoriaWindowing;
   }
 
 }

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
@@ -73,9 +74,10 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       Dataset<InputT> input,
       UnaryFunction<InputT, OutputT> mapper,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, mapper, windowing, outputHints);
+    super(name, flow, input, mapper, windowing, euphoriaWindowing, outputHints);
   }
 
   /**
@@ -113,6 +115,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
             getKeyExtractor(),
             e -> null,
             windowing,
+            euphoriaWindowing,
             (CombinableReduceFunction<Void>) e -> null,
             Collections.emptySet());
 
@@ -213,6 +216,12 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
 
       return new TriggerByBuilder<>(paramsCasted);
     }
+
+    @Override
+    public <W extends Window<W>> OutputBuilder<InputT, ?, ?> windowBy(Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
   }
 
   /**
@@ -244,6 +253,13 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     @Override
     public Dataset<OutputT> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output();
+    }
+
+    @Override
+    public <W extends Window<W>> OutputBuilder<InputT, OutputT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
     }
   }
 
@@ -305,7 +321,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       Flow flow = params.input.getFlow();
       Distinct<InputT, OutputT, W> distinct =
           new Distinct<>(params.name, flow, params.input, params.mapper,
-              params.getWindowing(), Sets.newHashSet(outputHints));
+              params.getWindowing(), params.euphoriaWindowing, Sets.newHashSet(outputHints));
       flow.add(distinct);
       return distinct.output();
     }

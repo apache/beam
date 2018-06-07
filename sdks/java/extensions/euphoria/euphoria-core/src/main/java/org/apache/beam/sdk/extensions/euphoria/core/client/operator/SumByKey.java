@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -79,8 +80,10 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, Long> valueExtractor,
-      @Nullable WindowingDesc<Object, W> windowing) {
-    this(name, flow, input, keyExtractor, valueExtractor, windowing, Collections.emptySet());
+      @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing) {
+    this(name, flow, input, keyExtractor, valueExtractor, windowing, euphoriaWindowing,
+        Collections.emptySet());
   }
 
   SumByKey(
@@ -90,8 +93,9 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, Long> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, keyExtractor, windowing, outputHints);
+    super(name, flow, input, keyExtractor, windowing, euphoriaWindowing, outputHints);
     this.valueExtractor = valueExtractor;
   }
 
@@ -128,6 +132,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
             keyExtractor,
             valueExtractor,
             windowing,
+            euphoriaWindowing,
             Sums.ofLongs(),
             getHints());
     return DAG.of(reduceByKey);
@@ -137,7 +142,8 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
    * Parameters of this operator used in builders.
    */
   private static class BuilderParams<InputT, K, W extends BoundedWindow>
-  extends WindowingParams<W>{
+      extends WindowingParams<W> {
+
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
@@ -223,6 +229,12 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
+    public <W extends Window<W>> OutputBuilder<InputT, K, ?> windowBy(Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
     public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
 
       params.valueExtractor = e -> 1L;
@@ -254,6 +266,12 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
       return new TriggerByBuilder<>(paramsCasted);
+    }
+
+    @Override
+    public <W extends Window<W>> OutputBuilder<InputT, K, ?> windowBy(Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
     }
 
     @Override
@@ -327,6 +345,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
               params.keyExtractor,
               params.valueExtractor,
               params.getWindowing(),
+              params.euphoriaWindowing,
               Sets.newHashSet(outputHints));
       flow.add(sumByKey);
       return sumByKey.output();
