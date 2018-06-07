@@ -24,18 +24,17 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
-import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -60,7 +59,7 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
     return doTranslate(operator, context);
   }
 
-  <K, LeftT, RightT, OutputT, W extends Window<W>> PCollection<Pair<K, OutputT>> doTranslate(
+  <K, LeftT, RightT, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>> doTranslate(
       Join<LeftT, RightT, K, OutputT, W> operator, BeamExecutorContext context) {
     Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
 
@@ -131,10 +130,9 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
   /**
    * BroadcastHashJoin supports only GlobalWindow or none.
    */
-  private boolean isAllowedWindowing(Windowing windowing) {
+  private boolean isAllowedWindowing(WindowingDesc<?, ?> windowing) {
     return windowing == null
-        || (windowing instanceof BeamWindowing
-        && ((BeamWindowing) windowing).getWindowFn() instanceof GlobalWindows);
+        || (windowing.getWindowFn() instanceof GlobalWindows);
   }
 
   static class BroadcastHashRightJoinFn<K, LeftT, RightT, OutputT>

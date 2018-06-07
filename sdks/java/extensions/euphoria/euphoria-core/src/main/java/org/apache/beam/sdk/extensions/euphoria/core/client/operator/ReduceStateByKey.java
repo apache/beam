@@ -69,8 +69,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * }</pre>
  *
  * <p>This example constitutes a windowed word-count program. Each input element is treated as a
- * key
- * to identify an imaginary {@code WordCountState} within each time window assigned to the input
+ * key to identify an imaginary {@code WordCountState} within each time window assigned to the input
  * element. For such a key/window combination the value {@code 1} gets sent to the corresponding
  * state.
  *
@@ -183,9 +182,12 @@ public class ReduceStateByKey<
     return valueExtractor;
   }
 
+  /**
+   * Parameters of this operator used in builders.
+   */
   public static class BuilderParams<
       InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
-      extends WindowingParams<W>{
+      extends WindowingParams<W> {
 
     String name;
     Dataset<InputT> input;
@@ -308,8 +310,8 @@ public class ReduceStateByKey<
     MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
         StateFactory<V, OutputT, StateT> stateFactory) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, ?> paramsCasted =
-          (BuilderParams<InputT, K, V, OutputT, StateT, ?>) params;
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, ?>
+          paramsCasted = (BuilderParams<InputT, K, V, OutputT, StateT, ?>) params;
 
       paramsCasted.stateFactory = Objects.requireNonNull(stateFactory);
 
@@ -359,11 +361,11 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, V, OutputT, StateT, W> windowBy(
-        WindowFn<Object, W> windowing) {
+    public <W extends BoundedWindow> TriggerByBuilder
+        <InputT, K, V, OutputT, StateT, W> windowBy(WindowFn<Object, W> windowing) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, W> paramsCasted =
-          (BuilderParams<InputT, K, V, OutputT, StateT, W>) params;
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, V, OutputT, StateT, W>
+          paramsCasted = (BuilderParams<InputT, K, V, OutputT, StateT, W>) params;
 
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
 
@@ -376,8 +378,12 @@ public class ReduceStateByKey<
     }
   }
 
-  public static class TriggerByBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
-  implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, StateT, W>>{
+  /**
+   * Trigger defining operator builder.
+   */
+  public static class TriggerByBuilder
+      <InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, StateT, W>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
@@ -392,8 +398,12 @@ public class ReduceStateByKey<
 
   }
 
-  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
-  implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, StateT, W>>{
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
+  public static class AccumulatorModeBuilder
+      <InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
+      implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, StateT, W>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, W> params;
 
@@ -410,6 +420,10 @@ public class ReduceStateByKey<
 
   }
 
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
+   */
   public static class OutputBuilder<
       InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
       implements Builders.Output<Pair<K, OutputT>>, Builders.OutputValues<K, OutputT> {

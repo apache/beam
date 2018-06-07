@@ -20,8 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import com.sun.istack.internal.NotNull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
@@ -60,7 +58,7 @@ public class Builders {
      *
      * @param <K> the type of the extracted key
      * @param keyExtractor a user defined function to extract keys from the processed input
-     *     dataset's elements
+     * dataset's elements
      * @return the next builder to complete the setup of the operator
      */
     <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor);
@@ -74,15 +72,13 @@ public class Builders {
    * First windowing builder which starts builders chain defining Beam windowing.
    *
    * <p>
-   *   It consumes {@link WindowFn} and it is followed by {@link TriggeredBy} and
-   *   {@link AccumulatorMode} builders.
+   * It consumes {@link WindowFn} and it is followed by {@link TriggeredBy} and {@link
+   * AccumulatorMode} builders.
    * </p>
    *
-   *
-   * @param <OutTriggerBuilder> type of following {@link TriggeredBy} builder.
-   *
+   * @param <OutTriggerBuilderT> type of following {@link TriggeredBy} builder.
    */
-  interface WindowBy<OutTriggerBuilder extends TriggeredBy>
+  interface WindowBy<OutTriggerBuilderT extends TriggeredBy>
       /*extends OptionalMethodBuilder<BuilderT>*/ { //TODO discuss this
 
     /**
@@ -94,11 +90,11 @@ public class Builders {
      * @param windowing the windowing strategy to apply to the input dataset
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends BoundedWindow> OutTriggerBuilder windowBy(@NotNull WindowFn<Object, W> windowing);
+    <W extends BoundedWindow> OutTriggerBuilderT windowBy(@NotNull WindowFn<Object, W> windowing);
 
 //    /**
-//     * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
-//     * already preceded by an event time assignment, it will process the input elements in ingestion
+//    * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
+//   * already preceded by an event time assignment, it will process the input elements in ingestion
 //     * time.
 //     * <p>
 //     *   This method is deprecated and will be removed in future.
@@ -117,27 +113,33 @@ public class Builders {
    *
    * @param <OutAccBuilderT> following {@link AccumulatorMode} builder type
    */
-  interface TriggeredBy<OutAccBuilderT extends AccumulatorMode>{
+  interface TriggeredBy<OutAccBuilderT extends AccumulatorMode> {
+
     OutAccBuilderT triggeredBy(@NotNull Trigger trigger);
   }
 
   /**
-   * Third and last builder in windowing chain introducing {@link WindowingStrategy.AccumulationMode}.
+   * Third and last builder in windowing chain introducing {@link WindowingStrategy.AccumulationMode
+   * accumulation mode}.
+   *
    * @param <OutBuilderT> output builder type
    */
-  interface AccumulatorMode<OutBuilderT>{
+  interface AccumulatorMode<OutBuilderT> {
+
     OutBuilderT accumulationMode(@NotNull WindowingStrategy.AccumulationMode accumulationMode);
 
-    default OutBuilderT discardingFiredPanes(){
+    default OutBuilderT discardingFiredPanes() {
       return accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES);
     }
 
-    default OutBuilderT accumulatingFiredPanes(){
+    default OutBuilderT accumulatingFiredPanes() {
       return accumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public interface Output<T> {
 
     /**
@@ -149,7 +151,9 @@ public class Builders {
     Dataset<T> output(OutputHint... outputHints);
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public interface OutputValues<K, V> extends Output<Pair<K, V>> {
 
     /**

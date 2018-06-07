@@ -74,7 +74,10 @@ public class Split<InputT> {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output()}.
+   */
   public static class OutputBuilder<InputT> implements Serializable {
     private final String name;
     private final Dataset<InputT> input;
