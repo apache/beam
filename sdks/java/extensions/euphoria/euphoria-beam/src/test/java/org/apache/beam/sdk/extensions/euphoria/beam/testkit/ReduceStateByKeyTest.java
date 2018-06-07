@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,11 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators.Snapsho
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Count;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeSliding;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
@@ -60,7 +55,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.junit.Test;
 
-/** Test operator {@code ReduceStateByKey}. */
+/**
+ * Test operator {@code ReduceStateByKey}.
+ */
 @Processing(Processing.Type.ALL)
 public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
@@ -93,7 +90,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> "")
                 .valueBy(e -> e)
                 .stateFactory(CountingSortState::new)
-                .mergeStatesBy((target, others) -> {})
+                .mergeStatesBy((target, others) -> {
+                })
                 .output();
           }
 
@@ -168,7 +166,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(e -> e)
                     .stateFactory(SortState::new)
                     .mergeStatesBy(SortState::combine)
-                    //.windowBy(new ReduceByKeyTest.TestWindowing()) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                    //.windowBy(new ReduceByKeyTest.TestWindowing())
+                    // TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
             return FlatMap.of(output)
                 .using(
@@ -268,9 +267,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, Long, CountState<String>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-                // TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase
-                // stronger
-//                .windowBy(Count.of(3)) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+// TODO: .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
+                // .windowBy(Count.of(3))
+                // TODO rewrite windowing into beam once ReduceStateByKey is supported
                 .output();
           }
 
@@ -313,7 +312,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst)
                     .stateFactory(AccState<String>::new)
                     .mergeStatesBy(AccState::combine)
-                    //.windowBy(Time.of(Duration.ofMillis(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                    //.windowBy(Time.of(Duration.ofMillis(5)))
+                    // TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
 
             return FlatMap.of(reduced)
@@ -372,7 +372,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(e -> e.getFirst().substring(2))
                     .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                     .mergeStatesBy(AccState::combine)
-                    //.windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                    //.windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
+                    // TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
 
             return FlatMap.of(reduced)
@@ -441,7 +442,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst)
                     .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                     .mergeStatesBy(AccState::combine)
-                    //.windowBy(Session.of(Duration.ofMillis(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                    //.windowBy(Session.of(Duration.ofMillis(5)))
+                    // TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
 
             return FlatMap.of(reduced)
@@ -495,7 +497,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getFirst)
                     .stateFactory(ReduceByKeyTest.SumState::new)
                     .mergeStatesBy(ReduceByKeyTest.SumState::combine)
-                    //.windowBy(Time.of(Duration.ofSeconds(5))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                    //.windowBy(Time.of(Duration.ofSeconds(5)))
+                    // TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
             // ~ now use a custom windowing with a trigger which does
             // the assertions subject to this test (use RSBK which has to
@@ -506,7 +509,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                     .valueBy(Pair::getSecond)
                     .stateFactory(ReduceByKeyTest.SumState::new)
                     .mergeStatesBy(ReduceByKeyTest.SumState::combine)
-                    //.windowBy(new TimeAssertingWindowing<>()) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                    //.windowBy(new TimeAssertingWindowing<>())
+                    // TODO rewrite windowing into beam once ReduceStateByKey is supported
                     .output();
             return FlatMap.of(output)
                 .using(
@@ -535,7 +539,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<Word, Long, CountState<Word>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-                //.windowBy(Time.of(Duration.ofSeconds(1))) //TODO rewrite windowing into beam once ReduceStateByKey is supported
+                //.windowBy(Time.of(Duration.ofSeconds(1)))
+                // TODO rewrite windowing into beam once ReduceStateByKey is supported
                 .output();
           }
 
@@ -609,6 +614,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   static class CountingSortState extends SortState {
+
     public CountingSortState(StateContext context, Collector<Integer> collector) {
       super(context, collector);
     }
@@ -623,13 +629,15 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   // ~ ------------------------------------------------------------------------------
 
   private static class CountState<InputT> implements State<InputT, Long> {
+
     final ValueStorage<Long> count;
 
     CountState(StateContext context, Collector<Long> collector) {
       this.count =
           context
               .getStorageProvider()
-              .getValueStorage(ValueStorageDescriptor.of("count-state", Long.class, 0L));
+              .getValueStorage(ValueStorageDescriptor.of(
+                  "count-state", Long.class, 0L));
     }
 
     public static <InputT> void combine(
@@ -662,6 +670,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   private static class AccState<V> implements State<V, V> {
+
     final ListStorage<V> vals;
 
     @SuppressWarnings("unchecked")
@@ -703,6 +712,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   // ------------------------------------
 
   static class TimeAssertingWindowing<T> implements Windowing<T, TimeInterval> {
+
     @Override
     public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
       return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
@@ -721,7 +731,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         public Trigger.TriggerResult onElement(long time, Window window, TriggerContext ctx) {
           // ~ we expect the 'time' to be the end of the window which produced the
           // element in the preceding upstream (stateful and windowed) operator
-          assertTrue("Invalid timestamp " + time, time == 15_000L - 1 || time == 25_000L - 1);
+          assertTrue("Invalid timestamp " + time,
+              time == 15_000L - 1 || time == 25_000L - 1);
           return super.onElement(time, window, ctx);
         }
       };
@@ -738,7 +749,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
   }
 
-  /** String with invalid hash code implementation returning constant. */
+  /**
+   * String with invalid hash code implementation returning constant.
+   */
   public static class Word {
 
     private final String str;

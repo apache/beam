@@ -20,12 +20,10 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;

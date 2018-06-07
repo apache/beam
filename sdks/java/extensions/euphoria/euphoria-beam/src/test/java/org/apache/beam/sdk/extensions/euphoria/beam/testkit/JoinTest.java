@@ -53,8 +53,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;

@@ -212,7 +212,10 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
+   */
   public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
     private final Dataset<InputT> input;

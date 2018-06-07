@@ -206,7 +206,8 @@ public class ReduceByKeyTest {
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     WindowingDesc windowingDesc = reduce.getWindowing();
     assertNotNull(windowingDesc);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+    windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
     assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
 
