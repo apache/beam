@@ -116,7 +116,6 @@ public class ReduceStateByKeyTest {
     assertNotNull(windowingDesc.getAccumulationMode());
   }
 
-  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -127,13 +126,19 @@ public class ReduceStateByKeyTest {
         .valueBy(s -> 1L)
         .stateFactory(WordCountState::new)
         .mergeStatesBy(WordCountState::combine)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
-    assertTrue(reduce.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = reduce.getWindowing();
+    assertNotNull(windowingDesc);
+    assertTrue(windowingDesc.getWindowFn() instanceof FixedWindows);
+    assertTrue(windowingDesc.getTrigger() instanceof  DefaultTrigger);
+    assertNotNull(windowingDesc.getAccumulationMode());
   }
-  */
 
   /** Simple aggregating state. */
   private static class WordCountState implements State<Long, Long> {
