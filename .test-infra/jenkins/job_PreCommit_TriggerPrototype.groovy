@@ -46,7 +46,6 @@ job('beam_PreCommit_TriggerPrototype') {
         '^model/'
       ].join('\n'))
 
-
       extensions {
         commitStatus {
           // This is the name that will show up in the GitHub pull request UI
