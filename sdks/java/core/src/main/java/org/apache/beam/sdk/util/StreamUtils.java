@@ -38,7 +38,7 @@ public class StreamUtils {
   /**
    * Efficient converting stream to bytes.
    */
-  public static byte[] getBytes(InputStream stream) throws IOException {
+  public static byte[] getBytesWithoutClosing(InputStream stream) throws IOException {
     if (stream instanceof ExposedByteArrayInputStream) {
       // Fast path for the exposed version.
       return ((ExposedByteArrayInputStream) stream).readAll();
