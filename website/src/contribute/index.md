@@ -125,6 +125,16 @@ To find a committer for your area, look for similar code merges or ask on
 
 Use @mention in the pull request to notify the reviewer.
 
+The pull request and any changes pushed to it will trigger precommit jobs.
+If a test fails and appears unrelated to your change, you can cause tests
+to be re-run by adding a single line comment on your PR
+
+     retest this please
+
+There are other trigger phrases for post-commit tests found in
+.testinfra/jenkins, but use these sparingly because postcommit
+tests consume shared development resources.
+
 ### Developing with the Python SDK
 
 Gradle can build and test python, and is used by the Jenkins jobs, so needs to
@@ -152,7 +162,7 @@ On Windows:
 
     > c:\Python27\python.exe -m virtualenv
     > env\Scripts\activate
-    (env) > pip install . [gcp,test]
+    (env) > pip install .[gcp,test]
 
 This command runs all Python tests. The nose dependency is installed by [test] in pip install.
 
