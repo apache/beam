@@ -337,7 +337,7 @@ release tag to the origin repository (this would be the Apache Beam repo):
 
 Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:
 
-    ./gradlew publish -PisRelease
+    ./gradlew publish -PisRelease --no-parallel --no-daemon
 
 Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
 
