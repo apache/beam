@@ -53,6 +53,7 @@ job('beam_PreCommit_TriggerPrototype') {
       branch('${sha1}')
       extensions {
         cleanAfterCheckout()
+        disableRemotePoll()
         relativeTargetDirectory('src')
       }
     }
