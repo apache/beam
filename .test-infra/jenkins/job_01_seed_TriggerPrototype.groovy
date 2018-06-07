@@ -96,7 +96,7 @@ job('beam_SeedJob_TriggerPrototype') {
   steps {
     dsl {
       // A list or a glob of other groovy files to process.
-      external('.test-infra/jenkins/job_.TriggerPrototype.groovy')
+      external('.test-infra/jenkins/job_PreCommit_TriggerPrototype.groovy')
 
       // Don't disable or delete jobs not generated from this Seed.
       removeAction('IGNORE')
