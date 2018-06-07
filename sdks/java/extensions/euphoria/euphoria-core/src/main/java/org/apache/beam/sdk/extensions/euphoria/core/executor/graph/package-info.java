@@ -15,5 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** TODO: complete javadoc. */
+/**
+ * Classes providing graph representation.
+ */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.graph;
