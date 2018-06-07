@@ -502,7 +502,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           String.format("%s is not supported yet", rexNode.getClass().toString()));
     }
 
-    if (ret != null && !ret.accept()) {
+    if (!ret.accept()) {
       throw new IllegalStateException(
           ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");
     }
