@@ -69,18 +69,16 @@ public class BeamAggregationRule extends RelOptRule {
       windowField = AggregateWindowFactory.getWindowFieldAt((RexCall) projNode, groupFieldIndex);
     }
 
-    BeamAggregationRel newAggregator =
-        new BeamAggregationRel(
-            aggregate.getCluster(),
-            aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            convert(
-                aggregate.getInput(),
-                aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-            aggregate.indicator,
-            aggregate.getGroupSet(),
-            aggregate.getGroupSets(),
-            aggregate.getAggCallList(),
-            windowField);
-    return newAggregator;
+    return new BeamAggregationRel(
+        aggregate.getCluster(),
+        aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        convert(
+            aggregate.getInput(),
+            aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        aggregate.indicator,
+        aggregate.getGroupSet(),
+        aggregate.getGroupSets(),
+        aggregate.getAggCallList(),
+        windowField);
   }
 }
