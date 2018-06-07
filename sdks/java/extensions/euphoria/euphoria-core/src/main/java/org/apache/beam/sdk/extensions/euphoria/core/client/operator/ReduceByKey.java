@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
@@ -118,6 +119,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, V> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       CombinableReduceFunction<OutputT> reducer,
       Set<OutputHint> outputHints) {
     this(
@@ -127,6 +129,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
         keyExtractor,
         valueExtractor,
         windowing,
+        euphoriaWindowing,
         (ReduceFunctor<V, OutputT>) toReduceFunctor(reducer),
         null,
         outputHints);
@@ -139,11 +142,12 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       UnaryFunction<InputT, K> keyExtractor,
       UnaryFunction<InputT, V> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       ReduceFunctor<V, OutputT> reducer,
       @Nullable BinaryFunction<V, V, Integer> valueComparator,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, keyExtractor, windowing, outputHints);
+    super(name, flow, input, keyExtractor, windowing, euphoriaWindowing, outputHints);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
     this.valueComparator = valueComparator;
@@ -225,6 +229,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
             keyExtractor,
             valueExtractor,
             windowing,
+            euphoriaWindowing,
             stateFactory,
             stateCombine,
             getHints());
@@ -452,6 +457,13 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
 
     @Override
+    public <W extends Window<W>> OutputBuilder<InputT, K, V, OutputT, ?> windowBy(
+        Windowing<?, W> windowing) {
+      params.euphoriaWindowing = windowing;
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
@@ -507,6 +519,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
               params.keyExtractor,
               params.valueExtractor,
               params.getWindowing(),
+              params.euphoriaWindowing,
               params.reducer,
               params.valuesComparator,
               Sets.newHashSet(outputHints));

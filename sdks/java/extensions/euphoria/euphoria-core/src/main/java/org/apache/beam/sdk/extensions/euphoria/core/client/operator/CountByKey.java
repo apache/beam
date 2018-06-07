@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -63,9 +64,10 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
       Dataset<InputT> input,
       UnaryFunction<InputT, K> extractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, extractor, windowing, outputHints);
+    super(name, flow, input, extractor, windowing, euphoriaWindowing, outputHints);
   }
 
   /**
@@ -95,7 +97,8 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
   public DAG<Operator<?, ?>> getBasicOps() {
     SumByKey<InputT, K, ?> sum =
         new SumByKey<>(
-            getName(), input.getFlow(), input, keyExtractor, e -> 1L, windowing, getHints());
+            getName(), input.getFlow(), input, keyExtractor, e -> 1L, windowing, euphoriaWindowing,
+            getHints());
     return DAG.of(sum);
   }
 
@@ -176,6 +179,12 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
+    public <W extends Window<W>> OutputBuilder<InputT, K, ?> windowBy(Windowing<?, W> windowing) {
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
     public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
     }
@@ -240,7 +249,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
       CountByKey<InputT, K, W> count =
           new CountByKey<>(
               params.name, flow, params.input, params.keyExtractor,
-              params.getWindowing(), Sets.newHashSet(outputHints));
+              params.getWindowing(), params.euphoriaWindowing, Sets.newHashSet(outputHints));
       flow.add(count);
       return count.output();
     }

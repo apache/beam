@@ -23,6 +23,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
@@ -52,9 +53,10 @@ public class StateAwareWindowWiseSingleInputOperator<
       Dataset<InputT> input,
       UnaryFunction<KeyInT, K> extractor,
       @Nullable WindowingDesc<Object, W> windowing,
+      @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, windowing, extractor);
+    super(name, flow, windowing, euphoriaWindowing, extractor);
     this.input = input;
     this.output = createOutput(input, outputHints);
   }
