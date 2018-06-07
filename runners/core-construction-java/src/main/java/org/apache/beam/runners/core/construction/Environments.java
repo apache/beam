@@ -37,7 +37,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
  * Utilities for interacting with portability {@link Environment environments}.
  */
 public class Environments {
-  private static final Map<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
+  private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
           .put(PTransformTranslation.COMBINE_TRANSFORM_URN, Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
