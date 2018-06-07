@@ -49,6 +49,7 @@ import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
@@ -122,7 +123,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                   stageName + "combineBy",
                   Combine.perKey(
                       new BeamAggregationTransforms.AggregationAdaptor(
-                          getAggCallList(), CalciteUtils.toBeamSchema(input.getRowType()))))
+                          getNamedAggCalls(), CalciteUtils.toBeamSchema(input.getRowType()))))
               .setCoder(KvCoder.of(keyCoder, aggCoder));
 
       PCollection<Row> mergedStream =
@@ -130,9 +131,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               stageName + "mergeRecord",
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
-                      CalciteUtils.toBeamSchema(getRowType()),
-                      getAggCallList(),
-                      windowFieldIndex)));
+                      CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
       mergedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
       return mergedStream;
@@ -178,12 +177,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     /** Type of sub-rowrecord, that represents the list of aggregation fields. */
     private Schema exAggFieldsSchema() {
-      return getAggCallList().stream().map(this::newRowField).collect(toSchema());
+      return getNamedAggCalls().stream().map(this::newRowField).collect(toSchema());
     }
 
-    private Schema.Field newRowField(AggregateCall aggCall) {
-      return Schema.Field.of(aggCall.getName(), CalciteUtils.toFieldType(aggCall.getType()))
-          .withNullable(aggCall.getType().isNullable());
+    private Schema.Field newRowField(Pair<AggregateCall, String> namedAggCall) {
+      return Schema.Field.of(
+              namedAggCall.right, CalciteUtils.toFieldType(namedAggCall.left.getType()))
+          .withNullable(namedAggCall.left.getType().isNullable());
     }
   }
 

@@ -28,12 +28,11 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 
 /** Base class for rel test. */
-abstract class BaseRelTest {
+public abstract class BaseRelTest {
   private static Map<String, BeamSqlTable> tables = new HashMap<>();
   private static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
 
-  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline)
-      throws Exception {
+  protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline) {
     return PCollectionTuple.empty(pipeline).apply(env.parseQuery(sql));
   }
 
