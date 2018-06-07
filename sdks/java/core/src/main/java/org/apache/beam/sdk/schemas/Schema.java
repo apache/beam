@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -206,6 +207,7 @@ public class Schema implements Serializable {
    *       arguments to form a valid {@link FieldType}.
    * </ul>
    */
+  @SuppressWarnings("MutableConstantField")
   public enum TypeName {
     BYTE,    // One-byte signed integer.
     INT16,   // two-byte signed integer.
@@ -221,13 +223,13 @@ public class Schema implements Serializable {
     MAP,
     ROW;    // The field is itself a nested row.
 
-    public static final ImmutableSet<TypeName> NUMERIC_TYPES = ImmutableSet.of(
+    public static final Set<TypeName> NUMERIC_TYPES = ImmutableSet.of(
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
-    public static final ImmutableSet<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
-    public static final ImmutableSet<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
-    public static final ImmutableSet<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
-    public static final ImmutableSet<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
-    public static final ImmutableSet<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
+    public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
+    public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
+    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
+    public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
+    public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
     public boolean isPrimitiveType() {
       return !isCollectionType() && !isMapType() && !isCompositeType();
