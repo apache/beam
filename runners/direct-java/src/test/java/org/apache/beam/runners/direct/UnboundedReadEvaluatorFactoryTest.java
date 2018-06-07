@@ -52,6 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
 import org.apache.beam.runners.direct.UnboundedReadEvaluatorFactory.UnboundedSourceShard;
@@ -114,6 +115,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   public void setup() {
     source = CountingSource.unboundedWithTimestampFn(new LongToInstantFn());
     longs = p.apply(Read.from(source));
+    options = PipelineOptionsFactory.create();
 
     context = mock(EvaluationContext.class);
     factory = new UnboundedReadEvaluatorFactory(context, options);
@@ -432,14 +434,15 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   private void processElement(final TestUnboundedSource<String> source) throws Exception {
-    final DirectOptions options = PipelineOptionsFactory.fromArgs()
-                                                        .create().as(DirectOptions.class);
     final EvaluationContext context = EvaluationContext.create(
-      options, MockClock.fromInstant(Instant.now()), CloningBundleFactory.create(),
-        DirectGraph.create(emptyMap(), emptyMap(),
-        LinkedListMultimap.create(), LinkedListMultimap.create(), emptySet(), emptyMap()),
-      emptySet());
-    final UnboundedReadEvaluatorFactory factory = new UnboundedReadEvaluatorFactory(context);
+        MockClock.fromInstant(Instant.now()),
+        CloningBundleFactory.create(),
+        DirectGraph.create(
+            emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap()),
+        emptySet(),
+        Executors.newCachedThreadPool());
+    final UnboundedReadEvaluatorFactory factory =
+        new UnboundedReadEvaluatorFactory(context, options);
 
     final Read.Unbounded<String> unbounded = Read.from(source);
     final Pipeline pipeline = Pipeline.create(options);
