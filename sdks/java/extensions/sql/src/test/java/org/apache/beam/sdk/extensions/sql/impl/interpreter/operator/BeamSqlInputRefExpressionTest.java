@@ -43,7 +43,7 @@ public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test(expected = IndexOutOfBoundsException.class)
   public void testRefOutOfRange() {
-    BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 4);
+    BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 5);
     ref.evaluate(row, null, ImmutableMap.of()).getValue();
   }
 

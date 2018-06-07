@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.B
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlGreaterThanOrEqualsExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLikeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
@@ -134,5 +135,22 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 0L)));
     Assert.assertEquals(true, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+  }
+
+  @Test
+  public void testLike() {
+    BeamSqlLikeExpression exp1 =
+        new BeamSqlLikeExpression(
+            Arrays.asList(
+                new BeamSqlInputRefExpression(SqlTypeName.VARCHAR, 4),
+                BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "This is an order_")));
+    Assert.assertEquals(true, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+
+    BeamSqlLikeExpression exp2 =
+        new BeamSqlLikeExpression(
+            Arrays.asList(
+                new BeamSqlInputRefExpression(SqlTypeName.VARCHAR, 4),
+                BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "This is not%")));
+    Assert.assertEquals(false, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
   }
 }

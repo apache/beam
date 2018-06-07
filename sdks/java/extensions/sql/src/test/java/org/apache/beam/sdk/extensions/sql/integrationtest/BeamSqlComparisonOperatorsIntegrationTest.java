@@ -248,6 +248,49 @@ public class BeamSqlComparisonOperatorsIntegrationTest
     checker.buildRunAndCheck();
   }
 
+  @Test
+  public void testLike() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("s_string_1 LIKE 'string_true_test'", true)
+            .addExpr("s_string_1 LIKE 'string_false_test'", false)
+            .addExpr("s_string_2 LIKE 'string_false_test'", true)
+            .addExpr("s_string_2 LIKE 'string_true_test'", false)
+            .addExpr("s_string_1 LIKE 'string_true_test%'", true)
+            .addExpr("s_string_1 LIKE 'string_false_test%'", false)
+            .addExpr("s_string_1 LIKE 'string_true%'", true)
+            .addExpr("s_string_1 LIKE 'string_false%'", false)
+            .addExpr("s_string_1 LIKE 'string%test'", true)
+            .addExpr("s_string_1 LIKE '%test'", true)
+            .addExpr("s_string_1 LIKE '%string_true_test'", true)
+            .addExpr("s_string_1 LIKE '%string_false_test'", false)
+            .addExpr("s_string_1 LIKE '%false_test'", false)
+            .addExpr("s_string_2 LIKE '%false_test'", true)
+            .addExpr("s_string_1 LIKE 'string_tr_e_test'", true)
+            .addExpr("s_string_1 LIKE 'string______test'", true)
+            .addExpr("s_string_2 LIKE 'string______test'", false)
+            .addExpr("s_string_2 LIKE 'string_______test'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te___'", false)
+            .addExpr("s_string_2 LIKE 'string_false_te_'", false)
+            .addExpr("s_string_1 LIKE 'string_true_te__'", true)
+            .addExpr("s_string_1 LIKE '_ring_true_te__'", false)
+            .addExpr("s_string_2 LIKE '__ring_false_te__'", true)
+            .addExpr("s_string_1 LIKE '_%ring_true_te__'", true)
+            .addExpr("s_string_1 LIKE '_%tring_true_te__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te%__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te__%'", true)
+            .addExpr("s_string_2 LIKE 'string_false_t%__'", true)
+            .addExpr("s_string_2 LIKE 'string_false_t__%'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te_%'", true)
+            .addExpr("s_string_2 LIKE 'string_false_te%_'", true)
+            .addExpr("s_string_1 LIKE 'string_%test'", true)
+            .addExpr("s_string_1 LIKE 'string%_test'", true)
+            .addExpr("s_string_1 LIKE 'string_%_test'", true);
+
+    checker.buildRunAndCheck();
+  }
+
   @Override
   protected PCollection<Row> getTestPCollection() {
     Schema type =
@@ -278,6 +321,8 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addStringField("c_varchar_2")
             .addBooleanField("c_boolean_false")
             .addBooleanField("c_boolean_true")
+            .addStringField("s_string_1")
+            .addStringField("s_string_2")
             .build();
 
     try {
@@ -308,7 +353,9 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               "b",
               "c",
               false,
-              true)
+              true,
+              "string_true_test",
+              "string_false_test")
           .buildIOReader(pipeline)
           .setCoder(type.getRowCoder());
     } catch (Exception e) {
