@@ -321,7 +321,9 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
    * TODO: complete javadoc.
    */
   public static class WindowByBuilder<InputT, V, OutputT>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>> {
+      implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>>,
+      OptionalMethodBuilder<WindowByBuilder<InputT, V, OutputT>,
+          OutputBuilder<InputT, V, OutputT, ?>> {
 
     private final BuilderParams<InputT, V, OutputT, ?> params;
 
@@ -348,6 +350,18 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     public <W extends Window<W>> OutputBuilder<InputT, V, OutputT, ?> windowBy(
         Windowing<?, W> windowing) {
       params.euphoriaWindowing = Objects.requireNonNull(windowing);
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
+    public OutputBuilder<InputT, V, OutputT, ?> applyIf(boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, V, OutputT>,
+            OutputBuilder<InputT, V, OutputT, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
       return new OutputBuilder<>(params);
     }
   }

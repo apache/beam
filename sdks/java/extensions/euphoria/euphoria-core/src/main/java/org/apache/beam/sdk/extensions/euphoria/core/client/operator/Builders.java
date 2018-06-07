@@ -80,8 +80,7 @@ public class Builders {
    *
    * @param <OutTriggerBuilderT> type of following {@link TriggeredBy} builder.
    */
-  interface WindowBy<OutTriggerBuilderT extends TriggeredBy>
-      /*extends OptionalMethodBuilder<BuilderT>*/ { //TODO discuss this
+  interface WindowBy<OutTriggerBuilderT extends TriggeredBy> {
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is

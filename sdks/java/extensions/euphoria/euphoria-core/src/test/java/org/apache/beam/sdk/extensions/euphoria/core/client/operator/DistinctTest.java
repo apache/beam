@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.Wi
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /**
@@ -92,16 +93,25 @@ public class DistinctTest {
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
   }
 
-  /*
+
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Distinct.of(dataset).applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1)))).output();
+    Distinct.of(dataset).applyIf(true,
+        b -> b.windowBy(FixedWindows.of(Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes())
+        .output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertTrue(distinct.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = distinct.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
-  */
+
 }

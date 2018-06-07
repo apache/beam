@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 
 /**
  * Class to be extended by operator builders that want to make use of `applyIf` call.
  *
- * @param <BuilderT> the class of the builder that extends this class
+ * @param <InBuilderT> the class of the builder that extends this class
  */
 @Audience(Audience.Type.INTERNAL)
-public interface OptionalMethodBuilder<BuilderT> {
+public interface OptionalMethodBuilder
+    <InBuilderT extends OptionalMethodBuilder<InBuilderT, OutBuilderT>, OutBuilderT> {
 
   /**
    * Apply given modification to builder when condition evaluates to {@code true}.
@@ -36,12 +36,7 @@ public interface OptionalMethodBuilder<BuilderT> {
    * @param applyWhenConditionHolds the modification
    * @return next step builder
    */
-  @SuppressWarnings("unchecked")
-  default BuilderT applyIf(
-      boolean cond, UnaryFunction<BuilderT, BuilderT> applyWhenConditionHolds) {
-    Objects.requireNonNull(applyWhenConditionHolds);
-    return cond ? applyWhenConditionHolds.apply((BuilderT) this) : (BuilderT) this;
-  }
+  OutBuilderT applyIf(boolean cond, UnaryFunction<InBuilderT, OutBuilderT> applyWhenConditionHolds);
 
   /**
    * Apply given modifications to builder based on condition.
@@ -52,14 +47,14 @@ public interface OptionalMethodBuilder<BuilderT> {
    * @return next step builder
    */
   @SuppressWarnings("unchecked")
-  default BuilderT applyIf(
+  default OutBuilderT applyIf(
       boolean cond,
-      UnaryFunction<BuilderT, BuilderT> applyIfTrue,
-      UnaryFunction<BuilderT, BuilderT> applyIfFalse) {
+      UnaryFunction<InBuilderT, OutBuilderT> applyIfTrue,
+      UnaryFunction<InBuilderT, OutBuilderT> applyIfFalse) {
 
     if (cond) {
-      return applyIfTrue.apply((BuilderT) this);
+      return applyIfTrue.apply((InBuilderT) this);
     }
-    return applyIfFalse.apply((BuilderT) this);
+    return applyIfFalse.apply((InBuilderT) this);
   }
 }

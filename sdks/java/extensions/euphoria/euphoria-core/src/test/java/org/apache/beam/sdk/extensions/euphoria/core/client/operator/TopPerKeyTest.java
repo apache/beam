@@ -109,7 +109,6 @@ public class TopPerKeyTest {
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
-  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -119,11 +118,19 @@ public class TopPerKeyTest {
         .keyBy(s -> s)
         .valueBy(s -> 1L)
         .scoreBy(s -> 1L)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulatingFiredPanes()
+        )
         .output();
 
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    assertTrue(tpk.windowing instanceof Time);
+    WindowingDesc windowingDesc = tpk.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
-  */
 }

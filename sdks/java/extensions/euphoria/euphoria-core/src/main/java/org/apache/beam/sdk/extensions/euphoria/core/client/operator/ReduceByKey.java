@@ -436,7 +436,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   public static class WindowByBuilder<InputT, K, V, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
-      Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>> {
+      Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>>,
+      OptionalMethodBuilder
+          <WindowByBuilder<InputT, K, V, OutputT>, OutputBuilder<InputT, K, V, OutputT, ?>> {
 
     final BuilderParams<InputT, K, V, OutputT, ?> params;
 
@@ -466,6 +468,20 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     @Override
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
+    }
+
+    @Override
+    public OutputBuilder<InputT, K, V, OutputT, ?> applyIf(boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, K, V, OutputT>,
+            OutputBuilder<InputT, K, V, OutputT, ?>> applyWhenConditionHolds) {
+
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
+      return new OutputBuilder<>(params);
     }
   }
 
@@ -499,8 +515,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
-      /*extends WindowByBuilder<InputT, K, V, OutputT>*/ implements
-      Builders.OutputValues<K, OutputT> {
+      implements Builders.OutputValues<K, OutputT> {
 
     private final BuilderParams<InputT, K, V, OutputT, W> params;
 

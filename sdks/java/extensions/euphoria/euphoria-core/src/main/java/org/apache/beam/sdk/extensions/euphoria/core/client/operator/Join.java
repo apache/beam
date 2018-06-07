@@ -336,7 +336,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   public static class WindowingBuilder<LeftT, RightT, K, OutputT>
       implements Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
-      OptionalMethodBuilder<WindowingBuilder<LeftT, RightT, K, OutputT>>,
+      OptionalMethodBuilder<WindowingBuilder<LeftT, RightT, K, OutputT>,
+          OutputBuilder<LeftT, RightT, K, OutputT, ?>>,
       Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>> {
 
     private final BuilderParams<LeftT, RightT, K, OutputT, ?> params;
@@ -366,6 +367,19 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     public <W extends Window<W>> OutputBuilder<LeftT, RightT, K, OutputT, ?> windowBy(
         Windowing<?, W> windowing) {
       params.euphoriaWindowing = windowing;
+      return new OutputBuilder<>(params);
+    }
+
+    @Override
+    public OutputBuilder<LeftT, RightT, K, OutputT, ?> applyIf(boolean cond,
+        UnaryFunction<WindowingBuilder<LeftT, RightT, K, OutputT>,
+            OutputBuilder<LeftT, RightT, K, OutputT, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
       return new OutputBuilder<>(params);
     }
   }
