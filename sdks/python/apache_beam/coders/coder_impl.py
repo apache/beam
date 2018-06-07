@@ -95,7 +95,9 @@ class CoderImpl(object):
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
-    return self._get_nested_size(len(self.encode(value)), nested)
+    out = ByteCountingOutputStream()
+    self.encode_to_stream(value, out, nested)
+    return out.get_count()
 
   def _get_nested_size(self, inner_size, nested):
     if not nested:
