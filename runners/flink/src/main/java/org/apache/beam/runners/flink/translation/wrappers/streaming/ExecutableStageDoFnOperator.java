@@ -93,7 +93,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     super(new NoOpDoFn(),
             stepName, inputCoder, mainOutputTag, additionalOutputTags,
             outputManagerFactory, WindowingStrategy.globalDefault() /* unused */,
-            sideInputTagMapping, sideInputs, options, null /*keyCoder*/);
+            sideInputTagMapping, sideInputs, options, null /*keyCoder*/, null /* key selector */);
       this.payload = payload;
       this.jobInfo = jobInfo;
       this.contextFactory = contextFactory;
