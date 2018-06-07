@@ -79,9 +79,9 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
     switch (castOutputType) {
       case BOOLEAN:
         return BeamSqlPrimitive.of(
-                SqlTypeName.BOOLEAN,
-                SqlFunctions.toBoolean(
-                        (Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlTypeName.BOOLEAN,
+            SqlFunctions.toBoolean(
+                (Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
       case INTEGER:
         return BeamSqlPrimitive.of(
             SqlTypeName.INTEGER,
