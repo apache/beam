@@ -354,7 +354,9 @@ public class ReduceStateByKey<
   public static class WindowOfBuilder<InputT, K, V, OutputT, StateT extends State<V, OutputT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, StateT, ?>>,
       Builders.Output<Pair<K, OutputT>>,
-      Builders.OutputValues<K, OutputT> {
+      Builders.OutputValues<K, OutputT>,
+      OptionalMethodBuilder<WindowOfBuilder<InputT, K, V, OutputT, StateT>,
+          OutputBuilder<InputT, K, V, OutputT, StateT, ?>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
 
@@ -384,6 +386,19 @@ public class ReduceStateByKey<
     @Override
     public Dataset<Pair<K, OutputT>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
+    }
+
+    @Override
+    public OutputBuilder<InputT, K, V, OutputT, StateT, ?> applyIf(boolean cond,
+        UnaryFunction<WindowOfBuilder<InputT, K, V, OutputT, StateT>,
+            OutputBuilder<InputT, K, V, OutputT, StateT, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
+      return new OutputBuilder<>(params);
     }
   }
 

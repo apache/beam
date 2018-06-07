@@ -249,7 +249,8 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
   public static class WindowByBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
       Builders.Output<Pair<K, Long>>,
-      Builders.OutputValues<K, Long> {
+      Builders.OutputValues<K, Long>,
+      OptionalMethodBuilder<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
 
     private final BuilderParams<InputT, K, ?> params;
 
@@ -277,6 +278,19 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     @Override
     public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(params).output(outputHints);
+    }
+
+    @Override
+    public OutputBuilder<InputT, K, ?> applyIf(boolean cond,
+        UnaryFunction<WindowByBuilder<InputT, K>,
+            OutputBuilder<InputT, K, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      }
+
+      return new OutputBuilder<>(params);
     }
   }
 

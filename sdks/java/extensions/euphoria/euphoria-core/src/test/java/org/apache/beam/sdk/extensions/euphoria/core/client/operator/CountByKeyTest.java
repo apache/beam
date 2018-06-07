@@ -98,20 +98,27 @@ public class CountByKeyTest {
     assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
-  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
+    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    DefaultTrigger trigger = DefaultTrigger.of();
+
     CountByKey.named("CountByKey1")
         .of(dataset)
         .keyBy(s -> s)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b.windowBy(windowing)
+        .triggeredBy(trigger)
+        .discardingFiredPanes())
         .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
-    assertTrue(count.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = count.getWindowing();
+    assertNotNull(windowingDesc);
+    assertSame(windowing, windowingDesc.getWindowFn());
+    assertSame(trigger, windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
-  */
 }

@@ -84,9 +84,9 @@ public class SumByKeyTest {
     assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
         windowingDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
-  /*
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -95,11 +95,18 @@ public class SumByKeyTest {
     SumByKey.of(dataset)
         .keyBy(s -> s)
         .valueBy(s -> 1L)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
         .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertTrue(sum.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = sum.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
-  */
 }

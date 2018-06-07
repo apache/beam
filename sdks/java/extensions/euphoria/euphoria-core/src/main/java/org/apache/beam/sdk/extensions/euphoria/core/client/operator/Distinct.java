@@ -164,7 +164,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
    * TODO: complete javadoc.
    */
   public static class MappedBuilder<InputT>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, InputT, ?>>, Builders.Output<InputT> {
+      implements Builders.WindowBy<TriggerByBuilder<InputT, InputT, ?>>, Builders.Output<InputT>,
+      OptionalMethodBuilder<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> {
 
     private final BuilderParams<InputT, ?, ?> params;
 
@@ -222,6 +223,18 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       params.euphoriaWindowing = Objects.requireNonNull(windowing);
       return new OutputBuilder<>(params);
     }
+
+    @Override
+    public OutputBuilder<InputT, ?, ?> applyIf(boolean cond,
+        UnaryFunction<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      } else {
+        return new OutputBuilder<>(params);
+      }
+    }
   }
 
   /**
@@ -230,7 +243,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
   public static class WindowingBuilder<InputT, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, OutputT, ?>>,
       Builders.Output<OutputT>,
-      OptionalMethodBuilder<WindowingBuilder<InputT, OutputT>> {
+      OptionalMethodBuilder<WindowingBuilder<InputT, OutputT>, OutputBuilder<InputT, OutputT, ?>> {
 
     private final BuilderParams<InputT, OutputT, ?> params;
 
@@ -260,6 +273,19 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
         Windowing<?, W> windowing) {
       params.euphoriaWindowing = Objects.requireNonNull(windowing);
       return new OutputBuilder<>(params);
+    }
+
+    @Override
+    public OutputBuilder<InputT, OutputT, ?> applyIf(boolean cond,
+        UnaryFunction<WindowingBuilder<InputT, OutputT>,
+            OutputBuilder<InputT, OutputT, ?>> applyWhenConditionHolds) {
+      Objects.requireNonNull(applyWhenConditionHolds);
+
+      if (cond) {
+        return applyWhenConditionHolds.apply(this);
+      } else {
+        return new OutputBuilder<>(params);
+      }
     }
   }
 

@@ -225,6 +225,31 @@ public class JoinTest {
   }
 
   @Test
+  public void testBuild_OptionalWindowing() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    Join.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> c.collect(l + r))
+        .applyIf(true, b -> b
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(AfterWatermark.pastEndOfWindow())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    WindowingDesc windowing = join.getWindowing();
+
+    assertNotNull(windowing);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
+    assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   public void testBuild_Hints() {
     Flow flow = Flow.create("TEST");
