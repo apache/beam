@@ -38,7 +38,32 @@ job('beam_PreCommit_TriggerPrototype') {
   }
 
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew tasks', 'abracadabra')
+  triggers {
+    githubPullRequest {
+      admins(['asfbot'])
+      useGitHubHooks()
+      orgWhitelist(['apache'])
+      allowMembersOfWhitelistedOrgsAsAdmin()
+      permitAll()
+      triggerPhrase('abracadabra')
+
+      extensions {
+        commitStatus {
+          // This is the name that will show up in the GitHub pull request UI
+          // for this Jenkins project. It has a limit of 255 characters.
+          context('TriggerPrototype')
+        }
+
+        // Comment messages after build completes.
+        buildStatus {
+          completedStatus('SUCCESS', '--none--')
+          completedStatus('FAILURE', '--none--')
+          completedStatus('ERROR', '--none--')
+        }
+      }
+    }
+  }
+
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
