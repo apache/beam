@@ -381,7 +381,8 @@ Build python binaries in release branch in sdks/python dir.
 
     python setup.py sdist --format=zip
     cd dist
-    mv apache-beam-${RELEASE}.zip apache-beam-${RELEASE}-python.zip
+    cp apache-beam-${RELEASE}.zip staging/apache-beam-${RELEASE}-python.zip
+    cd staging
 
 Create hashes and sign the binaries
 
