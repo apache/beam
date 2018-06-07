@@ -210,26 +210,4 @@ public class BeamSqlCliTest {
     cli.execute("drop table person");
     cli.explainQuery("select * from person");
   }
-
-  @Test
-  public void testExplainQuery() throws Exception {
-    InMemoryMetaStore metaStore = new InMemoryMetaStore();
-    metaStore.registerProvider(new TextTableProvider());
-
-    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
-
-    cli.execute(
-        "create table person (\n"
-            + "id int COMMENT 'id', \n"
-            + "name varchar COMMENT 'name', \n"
-            + "age int COMMENT 'age') \n"
-            + "TYPE 'text' \n"
-            + "COMMENT '' LOCATION '/home/admin/orders'");
-
-    String plan = cli.explainQuery("select * from person");
-    assertEquals(
-        "BeamProjectRel(id=[$0], name=[$1], age=[$2])\n"
-            + "  BeamIOSourceRel(table=[[beam, person]])\n",
-        plan);
-  }
 }
