@@ -87,10 +87,10 @@ job('beam_PreCommit_TriggerPrototype') {
       permitAll()
       triggerPhrase('abracadabra')
       userWhitelist('swegner@google.com')
-      // includedRegions([
-      //   '^examples/',
-      //   '^model/'
-      // ].join('\n'))
+      includedRegions([
+        'examples/.*',
+        // '^model/'
+      ].join('\n'))
 
       extensions {
         commitStatus {
@@ -111,7 +111,7 @@ job('beam_PreCommit_TriggerPrototype') {
 
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir('src')
       tasks('tasks')
     }
   }
