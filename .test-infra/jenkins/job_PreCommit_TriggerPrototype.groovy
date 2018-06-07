@@ -47,6 +47,9 @@ job('beam_PreCommit_TriggerPrototype') {
       permitAll()
       triggerPhrase('abracadabra')
 
+      // TODO: Remove once triggering is added
+      onlyTriggerPhrase()
+
       extensions {
         commitStatus {
           // This is the name that will show up in the GitHub pull request UI
