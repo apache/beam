@@ -1337,7 +1337,7 @@ public class DoFnSignatures {
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }
 
-    return  ImmutableMap.copyOf(declarations);
+    return ImmutableMap.copyOf(declarations);
   }
 
   @Nullable

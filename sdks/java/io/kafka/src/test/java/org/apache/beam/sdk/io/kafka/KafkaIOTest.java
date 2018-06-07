@@ -190,7 +190,7 @@ public class KafkaIOTest {
       TopicPartition tp = partitions.get(pIdx);
 
       byte[] key = ByteBuffer.wrap(new byte[4]).putInt(i).array();    // key is 4 byte record id
-      byte[] value =  ByteBuffer.wrap(new byte[8]).putLong(i).array(); // value is 8 byte record id
+      byte[] value = ByteBuffer.wrap(new byte[8]).putLong(i).array(); // value is 8 byte record id
 
       records.get(tp).add(
           new ConsumerRecord<>(

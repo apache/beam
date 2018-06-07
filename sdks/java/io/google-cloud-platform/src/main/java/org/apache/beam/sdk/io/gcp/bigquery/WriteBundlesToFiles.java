@@ -94,7 +94,7 @@ class WriteBundlesToFiles<DestinationT>
             && Objects.equals(this.fileByteSize, o.fileByteSize)
             && Objects.equals(this.destination, o.destination);
       }
-      return  false;
+      return false;
     }
 
     @Override
