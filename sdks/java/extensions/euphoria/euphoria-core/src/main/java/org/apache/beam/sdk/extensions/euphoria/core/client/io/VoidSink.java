@@ -20,7 +20,10 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 import java.io.IOException;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** TODO: complete javadoc. */
+/**
+ * VoidSink doesnt write anything, every method does no operation. Useful for testing purposes, when
+ * user isn't interested in writing results, but flow needs at least one sink to run.
+ */
 @Audience(Audience.Type.CLIENT)
 public class VoidSink<T> implements DataSink<T> {
 
