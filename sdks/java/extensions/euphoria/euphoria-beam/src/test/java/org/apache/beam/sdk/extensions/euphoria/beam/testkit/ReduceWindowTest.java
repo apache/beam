@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;

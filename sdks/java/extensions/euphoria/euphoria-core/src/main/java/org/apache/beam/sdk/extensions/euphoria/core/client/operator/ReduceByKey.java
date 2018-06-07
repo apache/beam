@@ -280,6 +280,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
+  /**
+   * Parameters of this operator used in builders.
+   */
   private static final class BuilderParams<InputT, K, V, OutputT, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -388,8 +391,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     public <OutputT> WithSortedValuesBuilder<InputT, K, InputT, OutputT> reduceBy(
         ReduceFunctor<InputT, OutputT> reducer) {
 
-      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, InputT, OutputT, ?> paramsCasted =
-          (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
+      @SuppressWarnings("unchecked") final BuilderParams<InputT, K, InputT, OutputT, ?>
+          paramsCasted = (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
 
       paramsCasted.valueExtractor = e -> e;
       paramsCasted.reducer = Objects.requireNonNull(reducer);
@@ -480,7 +483,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
       /*extends WindowByBuilder<InputT, K, V, OutputT>*/ implements
@@ -511,6 +515,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     }
   }
 
+  /**
+   * Trigger defining operator builder.
+   */
   public static class TriggerByBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, W>> {
 
@@ -527,6 +534,9 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
 
   }
 
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
   public static class AccumulatorModeBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, W>> {
 

@@ -227,6 +227,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     FULL
   }
 
+  /**
+   * Parameters of this operator used in builders.
+   */
   static class BuilderParams<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       extends WindowingParams<W> {
 
@@ -314,8 +317,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
         BinaryFunctor<LeftT, RightT, OutputT> joinFunc) {
 
       @SuppressWarnings("unchecked")
-      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted
-          = (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
+          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
 
       paramsCasted.joinFunc = Objects.requireNonNull(joinFunc);
 
@@ -357,6 +360,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
   }
 
+  /**
+   * Trigger defining operator builder.
+   */
   public static class TriggerByBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W>> {
 
@@ -373,6 +379,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
   }
 
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
   public static class AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<LeftT, RightT, K, OutputT, W>> {
 
@@ -391,7 +400,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
    */
   public static class OutputBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       implements Builders.OutputValues<K, OutputT>, Builders.Output<Pair<K, OutputT>> {

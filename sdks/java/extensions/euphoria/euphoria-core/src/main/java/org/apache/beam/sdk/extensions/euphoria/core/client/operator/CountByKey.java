@@ -181,6 +181,9 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
   }
 
+  /**
+   * Trigger defining operator builder.
+   */
   public static class TriggerByBuilder<InputT, K, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, W>> {
 
@@ -197,6 +200,9 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
 
   }
 
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
   public static class AccumulatorModeBuilder<InputT, K, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, K, W>> {
 
@@ -216,7 +222,8 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, K, W extends BoundedWindow>
       implements Builders.Output<Pair<K, Long>> {

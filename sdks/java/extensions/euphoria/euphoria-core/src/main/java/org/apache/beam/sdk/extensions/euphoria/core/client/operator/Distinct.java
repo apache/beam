@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
@@ -210,6 +209,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
           (BuilderParams<InputT, InputT, W>) params;
 
       paramsCasted.mapper = e -> e;
+      paramsCasted.windowFn = Objects.requireNonNull(windowing);
 
       return new TriggerByBuilder<>(paramsCasted);
     }
@@ -247,6 +247,9 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     }
   }
 
+  /**
+   * Trigger defining operator builder.
+   */
   public static class TriggerByBuilder<InputT, OutputT, W extends BoundedWindow>
       implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, OutputT, W>> {
 
@@ -263,6 +266,9 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
 
   }
 
+  /**
+   * {@link WindowingStrategy.AccumulationMode} defining operator builder.
+   */
   public static class AccumulatorModeBuilder<InputT, OutputT, W extends BoundedWindow>
       implements Builders.AccumulatorMode<OutputBuilder<InputT, OutputT, W>> {
 
@@ -282,7 +288,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, OutputT, W extends BoundedWindow>
       implements Builders.Output<OutputT> {

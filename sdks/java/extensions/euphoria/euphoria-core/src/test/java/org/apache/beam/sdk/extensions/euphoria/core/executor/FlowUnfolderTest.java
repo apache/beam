@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,7 +32,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
@@ -51,6 +49,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder.InputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -70,14 +70,18 @@ public class FlowUnfolderTest {
         ReduceByKey.of(mapped)
             .keyBy(e -> e)
             .reduceBy(values -> 1L)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output();
 
     Dataset<Pair<Object, Long>> output =
         Join.of(mapped, reduced)
             .by(e -> e, Pair::getFirst)
             .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output();
 
     output.persist(new StdoutSink<>());
@@ -150,7 +154,9 @@ public class FlowUnfolderTest {
         ReduceByKey.of(mapped)
             .keyBy(e -> e)
             .reduceBy(values -> 1L)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output();
 
     Dataset<Pair<Object, Long>> output =
@@ -160,7 +166,9 @@ public class FlowUnfolderTest {
                 (Object l, Pair<Object, Long> r, Collector<Long> c) -> {
                   c.collect(r.getSecond());
                 })
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output();
 
     ListDataSink<Pair<Object, Long>> sink = ListDataSink.get();
