@@ -151,7 +151,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
-    SqlNode type = null;
+    final SqlNode type;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tblProperties = null;
@@ -160,7 +160,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     <TABLE> ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
     fieldList = FieldListParens()
-    <TYPE> type = StringLiteral()
+    <TYPE>
+    (
+        type = StringLiteral()
+    |
+        type = SimpleIdentifier()
+    )
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
