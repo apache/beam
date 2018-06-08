@@ -35,7 +35,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.rules.CalcMergeRule;
-import org.apache.calcite.rel.rules.CalcRemoveRule;
 import org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.calcite.rel.rules.FilterToCalcRule;
 import org.apache.calcite.rel.rules.ProjectCalcMergeRule;
@@ -57,7 +56,8 @@ public class BeamRuleSets {
           ProjectCalcMergeRule.INSTANCE,
           FilterToCalcRule.INSTANCE,
           ProjectToCalcRule.INSTANCE,
-          CalcRemoveRule.INSTANCE,
+          // https://issues.apache.org/jira/browse/BEAM-4522
+          // CalcRemoveRule.INSTANCE,
           CalcMergeRule.INSTANCE);
 
   private static final List<RelOptRule> BEAM_CONVERTERS =
