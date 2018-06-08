@@ -15,23 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
-
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
 /**
- * Operator aware of windows.
- *
- * @param <InputT> the type of elements processed
- * @param <W> the type of windows handled
+ * Collections of operators base classes.
  */
-@Audience(Audience.Type.INTERNAL)
-public interface WindowAware<InputT, W extends BoundedWindow> {
-
-  WindowingDesc<InputT, W> getWindowing();
-
-  Windowing getEuphoriaWindowing();
-}
+package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;

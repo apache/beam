@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.WindowWiseOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.WindowWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;

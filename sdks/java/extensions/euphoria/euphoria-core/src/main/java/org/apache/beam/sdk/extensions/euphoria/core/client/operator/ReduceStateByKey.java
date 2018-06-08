@@ -30,6 +30,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateFactory;
@@ -92,8 +95,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <li>{@code stateFactory .............} factory method for {@link State} (see {@link
  * StateFactory})
  * <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
@@ -101,14 +105,14 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * @param <K> the type of the key (result type of {@code #keyBy}
  * @param <V> the type of the accumulated values (result type of {@code #valueBy})
  * @param <OutputT> the type of the output elements (result type of the accumulated state)
- */ //TODO update javadoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceStateByKey<
     InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, K, Pair<K, OutputT>, W,
-    ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
+        InputT, InputT, InputT, K, Pair<K, OutputT>, W,
+        ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
 
   private final StateFactory<V, OutputT, StateT> stateFactory;
 
@@ -356,7 +360,7 @@ public class ReduceStateByKey<
       Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
       OptionalMethodBuilder<WindowOfBuilder<InputT, K, V, OutputT, StateT>,
-          OutputBuilder<InputT, K, V, OutputT, StateT, ?>> {
+                OutputBuilder<InputT, K, V, OutputT, StateT, ?>> {
 
     private final BuilderParams<InputT, K, V, OutputT, StateT, ?> params;
 

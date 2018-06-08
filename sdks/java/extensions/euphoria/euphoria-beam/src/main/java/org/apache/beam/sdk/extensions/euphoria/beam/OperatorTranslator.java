@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.values.PCollection;
 
 /**

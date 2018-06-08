@@ -15,5 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** TODO: complete javadoc. */
+/**
+ * Collection of pre-made convenient operators.
+ */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
