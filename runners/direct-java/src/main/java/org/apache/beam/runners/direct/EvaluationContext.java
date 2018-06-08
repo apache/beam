@@ -117,7 +117,7 @@ class EvaluationContext {
     this.keyedPValues = keyedPValues;
     this.executorService = executorService;
 
-    this.watermarkManager = WatermarkManager.create(clock, graph);
+    this.watermarkManager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
