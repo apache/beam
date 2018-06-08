@@ -97,7 +97,10 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   public K getKey() {
     ByteBuffer keyBytes = (ByteBuffer) keyedStateBackend.getCurrentKey();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+      byte[] bytes = new byte[keyBytes.remaining()];
+      keyBytes.get(bytes);
+      keyBytes.position(keyBytes.position() - bytes.length);
+      return CoderUtils.decodeFromByteArray(keyCoder, bytes);
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }
@@ -113,22 +116,22 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
         new StateTag.StateBinder() {
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T2> ValueState<T2> bindValue(
+              StateTag<ValueState<T2>> address, Coder<T2> coder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", ValueState.class.getSimpleName()));
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T2> BagState<T2> bindBag(
+              StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkKeyGroupBagState<>(address, namespace, elemCoder);
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T2> SetState<T2> bindSet(
+              StateTag<SetState<T2>> address, Coder<T2> elemCoder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", SetState.class.getSimpleName()));
           }
@@ -295,7 +298,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
     return keyGroupIdx - this.localKeyGroupRangeStartIdx;
   }
 
-  private class KeyGroupBagCombiner<T> implements KeyGroupCombiner<T, List<T>, Iterable<T>> {
+  private static class KeyGroupBagCombiner<T> implements KeyGroupCombiner<T, List<T>, Iterable<T>> {
 
     @Override
     public List<T> createAccumulator() {
