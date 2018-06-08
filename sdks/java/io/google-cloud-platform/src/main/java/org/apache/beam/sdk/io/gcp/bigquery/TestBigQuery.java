@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toBeamRow;
+import static org.joda.time.Seconds.secondsBetween;
+import static org.junit.Assert.assertThat;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.bigquery.Bigquery;
@@ -30,6 +32,7 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -41,6 +44,9 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.Row;
+import org.hamcrest.Matcher;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -70,12 +76,10 @@ public class TestBigQuery implements TestRule {
    */
   public static TestBigQuery create(Schema tableSchema) {
     return new TestBigQuery(
-        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class),
-        tableSchema);
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class), tableSchema);
   }
 
-  private TestBigQuery(
-      TestBigQueryOptions pipelineOptions, Schema tableSchema) {
+  private TestBigQuery(TestBigQueryOptions pipelineOptions, Schema tableSchema) {
     this.pipelineOptions = pipelineOptions;
     this.schema = tableSchema;
   }
@@ -192,37 +196,70 @@ public class TestBigQuery implements TestRule {
    * <p>Current implementation only supports flat {@link Row Rows} and target {@link Schema Schemas}
    * with {@link FieldType#STRING} fields only.
    */
-  public List<Row> getFlatJsonRows(Schema rowSchema) throws IOException {
+  public List<Row> getFlatJsonRows(Schema rowSchema) {
     Bigquery bq = newBigQueryClient(pipelineOptions);
     return bqRowsToBeamRows(getSchema(bq), getTableRows(bq), rowSchema);
   }
 
+  public RowsAssertion assertThatAllRows(Schema rowSchema) {
+    return matcher -> duration -> pollAndAssert(rowSchema, matcher, duration);
+  }
+
+  private void pollAndAssert(
+      Schema rowSchema, Matcher<Iterable<? extends Row>> matcher, Duration duration) {
+
+    DateTime start = DateTime.now();
+    while (true) {
+      try {
+        assertThat(getFlatJsonRows(rowSchema), matcher);
+        break;
+      } catch (AssertionError assertionError) {
+        if (secondsBetween(start, DateTime.now()).isGreaterThan(duration.toStandardSeconds())) {
+          throw assertionError;
+        }
+        sleep(15_000);
+      }
+    }
+  }
+
   private List<Row> bqRowsToBeamRows(
       TableSchema bqSchema, List<TableRow> bqRows, Schema rowSchema) {
+    if (bqRows == null) {
+      return Collections.emptyList();
+    }
+
     return bqRows
         .stream()
         .map(bqRow -> toBeamRow(rowSchema, bqSchema, bqRow))
         .collect(Collectors.toList());
   }
 
-  private TableSchema getSchema(Bigquery bq) throws IOException {
-    return bq.tables()
-        .get(
-            pipelineOptions.getProject(),
-            pipelineOptions.getTargetDataset(),
-            table.getTableReference().getTableId())
-        .execute()
-        .getSchema();
+  private TableSchema getSchema(Bigquery bq) {
+    try {
+      return bq.tables()
+          .get(
+              pipelineOptions.getProject(),
+              pipelineOptions.getTargetDataset(),
+              table.getTableReference().getTableId())
+          .execute()
+          .getSchema();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  private List<TableRow> getTableRows(Bigquery bq) throws IOException {
-    return bq.tabledata()
-        .list(
-            pipelineOptions.getProject(),
-            pipelineOptions.getTargetDataset(),
-            table.getTableReference().getTableId())
-        .execute()
-        .getRows();
+  private List<TableRow> getTableRows(Bigquery bq) {
+    try {
+      return bq.tabledata()
+          .list(
+              pipelineOptions.getProject(),
+              pipelineOptions.getTargetDataset(),
+              table.getTableReference().getTableId())
+          .execute()
+          .getRows();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static Bigquery newBigQueryClient(BigQueryOptions options) {
@@ -248,5 +285,23 @@ public class TestBigQuery implements TestRule {
       return new ChainingHttpRequestInitializer(
           new HttpCredentialsAdapter(credential), httpRequestInitializer);
     }
+  }
+
+  private void sleep(long l) {
+    try {
+      Thread.sleep(l);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** Interface for creating a polling eventual assertion. */
+  public interface RowsAssertion {
+    PollingAssertion eventually(Matcher<Iterable<? extends Row>> matcher);
+  }
+
+  /** Interface to implement a polling assertion. */
+  public interface PollingAssertion {
+    void pollFor(Duration duration);
   }
 }
