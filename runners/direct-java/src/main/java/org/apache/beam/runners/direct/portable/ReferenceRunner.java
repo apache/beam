@@ -24,9 +24,11 @@ import static org.apache.beam.runners.core.construction.SyntheticComponents.uniq
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 import com.google.protobuf.Struct;
 import java.io.File;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
@@ -110,11 +112,28 @@ public class ReferenceRunner {
     return GreedyPipelineFuser.fuse(withGbks).toPipeline();
   }
 
+  private static Set<PCollectionNode> getKeyedPCollections(
+      ExecutableGraph<PTransformNode, PCollectionNode> graph) {
+    // This mimics KeyedPValueTrackingVisitor behavior in regular direct runner,
+    // but without propagating keyed-ness through key-preserving DoFn's.
+    // That is not yet necessary, but will be necessary once we implement state and timers.
+    Set<PCollectionNode> res = Sets.newHashSet();
+    Set<String> keyedProducers =
+        Sets.newHashSet(
+            Arrays.asList(DirectGroupByKey.DIRECT_GBKO_URN, DirectGroupByKey.DIRECT_GABW_URN));
+    for (PTransformNode transform : graph.getExecutables()) {
+      if (keyedProducers.contains(transform.getTransform().getSpec().getUrn())) {
+        res.addAll(graph.getProduced(transform));
+      }
+    }
+    return res;
+  }
+
   public void execute() throws Exception {
     ExecutableGraph<PTransformNode, PCollectionNode> graph = PortableGraph.forPipeline(pipeline);
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     EvaluationContext ctxt =
-        EvaluationContext.create(Instant::new, bundleFactory, graph, Collections.emptySet());
+        EvaluationContext.create(Instant::new, bundleFactory, graph, getKeyedPCollections(graph));
     RootProviderRegistry rootRegistry = RootProviderRegistry.impulseRegistry(bundleFactory);
     int targetParallelism = Math.max(Runtime.getRuntime().availableProcessors(), 3);
     ServerFactory serverFactory = createServerFactory();
