@@ -70,7 +70,7 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
       StageBundleFactory<T> stageFactory = jobFactory.forStage(stage);
       bundle =
           stageFactory.getBundle(
-              BundleFactoryOutputRecieverFactory.create(
+              BundleFactoryOutputReceiverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
               StateRequestHandler.unsupported());
     }

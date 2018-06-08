@@ -32,13 +32,13 @@ import org.apache.beam.sdk.util.WindowedValue;
  * instances. The produced {@link UncommittedBundle bundles} are added to a provided {@link
  * StepTransformResult.Builder StepTransformResult Builder}.
  */
-class BundleFactoryOutputRecieverFactory implements OutputReceiverFactory {
+class BundleFactoryOutputReceiverFactory implements OutputReceiverFactory {
   private final BundleFactory bundleFactory;
   private final RunnerApi.Components components;
 
   private final Consumer<UncommittedBundle<?>> bundleConsumer;
 
-  private BundleFactoryOutputRecieverFactory(
+  private BundleFactoryOutputReceiverFactory(
       BundleFactory bundleFactory,
       Components components,
       Consumer<UncommittedBundle<?>> bundleConsumer) {
@@ -51,7 +51,7 @@ class BundleFactoryOutputRecieverFactory implements OutputReceiverFactory {
       BundleFactory bundleFactory,
       Components components,
       Consumer<UncommittedBundle<?>> resultBuilder) {
-    return new BundleFactoryOutputRecieverFactory(bundleFactory, components, resultBuilder);
+    return new BundleFactoryOutputReceiverFactory(bundleFactory, components, resultBuilder);
   }
 
   @Override

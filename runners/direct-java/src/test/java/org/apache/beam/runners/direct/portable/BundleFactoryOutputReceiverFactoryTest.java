@@ -55,9 +55,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BundleFactoryOutputRecieverFactory}. */
+/** Tests for {@link BundleFactoryOutputReceiverFactory}. */
 @RunWith(JUnit4.class)
-public class BundleFactoryOutputRecieverFactoryTest {
+public class BundleFactoryOutputReceiverFactoryTest {
   private final BundleFactory bundleFactory = ImmutableListBundleFactory.create();
   private PCollectionNode fooPC;
   private PCollectionNode barPC;
@@ -84,7 +84,7 @@ public class BundleFactoryOutputRecieverFactoryTest {
 
     outputBundles = new ArrayList<>();
     factory =
-        BundleFactoryOutputRecieverFactory.create(bundleFactory, components, outputBundles::add);
+        BundleFactoryOutputReceiverFactory.create(bundleFactory, components, outputBundles::add);
   }
 
   @Test
