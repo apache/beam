@@ -33,6 +33,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
@@ -75,16 +79,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <li>{@code valueBy ..................} value extractor function
  * <li>{@code scoreBy ..................} {@link UnaryFunction} transforming input elements to
  * {@link Comparable} scores
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code output ...................} build output dataset
  * </ol>
- */ //TODO update javadoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>> {
+        InputT, InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>> {
 
   private final UnaryFunction<InputT, V> valueFn;
   private final UnaryFunction<InputT, ScoreT> scoreFn;
@@ -329,7 +334,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, ScoreT, ?>>,
       Builders.Output<Triple<K, V, ScoreT>>,
       OptionalMethodBuilder<WindowByBuilder<InputT, K, V, ScoreT>,
-          OutputBuilder<InputT, K, V, ScoreT, ?>> {
+                OutputBuilder<InputT, K, V, ScoreT, ?>> {
 
     private final BuiderParams<InputT, K, V, ScoreT, ?> params;
 

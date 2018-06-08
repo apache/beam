@@ -29,6 +29,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
@@ -47,11 +51,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <li>{@code [named] ..................} give name to the operator [optional]
  * <li>{@code of .......................} input dataset
  * <li>{@code keyBy ....................} key extractor function
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code output ...................} build output dataset
  * </ol>
- */ //TODO update JavaDoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class CountByKey<InputT, K, W extends BoundedWindow>

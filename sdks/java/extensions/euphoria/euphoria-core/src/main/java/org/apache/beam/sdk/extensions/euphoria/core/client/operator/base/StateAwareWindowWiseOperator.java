@@ -15,24 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
+package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
-/** Operator operating on window level with state information. */
+/**
+ * Operator with internal state.
+ */
 @Audience(Audience.Type.INTERNAL)
-public class StateAwareWindowWiseSingleInputOperator<
+public abstract class StateAwareWindowWiseOperator<
         InputT,
         WindowInT,
         KeyInT,
@@ -40,38 +37,24 @@ public class StateAwareWindowWiseSingleInputOperator<
         OutputT,
         W extends BoundedWindow,
         OperatorT extends
-            StateAwareWindowWiseSingleInputOperator<
-                    InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
-    extends StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT> {
+            StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
+    extends WindowWiseOperator<InputT, WindowInT, OutputT, W> implements StateAware<KeyInT, K> {
 
-  protected final Dataset<InputT> input;
-  private final Dataset<OutputT> output;
+  protected final UnaryFunction<KeyInT, K> keyExtractor;
 
-  protected StateAwareWindowWiseSingleInputOperator(
+  protected StateAwareWindowWiseOperator(
       String name,
       Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<KeyInT, K> extractor,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
-      Set<OutputHint> outputHints) {
+      UnaryFunction<KeyInT, K> keyExtractor) {
 
-    super(name, flow, windowing, euphoriaWindowing, extractor);
-    this.input = input;
-    this.output = createOutput(input, outputHints);
+    super(name, flow, windowing, euphoriaWindowing);
+    this.keyExtractor = keyExtractor;
   }
 
   @Override
-  public Collection<Dataset<InputT>> listInputs() {
-    return Collections.singletonList(input);
-  }
-
-  public Dataset<InputT> input() {
-    return input;
-  }
-
-  @Override
-  public Dataset<OutputT> output() {
-    return output;
+  public UnaryFunction<KeyInT, K> getKeyExtractor() {
+    return keyExtractor;
   }
 }

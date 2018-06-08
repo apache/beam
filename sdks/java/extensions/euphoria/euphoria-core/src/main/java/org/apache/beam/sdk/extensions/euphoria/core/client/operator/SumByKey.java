@@ -30,6 +30,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
@@ -61,16 +65,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <li>{@code keyBy ....................} key extractor function
  * <li>{@code [valueBy] ................} {@link UnaryFunction} transforming from input element to
  * long (default: {@code e -> 1L})
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
- */ //TODO update JavaDoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class SumByKey<InputT, K, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>> {
+        InputT, InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>> {
 
   private final UnaryFunction<InputT, Long> valueExtractor;
 

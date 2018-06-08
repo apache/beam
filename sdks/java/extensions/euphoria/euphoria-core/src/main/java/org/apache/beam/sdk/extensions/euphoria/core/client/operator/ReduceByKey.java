@@ -39,6 +39,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorageDescriptor;
@@ -81,8 +85,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * ReduceFunction} for combinable or non-combinable function
  * <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
  * to {@link ReduceFunction} function (applicable only for non-combinable version)
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
@@ -90,7 +95,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * @param <K> Output type of #keyBy method
  * @param <V> Output type of #valueBy method
  * @param <OutputT> Type of output value
- */ //TODO rewrite javadoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
     reason =
@@ -102,7 +107,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>> {
+        InputT, InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>> {
 
   final ReduceFunctor<V, OutputT> reducer;
 
@@ -437,8 +442,8 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       implements Builders.Output<Pair<K, OutputT>>,
       Builders.OutputValues<K, OutputT>,
       Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>>,
-      OptionalMethodBuilder
-          <WindowByBuilder<InputT, K, V, OutputT>, OutputBuilder<InputT, K, V, OutputT, ?>> {
+      OptionalMethodBuilder<WindowByBuilder<InputT, K, V, OutputT>,
+          OutputBuilder<InputT, K, V, OutputT, ?>> {
 
     final BuilderParams<InputT, K, V, OutputT, ?> params;
 

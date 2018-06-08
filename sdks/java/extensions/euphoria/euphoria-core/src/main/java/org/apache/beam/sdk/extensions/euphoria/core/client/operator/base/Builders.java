@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
+package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import com.sun.istack.internal.NotNull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
@@ -23,6 +23,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
@@ -34,14 +36,25 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 
 /**
- * Common methods used in operator builders to share related javadoc descriptions.
+ * Common methods used in operator builders.
+ *
+ * <p>They serves several purposes:
+ * <ul>
+ *   <li>Defines united API among all the {@link Operator Operators}.</li>
+ *   <li>Enables to share related javadoc.</li>
+ *   <li>Allows for mandatory chaining of some builders. See {@link WindowBy}.</li>
+ * </ul>
  *
  * <p>For internal usage only.
  */
 @Audience(Audience.Type.INTERNAL)
 public class Builders {
 
-  interface Of {
+  /**
+   * Usually the first builder in a chain. It defines an {@link Operator Operator's} input {@link
+   * Dataset}.
+   */
+  public interface Of {
 
     /**
      * Specifies the input dataset of the operator.
@@ -53,7 +66,11 @@ public class Builders {
     <InputT> Object of(Dataset<InputT> input);
   }
 
-  interface KeyBy<InputT> {
+  /**
+   * Builder which adds a key extractor to the {@link Operator} in focus.
+   * @param <InputT> type of input elements
+   */
+  public interface KeyBy<InputT> {
 
     /**
      * Specifies the function to derive the keys from the operator's input elements.
@@ -80,7 +97,7 @@ public class Builders {
    *
    * @param <OutTriggerBuilderT> type of following {@link TriggeredBy} builder.
    */
-  interface WindowBy<OutTriggerBuilderT extends TriggeredBy> {
+  public interface WindowBy<OutTriggerBuilderT extends TriggeredBy> {
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
@@ -114,7 +131,7 @@ public class Builders {
    *
    * @param <OutAccBuilderT> following {@link AccumulatorMode} builder type
    */
-  interface TriggeredBy<OutAccBuilderT extends AccumulatorMode> {
+  public interface TriggeredBy<OutAccBuilderT extends AccumulatorMode> {
 
     OutAccBuilderT triggeredBy(@NotNull Trigger trigger);
   }
@@ -125,7 +142,7 @@ public class Builders {
    *
    * @param <OutBuilderT> output builder type
    */
-  interface AccumulatorMode<OutBuilderT> {
+  public interface AccumulatorMode<OutBuilderT> {
 
     OutBuilderT accumulationMode(@NotNull WindowingStrategy.AccumulationMode accumulationMode);
 

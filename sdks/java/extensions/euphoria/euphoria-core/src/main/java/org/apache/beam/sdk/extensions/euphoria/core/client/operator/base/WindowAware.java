@@ -15,21 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
+package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
- * Interface marking operator as state aware. State aware operators are global operators that work
- * on some type of key.
+ * Operator aware of windows.
  *
- * @param <InputT> the type of (input) elements being processed
- * @param <K> the type of the elements' keys
+ * @param <InputT> the type of elements processed
+ * @param <W> the type of windows handled
  */
 @Audience(Audience.Type.INTERNAL)
-public interface StateAware<InputT, K> {
+public interface WindowAware<InputT, W extends BoundedWindow> {
 
-  /** @return the key extractor function on whose base this operator carries out partitioning */
-  UnaryFunction<InputT, K> getKeyExtractor();
+  WindowingDesc<InputT, W> getWindowing();
+
+  Windowing getEuphoriaWindowing();
 }

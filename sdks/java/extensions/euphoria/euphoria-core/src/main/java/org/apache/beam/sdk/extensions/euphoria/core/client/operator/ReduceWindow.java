@@ -34,6 +34,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -58,16 +62,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * ReduceFunction} for combinable or non-combinable function
  * <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed
  * to {@link ReduceFunction} function (applicable only for non-combinable version)
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code output ...................} build output dataset
  * </ol>
- */ //TODO update javadoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
+        InputT, InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
 
   private static final Byte B_ZERO = (byte) 0;
   final UnaryFunction<InputT, V> valueExtractor;
@@ -323,7 +328,7 @@ public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
   public static class WindowByBuilder<InputT, V, OutputT>
       implements Builders.WindowBy<TriggerByBuilder<InputT, V, OutputT, ?>>,
       OptionalMethodBuilder<WindowByBuilder<InputT, V, OutputT>,
-          OutputBuilder<InputT, V, OutputT, ?>> {
+                OutputBuilder<InputT, V, OutputT, ?>> {
 
     private final BuilderParams<InputT, V, OutputT, ?> params;
 
