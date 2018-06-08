@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Struct;
 import java.io.File;
-import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -117,10 +116,10 @@ public class ReferenceRunner {
     // This mimics KeyedPValueTrackingVisitor behavior in regular direct runner,
     // but without propagating keyed-ness through key-preserving DoFn's.
     // That is not yet necessary, but will be necessary once we implement state and timers.
+    // See https://issues.apache.org/jira/browse/BEAM-4557.
     Set<PCollectionNode> res = Sets.newHashSet();
     Set<String> keyedProducers =
-        Sets.newHashSet(
-            Arrays.asList(DirectGroupByKey.DIRECT_GBKO_URN, DirectGroupByKey.DIRECT_GABW_URN));
+        Sets.newHashSet(DirectGroupByKey.DIRECT_GBKO_URN, DirectGroupByKey.DIRECT_GABW_URN);
     for (PTransformNode transform : graph.getExecutables()) {
       if (keyedProducers.contains(transform.getTransform().getSpec().getUrn())) {
         res.addAll(graph.getProduced(transform));

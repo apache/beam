@@ -212,9 +212,12 @@ public class RemoteExecutionTest implements Serializable {
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
     // The impulse example
-    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers)) {
+
+    try (ActiveBundle<byte[]> bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
       bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
+
     for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
@@ -318,8 +321,10 @@ public class RemoteExecutionTest implements Serializable {
                 };
               }
             });
+    BundleProgressHandler progressHandler = BundleProgressHandler.unsupported();
 
-    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers, stateRequestHandler)) {
+    try (ActiveBundle<byte[]> bundle =
+        processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       bundle
           .getInputReceiver()
           .accept(

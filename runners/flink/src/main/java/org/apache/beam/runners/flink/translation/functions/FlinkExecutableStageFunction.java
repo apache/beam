@@ -26,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -66,6 +67,7 @@ public class FlinkExecutableStageFunction<InputT>
   private transient StateRequestHandler stateRequestHandler;
   private transient StageBundleFactory<InputT> stageBundleFactory;
   private transient AutoCloseable distributedCacheCloser;
+  private transient BundleProgressHandler progressHandler;
 
   public FlinkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
@@ -92,6 +94,7 @@ public class FlinkExecutableStageFunction<InputT>
     // in backward-incompatible Flink changes.
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, runtimeContext);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
+    progressHandler = BundleProgressHandler.unsupported();
   }
 
   @Override
@@ -108,7 +111,7 @@ public class FlinkExecutableStageFunction<InputT>
 
     try (RemoteBundle<InputT> bundle =
         stageBundleFactory.getBundle(
-            new ReceiverFactory(collector, outputMap), stateRequestHandler)) {
+            new ReceiverFactory(collector, outputMap), stateRequestHandler, progressHandler)) {
       FnDataReceiver<WindowedValue<InputT>> receiver = bundle.getInputReceiver();
       for (WindowedValue<InputT> input : iterable) {
         receiver.accept(input);

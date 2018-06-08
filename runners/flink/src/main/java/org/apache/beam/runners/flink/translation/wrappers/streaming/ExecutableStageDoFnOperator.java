@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -73,6 +74,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private final Map<String, TupleTag<?>> outputMap;
 
   private transient StateRequestHandler stateRequestHandler;
+  private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
   private transient AutoCloseable distributedCacheCloser;
 
@@ -129,7 +131,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // in backward-incompatible Flink changes.
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
-
+    progressHandler = BundleProgressHandler.unsupported();
   }
 
   // TODO: currently assumes that every element is a separate bundle,
@@ -141,12 +143,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             StateRequestHandler.class.getName());
 
     try (RemoteBundle<InputT> bundle =
-                 stageBundleFactory.getBundle(
-                         new ReceiverFactory(outputManager, outputMap), stateRequestHandler)) {
+        stageBundleFactory.getBundle(
+            new ReceiverFactory(outputManager, outputMap), stateRequestHandler, progressHandler)) {
       logger.finer(String.format("Sending value: %s", element));
       bundle.getInputReceiver().accept(element);
     }
-
   }
 
   @Override
