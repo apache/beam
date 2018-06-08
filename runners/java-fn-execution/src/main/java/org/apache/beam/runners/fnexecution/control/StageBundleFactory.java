@@ -34,5 +34,6 @@ public interface StageBundleFactory<T> extends AutoCloseable {
    */
   RemoteBundle<T> getBundle(
       OutputReceiverFactory outputReceiverFactory,
-      StateRequestHandler stateRequestHandler) throws Exception;
+      StateRequestHandler stateRequestHandler,
+      BundleProgressHandler progressHandler) throws Exception;
 }
