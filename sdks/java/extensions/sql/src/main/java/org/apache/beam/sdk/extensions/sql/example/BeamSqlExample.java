@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.example;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.QueryTransform;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -64,8 +64,7 @@ class BeamSqlExample {
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> outputStream =
-        inputTable.apply(
-            QueryTransform.withQueryString("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
+        inputTable.apply(SqlTransform.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 
     // print the output record of case 1;
     outputStream.apply(
@@ -82,11 +81,10 @@ class BeamSqlExample {
               }
             }));
 
-    // Case 2. run the query with QueryTransform.withQueryString over result PCollection of case 1.
+    // Case 2. run the query with SqlTransform.query over result PCollection of case 1.
     PCollection<Row> outputStream2 =
         PCollectionTuple.of(new TupleTag<>("CASE1_RESULT"), outputStream)
-            .apply(
-                QueryTransform.withQueryString("select c2, sum(c3) from CASE1_RESULT group by c2"));
+            .apply(SqlTransform.query("select c2, sum(c3) from CASE1_RESULT group by c2"));
 
     // print the output record of case 2;
     outputStream2.apply(

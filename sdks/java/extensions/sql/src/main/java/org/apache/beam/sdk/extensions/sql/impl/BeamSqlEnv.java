@@ -44,7 +44,7 @@ import org.apache.calcite.tools.ValidationException;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
- * parse/validate/optimize/translate SQL statements.
+ * query/validate/optimize/translate SQL statements.
  */
 @Internal
 @Experimental

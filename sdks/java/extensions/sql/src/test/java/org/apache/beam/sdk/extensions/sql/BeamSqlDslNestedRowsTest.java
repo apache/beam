@@ -68,7 +68,7 @@ public class BeamSqlDslNestedRowsTest {
     PCollection<Row> result =
         input
             .apply(
-                QueryTransform.withQueryString(
+                SqlTransform.query(
                     "SELECT 1 as `f_int`, ROW(3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
@@ -112,7 +112,7 @@ public class BeamSqlDslNestedRowsTest {
     PCollection<Row> result =
         input
             .apply(
-                QueryTransform.withQueryString(
+                SqlTransform.query(
                     "SELECT 1 as `f_int`, (3, 'BB', f_int + 1) as `f_row1` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
@@ -154,7 +154,7 @@ public class BeamSqlDslNestedRowsTest {
     PCollection<Row> result =
         input
             .apply(
-                QueryTransform.withQueryString(
+                SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedString` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
@@ -206,7 +206,7 @@ public class BeamSqlDslNestedRowsTest {
     PCollection<Row> result =
         input
             .apply(
-                QueryTransform.withQueryString(
+                SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray` FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
@@ -257,7 +257,7 @@ public class BeamSqlDslNestedRowsTest {
     PCollection<Row> result =
         input
             .apply(
-                QueryTransform.withQueryString(
+                SqlTransform.query(
                     "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[1] FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 

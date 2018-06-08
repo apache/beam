@@ -55,9 +55,7 @@ public class JsonToRowSqlTest {
     PCollection<Row> sqlResult =
         jsonPersons
             .apply(JsonToRow.withSchema(personSchema))
-            .apply(
-                QueryTransform.withQueryString(
-                    "SELECT AVG(height) as avg_height FROM PCOLLECTION"));
+            .apply(SqlTransform.query("SELECT AVG(height) as avg_height FROM PCOLLECTION"));
 
     PAssert.that(sqlResult).containsInAnyOrder(row(resultSchema, 60));
 
