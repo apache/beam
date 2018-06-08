@@ -65,7 +65,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
   @Mock private FlinkExecutableStageContext stageContext;
-  @Mock private StageBundleFactory stageBundleFactory;
+  @Mock private StageBundleFactory<Integer> stageBundleFactory;
   @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
@@ -87,7 +87,7 @@ public class FlinkExecutableStageFunctionTest {
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
     when(stageContext.getArtifactSourcePool()).thenReturn(artifactSourcePool);
     when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
-    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    when(stageContext.<Integer>getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }
 
   @Test
@@ -155,20 +155,22 @@ public class FlinkExecutableStageFunctionTest {
             "three", 3);
 
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
-    StageBundleFactory<Void> stageBundleFactory =
-        new StageBundleFactory<Void>() {
+    StageBundleFactory<Integer> stageBundleFactory =
+        new StageBundleFactory<Integer>() {
           @Override
-          public RemoteBundle<Void> getBundle(
+          public RemoteBundle<Integer> getBundle(
               OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler) {
-            return new RemoteBundle<Void>() {
+            return new RemoteBundle<Integer>() {
               @Override
               public String getId() {
                 return "bundle-id";
               }
 
               @Override
-              public FnDataReceiver<WindowedValue<Void>> getInputReceiver() {
-                return input -> {/* Ignore input*/};
+              public FnDataReceiver<WindowedValue<Integer>> getInputReceiver() {
+                return input -> {
+                  /* Ignore input*/
+                };
               }
 
               @Override
@@ -185,7 +187,7 @@ public class FlinkExecutableStageFunctionTest {
           public void close() throws Exception {}
         };
     // Wire the stage bundle factory into our context.
-    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    when(stageContext.<Integer>getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     FlinkExecutableStageFunction<Integer> function = getFunction(outputTagMap);
     function.open(new Configuration());

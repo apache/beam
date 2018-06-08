@@ -17,33 +17,26 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import java.io.Serializable;
+import java.util.concurrent.CompletionStage;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse.Builder;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
-import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
-/** The Flink context required in order to execute {@link ExecutableStage stages}. */
-public interface FlinkExecutableStageContext {
+// TODO: https://issues.apache.org/jira/browse/BEAM-4285 Implement batch state handler.
+/** State request handler for flink batch runner. */
+public class FlinkBatchStateRequestHandler implements StateRequestHandler {
 
-  /**
-   * Creates {@link FlinkExecutableStageContext} instances. Serializable so that factories can be
-   * defined at translation time and distributed to TaskManagers.
-   */
-  interface Factory extends Serializable {
-    FlinkExecutableStageContext get(JobInfo jobInfo);
+  private FlinkBatchStateRequestHandler() {}
+
+  public static FlinkBatchStateRequestHandler forStage(
+      ExecutableStage stage, RuntimeContext runtimeContext) {
+    return new FlinkBatchStateRequestHandler();
   }
 
-  static Factory batchFactory() {
-    return BatchFlinkExecutableStageContext.BatchFactory.INSTANCE;
+  @Override
+  public CompletionStage<Builder> handle(StateRequest request) throws Exception {
+    throw new UnsupportedOperationException();
   }
-
-  <InputT> StageBundleFactory<InputT> getStageBundleFactory(ExecutableStage executableStage);
-
-  StateRequestHandler getStateRequestHandler(
-      ExecutableStage executableStage, RuntimeContext runtimeContext);
-
-  ArtifactSourcePool getArtifactSourcePool();
 }
