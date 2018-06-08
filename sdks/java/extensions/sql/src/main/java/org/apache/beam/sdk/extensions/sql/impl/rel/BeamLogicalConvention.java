@@ -25,6 +25,7 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.rules.CalcRemoveRule;
 import org.apache.calcite.tools.RuleSet;
 
 /** Convertion for Beam SQL. */
@@ -58,6 +59,7 @@ public enum BeamLogicalConvention implements Convention {
         planner.addRule(rule);
       }
     }
+    planner.removeRule(CalcRemoveRule.INSTANCE);
   }
 
   @Override
