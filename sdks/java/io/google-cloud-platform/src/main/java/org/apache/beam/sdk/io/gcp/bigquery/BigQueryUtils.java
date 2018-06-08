@@ -211,18 +211,13 @@ public class BigQueryUtils {
             .map(index -> jsonBqRow.getF().get(index).getV())
             .collect(toList());
 
-    Row row = IntStream.range(0, rowSchema.getFieldCount())
-                           .boxed()
-                           .map(index -> toBeamValue(rowSchema.getField(index).getType(), rawJsonValues.get(index)))
-                           .collect(toRow(rowSchema));
-
-    System.out.println("!!!!!!!!!!!!!! " + row);
-    return row;
+    return IntStream.range(0, rowSchema.getFieldCount())
+        .boxed()
+        .map(index -> toBeamValue(rowSchema.getField(index).getType(), rawJsonValues.get(index)))
+        .collect(toRow(rowSchema));
   }
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
-    System.out.println(
-        "    > f: " + fieldType + ", v: " + jsonBQValue + " c:" + jsonBQValue.getClass());
     if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
       return JSON_VALUE_PARSERS.get((fieldType.getTypeName())).apply((String) jsonBQValue);
     }
@@ -240,6 +235,6 @@ public class BigQueryUtils {
             + jsonBQValue.getClass()
             + "' to '"
             + fieldType
-            + "' is not supported.");
+            + "' is not supported");
   }
 }
