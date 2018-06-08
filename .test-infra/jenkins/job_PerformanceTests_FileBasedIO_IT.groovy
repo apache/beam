@@ -85,8 +85,7 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ParquetIOPerformance Test',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test',
                 extraPipelineArgs: [
-                        numberOfRecords: '100000000',
-                        charset: 'UTF-8'
+                        numberOfRecords: '100000000'
                 ]
         ]
 ]
