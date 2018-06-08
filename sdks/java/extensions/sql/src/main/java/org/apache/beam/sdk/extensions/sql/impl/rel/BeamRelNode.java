@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.Map;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -31,4 +32,16 @@ public interface BeamRelNode extends RelNode {
    * DFS(Depth-First-Search) algorithm.
    */
   PTransform<PCollectionTuple, PCollection<Row>> toPTransform();
+
+  /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
+  default Map<String, String> getPipelineOptions() {
+    Map<String, String> options = null;
+    for (RelNode input : getInputs()) {
+      Map<String, String> inputOptions = ((BeamRelNode) input).getPipelineOptions();
+      assert inputOptions != null;
+      assert options == null || options == inputOptions;
+      options = inputOptions;
+    }
+    return options;
+  }
 }
