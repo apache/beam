@@ -219,6 +219,7 @@ public class BeamFileSystemArtifactStagingServiceTest {
     String stagingSession = "123";
     Map<String, Integer> files = new HashMap<>();
     files.put("file1kb", 1 << 10 /*1 kb*/);
+    files.put("nested/file1kb", 1 << 10 /*1 kb*/);
     files.put("file1mb", 1 << 20 /*1 mb*/);
     files.put("file16mb", 1 << 24 /*16 mb*/);
 
@@ -226,6 +227,7 @@ public class BeamFileSystemArtifactStagingServiceTest {
     files.forEach((fileName, size) -> {
       Path filePath = Paths.get(srcDir.toString(), fileName).toAbsolutePath();
       try {
+        Files.createDirectories(filePath.getParent());
         Files.write(filePath,
             Strings.repeat(text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
                 .getBytes(CHARSET));

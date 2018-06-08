@@ -106,7 +106,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public String generateStagingSessionToken(String sessionId, String basePath) {
+  public String generateStagingSessionToken(String sessionId, String basePath) throws Exception {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);
@@ -114,7 +114,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   }
 
   private String encodedFileName(ArtifactMetadata artifactMetadata) {
-    return "artifact_" + Hashing.md5().hashString(artifactMetadata.getName(), CHARSET).asLong();
+    return "artifact_" + Hashing.md5().hashString(artifactMetadata.getName(), CHARSET).toString();
   }
 
   private StagingSessionToken decodeStagingSessionToken(String stagingSessionToken)
@@ -135,14 +135,15 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     }
   }
 
-  private String encodeStagingSessionToken(StagingSessionToken stagingSessionToken) {
+  private String encodeStagingSessionToken(StagingSessionToken stagingSessionToken)
+      throws Exception {
     try {
       return MAPPER.writeValueAsString(stagingSessionToken);
     } catch (JsonProcessingException e) {
       LOG.error("Error {} occurred while serializing {}.", e.getMessage(),
           StagingSessionToken.class);
+      throw e;
     }
-    return null;
   }
 
   private ResourceId getJobDirResourceId(String stagingSessionToken) throws IOException {
@@ -168,7 +169,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
   @Override
   public void close() throws Exception {
-
+    // Nothing to close here.
   }
 
   private class PutArtifactStreamObserver implements StreamObserver<PutArtifactRequest> {
@@ -253,7 +254,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
   /**
    * Serializable StagingSessionToken used to stage files with {@link
-   * BeamFileSystemArtifactStagingService}
+   * BeamFileSystemArtifactStagingService}.
    */
   private static class StagingSessionToken implements Serializable {
 
