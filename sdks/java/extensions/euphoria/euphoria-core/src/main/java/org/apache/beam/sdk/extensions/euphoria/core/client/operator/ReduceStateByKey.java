@@ -111,7 +111,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 public class ReduceStateByKey<
     InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, K, Pair<K, OutputT>, W,
+        InputT, InputT, K, Pair<K, OutputT>, W,
         ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
 
   private final StateFactory<V, OutputT, StateT> stateFactory;
