@@ -19,8 +19,14 @@ The Apache Beam community welcomes contributions from anyone!
 
 There are lots of opportunities:
 
- - write new examples
+ - ask or answer questions on [user@beam.apache.org]({{ site.baseurl
+}}/community/contact-us/) or
+[stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
+ - review proposed design ideas on [dev@beam.apache.org]({{ site.baseurl
+}}/community/contact-us/)
  - improve the documentation
+ - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+ - write new examples
  - add new user-facing libraries (new statistical libraries, new IO connectors,
    etc)
  - improve your favorite language SDK (Java, Python, Go, etc)
@@ -28,36 +34,44 @@ There are lots of opportunities:
    Cloud Dataflow, etc)
  - work on the core programming model (what is a Beam pipeline and how does it
    run?)
+ - improve the developer experience on Windows
 
 Most importantly, if you have an idea of how to contribute, then do it! 
 
 For a list of open starter tasks, check
 [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 
-And, of course, we would love if you [contact us]({{ site.baseurl
-}}/community/contact-us/) and introduce yourself.
-
 ## Contributing code
 
+Discussons about contributing code to beam  happens on the [dev@ mailing list]({{ site.baseurl
+}}/community/contact-us/). Introduce yourself!
+
+Questions can be asked on the [#beam channel of the ASF slack]({{ site.baseurl
+}}/community/contact-us/). Introduce yourself!
+ 
 Coding happens at
 [https://github.com/apache/beam](https://github.com/apache/beam). To
 contribute, follow the usual GitHub process: fork the repo, make your changes,
-and open a pull request. If you are unfamiliar with this workflow, GitHub
-maintains these helpful guides:
+and open a pull request and @mention a reviewer. If you have more than one commit
+in your change, you many be asked to rebase and squash the commits.
+If you are unfamiliar with this workflow, GitHub maintains these helpful guides:
 
  - [Git Handbook](https://guides.github.com/introduction/git-handbook/)
  - [Forking a repository](https://guides.github.com/activities/forking/)
 
-If your change is large, it is a good idea to [discuss it on the dev@ mailing list]({{
-site.baseurl }}/community/contact-us/) (you may be asked to create a design doc
+If your change is large or it is your first change, it is a good idea to
+[discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
+
+For large changes (you may be asked to create a design doc
 ([template](https://s.apache.org/beam-design-doc-template),
-[examples](https://s.apache.org/beam-design-docs))). You will also
-need to submit a signed [Individual Contributor License
+[examples](https://s.apache.org/beam-design-docs))).
+
+Documentation happens at [https://github.com/apache/beam-site](https://github.com/apache/beam-site)
+and contributions are welcome.
+
+Large contributions require a signed [Individual Contributor License
 Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
-Software Foundation (ASF).  The purpose of this agreement is to clearly define
-the terms under which intellectual property has been contributed to the ASF and
-thereby allow us to defend the project should there be a legal dispute
-regarding the software at some future time.
+Software Foundation (ASF).
 
 If you are contributing a `PTransform` to Beam, we have an extensive
 [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide).
@@ -65,6 +79,11 @@ If you are contributing a `PTransform` to Beam, we have an extensive
 ### Building & Testing
 
 We use Gradle to orchestrate building and testing.
+
+You do not need to install gradle, but you do need a Java SDK installed.
+You can develop on Linux, macOS, or Microsoft Windows. There have been
+issues noted when developing using Windows; feel free to contribute fixes
+to make it easier.
 
 The entire set of tests can be run with this command at the root of the git
 repository.
@@ -78,31 +97,98 @@ necessary things to run those tests. For example:
     $ ./gradlew -p sdks/java/io/cassandra check
     $ ./gradlew -p runners/flink check
 
-### Testing the Python SDK
+You can see what build tasks are available with
+
+    $ ./gradlew tasks
+
+or for a module,
+
+    $ ./gradlew sdks/java/io/cassandra tasks
+
+### Developing with an IDE
+
+Generate an IDEA project .ipr file with:
+
+    $ ./gradlew idea
+
+### Pull requests
+
+When your change is ready to be reviewed and merged, create a pull request.
+Format the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
+where you replace BEAM-XXX with the appropriate JIRA issue.
+This will automatically link the pull request to the issue.
+
+Pull requests can only be merged by a
+[beam committer](https://people.apache.org/phonebook.html?unix=beam).
+To find a committer for your area, look for similar code merges or ask on 
+[dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
+
+Use @mention in the pull request to notify the reviewer.
+
+The pull request and any changes pushed to it will trigger precommit jobs.
+If a test fails and appears unrelated to your change, you can cause tests
+to be re-run by adding a single line comment on your PR
+
+     retest this please
+
+There are other trigger phrases for post-commit tests found in
+.testinfra/jenkins, but use these sparingly because postcommit
+tests consume shared development resources.
+
+### Developing with the Python SDK
+
+Gradle can build and test python, and is used by the Jenkins jobs, so needs to
+be maintained.
 
 You can directly use the Python toolchain instead of having Gradle orchestrate
-it. This may be faster for you. We recommend setting up a virtual environment
-before testing your code.
+it, which may be faster for you, but it is your preference.
+If you do want to use Python tools directly, we recommend setting up a virtual
+environment before testing your code.
 
 If you update any of the [cythonized](http://cython.org) files in Python SDK,
 you must install the `cython` package before running following command to
 properly test your code. 
 
 The following commands should be run in the `sdks/python` directory.
-This command runs all Python tests.
+This installs Python from source and includes the test and gcp dependencies.
 
-    $ python setup.py nosetests
+On macOS/Linix:
+
+    $ virtualenv env
+    $ . ./env/bin/activate
+    (env) $ pip install .[gcp,test]
+
+On Windows:
+
+    > c:\Python27\python.exe -m virtualenv
+    > env\Scripts\activate
+    (env) > pip install .[gcp,test]
+
+This command runs all Python tests. The nose dependency is installed by [test] in pip install.
+
+    (env) $ python setup.py nosetests
 
 You can use following command to run a single test method.
 
-    $ python setup.py nosetests --tests <module>:<test class>.<test method>
+    (env) $ python setup.py nosetests --tests <module>:<test class>.<test method>
 
-    Example:
-    $ python setup.py nosetests --tests apache_beam.io.textio_test:TextSourceTest.test_progress
+    For example:
+    (env) $ python setup.py nosetests --tests apache_beam.io.textio_test:TextSourceTest.test_progress
 
-To check just for lint errors, run the following command.
+You can deactivate the virtualenv when done.
+
+    (env) $ deactivate
+    $
+
+To check just for Python lint errors, run the following command.
 
     $ ../../gradlew lint
+
+Or use `tox` commands to run the lint tasks:
+
+    $ tox -e py27-lint    # For python 2.7
+    $ tox -e py3-lint     # For python 3 
+    $ tox -e py27-lint3   # For python 2-3 compatibility
 
 #### Remote testing
 
@@ -214,6 +300,12 @@ Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction 
 - Feature branch: [dsl-euphoria](https://github.com/apache/beam/tree/dsl-euphoria)
 - JIRA: [dsl-euphoria](https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900) 
 - Contact: [David Moravek](mailto:david.moravek@gmail.com)
+
+### Improving the contributor experience
+
+Making it easier to write code, run tests, and release. Investigating using docker for jenkins builds, automating the release process, and improving the reliability of tests.
+
+Ideas and help welcome! Contact: [Alan Myrvold](mailto:amyrvold@google.com), [Mark Liu](mailto:markliu@google.com), [Yifan Zou](mailto:yifanzou@google.com)
 
 
 ### Beam SQL
