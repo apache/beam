@@ -39,7 +39,10 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** An {@code ArtifactStagingService} which stages files to a local temp directory. */
+/**
+ * An {@code ArtifactStagingService} which stages files to a local temp directory.
+ * TODO: refactor to use staging session tokens
+ */
 public class LocalFileSystemArtifactStagerService
     extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase implements FnService {
   private static final Logger LOG =
@@ -104,7 +107,7 @@ public class LocalFileSystemArtifactStagerService
     }
     responseObserver.onNext(
         ArtifactApi.CommitManifestResponse.newBuilder()
-            .setStagingToken(location.getRootPath())
+            .setRetrievalToken(location.getRootPath())
             .build());
     responseObserver.onCompleted();
   }

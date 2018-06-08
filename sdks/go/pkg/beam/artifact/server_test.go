@@ -148,7 +148,7 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 	}
 	m.md = req.GetManifest()
 
-	return &pb.CommitManifestResponse{StagingToken: id}, nil
+	return &pb.CommitManifestResponse{RetrievalToken: id}, nil
 }
 
 func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*pb.GetManifestResponse, error) {

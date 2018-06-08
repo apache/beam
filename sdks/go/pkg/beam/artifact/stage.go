@@ -46,7 +46,7 @@ func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifac
 	if err != nil {
 		return "", err
 	}
-	return resp.GetStagingToken(), nil
+	return resp.GetRetrievalToken(), nil
 }
 
 // StageDir stages a local directory with relative path keys. Convenience wrapper.
