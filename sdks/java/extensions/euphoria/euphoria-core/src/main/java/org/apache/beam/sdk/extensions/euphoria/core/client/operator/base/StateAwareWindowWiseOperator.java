@@ -31,14 +31,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
         InputT,
-        WindowInT,
         KeyInT,
         K,
         OutputT,
         W extends BoundedWindow,
         OperatorT extends
-            StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
-    extends WindowWiseOperator<InputT, WindowInT, OutputT, W> implements StateAware<KeyInT, K> {
+            StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
+    extends WindowWiseOperator<InputT, OutputT, W> implements StateAware<KeyInT, K> {
 
   protected final UnaryFunction<KeyInT, K> keyExtractor;
 
