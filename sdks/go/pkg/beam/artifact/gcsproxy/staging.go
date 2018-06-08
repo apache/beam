@@ -94,7 +94,7 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *pb.CommitManife
 	// now, but would be needed for a staging server that serves multiple
 	// jobs. Such a server would also use the ID sent with each request.
 
-	return &pb.CommitManifestResponse{StagingToken: gcsx.MakeObject(s.bucket, s.manifest)}, nil
+	return &pb.CommitManifestResponse{RetrievalToken: gcsx.MakeObject(s.bucket, s.manifest)}, nil
 }
 
 // matchLocations ensures that all artifacts have been staged and have valid
