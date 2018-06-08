@@ -28,8 +28,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Util;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.junit.Test;
 
 /** TODO: complete javadoc. */

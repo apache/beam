@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
 /** Various dataset related utils. */
 @Audience(Audience.Type.EXECUTOR)

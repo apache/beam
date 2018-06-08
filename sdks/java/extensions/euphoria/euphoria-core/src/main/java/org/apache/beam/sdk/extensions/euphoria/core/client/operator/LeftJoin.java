@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
  * Left outer join of two input datasets producing single new dataset.
@@ -44,8 +45,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
  * elements into keys
  * <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element
  * from joined window
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  */

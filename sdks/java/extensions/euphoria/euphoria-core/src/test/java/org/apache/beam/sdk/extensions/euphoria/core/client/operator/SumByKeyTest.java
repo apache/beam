@@ -49,7 +49,7 @@ public class SumByKeyTest {
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertEquals(flow, sum.getFlow());
     assertEquals("SumByKey1", sum.getName());
-    assertNotNull(sum.keyExtractor);
+    assertNotNull(sum.getKeyExtractor());
     assertEquals(counted, sum.output());
     assertNull(sum.getWindowing());
   }
