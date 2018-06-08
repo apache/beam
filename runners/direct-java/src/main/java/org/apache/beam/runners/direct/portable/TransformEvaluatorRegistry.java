@@ -67,6 +67,10 @@ class TransformEvaluatorRegistry {
             .put(
                 ExecutableStage.URN,
                 new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
+            .put(
+                SplittableRemoteStageEvaluatorFactory.URN,
+                new SplittableRemoteStageEvaluatorFactory(
+                    bundleFactory, jobBundleFactory, stepStateAndTimers))
             .build());
   }
 
