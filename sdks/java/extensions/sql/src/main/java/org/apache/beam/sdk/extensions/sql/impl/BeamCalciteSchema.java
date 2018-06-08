@@ -75,7 +75,7 @@ public class BeamCalciteSchema implements Schema {
     if (table == null) {
       return null;
     }
-    return new BeamCalciteTable(tableProvider.buildBeamSqlTable(table));
+    return new BeamCalciteTable(tableProvider.buildBeamSqlTable(table), getPipelineOptions());
   }
 
   @Override

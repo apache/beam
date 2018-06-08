@@ -60,8 +60,6 @@ import org.apache.calcite.rel.type.RelDataType;
 /** BeamRelNode to replace a {@code Enumerable} node. */
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
 
-  private final PipelineOptions options = PipelineOptionsFactory.create();
-
   public BeamEnumerableConverter(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
   }
@@ -83,10 +81,23 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     final RelDataType rowType = getRowType();
     final PhysType physType =
         PhysTypeImpl.of(implementor.getTypeFactory(), rowType, prefer.preferArray());
-    final Expression options = implementor.stash(this.options, PipelineOptions.class);
     final Expression node = implementor.stash((BeamRelNode) getInput(), BeamRelNode.class);
-    list.add(Expressions.call(BeamEnumerableConverter.class, "toEnumerable", options, node));
+    list.add(Expressions.call(BeamEnumerableConverter.class, "toEnumerable", node));
     return implementor.result(physType, list.toBlock());
+  }
+
+  public static Enumerable<Object> toEnumerable(BeamRelNode node) {
+    final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+    return toEnumerable(options, node);
+  }
+
+  private static PipelineOptions createPipelineOptions(Map<String, String> map) {
+    final String[] args = new String[map.size()];
+    int i = 0;
+    for (Map.Entry<String, String> entry : map.entrySet()) {
+      args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
+    }
+    return PipelineOptionsFactory.fromArgs(args).withValidation().create();
   }
 
   public static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
