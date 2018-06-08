@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class CountByKey<InputT, K, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, K, Pair<K, Long>, W, CountByKey<InputT, K, W>> {
+    InputT, InputT, K, Pair<K, Long>, W, CountByKey<InputT, K, W>> {
 
   CountByKey(
       String name,

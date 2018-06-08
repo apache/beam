@@ -31,7 +31,7 @@ public class WindowingUtils {
 
   public static <InputT, OutputT, W extends BoundedWindow>
   PCollection<InputT> applyWindowingIfSpecified(
-      WindowWiseOperator<?, ?, OutputT, W> operator,
+      WindowWiseOperator<?, OutputT, W> operator,
       PCollection<InputT> input,
       Duration allowedLateness) {
 

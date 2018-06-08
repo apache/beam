@@ -71,7 +71,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class Distinct<InputT, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
+        InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
 
   Distinct(
       String name,

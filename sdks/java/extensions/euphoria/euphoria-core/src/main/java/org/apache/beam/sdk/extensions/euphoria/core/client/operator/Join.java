@@ -87,7 +87,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseOperator<
-    Object, Either<LeftT, RightT>, Either<LeftT, RightT>, K, Pair<K, OutputT>, W,
+    Object, Either<LeftT, RightT>, K, Pair<K, OutputT>, W,
     Join<LeftT, RightT, K, OutputT, W>> {
 
   @SuppressWarnings("unchecked")
@@ -371,7 +371,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     @Override
     public <W extends Window<W>> OutputBuilder<LeftT, RightT, K, OutputT, ?> windowBy(
         Windowing<?, W> windowing) {
-      params.euphoriaWindowing = windowing;
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
       return new OutputBuilder<>(params);
     }
 

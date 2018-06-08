@@ -56,7 +56,7 @@ public class FullJoin {
 
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {
-    return new OfBuilder("RightJoin").of(left, right);
+    return new OfBuilder("FullJoin").of(left, right);
   }
 
   /**

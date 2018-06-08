@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
-import com.sun.istack.internal.NotNull;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
@@ -109,7 +109,7 @@ public class Builders {
      * {@link WindowFn}.It represents windowing strategy to apply to the input elements.
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends BoundedWindow> OutTriggerBuilderT windowBy(@NotNull WindowFn<Object, W> windowing);
+    <W extends BoundedWindow> OutTriggerBuilderT windowBy(@Nonnull WindowFn<Object, W> windowing);
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
@@ -133,7 +133,7 @@ public class Builders {
    */
   public interface TriggeredBy<OutAccBuilderT extends AccumulatorMode> {
 
-    OutAccBuilderT triggeredBy(@NotNull Trigger trigger);
+    OutAccBuilderT triggeredBy(@Nonnull Trigger trigger);
   }
 
   /**
@@ -144,7 +144,7 @@ public class Builders {
    */
   public interface AccumulatorMode<OutBuilderT> {
 
-    OutBuilderT accumulationMode(@NotNull WindowingStrategy.AccumulationMode accumulationMode);
+    OutBuilderT accumulationMode(@Nonnull WindowingStrategy.AccumulationMode accumulationMode);
 
     default OutBuilderT discardingFiredPanes() {
       return accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES);

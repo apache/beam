@@ -34,15 +34,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseSingleInputOperator<
         InputT,
-        WindowInT,
         KeyInT,
         K,
         OutputT,
         W extends BoundedWindow,
         OperatorT extends
             StateAwareWindowWiseSingleInputOperator<
-                    InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT>>
-    extends StateAwareWindowWiseOperator<InputT, WindowInT, KeyInT, K, OutputT, W, OperatorT> {
+                    InputT, KeyInT, K, OutputT, W, OperatorT>>
+    extends StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT> {
 
   protected final Dataset<InputT> input;
   private final Dataset<OutputT> output;
