@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * Operator working on some context.
  */
 @Audience(Audience.Type.INTERNAL)
-public abstract class WindowWiseOperator<InputT, WindowInT, OutputT, W extends BoundedWindow>
+public abstract class WindowWiseOperator<InputT, OutputT, W extends BoundedWindow>
     extends Operator<InputT, OutputT> implements
     WindowAware<Object, W> { //TODO remove WindowInT
 

@@ -107,7 +107,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>> {
+        InputT, InputT, K, Pair<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>> {
 
   final ReduceFunctor<V, OutputT> reducer;
 
@@ -466,7 +466,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     @Override
     public <W extends Window<W>> OutputBuilder<InputT, K, V, OutputT, ?> windowBy(
         Windowing<?, W> windowing) {
-      params.euphoriaWindowing = windowing;
+      params.euphoriaWindowing = Objects.requireNonNull(windowing);
       return new OutputBuilder<>(params);
     }
 

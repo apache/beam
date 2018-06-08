@@ -72,7 +72,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
 public class ReduceWindow<InputT, V, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
+        InputT, InputT, Byte, OutputT, W, ReduceWindow<InputT, V, OutputT, W>> {
 
   private static final Byte B_ZERO = (byte) 0;
   final UnaryFunction<InputT, V> valueExtractor;
