@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to
@@ -32,7 +34,6 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
-import sys
 from builtins import chr
 from builtins import object
 
@@ -310,13 +311,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      # Use iteritems() on Python 2 instead of future.builtins.iteritems to
-      # avoid performance regression in Cython compiled code.
-      if sys.version_info[0] == 2:
-        items = dict_value.iteritems()  # pylint: disable=dict-iter-method
-      else:
-        items = dict_value.items()
-      for k, v in items:
+      for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
     elif t is bool:
