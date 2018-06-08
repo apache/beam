@@ -30,8 +30,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -92,6 +95,31 @@ public class ReferenceRunnerTest implements Serializable {
             KV.of("foo", ImmutableSet.of(1, 2, 3)),
             KV.of("foo", ImmutableSet.of(2, 3)),
             KV.of("foo", ImmutableSet.of(3)));
+
+    p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
+
+    ReferenceRunner runner =
+        ReferenceRunner.forInProcessPipeline(
+            PipelineTranslation.toProto(p),
+            PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
+    runner.execute();
+  }
+
+  @Test
+  public void testGBK() throws Exception {
+    Pipeline p = Pipeline.create();
+
+    PAssert.that(
+            p.apply(Create.of(KV.of(42, 0), KV.of(42, 1), KV.of(42, 2)))
+                // Will create one bundle for each value, since direct runner uses 1 bundle per key
+                .apply(Reshuffle.viaRandomKey())
+                // Multiple bundles will emit values onto the same key 42.
+                // They must be processed sequentially rather than in parallel, since
+                // the trigger firing code expects to receive values sequentially for a key.
+                .apply(GroupByKey.create())
+                .apply(Values.create())
+                .apply(Flatten.iterables()))
+        .containsInAnyOrder(0, 1, 2);
 
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
