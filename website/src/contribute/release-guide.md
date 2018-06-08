@@ -63,6 +63,15 @@ To prepare for each release, you should audit the project status in the JIRA iss
 
 You need to have a GPG key to sign the release artifacts. Please be aware of the ASF-wide [release signing guidelines](https://www.apache.org/dev/release-signing.html). If you don’t have a GPG key associated with your Apache account, please create one according to the guidelines.
 
+Get more entropy for creating a GPG key
+
+    sudo apt-get install rng-tools
+    sudo rngd -r /dev/urandom
+
+Create a GPG key
+    
+    gpg --full-generate-key
+
 Determine your Apache GPG Key and Key ID, as follows:
 
     gpg --list-keys
@@ -128,6 +137,8 @@ Release manager needs to have an account with PyPI. If you need one, [register a
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
 
+Attention: Only committer has permission to perform this.
+
 1. In JIRA, navigate to the [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
 1. Add a new release: choose the next minor version number compared to the one currently underway, select today’s date as the `Start Date`, and choose `Add`.
 
@@ -158,12 +169,54 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Verify that a Release Build Works
 
-Run `mvn -Prelease clean install` to ensure that the build processes that are specific to that
-profile are in good shape.
+Pre-installation for python build
+* Install pip
+  
+  ```
+  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+  python get-pip.py
+  ```
+* Install virtualenv
 
+  ```
+  pip install --upgrade virtualenv
+  ```
+* Cython
+
+  ```
+  sudo pip install cython
+  sudo apt-get install gcc
+  sudo apt-get install python-dev
+  ```
+Make sure your ```time``` alias to ```/usr/bin/time```, if not:
+
+```
+sudo apt-get install time
+alias time='/usr/bin/time'
+```
+
+Run gradle release build
+
+* Clean current workspace
+
+  ```
+  git clean -fdx 
+  ./gradlew clean
+  ```
+
+* Unlock the secret key
+  ```
+  gpg --output ~/doc.sig --sign ~/.bashrc
+  ```
+
+* Run build command
+  ```
+  ./gradlew build -PisRelease --no-parallel --scan --stacktrace
+  ```
+  
 ### Update and Verify Javadoc
 
-The build with `-Prelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
+The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
 
 The file `sdks/java/javadoc/ant.xml` file contains a list of modules to include
 in and exclude, plus a list of offline URLs that populate links from Beam's
@@ -178,63 +231,72 @@ Javadoc to the Javadoc for other modules that Beam depends on.
   the version number has changed, download a new version of the corresponding
   `<module>-docs/package-list` file.
 
-### Create a release branch
+### Create a release branch in apache/beam repository
 
-Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the code repository, and update version information on the original branch.
+Attention: Only committer has permission to create release branch in apache/beam.
+
+Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
 
 Check out the version of the codebase from which you start the release. For a new minor or major release, this may be `HEAD` of the `master` branch. To build a hotfix/incremental release, instead of the `master` branch, use the release tag of the release being patched. (Please make sure your cloned repository is up-to-date before starting.)
 
     git checkout <master branch OR release tag>
 
+**NOTE**: If you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, rather than the master branch.
 
 Set up a few environment variables to simplify Maven commands that follow. (We use `bash` Unix syntax in this guide.)
 
-    VERSION="1.2.3"
-    NEXT_VERSION="1.2.4"
-    BRANCH_NAME="release-${VERSION}"
-    DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
+    RELEASE=2.5.0
+    NEXT_VERSION_IN_BASE_BRANCH=2.6.0
+    BRANCH=release-${RELEASE}
 
 Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch. Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.
 
-Use Maven release plugin to create the release branch and update the current branch to use the new development version. This command applies for the new major or minor version. (Warning: this command automatically pushes changes to the code repository.)
+**NOTE**: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:
 
-    mvn release:branch \
-        -DbranchName=${BRANCH_NAME} \
-        -DdevelopmentVersion=${DEVELOPMENT_VERSION}
+    BASE_RELEASE=2.5.0
+    RELEASE=2.5.1
+    NEXT_VERSION_IN_BASE_BRANCH=2.6.0
+    git checkout tags/${BASE_RELEASE}
 
-However, if you are doing an incremental/hotfix release, please run the following command after checking out the release tag of the release being patched.
+Create a new branch, and update version files in the master branch.
 
-    mvn release:branch \
-        -DbranchName=${BRANCH_NAME} \
-        -DupdateWorkingCopyVersions=false \
-        -DupdateBranchVersions=true \
-        -DreleaseVersion="${VERSION}-SNAPSHOT"
+    git branch ${BRANCH}
+
+    # Now change the version in existing gradle files, and Python files
+    sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" build_rules.gradle
+    sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
+    sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
+
+    # Save changes in master branch
+    git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
+    git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
 
 Check out the release branch.
 
-    git checkout ${BRANCH_NAME}
-
-The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH_NAME}` with the above environment variables set.
+    git checkout ${BRANCH}
+    
+The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH}` with the above environment variables set.
 
 ### Update the Python SDK version
 
-In the master branch, update Python SDK [version](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) identifier to the next development version (e.g. `1.2.3.dev` to `1.3.0.dev`).
+Update [sdks/python/apache_beam/version.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) in both master branch and release branch.
 
-In the release branch, update the Python SDK version to the release version (e.g. `1.2.3.dev` to `1.2.3`).
+* In the release branch, update the Python SDK version to the release version(e.g. `2.5.0-dev` to `2.5.0`).
 
 ### Update release specific configurations
 
-1. Update archetypes:
-   [example](https://github.com/apache/beam/commit/d375cfa126fd7be9eeeec34f39c2b9b856f324bf)
-2. Update runner specific configurations:
-   [example](https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d)
+Update Java runner specific configurations in release branch:
+* [beam/runners/google-cloud-dataflow-java/build.gradle](https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/build.gradle): change value of 'dataflow.container_version' to 'beam-release_version_number'(e.g, 'beam-master-20180601' to 'beam-2.5.0')
+* [beam/runners/google-cloud-dataflow-java/pom.xml](https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/pom.xml): change value of 'version' field (e.g, '2.5.0-SNAPSHOT' to '2.5.0') 
 
 ### Start a snapshot build
 
-Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/).
+Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the `master` branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.
+
+Comment  ```Run Gradle Publish``` in one pull request to trigger build.
 
 ### Checklist to proceed to the next step
 
@@ -256,30 +318,34 @@ so builds will be broken until a new snapshot is available.
 
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
-### Build and stage Java artifacts with Maven
+### Build and stage Java artifacts with Gradle
 
-Set up a few environment variables to simplify Maven commands that follow. This identifies the release candidate being built. Start with `RC_NUM` equal to `1` and increment it for each candidate.
+Set up a few environment variables to simplify the commands that follow. These identify the release candidate being built, and the branch where you will stage files. Start with `RC_NUM` equal to `1` and increment it for each candidate.
 
-    RC_NUM="1"
-    RC_TAG="v${VERSION}-RC${RC_NUM}"
+    RC_NUM=1
 
-Use Maven release plugin to build the release artifacts, as follows:
+Make sure your git config will maintain your account:
+    
+    git config credential.helper store
 
-    mvn release:prepare \
-        -Dresume=false \
-        -DreleaseVersion=${VERSION} \
-        -Dtag=${RC_TAG} \
-        -DupdateWorkingCopyVersions=false
+Use Gradle release plugin to build the release artifacts, and push code and
+release tag to the origin repository (this would be the Apache Beam repo):
 
-Use Maven release plugin to stage these artifacts on the Apache Nexus repository, as follows:
+    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
+                  -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
+                  -Prelease.useAutomaticVersion=true --info --no-daemon
 
-    mvn release:perform
+Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:
 
-Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, source, test source, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
+    ./gradlew publish -PisRelease --no-parallel --no-daemon
+
+Review all staged artifacts. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
 
 Close the staging repository on Apache Nexus. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
 
 ### Stage source release on dist.apache.org
+
+Attention: Only committer has permissions to perform following steps.
 
 Copy the source release to the dev repository of `dist.apache.org`.
 
@@ -289,30 +355,57 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Make a directory for the new release:
 
-        mkdir beam/${VERSION}
-        cd beam/${VERSION}
+        mkdir beam/${RELEASE}
+        cd beam/${RELEASE}
 
-1. Copy and rename the Beam source distribution, hashes, and GPG signature:
+1. Download source zip from GitHub:
 
-        cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip .
-        cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip.asc .
-        cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip apache-beam-${VERSION}-python.zip
+    wget https://github.com/apache/beam/archive/release-${RELEASE}.zip \
+         -O apache-beam-${RELEASE}-source-release.zip
 
-1. Create hashes for source files and sign the python source file file
+1. Create hashes and sign the source distribution:
 
-        sha512sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.sha512
-        gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
-        sha512sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.sha512
+        gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
+        sha512sum apache-beam-${RELEASE}-source-release.zip > apache-beam-${RELEASE}-source-release.zip.sha512
 
 1. Add and commit all the files.
 
-        svn add beam/${VERSION}
+        svn add beam/${RELEASE}
         svn commit
 
 1. Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
+### Stage python binaries on dist.apache.org
+
+Build python binaries in release branch in sdks/python dir.
+
+    python setup.py sdist --format=zip
+    cd dist
+    cp apache-beam-${RELEASE}.zip staging/apache-beam-${RELEASE}-python.zip
+    cd staging
+
+Create hashes and sign the binaries
+
+    gpg --armor --detach-sig apache-beam-${RELEASE}-python.zip
+    sha512sum apache-beam-${RELEASE}-python.zip > apache-beam-${RELEASE}-python.zip.sha512
+
+Staging binaries
+
+    svn co https://dist.apache.org/repos/dist/dev/beam
+    cd beam/${RELEASE}
+    svn add *
+    svn commit
+
+Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
+
 ### Build the Pydoc API reference
 
+Make sure you have ```tox``` installed: 
+
+```
+pip install tox
+
+```
 Create the Python SDK documentation using sphinx by running a helper script.
 ```
 cd sdks/python && tox -e docs
@@ -334,14 +427,14 @@ candidate into the source tree of the website.
 Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
 
 * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
-* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${VERSION}`.
+* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${RELEASE}`.
 * Set up the necessary git commands to account for the new and deleted files from the javadoc.
 * Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
 #### Create Pydoc
 Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/pydoc/) page, as follows:
 
-* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${VERSION}`.
+* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${RELEASE}`.
 * Remove `.doctrees` directory.
 * Update the Pydoc link on this page to point to the new version (in `src/documentation/sdks/pydoc/current.md`).
 
@@ -450,9 +543,9 @@ Use the Apache Nexus repository to release the staged binary artifacts to the Ma
 ### Deploy Python artifacts to PyPI
 
 1. Create a new release and upload the Python zip file for the new release using the [PyPI UI] (https://pypi.python.org/pypi/apache-beam)
-1. Alternatively, use the command line tool to upload the new release `twine upload apache-beam-${VERSION}.zip`
+1. Alternatively, use the command line tool to upload the new release `twine upload apache-beam-${RELEASE}.zip`
 
-Note: It is important to rename `apache-beam-${VERSION}-python.zip` to `apache-beam-${VERSION}.zip` before uploading, because PyPI expects a filename in the `<package-name>-<package-version>` format.
+Note: It is important to rename `apache-beam-${RELEASE}-python.zip` to `apache-beam-${RELEASE}.zip` before uploading, because PyPI expects a filename in the `<package-name>-<package-version>` format.
 
 #### Deploy source release to dist.apache.org
 
@@ -462,7 +555,7 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
-    VERSION_TAG="v${VERSION}"
+    VERSION_TAG="v${RELEASE}"
     git tag -s "$VERSION_TAG" "$RC_TAG"
     git push github "$VERSION_TAG"
 
