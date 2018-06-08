@@ -15,33 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
+package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
-import java.util.Collection;
-import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 
-/** Operator with single input. */
+/**
+ * Interface marking operator as state aware. State aware operators are global operators that work
+ * on some type of key.
+ *
+ * @param <InputT> the type of (input) elements being processed
+ * @param <K> the type of the elements' keys
+ */
 @Audience(Audience.Type.INTERNAL)
-public abstract class SingleInputOperator<InputT, OutputT> extends Operator<InputT, OutputT> {
+public interface StateAware<InputT, K> {
 
-  final Dataset<InputT> input;
-
-  protected SingleInputOperator(String name, Flow flow, Dataset<InputT> input) {
-    super(name, flow);
-    this.input = input;
-  }
-
-  /** @return the (only) input dataset of this operator */
-  public Dataset<InputT> input() {
-    return input;
-  }
-
-  /** @return all of this operator's input as single element collection */
-  @Override
-  public Collection<Dataset<InputT>> listInputs() {
-    return Collections.singletonList(input);
-  }
+  /** @return the key extractor function on whose base this operator carries out partitioning */
+  UnaryFunction<InputT, K> getKeyExtractor();
 }

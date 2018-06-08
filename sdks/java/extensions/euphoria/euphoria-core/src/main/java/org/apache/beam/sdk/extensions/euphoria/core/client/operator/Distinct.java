@@ -31,6 +31,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
@@ -50,11 +54,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <li>{@code of .......................} input dataset
  * <li>{@code [mapped] .................} compare objects retrieved by this {@link UnaryFunction}
  * instead of raw input elements
- * <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default
- * attached windowing
+ * <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no windowing
+ * <li>{@code [triggeredBy] ............} defines windowing trigger, follows [windowBy] if called
+ * <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  * <li>{@code output ...................} build output dataset
  * </ol>
- */ //TODO update javadoc
+ */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
     reason =
@@ -66,7 +71,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class Distinct<InputT, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-    InputT, InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
+        InputT, InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
 
   Distinct(
       String name,

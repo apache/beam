@@ -55,7 +55,7 @@ public class CountByKeyTest {
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertEquals(flow, count.getFlow());
     assertEquals("CountByKey1", count.getName());
-    assertNotNull(count.keyExtractor);
+    assertNotNull(count.getKeyExtractor());
     assertEquals(counted, count.output());
 
     WindowingDesc windowingDesc = count.getWindowing();

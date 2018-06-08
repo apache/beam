@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Builders.Output;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders.Output;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;

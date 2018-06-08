@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
+package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -81,7 +81,8 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
    * @param input an input associated with this operator
    * @return a newly created dataset associated with this operator as its output
    */
-  final Dataset<OutputT> createOutput(final Dataset<InputT> input, Set<OutputHint> outputHints) {
+  protected final Dataset<OutputT> createOutput(
+      final Dataset<InputT> input, Set<OutputHint> outputHints) {
     this.hints = outputHints;
     checkArgument(
         input.getFlow() == getFlow(),
