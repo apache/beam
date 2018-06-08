@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -44,7 +45,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -222,67 +222,74 @@ public class ReferenceRunner {
           "URN must be %s, got %s",
           PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
           gbk.getSpec().getUrn());
+
+      PTransform.Builder newTransform = gbk.toBuilder();
+      Components.Builder newComponents = Components.newBuilder();
       String inputId = getOnlyElement(gbk.getInputsMap().values());
-      PCollection input = components.getPcollectionsOrThrow(inputId);
 
-      Coder inputCoder = components.getCodersOrThrow(input.getCoderId());
-      KvCoderComponents kvComponents = ModelCoders.getKvCoderComponents(inputCoder);
-      String windowCoderId =
-          components
-              .getWindowingStrategiesOrThrow(input.getWindowingStrategyId())
-              .getWindowCoderId();
-      // This coder isn't actually required for the pipeline to function properly - the KWIs can be
-      // passed around as pure java objects with no coding of the values, but it approximates a full
-      // pipeline.
-      Coder intermediateCoder =
-          Coder.newBuilder()
-              .setSpec(
-                  SdkFunctionSpec.newBuilder()
-                      .setSpec(FunctionSpec.newBuilder().setUrn("beam:direct:keyedworkitem:v1")))
-              .addAllComponentCoderIds(
-                  ImmutableList.of(
-                      kvComponents.keyCoderId(), kvComponents.valueCoderId(), windowCoderId))
-              .build();
-      String intermediateCoderId =
-          SyntheticComponents.uniqueId(
-              String.format(
-                  "keyed_work_item(%s:%s)", kvComponents.keyCoderId(), kvComponents.valueCoderId()),
-              components::containsCoders);
+      // Add the GBKO transform
+      String kwiCollectionId =
+          uniqueId(String.format("%s.%s", inputId, "kwi"), components::containsPcollections);
+      {
+        PCollection input = components.getPcollectionsOrThrow(inputId);
+        Coder inputCoder = components.getCodersOrThrow(input.getCoderId());
+        KvCoderComponents kvComponents = ModelCoders.getKvCoderComponents(inputCoder);
+        String windowCoderId =
+            components
+                .getWindowingStrategiesOrThrow(input.getWindowingStrategyId())
+                .getWindowCoderId();
+        // This coder isn't actually required for the pipeline to function properly - the KWIs can
+        // be
+        // passed around as pure java objects with no coding of the values, but it approximates a
+        // full
+        // pipeline.
+        Coder kwiCoder =
+            Coder.newBuilder()
+                .setSpec(
+                    SdkFunctionSpec.newBuilder()
+                        .setSpec(FunctionSpec.newBuilder().setUrn("beam:direct:keyedworkitem:v1")))
+                .addAllComponentCoderIds(
+                    ImmutableList.of(
+                        kvComponents.keyCoderId(), kvComponents.valueCoderId(), windowCoderId))
+                .build();
+        String kwiCoderId =
+            uniqueId(
+                String.format("kwi(%s:%s)", kvComponents.keyCoderId(), kvComponents.valueCoderId()),
+                components::containsCoders);
+        // The kwi PCollection has the same WindowingStrategy as the input, as no merging will
+        // have been performed, so elements remain in their original windows
+        PCollection kwi =
+            input.toBuilder().setUniqueName(kwiCollectionId).setCoderId(kwiCoderId).build();
+        String gbkoId = uniqueId(String.format("%s/GBKO", gbkId), components::containsTransforms);
+        PTransform gbko =
+            PTransform.newBuilder()
+                .putAllInputs(gbk.getInputsMap())
+                .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GBKO_URN))
+                .putOutputs("output", kwiCollectionId)
+                .build();
 
-      String partitionedId =
-          SyntheticComponents.uniqueId(
-              String.format("%s.%s", inputId, "partitioned"), components::containsPcollections);
-      // The partitioned PCollection has the same WindowingStrategy as the input, as no merging will
-      // have been performed, so elements remain in their original windows
-      PCollection partitioned =
-          input.toBuilder().setUniqueName(partitionedId).setCoderId(intermediateCoderId).build();
-      String gbkoId =
-          SyntheticComponents.uniqueId(
-              String.format("%s/GBKO", gbkId), components::containsTransforms);
-      PTransform gbko =
-          PTransform.newBuilder()
-              .putAllInputs(gbk.getInputsMap())
-              .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GBKO_URN))
-              .putOutputs("output", partitionedId)
-              .build();
-      String gabwId =
-          SyntheticComponents.uniqueId(
-              String.format("%s/GABW", gbkId), components::containsTransforms);
-      PTransform gabw =
-          PTransform.newBuilder()
-              .putInputs("input", partitionedId)
-              .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GABW_URN))
-              .putAllOutputs(gbk.getOutputsMap())
-              .build();
-      Components newComponents =
-          Components.newBuilder()
-              .putCoders(intermediateCoderId, intermediateCoder)
-              .putPcollections(partitionedId, partitioned)
-              .putTransforms(gbkoId, gbko)
-              .putTransforms(gabwId, gabw)
-              .build();
+        newTransform.addSubtransforms(gbkoId);
+        newComponents
+            .putCoders(kwiCoderId, kwiCoder)
+            .putPcollections(kwiCollectionId, kwi)
+            .putTransforms(gbkoId, gbko);
+      }
+
+      // Add the GABW transform
+      {
+        String gabwId = uniqueId(String.format("%s/GABW", gbkId), components::containsTransforms);
+        PTransform gabw =
+            PTransform.newBuilder()
+                .putInputs("input", kwiCollectionId)
+                .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GABW_URN))
+                .putAllOutputs(gbk.getOutputsMap())
+                .build();
+        newTransform.addSubtransforms(gabwId);
+        newComponents.putTransforms(gabwId, gabw);
+      }
+
       return MessageWithComponents.newBuilder()
-          .setPtransform(gbk.toBuilder().addSubtransforms(gbkoId).addSubtransforms(gabwId).build())
+          .setPtransform(newTransform)
           .setComponents(newComponents)
           .build();
     }
