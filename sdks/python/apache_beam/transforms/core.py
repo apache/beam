@@ -1608,10 +1608,18 @@ class WindowInto(ParDo):
 
     Args:
       windowfn: Function to be used for windowing
+      trigger: (optional) Trigger used for windowing, or None for default.
+      accumulation_mode: (optional) Accumulation mode used for windowing,
+          required for non-trivial triggers.
+      timestamp_combiner: (optional) Timestamp combniner used for windowing,
+          or None for default.
     """
+    # Use kwargs to simulate keyword-only arguments.
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     timestamp_combiner = kwargs.pop('timestamp_combiner', None)
+    if kwargs:
+      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
