@@ -27,7 +27,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.QueryTransform;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -150,7 +150,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
         List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
 
-        PCollection<Row> rows = inputCollection.apply(QueryTransform.withQueryString(getSql()));
+        PCollection<Row> rows = inputCollection.apply(SqlTransform.query(getSql()));
         PAssert.that(rows)
             .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(values).getRows());
         inputCollection.getPipeline().run();

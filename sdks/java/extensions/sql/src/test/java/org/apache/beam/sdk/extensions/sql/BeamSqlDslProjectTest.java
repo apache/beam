@@ -49,7 +49,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   private void runSelectAll(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION";
 
-    PCollection<Row> result = input.apply("testSelectAll", QueryTransform.withQueryString(sql));
+    PCollection<Row> result = input.apply("testSelectAll", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -73,7 +73,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFields", QueryTransform.withQueryString(sql));
+            .apply("testPartialFields", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
@@ -101,7 +101,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInMultipleRow", QueryTransform.withQueryString(sql));
+            .apply("testPartialFieldsInMultipleRow", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
@@ -136,7 +136,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInRows", QueryTransform.withQueryString(sql));
+            .apply("testPartialFieldsInRows", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
@@ -165,7 +165,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testLiteralField", QueryTransform.withQueryString(sql));
+            .apply("testLiteralField", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("literal_field").build();
 
@@ -186,7 +186,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testProjectUnknownField", QueryTransform.withQueryString(sql));
+            .apply("testProjectUnknownField", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

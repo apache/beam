@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.example;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.QueryTransform;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.example.model.Customer;
 import org.apache.beam.sdk.extensions.sql.example.model.Order;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,7 +74,7 @@ class BeamSqlPojoExample {
     // Example 1. Run a simple query over java objects:
     PCollection<Row> customersFromWonderland =
         customers.apply(
-            QueryTransform.withQueryString(
+            SqlTransform.query(
                 "SELECT id, name "
                     + " FROM PCOLLECTION "
                     + " WHERE countryOfResidence = 'Wonderland'"));
@@ -84,8 +84,7 @@ class BeamSqlPojoExample {
 
     // Example 2. Query the results of the first query:
     PCollection<Row> totalInWonderland =
-        customersFromWonderland.apply(
-            QueryTransform.withQueryString("SELECT COUNT(id) FROM PCOLLECTION"));
+        customersFromWonderland.apply(SqlTransform.query("SELECT COUNT(id) FROM PCOLLECTION"));
 
     // Output the results of the query:
     totalInWonderland.apply(logRecords(": total customers in Wonderland"));
@@ -95,7 +94,7 @@ class BeamSqlPojoExample {
         PCollectionTuple.of(new TupleTag<>("customers"), customers)
             .and(new TupleTag<>("orders"), orders)
             .apply(
-                QueryTransform.withQueryString(
+                SqlTransform.query(
                     "SELECT customers.name, ('order id:' || CAST(orders.id AS VARCHAR))"
                         + " FROM orders "
                         + "   JOIN customers ON orders.customerId = customers.id"

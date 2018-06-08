@@ -56,8 +56,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> result =
         input.apply(
             "sqlQuery",
-            QueryTransform.withQueryString(
-                "SELECT 42, ARRAY ['aa', 'bb'] as `f_arr` FROM PCOLLECTION"));
+            SqlTransform.query("SELECT 42, ARRAY ['aa', 'bb'] as `f_arr` FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -78,9 +77,7 @@ public class BeamSqlDslArrayTest {
             .build();
 
     PCollection<Row> result =
-        input.apply(
-            "sqlQuery",
-            QueryTransform.withQueryString("SELECT f_int, f_stringArr FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT f_int, f_stringArr FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -100,8 +97,7 @@ public class BeamSqlDslArrayTest {
     Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
-        input.apply(
-            "sqlQuery", QueryTransform.withQueryString("SELECT f_stringArr[0] FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -122,9 +118,7 @@ public class BeamSqlDslArrayTest {
     Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
-        input.apply(
-            "sqlQuery",
-            QueryTransform.withQueryString("SELECT ELEMENT(f_stringArr) FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT ELEMENT(f_stringArr) FROM PCOLLECTION"));
 
     PAssert.that(result).containsInAnyOrder(Row.withSchema(resultType).addValues("111").build());
 
@@ -139,8 +133,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         input.apply(
-            "sqlQuery",
-            QueryTransform.withQueryString("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
+            "sqlQuery", SqlTransform.query("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -163,8 +156,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         inputTuple.apply(
-            "sqlQuery",
-            QueryTransform.withQueryString("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c'])"));
+            "sqlQuery", SqlTransform.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c'])"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -189,8 +181,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> result =
         inputTuple.apply(
             "sqlQuery",
-            QueryTransform.withQueryString(
-                "SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c']) AS t(f_string)"));
+            SqlTransform.query("SELECT * FROM UNNEST (ARRAY ['a', 'b', 'c']) AS t(f_string)"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -225,7 +216,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> result =
         inputTuple.apply(
             "sqlQuery",
-            QueryTransform.withQueryString(
+            SqlTransform.query(
                 "SELECT f_int, arrElems.f_string FROM main "
                     + " CROSS JOIN UNNEST (main.f_stringArr) AS arrElems(f_string)"));
 
@@ -278,7 +269,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         input
-            .apply(QueryTransform.withQueryString("SELECT f_arrayOfRows FROM PCOLLECTION"))
+            .apply(SqlTransform.query("SELECT f_arrayOfRows FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
     PAssert.that(result)
@@ -334,7 +325,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         input
-            .apply(QueryTransform.withQueryString("SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
+            .apply(SqlTransform.query("SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
     PAssert.that(result)
@@ -380,9 +371,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         input
-            .apply(
-                QueryTransform.withQueryString(
-                    "SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
+            .apply(SqlTransform.query("SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
             .setCoder(resultSchema.getRowCoder());
 
     PAssert.that(result)

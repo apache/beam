@@ -175,7 +175,7 @@ public class BeamSqlDslJoinTest {
             .apply("window", Window.into(FixedWindows.of(Duration.standardSeconds(50))));
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    PAssert.that(inputs.apply("sql", QueryTransform.withQueryString(sql)))
+    PAssert.that(inputs.apply("sql", SqlTransform.query(sql)))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
                 .addRows(1, 2, 2, 2, 2, 1, 1, 4, 3, 3, 3, 1)
@@ -208,7 +208,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", QueryTransform.withQueryString(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -230,7 +230,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", QueryTransform.withQueryString(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -259,7 +259,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", QueryTransform.withQueryString(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -288,7 +288,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", QueryTransform.withQueryString(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -334,7 +334,7 @@ public class BeamSqlDslJoinTest {
     return tuple(
             "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
             "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .apply("join", QueryTransform.withQueryString(sql))
+        .apply("join", SqlTransform.query(sql))
         .setCoder(RESULT_CODER);
   }
 }

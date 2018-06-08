@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * {@link QueryTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
+ * {@link SqlTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
  * PTransform}, so developers can use standard SQL queries in a Beam pipeline.
  *
  * <h1>Beam SQL DSL usage:</h1>
@@ -58,8 +58,8 @@ import org.apache.beam.sdk.values.TupleTag;
  * //run a simple query, and register the output as a table in BeamSql;
  * String sql1 = "select MY_FUNC(c1), c2 from PCOLLECTION";
  * PCollection<Row> outputTableA = inputTableA.apply(
- *    QueryTransform
- *        .withQueryString(sql1)
+ *    SqlTransform
+ *        .query(sql1)
  *        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC");
  *
  * //run a JOIN with one table from TextIO, and one table from another query
@@ -67,7 +67,7 @@ import org.apache.beam.sdk.values.TupleTag;
  *     PCollectionTuple
  *     .of(new TupleTag<>("TABLE_O_A"), outputTableA)
  *     .and(new TupleTag<>("TABLE_B"), inputTableB)
- *         .apply(QueryTransform.withQueryString("select * from TABLE_O_A JOIN TABLE_B where ..."));
+ *         .apply(SqlTransform.query("select * from TABLE_O_A JOIN TABLE_B where ..."));
  *
  * //output the final result with TextIO
  * outputTableB.apply(...).apply(TextIO.write().to("/my/output/path"));
@@ -77,7 +77,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 @AutoValue
 @Experimental
-public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>> {
+public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
   abstract String queryString();
@@ -119,10 +119,10 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   }
 
   /**
-   * Returns a {@link QueryTransform} representing an equivalent execution plan.
+   * Returns a {@link SqlTransform} representing an equivalent execution plan.
    *
-   * <p>The {@link QueryTransform} can be applied to a {@link PCollection} or {@link
-   * PCollectionTuple} representing all the input tables.
+   * <p>The {@link SqlTransform} can be applied to a {@link PCollection} or {@link PCollectionTuple}
+   * representing all the input tables.
    *
    * <p>The {@link PTransform} outputs a {@link PCollection} of {@link Row}.
    *
@@ -141,7 +141,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
    *       the current query call.
    * </ul>
    */
-  public static QueryTransform withQueryString(String queryString) {
+  public static SqlTransform query(String queryString) {
     return builder()
         .setQueryString(queryString)
         .setUdafDefinitions(Collections.emptyList())
@@ -154,7 +154,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
    *
    * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
    */
-  public QueryTransform registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
+  public SqlTransform registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
     return registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
 
@@ -162,11 +162,11 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
    * Register {@link SerializableFunction} as a UDF function used in this query. Note, {@link
    * SerializableFunction} must have a constructor without arguments.
    */
-  public QueryTransform registerUdf(String functionName, SerializableFunction sfn) {
+  public SqlTransform registerUdf(String functionName, SerializableFunction sfn) {
     return registerUdf(functionName, sfn.getClass(), "apply");
   }
 
-  private QueryTransform registerUdf(String functionName, Class<?> clazz, String method) {
+  private SqlTransform registerUdf(String functionName, Class<?> clazz, String method) {
     ImmutableList<UdfDefinition> newUdfDefinitions =
         ImmutableList.<UdfDefinition>builder()
             .addAll(udfDefinitions())
@@ -177,7 +177,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   }
 
   /** register a {@link Combine.CombineFn} as UDAF function used in this query. */
-  public QueryTransform registerUdaf(String functionName, Combine.CombineFn combineFn) {
+  public SqlTransform registerUdaf(String functionName, Combine.CombineFn combineFn) {
     ImmutableList<UdafDefinition> newUdafs =
         ImmutableList.<UdafDefinition>builder()
             .addAll(udafDefinitions())
@@ -190,7 +190,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   abstract Builder toBuilder();
 
   static Builder builder() {
-    return new AutoValue_QueryTransform.Builder();
+    return new AutoValue_SqlTransform.Builder();
   }
 
   @AutoValue.Builder
@@ -201,7 +201,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
 
-    abstract QueryTransform build();
+    abstract SqlTransform build();
   }
 
   @AutoValue
@@ -213,7 +213,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     abstract String methodName();
 
     static UdfDefinition of(String udfName, Class<?> clazz, String methodName) {
-      return new AutoValue_QueryTransform_UdfDefinition(udfName, clazz, methodName);
+      return new AutoValue_SqlTransform_UdfDefinition(udfName, clazz, methodName);
     }
   }
 
@@ -224,7 +224,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     abstract Combine.CombineFn combineFn();
 
     static UdafDefinition of(String udafName, Combine.CombineFn combineFn) {
-      return new AutoValue_QueryTransform_UdafDefinition(udafName, combineFn);
+      return new AutoValue_SqlTransform_UdafDefinition(udafName, combineFn);
     }
   }
 }

@@ -63,7 +63,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testPopulationVarianceDouble() {
     String sql = "SELECT VAR_POP(f_double) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(QueryTransform.withQueryString(sql)))
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
         .satisfies(matchesScalar(26.40816326, PRECISION));
 
     pipeline.run().waitUntilFinish();
@@ -73,8 +73,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testPopulationVarianceInt() {
     String sql = "SELECT VAR_POP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(QueryTransform.withQueryString(sql)))
-        .satisfies(matchesScalar(26));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(26));
 
     pipeline.run().waitUntilFinish();
   }
@@ -83,7 +82,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testSampleVarianceDouble() {
     String sql = "SELECT VAR_SAMP(f_double) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(QueryTransform.withQueryString(sql)))
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
         .satisfies(matchesScalar(30.80952381, PRECISION));
 
     pipeline.run().waitUntilFinish();
@@ -93,8 +92,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testSampleVarianceInt() {
     String sql = "SELECT VAR_SAMP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(QueryTransform.withQueryString(sql)))
-        .satisfies(matchesScalar(30));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(30));
 
     pipeline.run().waitUntilFinish();
   }

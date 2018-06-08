@@ -55,8 +55,7 @@ public class BeamSqlMapTest {
     PCollection<Row> result =
         input.apply(
             "sqlQuery",
-            QueryTransform.withQueryString(
-                "SELECT f_int, f_intStringMap as f_map FROM PCOLLECTION"));
+            SqlTransform.query("SELECT f_int, f_intStringMap as f_map FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -97,8 +96,7 @@ public class BeamSqlMapTest {
 
     PCollection<Row> result =
         input.apply(
-            "sqlQuery",
-            QueryTransform.withQueryString("SELECT 42, MAP['aa', 1] as `f_map` FROM PCOLLECTION"));
+            "sqlQuery", SqlTransform.query("SELECT 42, MAP['aa', 1] as `f_map` FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -133,8 +131,7 @@ public class BeamSqlMapTest {
 
     PCollection<Row> result =
         input.apply(
-            "sqlQuery",
-            QueryTransform.withQueryString("SELECT f_intStringMap['key11'] FROM PCOLLECTION"));
+            "sqlQuery", SqlTransform.query("SELECT f_intStringMap['key11'] FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(

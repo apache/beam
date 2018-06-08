@@ -45,7 +45,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   private void runSingleFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
-    PCollection<Row> result = input.apply("testSingleFilter", QueryTransform.withQueryString(sql));
+    PCollection<Row> result = input.apply("testSingleFilter", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -71,7 +71,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testCompositeFilter", QueryTransform.withQueryString(sql));
+            .apply("testCompositeFilter", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(1), rowsInTableA.get(2));
 
@@ -95,7 +95,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testNoReturnFilter", QueryTransform.withQueryString(sql));
+            .apply("testNoReturnFilter", SqlTransform.query(sql));
 
     PAssert.that(result).empty();
 
@@ -111,7 +111,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
 
     PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-        .apply("testFromInvalidTableName1", QueryTransform.withQueryString(sql));
+        .apply("testFromInvalidTableName1", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -124,7 +124,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    boundedInput1.apply(QueryTransform.withQueryString(sql));
+    boundedInput1.apply(SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

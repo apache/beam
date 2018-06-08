@@ -22,7 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
-import org.apache.beam.sdk.extensions.sql.QueryTransform;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -225,7 +225,7 @@ public class BeamSqlDateFunctionsIntegrationTest
             + "CURRENT_TIME as c2,"
             + "CURRENT_TIMESTAMP as c3"
             + " FROM PCOLLECTION";
-    PCollection<Row> rows = getTestPCollection().apply(QueryTransform.withQueryString(sql));
+    PCollection<Row> rows = getTestPCollection().apply(SqlTransform.query(sql));
     PAssert.that(rows).satisfies(new Checker());
     pipeline.run();
   }
