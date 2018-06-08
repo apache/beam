@@ -89,8 +89,11 @@ public class FlinkStateInternals<K> implements StateInternals {
   @Override
   public K getKey() {
     ByteBuffer keyBytes = flinkStateBackend.getCurrentKey();
+    byte[] bytes = new byte[keyBytes.remaining()];
+    keyBytes.get(bytes);
+    keyBytes.position(keyBytes.position() - bytes.length);
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+      return CoderUtils.decodeFromByteArray(keyCoder, bytes);
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }
@@ -106,22 +109,22 @@ public class FlinkStateInternals<K> implements StateInternals {
         new StateTag.StateBinder() {
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T2> ValueState<T2> bindValue(
+              StateTag<ValueState<T2>> address, Coder<T2> coder) {
 
             return new FlinkValueState<>(flinkStateBackend, address, namespace, coder);
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T2> BagState<T2> bindBag(
+              StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkBagState<>(flinkStateBackend, address, namespace, elemCoder);
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T2> SetState<T2> bindSet(
+              StateTag<SetState<T2>> address, Coder<T2> elemCoder) {
             return new FlinkSetState<>(
                 flinkStateBackend, address, namespace, elemCoder);
           }

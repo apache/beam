@@ -436,7 +436,7 @@ public class UnboundedSourceWrapper<
   }
 
   @Override
-  public void onProcessingTime(long timestamp) throws Exception {
+  public void onProcessingTime(long timestamp) {
     if (this.isRunning) {
       synchronized (context.getCheckpointLock()) {
         // find minimum watermark over all localReaders
@@ -457,6 +457,8 @@ public class UnboundedSourceWrapper<
     }
   }
 
+  // the callback is ourselves so there is nothing meaningful we can do with the ScheduledFuture
+  @SuppressWarnings("FutureReturnValueIgnored")
   private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
     if (this.isRunning) {
       long watermarkInterval = runtime.getExecutionConfig().getAutoWatermarkInterval();

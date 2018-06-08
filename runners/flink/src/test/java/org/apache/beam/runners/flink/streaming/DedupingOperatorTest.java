@@ -22,6 +22,7 @@ import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertThat;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
@@ -52,14 +53,20 @@ public class DedupingOperatorTest {
     String key1 = "key1";
     String key2 = "key2";
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key1.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key1, key1.getBytes(StandardCharsets.UTF_8)))));
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key2, key2.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key2, key2.getBytes(StandardCharsets.UTF_8)))));
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key1.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key1, key1.getBytes(StandardCharsets.UTF_8)))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),
@@ -77,11 +84,15 @@ public class DedupingOperatorTest {
 
     String key3 = "key3";
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key2, key2.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key2, key2.getBytes(StandardCharsets.UTF_8)))));
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key3, key3.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key3, key3.getBytes(StandardCharsets.UTF_8)))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),

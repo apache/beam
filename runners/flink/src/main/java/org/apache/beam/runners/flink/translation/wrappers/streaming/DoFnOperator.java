@@ -401,18 +401,18 @@ public class DoFnOperator<InputT, OutputT>
       }
     } finally {
       super.close();
+    }
 
-      // sanity check: these should have been flushed out by +Inf watermarks
-      if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
-        BagState<WindowedValue<InputT>> pushedBack =
-            nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
+    // sanity check: these should have been flushed out by +Inf watermarks
+    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
+      BagState<WindowedValue<InputT>> pushedBack =
+          nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
-        Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-        if (!Iterables.isEmpty(pushedBackContents)) {
-          String pushedBackString = Joiner.on(",").join(pushedBackContents);
-          throw new RuntimeException(
-              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
-        }
+      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+      if (!Iterables.isEmpty(pushedBackContents)) {
+        String pushedBackString = Joiner.on(",").join(pushedBackContents);
+        throw new RuntimeException(
+            "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
       }
     }
   }

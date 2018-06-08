@@ -122,7 +122,10 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
     Set<ByteBuffer> ids = dedupingCache.get(keyGroupIndex).asMap().keySet();
     VarIntCoder.of().encode(ids.size(), out, Context.NESTED);
     for (ByteBuffer id : ids) {
-      ByteArrayCoder.of().encode(id.array(), out, Context.NESTED);
+      byte[] bytes = new byte[id.remaining()];
+      id.get(bytes);
+      id.position(id.position() - bytes.length);
+      ByteArrayCoder.of().encode(bytes, out, Context.NESTED);
     }
   }
 
