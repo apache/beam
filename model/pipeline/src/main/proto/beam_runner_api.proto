@@ -263,9 +263,27 @@ message StandardPTransforms {
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
+    // Pairs the input element with its initial restriction.
+    // Input: element; output: KV(element, restriction).
     PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
+
+    // Splits the restriction inside an element/restriction pair.
+    // Input: KV(element, restriction); output: KV(element, restriction).
     SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
+
+    // Applies the DoFn to every element/restriction pair in a uniquely keyed
+    // collection, in a splittable fashion.
+    // Input: KV(bytes, KV(element, restriction)); output: DoFn's output.
+    // The first "bytes" is an opaque unique key using the standard bytes coder.
+    // Typically a runner would rewrite this into a runner-specific grouping
+    // operation supporting state and timers, followed by PROCESS_ELEMENTS,
+    // with some runner-specific glue code in between.
     PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
+
+    // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
+    // and restrictions.
+    // Input: KV(element, restriction); output: DoFn's output.
+    PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
   }
 }
 

@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * in the direct runner. Currently overrides applications of <a
  * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
  */
-class ParDoMultiOverrideFactory<InputT, OutputT>
+public class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
         PCollection<? extends InputT>, PCollectionTuple,
         PTransform<PCollection<? extends InputT>, PCollectionTuple>> {
