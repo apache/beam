@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.Compression;
@@ -29,8 +28,8 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -46,7 +45,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TFRecordIO}.
@@ -82,7 +80,7 @@ public class TFRecordIOIT {
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -97,37 +95,34 @@ public class TFRecordIOIT {
   @Test
   public void writeThenReadAll() {
     TFRecordIO.Write writeTransform = TFRecordIO
-        .write()
-        .to(filenamePrefix)
-        .withCompression(compressionType)
-        .withSuffix(".tfrecord");
+      .write()
+      .to(filenamePrefix)
+      .withCompression(compressionType)
+      .withSuffix(".tfrecord");
 
     writePipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines",
-            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-        .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
-        .apply("Write content to files", writeTransform);
+      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+      .apply("Produce text lines",
+        ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+      .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
+      .apply("Write content to files", writeTransform);
 
     writePipeline.run().waitUntilFinish();
 
     String filenamePattern = createFilenamePattern();
-    PCollection<String> consolidatedHashcode =
-        readPipeline
-            .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
-            .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
-            .apply("Calculate hashcode", Combine.globally(new HashingFn()))
-            .apply(Reshuffle.viaRandomKey());
+    PCollection<String> consolidatedHashcode = readPipeline
+      .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
+      .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
+      .apply("Calculate hashcode", Combine.globally(new HashingFn()))
+      .apply(Reshuffle.viaRandomKey());
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline
-        .apply(Create.of(filenamePattern))
-        .apply(
-            "Delete test files",
-            ParDo.of(new DeleteFileFn())
-                .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+      .apply(Create.of(filenamePattern))
+      .apply("Delete test files", ParDo.of(new DeleteFileFn())
+        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     readPipeline.run().waitUntilFinish();
   }
 
