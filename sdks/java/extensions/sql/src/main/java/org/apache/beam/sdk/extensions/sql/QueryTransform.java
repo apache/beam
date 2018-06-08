@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine;
@@ -39,11 +40,43 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransform} representing an execution plan for a SQL query.
+ * {@link QueryTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
+ * PTransform}, so developers can use standard SQL queries in a Beam pipeline.
  *
- * <p>The table names in the input {@code PCollectionTuple} are only valid during the current query.
+ * <h1>Beam SQL DSL usage:</h1>
+ *
+ * <p>A typical pipeline with Beam SQL DSL is:
+ *
+ * <pre>{@code
+ * PipelineOptions options = PipelineOptionsFactory.create();
+ * Pipeline p = Pipeline.create(options);
+ *
+ * //create table from TextIO;
+ * PCollection<Row> inputTableA = p.apply(TextIO.read().from("/my/input/patha")).apply(...);
+ * PCollection<Row> inputTableB = p.apply(TextIO.read().from("/my/input/pathb")).apply(...);
+ *
+ * //run a simple query, and register the output as a table in BeamSql;
+ * String sql1 = "select MY_FUNC(c1), c2 from PCOLLECTION";
+ * PCollection<Row> outputTableA = inputTableA.apply(
+ *    QueryTransform
+ *        .withQueryString(sql1)
+ *        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC");
+ *
+ * //run a JOIN with one table from TextIO, and one table from another query
+ * PCollection<Row> outputTableB =
+ *     PCollectionTuple
+ *     .of(new TupleTag<>("TABLE_O_A"), outputTableA)
+ *     .and(new TupleTag<>("TABLE_B"), inputTableB)
+ *         .apply(QueryTransform.withQueryString("select * from TABLE_O_A JOIN TABLE_B where ..."));
+ *
+ * //output the final result with TextIO
+ * outputTableB.apply(...).apply(TextIO.write().to("/my/output/path"));
+ *
+ * p.run().waitUntilFinish();
+ * }</pre>
  */
 @AutoValue
+@Experimental
 public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
@@ -85,7 +118,29 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     udafDefinitions().forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
-  /** Creates a {@link QueryTransform} with SQL {@code queryString}. */
+  /**
+   * Returns a {@link QueryTransform} representing an equivalent execution plan.
+   *
+   * <p>The {@link QueryTransform} can be applied to a {@link PCollection} or {@link
+   * PCollectionTuple} representing all the input tables.
+   *
+   * <p>The {@link PTransform} outputs a {@link PCollection} of {@link Row}.
+   *
+   * <p>If the {@link PTransform} is applied to {@link PCollection} then it gets registered with
+   * name <em>PCOLLECTION</em>.
+   *
+   * <p>If the {@link PTransform} is applied to {@link PCollectionTuple} then {@link
+   * TupleTag#getId()} is used as the corresponding {@link PCollection}s name.
+   *
+   * <ul>
+   *   <li>If the sql query only uses a subset of tables from the upstream {@link PCollectionTuple},
+   *       this is valid;
+   *   <li>If the sql query references a table not included in the upstream {@link
+   *       PCollectionTuple}, an {@code IllegalStateException} is thrown during query validati on;
+   *   <li>Always, tables from the upstream {@link PCollectionTuple} are only valid in the scope of
+   *       the current query call.
+   * </ul>
+   */
   public static QueryTransform withQueryString(String queryString) {
     return builder()
         .setQueryString(queryString)
