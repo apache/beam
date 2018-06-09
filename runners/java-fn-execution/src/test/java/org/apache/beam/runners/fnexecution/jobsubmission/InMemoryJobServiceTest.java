@@ -44,7 +44,7 @@ import org.mockito.MockitoAnnotations;
 public class InMemoryJobServiceTest {
   private static final String TEST_JOB_NAME = "test-job";
   private static final String TEST_JOB_ID = "test-job-id";
-  private static final String TEST_STAGING_TOKEN = "test-staging-token";
+  private static final String TEST_RETRIEVAL_TOKEN = "test-staging-token";
   private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
   private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
 
@@ -62,7 +62,7 @@ public class InMemoryJobServiceTest {
     MockitoAnnotations.initMocks(this);
     stagingServiceDescriptor = Endpoints.ApiServiceDescriptor.getDefaultInstance();
     service = InMemoryJobService.create(stagingServiceDescriptor, invoker);
-    when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_STAGING_TOKEN)).thenReturn(invocation);
+    when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN)).thenReturn(invocation);
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
   }
 
@@ -100,11 +100,11 @@ public class InMemoryJobServiceTest {
     JobApi.RunJobRequest runRequest =
         JobApi.RunJobRequest.newBuilder()
             .setPreparationId(prepareResponse.getPreparationId())
-            .setStagingToken(TEST_STAGING_TOKEN)
+            .setRetrievalToken(TEST_RETRIEVAL_TOKEN)
             .build();
     RecordingObserver<JobApi.RunJobResponse> runRecorder = new RecordingObserver<>();
     service.run(runRequest, runRecorder);
-    verify(invoker, times(1)).invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_STAGING_TOKEN);
+    verify(invoker, times(1)).invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN);
     assertThat(runRecorder.isSuccessful(), is(true));
     assertThat(runRecorder.values, hasSize(1));
     JobApi.RunJobResponse runResponse = runRecorder.values.get(0);

@@ -144,7 +144,10 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       // create new invocation
       JobInvocation invocation =
-          invoker.invoke(preparation.pipeline(), preparation.options(), request.getStagingToken());
+          invoker.invoke(
+              preparation.pipeline(),
+              preparation.options(),
+              request.getRetrievalToken());
       String invocationId = invocation.getId();
       invocation.start();
       invocations.put(invocationId, invocation);

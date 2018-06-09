@@ -115,7 +115,7 @@ public class ArtifactServiceStager {
         CommitManifestResponse response =
             blockingStub.commitManifest(
                 CommitManifestRequest.newBuilder().setManifest(manifest).build());
-        return response.getStagingToken();
+        return response.getRetrievalToken();
       } else {
         RuntimeException failure =
             new RuntimeException(
