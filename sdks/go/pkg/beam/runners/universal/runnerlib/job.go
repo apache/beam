@@ -76,7 +76,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline,
 func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string) (string, error) {
 	req := &jobpb.RunJobRequest{
 		PreparationId: id,
-		StagingToken:  token,
+		RetrievalToken:  token,
 	}
 
 	resp, err := client.Run(ctx, req)

@@ -221,7 +221,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
     assertThat(commitResponseObserver.completed, is(true));
     assertThat(commitResponseObserver.responses, Matchers.hasSize(1));
     ArtifactApi.CommitManifestResponse commitResponse = commitResponseObserver.responses.get(0);
-    assertThat(commitResponse.getStagingToken(), Matchers.not(Matchers.nullValue()));
+    assertThat(commitResponse.getRetrievalToken(), Matchers.not(Matchers.nullValue()));
   }
 
   @Test
