@@ -74,6 +74,7 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
   enum BatchFactory implements Factory {
     INSTANCE;
 
+    @SuppressWarnings("Immutable") // observably immutable
     private final LoadingCache<JobInfo, BatchFlinkExecutableStageContext> cachedContexts;
 
     BatchFactory() {
