@@ -33,7 +33,6 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Builder;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
@@ -71,13 +70,13 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   public void commitManifest(
       CommitManifestRequest request, StreamObserver<CommitManifestResponse> responseObserver) {
     try {
-      ResourceId jobResourceDirId = getJobDirResourceId(request.getStagingSessionToken());
-      ResourceId manifestResourceId = jobResourceDirId
-          .resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
+      ResourceId manifestResourceId = getManifestFileResourceId(request.getStagingSessionToken());
       ResourceId artifactDirResourceId = getArtifactDirResourceId(request.getStagingSessionToken());
-      Builder proxyManifestBuilder = ProxyManifest.newBuilder().setManifest(request.getManifest());
+      ProxyManifest.Builder proxyManifestBuilder = ProxyManifest.newBuilder()
+          .setManifest(request.getManifest());
       for (ArtifactMetadata artifactMetadata : request.getManifest().getArtifactList()) {
-        proxyManifestBuilder.addLocation(Location.newBuilder().setName(artifactMetadata.getName())
+        proxyManifestBuilder.addLocation(Location.newBuilder()
+            .setName(artifactMetadata.getName())
             .setUri(artifactDirResourceId
                 .resolve(encodedFileName(artifactMetadata), StandardResolveOptions.RESOLVE_FILE)
                 .toString()).build());
@@ -88,15 +87,20 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
             .write(CHARSET.encode(JsonFormat.printer().print(proxyManifestBuilder.build())));
       }
       // TODO: Validate integrity of staged files.
-      responseObserver.onNext(
-          CommitManifestResponse.newBuilder().setStagingToken(manifestResourceId.toString())
-              .build());
+      responseObserver.onNext(CommitManifestResponse.newBuilder()
+          .setStagingToken(manifestResourceId.toString())
+          .build());
       responseObserver.onCompleted();
     } catch (IOException e) {
       // TODO: Cleanup all the artifacts.
       LOG.error("Unable to commit manifest.", e);
       responseObserver.onError(e);
     }
+  }
+
+  @Override
+  public void close() throws Exception {
+    // Nothing to close here.
   }
 
   /**
@@ -106,7 +110,8 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
    * @param basePath Base path to upload artifacts.
    * @return Encoded stagingSessionToken.
    */
-  public String generateStagingSessionToken(String sessionId, String basePath) throws Exception {
+  public static String generateStagingSessionToken(String sessionId, String basePath)
+      throws Exception {
     StagingSessionToken stagingSessionToken = new StagingSessionToken();
     stagingSessionToken.setSessionId(sessionId);
     stagingSessionToken.setBasePath(basePath);
@@ -114,7 +119,8 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   }
 
   private String encodedFileName(ArtifactMetadata artifactMetadata) {
-    return "artifact_" + Hashing.md5().hashString(artifactMetadata.getName(), CHARSET).toString();
+    return "artifact_" + Hashing.sha256().hashString(artifactMetadata.getName(), CHARSET)
+        .toString();
   }
 
   private StagingSessionToken decodeStagingSessionToken(String stagingSessionToken)
@@ -135,7 +141,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     }
   }
 
-  private String encodeStagingSessionToken(StagingSessionToken stagingSessionToken)
+  private static String encodeStagingSessionToken(StagingSessionToken stagingSessionToken)
       throws Exception {
     try {
       return MAPPER.writeValueAsString(stagingSessionToken);
@@ -162,14 +168,14 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         .resolve(parsedToken.getSessionId(), StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
+  private ResourceId getManifestFileResourceId(String stagingSessionToken) throws IOException {
+    return getJobDirResourceId(stagingSessionToken)
+        .resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
+  }
+
   private ResourceId getArtifactDirResourceId(String stagingSessionToken) throws IOException {
     return getJobDirResourceId(stagingSessionToken)
         .resolve("artifacts", StandardResolveOptions.RESOLVE_DIRECTORY);
-  }
-
-  @Override
-  public void close() throws Exception {
-    // Nothing to close here.
   }
 
   private class PutArtifactStreamObserver implements StreamObserver<PutArtifactRequest> {
