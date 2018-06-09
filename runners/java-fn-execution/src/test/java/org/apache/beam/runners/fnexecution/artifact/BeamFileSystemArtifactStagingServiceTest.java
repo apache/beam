@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
@@ -41,6 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
@@ -71,8 +74,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BeamFileSystemArtifactStagingServiceTest {
 
-  public static final Joiner JOINER = Joiner.on("");
-  public static final Charset CHARSET = StandardCharsets.UTF_8;
+  private static final Joiner JOINER = Joiner.on("");
+  private static final Charset CHARSET = StandardCharsets.UTF_8;
+  private static final int DATA_1KB = 1 << 10;
   private GrpcFnServer<BeamFileSystemArtifactStagingService> server;
   private BeamFileSystemArtifactStagingService artifactStagingService;
   private ArtifactStagingServiceStub stub;
@@ -109,21 +113,21 @@ public class BeamFileSystemArtifactStagingServiceTest {
   }
 
   private void deleteDir(Path dir, String sanityString) throws IOException {
-    if (dir != null && dir.toAbsolutePath().toString().contains(sanityString)) {
-      Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-          Files.deleteIfExists(file);
-          return FileVisitResult.CONTINUE;
-        }
+    checkArgument(dir != null && dir.toAbsolutePath().toString().contains(sanityString),
+        "Invalid directory.");
+    Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.deleteIfExists(file);
+        return FileVisitResult.CONTINUE;
+      }
 
-        @Override
-        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-          Files.deleteIfExists(dir);
-          return FileVisitResult.CONTINUE;
-        }
-      });
-    }
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        Files.deleteIfExists(dir);
+        return FileVisitResult.CONTINUE;
+      }
+    });
   }
 
   private void putArtifact(String stagingSessionToken, final String filePath, final String fileName)
@@ -151,7 +155,7 @@ public class BeamFileSystemArtifactStagingServiceTest {
             .setStagingSessionToken(stagingSessionToken)).build());
 
     FileInputStream fileInputStream = new FileInputStream(filePath);
-    byte[] buffer = new byte[1 << 20];
+    byte[] buffer = new byte[DATA_1KB]; // 1kb chunk
     int read = fileInputStream.read(buffer);
     while (read != -1) {
       outputStreamObserver.onNext(PutArtifactRequest.newBuilder().setData(
@@ -191,7 +195,8 @@ public class BeamFileSystemArtifactStagingServiceTest {
   @Test
   public void generateStagingSessionTokenTest() throws Exception {
     String basePath = destDir.toAbsolutePath().toString();
-    String stagingToken = artifactStagingService.generateStagingSessionToken("abc123", basePath);
+    String stagingToken = BeamFileSystemArtifactStagingService
+        .generateStagingSessionToken("abc123", basePath);
     Assert.assertEquals(
         "{\"sessionId\":\"abc123\",\"basePath\":\"" + basePath + "\"}", stagingToken);
   }
@@ -200,7 +205,7 @@ public class BeamFileSystemArtifactStagingServiceTest {
   public void putArtifactsSingleSmallFileTest() throws Exception {
     String fileName = "file1";
     String stagingSession = "123";
-    String stagingSessionToken = artifactStagingService
+    String stagingSessionToken = BeamFileSystemArtifactStagingService
         .generateStagingSessionToken(stagingSession, destDir.toUri().getPath());
     Path srcFilePath = Paths.get(srcDir.toString(), fileName).toAbsolutePath();
     Files.write(srcFilePath, "some_test".getBytes(CHARSET));
@@ -218,10 +223,12 @@ public class BeamFileSystemArtifactStagingServiceTest {
   public void putArtifactsMultipleFilesTest() throws Exception {
     String stagingSession = "123";
     Map<String, Integer> files = new HashMap<>();
-    files.put("file1kb", 1 << 10 /*1 kb*/);
-    files.put("nested/file1kb", 1 << 10 /*1 kb*/);
-    files.put("file1mb", 1 << 20 /*1 mb*/);
-    files.put("file16mb", 1 << 24 /*16 mb*/);
+    files.put("file5cb", (DATA_1KB / 2) /*500b*/);
+    files.put("file1kb", DATA_1KB /*1 kb*/);
+    files.put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/);
+    files.put("nested/file1kb", DATA_1KB /*1 kb*/);
+    files.put("file10kb", 10 * DATA_1KB /*10 kb*/);
+    files.put("file100kb", 100 * DATA_1KB /*100 kb*/);
 
     final String text = "abcdefghinklmop\n";
     files.forEach((fileName, size) -> {
@@ -234,7 +241,7 @@ public class BeamFileSystemArtifactStagingServiceTest {
       } catch (IOException ignored) {
       }
     });
-    String stagingSessionToken = artifactStagingService
+    String stagingSessionToken = BeamFileSystemArtifactStagingService
         .generateStagingSessionToken(stagingSession, destDir.toUri().getPath());
 
     List<ArtifactMetadata> metadata = new ArrayList<>();
@@ -251,17 +258,129 @@ public class BeamFileSystemArtifactStagingServiceTest {
     assertFiles(files.keySet(), stagingToken);
   }
 
+  @Test
+  public void putArtifactsMultipleFilesConcurrentlyTest() throws Exception {
+    String stagingSession = "123";
+    Map<String, Integer> files = new HashMap<>();
+    files.put("file5cb", (DATA_1KB / 2) /*500b*/);
+    files.put("file1kb", DATA_1KB /*1 kb*/);
+    files.put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/);
+    files.put("nested/file1kb", DATA_1KB /*1 kb*/);
+    files.put("file10kb", 10 * DATA_1KB /*10 kb*/);
+    files.put("file100kb", 100 * DATA_1KB /*100 kb*/);
+
+    final String text = "abcdefghinklmop\n";
+    files.forEach((fileName, size) -> {
+      Path filePath = Paths.get(srcDir.toString(), fileName).toAbsolutePath();
+      try {
+        Files.createDirectories(filePath.getParent());
+        Files.write(filePath,
+            Strings.repeat(text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
+                .getBytes(CHARSET));
+      } catch (IOException ignored) {
+      }
+    });
+    String stagingSessionToken = BeamFileSystemArtifactStagingService
+        .generateStagingSessionToken(stagingSession, destDir.toUri().getPath());
+
+    List<ArtifactMetadata> metadata = new ArrayList<>();
+    ExecutorService executorService = Executors.newFixedThreadPool(8);
+    try {
+      for (String fileName : files.keySet()) {
+        executorService.execute(() -> {
+          try {
+            putArtifact(stagingSessionToken,
+                Paths.get(srcDir.toString(), fileName).toAbsolutePath().toString(), fileName);
+          } catch (Exception e) {
+            Assert.fail(e.getMessage());
+          }
+          metadata.add(ArtifactMetadata.newBuilder().setName(fileName).build());
+        });
+      }
+    } finally {
+      executorService.shutdown();
+      executorService.awaitTermination(2, TimeUnit.SECONDS);
+    }
+
+    String stagingToken = commitManifest(stagingSessionToken, metadata);
+    Assert.assertEquals(
+        Paths.get(destDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
+        stagingToken);
+    assertFiles(files.keySet(), stagingToken);
+  }
+
+  @Test
+  public void putArtifactsMultipleFilesConcurrentSessionsTest() throws Exception {
+    String stagingSession1 = "123";
+    String stagingSession2 = "abc";
+    Map<String, Integer> files = new HashMap<>();
+    files.put("file5cb", (DATA_1KB / 2) /*500b*/);
+    files.put("file1kb", DATA_1KB /*1 kb*/);
+    files.put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/);
+    files.put("nested/file1kb", DATA_1KB /*1 kb*/);
+    files.put("file10kb", 10 * DATA_1KB /*10 kb*/);
+    files.put("file100kb", 100 * DATA_1KB /*100 kb*/);
+
+    final String text = "abcdefghinklmop\n";
+    files.forEach((fileName, size) -> {
+      Path filePath = Paths.get(srcDir.toString(), fileName).toAbsolutePath();
+      try {
+        Files.createDirectories(filePath.getParent());
+        Files.write(filePath,
+            Strings.repeat(text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
+                .getBytes(CHARSET));
+      } catch (IOException ignored) {
+      }
+    });
+    String stagingSessionToken1 = BeamFileSystemArtifactStagingService
+        .generateStagingSessionToken(stagingSession1, destDir.toUri().getPath());
+    String stagingSessionToken2 = BeamFileSystemArtifactStagingService
+        .generateStagingSessionToken(stagingSession2, destDir.toUri().getPath());
+
+    List<ArtifactMetadata> metadata = new ArrayList<>();
+    ExecutorService executorService = Executors.newFixedThreadPool(8);
+    try {
+      for (String fileName : files.keySet()) {
+        executorService.execute(() -> {
+          try {
+            putArtifact(stagingSessionToken1,
+                Paths.get(srcDir.toString(), fileName).toAbsolutePath().toString(), fileName);
+            putArtifact(stagingSessionToken2,
+                Paths.get(srcDir.toString(), fileName).toAbsolutePath().toString(), fileName);
+          } catch (Exception e) {
+            Assert.fail(e.getMessage());
+          }
+          metadata.add(ArtifactMetadata.newBuilder().setName(fileName).build());
+        });
+      }
+    } finally {
+      executorService.shutdown();
+      executorService.awaitTermination(2, TimeUnit.SECONDS);
+    }
+
+    String stagingToken1 = commitManifest(stagingSessionToken1, metadata);
+    String stagingToken2 = commitManifest(stagingSessionToken2, metadata);
+    Assert.assertEquals(
+        Paths.get(destDir.toAbsolutePath().toString(), stagingSession1, "MANIFEST").toString(),
+        stagingToken1);
+    Assert.assertEquals(
+        Paths.get(destDir.toAbsolutePath().toString(), stagingSession2, "MANIFEST").toString(),
+        stagingToken2);
+    assertFiles(files.keySet(), stagingToken1);
+    assertFiles(files.keySet(), stagingToken2);
+  }
+
   private void assertFiles(Set<String> files, String stagingToken) throws IOException {
     Builder proxyManifestBuilder = ProxyManifest.newBuilder();
     JsonFormat.parser().merge(
         JOINER.join(Files.readAllLines(Paths.get(stagingToken), CHARSET)),
         proxyManifestBuilder);
     ProxyManifest proxyManifest = proxyManifestBuilder.build();
-    Assert.assertEquals("Duplicate file entries in locations.", files.size(),
-        proxyManifest.getLocationCount());
     Assert.assertEquals("Files in locations does not match actual file list.", files,
         proxyManifest.getLocationList().stream().map(Location::getName)
             .collect(Collectors.toSet()));
+    Assert.assertEquals("Duplicate file entries in locations.", files.size(),
+        proxyManifest.getLocationCount());
     for (Location location : proxyManifest.getLocationList()) {
       String expectedContent = JOINER.join(Files
           .readAllLines(Paths.get(srcDir.toString(), location.getName()), CHARSET));
