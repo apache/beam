@@ -29,11 +29,13 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefau
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlOperatorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlUdfExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowStartExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.StringOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlModExpression;
@@ -91,15 +93,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlTruncateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row.BeamSqlFieldAccessExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlCharLengthExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlConcatExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlInitCapExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlLowerExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlOverlayExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlPositionExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlSubstringExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlTrimExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlUpperExpression;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -351,32 +344,32 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
           // string operators
         case "||":
-          ret = new BeamSqlConcatExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.CONCAT, subExps);
           break;
         case "POSITION":
-          ret = new BeamSqlPositionExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.POSITION, subExps);
           break;
         case "CHAR_LENGTH":
         case "CHARACTER_LENGTH":
-          ret = new BeamSqlCharLengthExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.CHAR_LENGTH, subExps);
           break;
         case "UPPER":
-          ret = new BeamSqlUpperExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.UPPER, subExps);
           break;
         case "LOWER":
-          ret = new BeamSqlLowerExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.LOWER, subExps);
           break;
         case "TRIM":
-          ret = new BeamSqlTrimExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.TRIM, subExps);
           break;
         case "SUBSTRING":
-          ret = new BeamSqlSubstringExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.SUBSTRING, subExps);
           break;
         case "OVERLAY":
-          ret = new BeamSqlOverlayExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.OVERLAY, subExps);
           break;
         case "INITCAP":
-          ret = new BeamSqlInitCapExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.INIT_CAP, subExps);
           break;
 
           // date functions
