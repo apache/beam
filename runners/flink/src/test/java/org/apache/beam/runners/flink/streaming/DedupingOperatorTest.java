@@ -27,8 +27,8 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingO
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,7 +73,7 @@ public class DedupingOperatorTest {
         contains(WindowedValue.valueInGlobalWindow(key1),
             WindowedValue.valueInGlobalWindow(key2)));
 
-    OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+    OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 
     harness.close();
 

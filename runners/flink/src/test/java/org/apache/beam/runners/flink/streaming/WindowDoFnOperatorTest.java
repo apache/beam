@@ -55,8 +55,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -88,7 +88,7 @@ public class WindowDoFnOperatorTest {
         Item.builder().key(2L).timestamp(3L).value(77L).window(window).build().toStreamRecord());
 
     // create snapshot
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
     testHarness.close();
 
     // restore from the snapshot
@@ -148,7 +148,9 @@ public class WindowDoFnOperatorTest {
         emptyMap(),
         emptyList(),
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        VarLongCoder.of()
+        VarLongCoder.of(),
+        null /* key selector */
+
     );
   }
 
