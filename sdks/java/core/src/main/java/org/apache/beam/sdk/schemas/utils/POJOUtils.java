@@ -25,6 +25,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -80,8 +81,8 @@ public class POJOUtils {
       return FieldType.BOOLEAN;
     } else if (type instanceof GenericArrayType) {
       Type component = ((GenericArrayType)type).getGenericComponentType();
-      if (component == Byte.TYPE) {
-        // TODO: byte array;
+      if (component.equals(Byte.class) || component.equals(byte.class)) {
+        return FieldType.BYTES;
       }
       return FieldType.array(fieldFromType(component));
     } else if (type instanceof ParameterizedType) {
@@ -90,7 +91,11 @@ public class POJOUtils {
       java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
       if (Collection.class.isAssignableFrom(raw)) {
         checkArgument(params.length == 1);
-        return FieldType.array(fieldFromType(params[0]));
+        if (params[0].equals(Byte.class) || params[0].equals(byte.class)) {
+          return FieldType.BYTES;
+        } else {
+          return FieldType.array(fieldFromType(params[0]));
+        }
       } else if (Map.class.isAssignableFrom(raw)) {
         java.lang.reflect.Type keyType = params[0];
         java.lang.reflect.Type valueType = params[1];
@@ -103,7 +108,7 @@ public class POJOUtils {
       if (clazz.isArray()) {
         Class componentType = clazz.getComponentType();
         if (componentType == Byte.TYPE) {
-          // TODO: byte array;
+          return FieldType.BYTES;
         }
         return FieldType.array(fieldFromType(componentType));
       }
@@ -111,12 +116,11 @@ public class POJOUtils {
         return FieldType.STRING;
       } else if (ReadableInstant.class.isAssignableFrom(clazz)) {
         return FieldType.DATETIME;
+      } else if (ByteBuffer.class.isAssignableFrom(clazz)) {
+        return FieldType.BYTES;
       }
       return FieldType.row(schemaFromClass(clazz));
     }
     return null;
-
-    // DATETIME
-    // BYTEBUFFER.
   }
 }

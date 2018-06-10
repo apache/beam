@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -94,8 +95,16 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown if
-   * schema doesn't match.
+   * Get a {@link TypeName#BYTES} value by field name, {@link IllegalStateException} is thrown
+   * if schema doesn't match.
+   */
+  public byte[] getBytes(String fieldName) {
+    return getBytes(getSchema().indexOf(fieldName));
+  }
+
+  /**
+   * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown
+   * if schema doesn't match.
    */
   public short getInt16(String fieldName) {
     return getInt16(getSchema().indexOf(fieldName));
@@ -197,8 +206,17 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#INT16} value by field index, {@link ClassCastException} is thrown if
-   * schema doesn't match.
+   * Get a {@link TypeName#BYTES} value by field index, {@link ClassCastException} is thrown
+   * if schema doesn't match.
+   */
+  public byte[] getBytes(int idx) {
+    return getValue(idx);
+  }
+
+  /**
+   * Get a {@link TypeName#INT16
+   * 16} value by field index, {@link ClassCastException} is thrown
+   * if schema doesn't match.
    */
   public Short getInt16(int idx) {
     return getValue(idx);
@@ -462,6 +480,13 @@ public abstract class Row implements Serializable {
           case BYTE:
             if (value instanceof Byte) {
               return value;
+            }
+            break;
+          case BYTES:
+            if (value instanceof ByteBuffer) {
+              return ((ByteBuffer) value).array();
+            } else if (value instanceof byte[]) {
+              return (byte[]) value;
             }
             break;
           case INT16:

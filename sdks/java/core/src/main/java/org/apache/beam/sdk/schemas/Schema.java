@@ -82,6 +82,11 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addByteArrayField(String name) {
+      fields.add(Field.of(name, FieldType.BYTES));
+      return this;
+    }
+
     public Builder addInt16Field(String name) {
       fields.add(Field.of(name, FieldType.INT16));
       return this;
@@ -213,7 +218,8 @@ public class Schema implements Serializable {
     DOUBLE,
     STRING, // String.
     DATETIME, // Date and time.
-    BOOLEAN, // Boolean.
+    BOOLEAN,  // Boolean.
+    BYTES,  // Byte array.
     ARRAY,
     MAP,
     ROW; // The field is itself a nested row.
@@ -319,6 +325,9 @@ public class Schema implements Serializable {
 
     /** The type of byte fields. */
     public static final FieldType BYTE = FieldType.of(TypeName.BYTE);
+
+    /** The type of bytes fields. */
+    public static final FieldType BYTES = FieldType.of(TypeName.BYTES);
 
     /** The type of int16 fields. */
     public static final FieldType INT16 = FieldType.of(TypeName.INT16);
