@@ -2,6 +2,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.junit.Assert.assertEquals;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -18,6 +19,9 @@ public class POJOUtilsTest {
     long aLong;
     boolean aBoolean;
     DateTime dateTime;
+    byte[] bytes1;
+    ByteBuffer bytes2;
+    List<Byte> bytes3;
   }
   static final Schema SIMPLE_SCHEMA = Schema.builder()
       .addStringField("str")
@@ -27,6 +31,9 @@ public class POJOUtilsTest {
       .addInt64Field("aLong")
       .addBooleanField("aBoolean")
       .addDateTimeField("dateTime")
+      .addByteArrayField("bytes1")
+      .addByteArrayField("bytes2")
+      .addByteArrayField("bytes3")
       .build();
 
   @Test
