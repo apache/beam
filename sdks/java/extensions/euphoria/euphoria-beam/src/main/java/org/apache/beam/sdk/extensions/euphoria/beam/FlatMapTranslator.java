@@ -34,7 +34,7 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
     final Mapper<InputT, OutputT> mapper =
-        new Mapper<>(operator.getFunctor(), accumulators, operator.getEventTimeExtractor());
+        new Mapper<>(operator, accumulators);
     return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
   }
 
@@ -50,11 +50,13 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     private final DoFnCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
-        UnaryFunctor<InputT, OutputT> mapper,
-        AccumulatorProvider accumulators,
-        @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
-      this.mapper = mapper;
-      this.collector = new DoFnCollector<>(accumulators, new Collector<>(eventTimeExtractor));
+        FlatMap<InputT, OutputT> operator,
+        AccumulatorProvider accumulators) {
+      this.mapper = operator.getFunctor();
+      @Nullable ExtractEventTime<InputT> eventTimeExtractor = operator.getEventTimeExtractor();
+      this.collector =
+          new DoFnCollector<>(
+              accumulators, new Collector<>(eventTimeExtractor, operator.getName()));
     }
 
     @ProcessElement
@@ -70,9 +72,12 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 
     @Nullable
     private final ExtractEventTime<InputT> eventTimeExtractor;
+    private final String operatorName;
 
-    private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor) {
+    private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor,
+        String operatorName) {
       this.eventTimeExtractor = eventTimeExtractor;
+      this.operatorName = operatorName;
     }
 
     @Override
@@ -83,6 +88,11 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
       } else {
         ctx.output(out);
       }
+    }
+
+    @Override
+    public String getOperatorName() {
+      return operatorName;
     }
   }
 }

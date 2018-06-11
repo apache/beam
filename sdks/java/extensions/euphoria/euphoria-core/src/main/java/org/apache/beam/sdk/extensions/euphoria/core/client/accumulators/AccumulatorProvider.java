@@ -33,24 +33,40 @@ public interface AccumulatorProvider {
    *
    * @param name Unique name of the counter.
    * @return Instance of a counter.
+   * @Deprecated use {@link #getCounter(String, String)} instead
    */
   Counter getCounter(String name);
 
+
+  default Counter getCounter(String operatorName, String name){
+    return getCounter(name);
+  }
   /**
    * Get an existing instance of a histogram or create a new one.
    *
    * @param name Unique name of the histogram.
    * @return Instance of a histogram.
+   * @Deprecated use {@link #getHistogram(String, String)}  instead
    */
   Histogram getHistogram(String name);
+
+
+  default Histogram getHistogram(String operatorName, String name){
+    return getHistogram(name);
+  }
 
   /**
    * Get an existing instance of a timer or create a new one.
    *
    * @param name Unique name of the timer.
    * @return Instance of a timer.
+   * @Deprecated use {@link #getTimer(String, String)}  instead
    */
   Timer getTimer(String name);
+
+  default Timer getTimer(String operatorName, String name){
+    return getTimer(name);
+  }
 
   /**
    * Creates a new instance of {@link AccumulatorProvider} initialized by given settings.
