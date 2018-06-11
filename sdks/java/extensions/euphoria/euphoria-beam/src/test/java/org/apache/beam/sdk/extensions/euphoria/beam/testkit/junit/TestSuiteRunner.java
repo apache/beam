@@ -21,12 +21,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Modifier;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.euphoria.beam.BeamRunnerWrapper;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing.Type;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -46,18 +47,19 @@ import org.slf4j.LoggerFactory;
 /**
  * TODO: add javadoc.
  */
-public class ExecutorProviderRunner extends Suite {
+public class TestSuiteRunner extends Suite { //TODO rename
 
-  private static final Logger LOG = LoggerFactory.getLogger(ExecutorProviderRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TestSuiteRunner.class);
 
   private final List<Runner> runners = new ArrayList<>();
 
-  public ExecutorProviderRunner(Class<?> klass) throws Throwable {
+  public TestSuiteRunner(Class<?> klass) throws Throwable {
     super(null, Collections.emptyList());
 
     // ~ for each encountered test method set up a special runner
     Optional<Type> kPType = getProcessingType(klass);
-    ExecutorProvider execProvider = newExecProvider(klass);
+    BeamRunnerWrapper runner = BeamRunnerWrapper.ofDirect()
+        .withAllowedLateness(Duration.ofHours(1));
     Class<?>[] testClasses = getAnnotatedClasses(klass);
     for (Class<?> testClass : testClasses) {
       boolean isOperatorTest = isAbstractOperatorTest(testClass);
@@ -79,13 +81,13 @@ public class ExecutorProviderRunner extends Suite {
           Optional<Type> rPType = merged(kPType, definedPType);
           if (rPType.isPresent()) {
             for (Processing.Type ptype : rPType.get().asList()) {
-              addRunner(runners, testClass, method, execProvider, ptype, paramsList);
+              addRunner(runners, testClass, method, runner, ptype, paramsList);
             }
           } else {
-            addRunner(runners, testClass, method, execProvider, null, paramsList);
+            addRunner(runners, testClass, method, runner, null, paramsList);
           }
         } else {
-          addRunner(runners, testClass, method, execProvider, null, paramsList);
+          addRunner(runners, testClass, method, runner, null, paramsList);
         }
       }
     }
@@ -95,16 +97,16 @@ public class ExecutorProviderRunner extends Suite {
       List<Runner> acc,
       Class<?> testClass,
       FrameworkMethod method,
-      ExecutorProvider execProvider,
+      BeamRunnerWrapper runner,
       Processing.Type pType,
       List<Object[]> paramsList)
       throws Throwable {
     if (paramsList == null || paramsList.isEmpty()) {
-      acc.add(new ExecutorProviderTestMethodRunner(testClass, method, execProvider, pType, null));
+      acc.add(new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, null));
     } else {
       for (Object[] params : paramsList) {
         acc.add(
-            new ExecutorProviderTestMethodRunner(testClass, method, execProvider, pType, params));
+            new ExecutorProviderTestMethodRunner(testClass, method, runner, pType, params));
       }
     }
   }
@@ -142,23 +144,6 @@ public class ExecutorProviderRunner extends Suite {
     return annotation.value();
   }
 
-  private static ExecutorProvider newExecProvider(Class<?> klass) throws InitializationError {
-
-    if (!ExecutorProvider.class.isAssignableFrom(klass)) {
-      throw new IllegalArgumentException(
-          "Annotated class must implement " + ExecutorProvider.class);
-    }
-
-    try {
-      return ExecutorProvider.class.cast(klass.newInstance());
-    } catch (IllegalAccessException e) {
-      throw new InstantiationError(
-          "Default constructor of " + klass + " must be public: " + e.getMessage());
-    } catch (InstantiationException e) {
-      throw new InstantiationError("Failed to initialize " + klass + ": " + e);
-    }
-  }
-
   // return defined processing type (bounded, unbounded, any) from annotation
   private static Optional<Processing.Type> getProcessingType(AnnotatedElement element) {
     if (element.isAnnotationPresent(Processing.class)) {
@@ -187,7 +172,6 @@ public class ExecutorProviderRunner extends Suite {
   }
 
   static class ExecutorProviderTestMethodRunner extends BlockJUnit4ClassRunner {
-    private final ExecutorProvider execProvider;
     private final Processing.Type procType;
     private final FrameworkMethod method;
     private final Object[] parameterList;
@@ -195,12 +179,11 @@ public class ExecutorProviderRunner extends Suite {
     ExecutorProviderTestMethodRunner(
         Class<?> testClass,
         FrameworkMethod method,
-        ExecutorProvider execProvider,
+        BeamRunnerWrapper runner,
         Processing.Type ptype,
         Object[] parameterList)
         throws InitializationError {
       super(testClass);
-      this.execProvider = execProvider;
       this.procType = ptype;
       this.method = method;
       this.parameterList = parameterList;
@@ -246,7 +229,7 @@ public class ExecutorProviderRunner extends Suite {
     }
 
     private boolean isAbstractOperatorTest() {
-      return ExecutorProviderRunner.isAbstractOperatorTest(getTestClass().getJavaClass());
+      return TestSuiteRunner.isAbstractOperatorTest(getTestClass().getJavaClass());
     }
 
     @Override
@@ -271,18 +254,18 @@ public class ExecutorProviderRunner extends Suite {
         return new Statement() {
           @Override
           public void evaluate() throws Throwable {
-            ExecutorEnvironment env = execProvider.newExecutorEnvironment();
 
             AbstractOperatorTest opTest = ((AbstractOperatorTest) target);
-            opTest.executor = Objects.requireNonNull(env.getExecutor());
+            BeamRunnerWrapper runner = BeamRunnerWrapper.ofDirect();
+            opTest.runner = runner;
             opTest.processing = procType;
             try {
               result.evaluate();
             } finally {
               try {
-                env.shutdown();
+                runner.shutdown();
               } catch (RuntimeException e) {
-                LOG.debug("Failed to cleanly shut down executor environment.", e);
+                LOG.debug("Failed to cleanly shut down runner environment.", e);
               }
             }
           }

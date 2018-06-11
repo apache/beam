@@ -40,6 +40,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.StdoutSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operators;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
@@ -54,7 +55,9 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Before;
 import org.junit.Test;
 
-/** {@code FlowUnfolder} test suite. */
+/**
+ * {@code FlowUnfolder} test suite.
+ */
 public class FlowUnfolderTest {
 
   private Flow flow;
@@ -100,7 +103,8 @@ public class FlowUnfolderTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testUnfoldBasic() {
-    DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, Executor.getBasicOps());
+
+    DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, Operators.getBasicOps());
     // InputOperator -> Map
     // Map -> FlatMap
     // ReduceByKey -> ReduceStateByKey
@@ -174,7 +178,7 @@ public class FlowUnfolderTest {
     ListDataSink<Pair<Object, Long>> sink = ListDataSink.get();
     output.persist(sink);
     reduced.persist(sink);
-    FlowUnfolder.unfold(flow, Executor.getBasicOps());
+    FlowUnfolder.unfold(flow, Operators.getBasicOps());
   }
 
   @Test

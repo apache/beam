@@ -24,8 +24,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
 /**
@@ -37,8 +35,6 @@ public class FlatMapTest {
   public void testSimpleMap() throws ExecutionException, InterruptedException {
 
     final Flow flow = Flow.create();
-    String[] args = {"--runner=DirectRunner"};
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
 
     final ListDataSource<Integer> input =
         ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(2, 3, 4));
@@ -47,8 +43,8 @@ public class FlatMapTest {
 
     MapElements.of(flow.createInput(input)).using(i -> i + 1).output().persist(output);
 
-    BeamExecutor executor = new BeamExecutor(options);
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(output.getOutputs(), 2, 3, 3, 4, 4, 5);
   }
