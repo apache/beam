@@ -61,7 +61,7 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
     } else {
       throw new IllegalArgumentException(
           "Attempt to access field of unsupported type "
-              + targetFieldType.getClass().getSimpleName()
+              + targetFieldType.getDeclaringClass().getSimpleName()
               + ". Field access operator is only supported for arrays or rows");
     }
 

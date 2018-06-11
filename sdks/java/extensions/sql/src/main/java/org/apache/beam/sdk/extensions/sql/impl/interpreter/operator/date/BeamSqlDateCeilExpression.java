@@ -48,9 +48,9 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    ReadableInstant date = opValueEvaluated(0, inputRow, window, env);
+    ReadableInstant date = (ReadableInstant) opValueEvaluated(0, inputRow, window, env);
     long time = date.getMillis();
-    TimeUnitRange unit = opValueEvaluated(1, inputRow, window, env);
+    TimeUnitRange unit = (TimeUnitRange) opValueEvaluated(1, inputRow, window, env);
 
     long newTime = DateTimeUtils.unixTimestampCeil(unit, time);
     DateTime newDate = new DateTime(newTime, date.getZone());

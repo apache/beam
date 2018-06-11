@@ -57,6 +57,7 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
     this.all = all;
   }
 
+  @Override
   public PCollection<Row> expand(PCollectionList<Row> inputs) {
     checkArgument(
         inputs.size() == 2,

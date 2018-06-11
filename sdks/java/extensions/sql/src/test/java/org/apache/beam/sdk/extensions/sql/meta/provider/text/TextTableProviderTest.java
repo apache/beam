@@ -49,7 +49,7 @@ public class TextTableProviderTest {
 
     BeamTextCSVTable csvTable = (BeamTextCSVTable) sqlTable;
     assertEquals(CSVFormat.DEFAULT, csvTable.getCsvFormat());
-    assertEquals("/home/admin/hello", csvTable.getFilePattern());
+    assertEquals("/home/admin/hello", csvTable.getCsvFilePattern());
   }
 
   @Test

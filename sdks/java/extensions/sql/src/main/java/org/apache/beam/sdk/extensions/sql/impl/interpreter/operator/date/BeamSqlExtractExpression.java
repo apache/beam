@@ -61,9 +61,9 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    ReadableInstant time = opValueEvaluated(1, inputRow, window, env);
+    ReadableInstant time = (ReadableInstant) opValueEvaluated(1, inputRow, window, env);
 
-    TimeUnitRange unit = opValueEvaluated(0, inputRow, window, env);
+    TimeUnitRange unit = (TimeUnitRange) opValueEvaluated(0, inputRow, window, env);
 
     switch (unit) {
       case YEAR:
