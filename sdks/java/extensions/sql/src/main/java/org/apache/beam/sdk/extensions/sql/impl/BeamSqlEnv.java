@@ -20,8 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
@@ -45,10 +43,8 @@ import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
 /**
- * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
- *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
- * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
+ * Contains the metadata of tables/UDF functions, and exposes APIs to
+ * query/validate/optimize/translate SQL statements.
  */
 @Internal
 @Experimental
