@@ -14,32 +14,38 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.core.Calc;
+import org.apache.calcite.rel.logical.LogicalCalc;
 
-/** A {@code ConverterRule} to replace {@link Project} with {@link BeamProjectRel}. */
-public class BeamProjectRule extends ConverterRule {
-  public static final BeamProjectRule INSTANCE = new BeamProjectRule();
+/** A {@code ConverterRule} to replace {@link Calc} with {@link BeamCalcRel}. */
+public class BeamCalcRule extends ConverterRule {
+  public static final BeamCalcRule INSTANCE = new BeamCalcRule();
 
-  private BeamProjectRule() {
-    super(LogicalProject.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamProjectRule");
+  private BeamCalcRule() {
+    super(LogicalCalc.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamCalcRule");
+  }
+
+  @Override
+  public boolean matches(RelOptRuleCall x) {
+    return true;
   }
 
   @Override
   public RelNode convert(RelNode rel) {
-    final Project project = (Project) rel;
-    final RelNode input = project.getInput();
+    final Calc calc = (Calc) rel;
+    final RelNode input = calc.getInput();
 
-    return new BeamProjectRel(
-        project.getCluster(),
-        project.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        project.getProjects(),
-        project.getRowType());
+    return new BeamCalcRel(
+        calc.getCluster(),
+        calc.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        calc.getProgram());
   }
 }

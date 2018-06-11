@@ -15,31 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;
-
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-/** Base class for the PI function. */
-public class BeamSqlPiExpression extends BeamSqlExpression {
+/**
+ * Environment in which a {@link BeamSqlExpression} is evaluated. This includes bindings of
+ * correlation variables and local references.
+ */
+public interface BeamSqlExpressionEnvironment {
 
-  public BeamSqlPiExpression() {
-    this.outputType = SqlTypeName.DOUBLE;
-  }
+  /** Gets the value for a local variable reference. */
+  BeamSqlPrimitive<?> getLocalRef(int localRefIndex);
 
-  @Override
-  public boolean accept() {
-    return true;
-  }
+  /** Gets the value for a correlation variable. */
+  Row getCorrelVariable(int correlVariableId);
 
-  @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, Math.PI);
-  }
+  /**
+   * An environment that shares input row, window, and correlation variables but local refs are
+   * replaced with the given unevaluated expressions.
+   */
+  BeamSqlExpressionEnvironment copyWithLocalRefExprs(List<BeamSqlExpression> localRefExprs);
 }

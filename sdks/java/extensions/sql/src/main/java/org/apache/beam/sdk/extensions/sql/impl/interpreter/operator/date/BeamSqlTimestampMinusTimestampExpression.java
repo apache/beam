@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -70,11 +70,9 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    DateTime timestampStart =
-        new DateTime((Object) opValueEvaluated(1, inputRow, window, correlateEnv));
-    DateTime timestampEnd =
-        new DateTime((Object) opValueEvaluated(0, inputRow, window, correlateEnv));
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    DateTime timestampStart = new DateTime((Object) opValueEvaluated(1, inputRow, window, env));
+    DateTime timestampEnd = new DateTime((Object) opValueEvaluated(0, inputRow, window, env));
 
     long numberOfIntervals = numberOfIntervalsBetweenDates(timestampStart, timestampEnd);
     long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalType).longValue();
