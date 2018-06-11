@@ -67,17 +67,17 @@ public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, 
 
   @Override
   public Counter getCounter(String name) {
-    return accumulators.getCounter(name);
+    return accumulators.getCounter(beamCollector.getOperatorName(), name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return accumulators.getHistogram(name);
+    return accumulators.getHistogram(beamCollector.getOperatorName(), name);
   }
 
   @Override
   public Timer getTimer(String name) {
-    return accumulators.getTimer(name);
+    return accumulators.getTimer(beamCollector.getOperatorName(), name);
   }
 
   void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
@@ -85,7 +85,8 @@ public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, 
   }
 
   /**
-   * TODO: write javadoc.
+   * Translation of {@link ReduceByKeyTranslator.Collector} collect to Beam's context output.
+   * OperatorName serve as namespace for Beam's metrics.
    * @param <InputT>
    * @param <OutputT>
    * @param <ElemT>
@@ -93,5 +94,7 @@ public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, 
   public interface BeamCollector<InputT, OutputT, ElemT> extends Serializable {
 
     void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ElemT elem);
+
+    String getOperatorName();
   }
 }

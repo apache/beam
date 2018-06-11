@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,20 +31,19 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Translation of accumulators to {@link Metrics}. Metrics from same type of accumulator will have
- * same namespace and will differ only in given name. */
+/**
+ * Translation of accumulators to {@link Metrics}. Metric's namespace is taken from operatorName.
+ * So for better orientation in metrics it's recommended specify operator name with method .named().
+ */
 public class BeamAccumulatorProvider implements AccumulatorProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamAccumulatorProvider.class);
-  private final Map<String, Counter> counterMap;
-  private final Map<String, Timer> timerMap;
-  private final Map<String, Histogram> histogramMap;
+  private static final String KEY_METRIC_SEPARATOR = "::";
 
-  private BeamAccumulatorProvider() {
-    counterMap = new ConcurrentHashMap<>();
-    timerMap = new ConcurrentHashMap<>();
-    histogramMap = new ConcurrentHashMap<>();
-  }
+  private final Map<String, Counter> counterMap = new ConcurrentHashMap<>();
+  private final Map<String, Histogram> histogramMap = new ConcurrentHashMap<>();
+
+  private BeamAccumulatorProvider() {}
 
   public static Factory getFactory() {
     return Factory.get();
@@ -53,17 +51,46 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
 
   @Override
   public Counter getCounter(String name) {
-    return counterMap.computeIfAbsent(name, BeamMetricsCounter::new);
+    throw new UnsupportedOperationException(
+        "BeamAccumulatorProvider doesn't support"
+            + " getCounter(String name). Need specify operatorName and name");
+  }
+
+  @Override
+  public Counter getCounter(final String operatorName, final String name) {
+    return counterMap.computeIfAbsent(
+        getMetricKey(operatorName, name), key -> new BeamMetricsCounter(operatorName, name));
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return histogramMap.computeIfAbsent(name, BeamMetricsHistogram::new);
+    throw new UnsupportedOperationException(
+        "BeamAccumulatorProvider doesn't support"
+            + " getHistogram(String name). Need specify operatorName and name");
+  }
+
+  @Override
+  public Histogram getHistogram(final String operatorName, final String name) {
+    return histogramMap.computeIfAbsent(
+        getMetricKey(operatorName, name), key -> new BeamMetricsHistogram(operatorName, name));
   }
 
   @Override
   public Timer getTimer(String name) {
-    return timerMap.computeIfAbsent(name, BeamMetricsTimer::new);
+    throw new UnsupportedOperationException(
+        "BeamAccumulatorProvider doesn't support"
+            + " getTimer(String name). Need specify operatorName and name");
+  }
+
+  @Override
+  public Timer getTimer(String operatorName, String name) {
+    throw new UnsupportedOperationException(
+        "BeamAccumulatorProvider doesn't support"
+            + " getTimer(String name). Use getHistogram instead");
+  }
+
+  private static String getMetricKey(String operatorName, String name) {
+    return operatorName.concat(KEY_METRIC_SEPARATOR).concat(name);
   }
 
   // ------------------------
@@ -87,7 +114,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
     @Override
     public AccumulatorProvider create(Settings settings) {
       if (isLogged.compareAndSet(false, true)) {
-        LOG.warn("Using accumulators with BeamAccumulatorProvider");
+        LOG.info("Using accumulators with BeamAccumulatorProvider");
       }
       return PROVIDER;
     }
@@ -98,63 +125,56 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   /** Implementation of Counter via {@link org.apache.beam.sdk.metrics.Counter}. */
   public static class BeamMetricsCounter extends BeamMetrics implements Counter {
 
-    public BeamMetricsCounter(String name) {
-      super(name);
+    public BeamMetricsCounter(String namespace, String name) {
+      super(namespace, name);
     }
 
     @Override
     public void increment(long value) {
-      Metrics.counter(this.getClass(), getName()).inc(value);
+      Metrics.counter(getNamespace(), getName()).inc(value);
     }
 
     @Override
     public void increment() {
-      Metrics.counter(this.getClass(), getName()).inc();
+      Metrics.counter(getNamespace(), getName()).inc();
     }
   }
 
   /** Implementation of Histrogram via {@link org.apache.beam.sdk.metrics.Distribution}. */
   public static class BeamMetricsHistogram extends BeamMetrics implements Histogram {
 
-    public BeamMetricsHistogram(String name) {
-      super(name);
+    public BeamMetricsHistogram(String namespace, String name) {
+      super(namespace, name);
     }
 
     @Override
     public void add(long value) {
-      Metrics.distribution(this.getClass(), getName()).update(value);
+      Metrics.distribution(getNamespace(), getName()).update(value);
     }
 
     @Override
     public void add(long value, long times) {
       LongStream.range(0, times)
-          .forEach(i -> Metrics.distribution(this.getClass(), getName()).update(value));
-    }
-  }
-
-  /** Implementation of Timer via {@link org.apache.beam.sdk.metrics.Distribution}. */
-  public static class BeamMetricsTimer extends BeamMetrics implements Timer {
-
-    public BeamMetricsTimer(String name) {
-      super(name);
-    }
-
-    @Override
-    public void add(Duration duration) {
-      Metrics.distribution(this.getClass(), getName()).update(duration.getSeconds());
+          .forEach(i -> Metrics.distribution(getNamespace(), getName()).update(value));
     }
   }
 
   abstract static class BeamMetrics {
 
+    private final String namespace;
     private final String name;
 
-    protected BeamMetrics(String name) {
+    protected BeamMetrics(String namespace, String name) {
+      this.namespace = namespace;
       this.name = name;
     }
 
     public String getName() {
       return name;
+    }
+
+    public String getNamespace() {
+      return namespace;
     }
   }
 }
