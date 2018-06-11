@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -86,7 +88,7 @@ public class BeamKafkaCSVTableTest {
       implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
-      ctx.output(KV.of(new byte[] {}, ctx.element().getBytes()));
+      ctx.output(KV.of(new byte[] {}, ctx.element().getBytes(UTF_8)));
     }
   }
 }

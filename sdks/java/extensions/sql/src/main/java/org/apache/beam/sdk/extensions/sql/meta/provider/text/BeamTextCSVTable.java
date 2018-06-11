@@ -33,7 +33,7 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class BeamTextCSVTable extends BeamTextTable {
 
-  private String filePattern;
+  private String csvFilePattern;
   private CSVFormat csvFormat;
 
   /** CSV table with {@link CSVFormat#DEFAULT DEFAULT} format. */
@@ -41,9 +41,9 @@ public class BeamTextCSVTable extends BeamTextTable {
     this(beamSchema, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(Schema schema, String filePattern, CSVFormat csvFormat) {
-    super(schema, filePattern);
-    this.filePattern = filePattern;
+  public BeamTextCSVTable(Schema schema, String csvFilePattern, CSVFormat csvFormat) {
+    super(schema, csvFilePattern);
+    this.csvFilePattern = csvFilePattern;
     this.csvFormat = csvFormat;
   }
 
@@ -63,7 +63,7 @@ public class BeamTextCSVTable extends BeamTextTable {
     return csvFormat;
   }
 
-  public String getFilePattern() {
-    return filePattern;
+  public String getCsvFilePattern() {
+    return csvFilePattern;
   }
 }
