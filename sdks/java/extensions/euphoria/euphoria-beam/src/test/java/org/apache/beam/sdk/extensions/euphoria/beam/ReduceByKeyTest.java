@@ -74,8 +74,8 @@ public class ReduceByKeyTest {
         .output()
         .persist(output);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(output.getOutputs(), Pair.of(0, 8), Pair.of(1, 7));
   }
@@ -123,8 +123,8 @@ public class ReduceByKeyTest {
         .output()
         .persist(sink);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(
         sink.getOutputs(),
@@ -191,7 +191,7 @@ public class ReduceByKeyTest {
         .output()
         .persist(sink);
 
-    TestUtils.createExecutor().execute(flow);
+    BeamRunnerWrapper.ofDirect().executeSync(flow);
     DatasetAssert.unorderedEquals(sink.getOutputs(), 4, 6);
   }
 

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
-import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.CountByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.DistinctTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.FilterTest;
@@ -27,19 +26,14 @@ import org.apache.beam.sdk.extensions.euphoria.beam.testkit.MapElementsTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.ReduceByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.SumByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.UnionTest;
-import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.ExecutorEnvironment;
-import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.ExecutorProvider;
-import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.ExecutorProviderRunner;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.TestSuiteRunner;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
  * Euphoria operators test suite.
  */
-@RunWith(ExecutorProviderRunner.class)
+@RunWith(TestSuiteRunner.class)
 @Suite.SuiteClasses({
 //        BroadcastHashJoinTest.class,
     CountByKeyTest.class,
@@ -55,24 +49,6 @@ import org.junit.runners.Suite;
     UnionTest.class,
 //        WindowingTest.class,
 })
-public class OperatorsTestSuite implements ExecutorProvider {
+public class OperatorsTestSuite {
 
-  @Override
-  public ExecutorEnvironment newExecutorEnvironment() throws Exception {
-    final String[] args = {"--runner=DirectRunner"};
-    final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    final Executor executor = new BeamExecutor(options).withAllowedLateness(Duration.ofHours(1));
-
-    return new ExecutorEnvironment() {
-      @Override
-      public Executor getExecutor() {
-        return executor;
-      }
-
-      @Override
-      public void shutdown() throws Exception {
-        executor.shutdown();
-      }
-    };
-  }
 }

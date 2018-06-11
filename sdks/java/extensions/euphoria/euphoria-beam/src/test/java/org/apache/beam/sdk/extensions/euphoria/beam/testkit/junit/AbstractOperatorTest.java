@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import org.apache.beam.sdk.extensions.euphoria.beam.BeamRunnerWrapper;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators.SingleJvmAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing.Type;
@@ -34,7 +35,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 
 /**
@@ -44,9 +44,9 @@ public abstract class AbstractOperatorTest implements Serializable {
 
   /**
    * Automatically injected if the test class or the a suite it is part of is annotated with
-   * {@code @RunWith(ExecutorProviderRunner.class)}.
+   * {@code @RunWith(TestSuiteRunner.class)}.
    */
-  protected transient Executor executor;
+  protected transient BeamRunnerWrapper runner;
 
   protected transient Processing.Type processing;
 
@@ -80,17 +80,17 @@ public abstract class AbstractOperatorTest implements Serializable {
   }
 
   /**
-   * Run all tests with given executor.
+   * Run all tests with given runner.
    *
-   * @param tc the test case to execute
+   * @param tc the test case to executeSync
    */
   @SuppressWarnings("unchecked")
   public void execute(TestCase tc) {
-    checkNotNull(executor, "Cannot run test without executor.");
+    checkNotNull(runner, "Cannot run test without runner.");
     checkNotNull(processing, "Cannot run test when processing type is not available.");
 
     SingleJvmAccumulatorProvider.Factory accs = SingleJvmAccumulatorProvider.Factory.get();
-    executor.setAccumulatorProvider(accs);
+    runner.setAccumulatorProvider(accs);
 
     // execute tests for each of processing types
     assertEquals(1, processing.asList().size());
@@ -104,7 +104,7 @@ public abstract class AbstractOperatorTest implements Serializable {
         // skip if output is not supported for the processing type
         output.persist(tc.modifySink(sink));
         try {
-          executor.submit(flow).get();
+          runner.submitAsync(flow).get();
         } catch (InterruptedException | ExecutionException e) {
           throw new RuntimeException("Test failure at run #" + i, e);
         }

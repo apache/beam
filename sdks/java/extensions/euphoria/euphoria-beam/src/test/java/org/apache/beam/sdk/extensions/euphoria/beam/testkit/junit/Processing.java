@@ -25,9 +25,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Annotation used in tests. Can be put on {@link AbstractOperatorTest} implementation as well as on
- * {@link ExecutorProvider} implementation to tell testkit which data processing is supported
- * (bounded, unbounded, any). The result is an intersecting subset of both declarations.
+ * Annotation used in tests. Can be put on {@link AbstractOperatorTest} implementation to tell
+ * testkit which data processing is supported (bounded, unbounded, any). The result is an
+ * intersecting subset of both declarations.
  */
 @Inherited
 @Retention(RetentionPolicy.RUNTIME)
@@ -49,10 +49,10 @@ public @interface Processing {
 
     Optional<Type> merge(Type that) {
       if (this == ALL) {
-        return  Optional.of(that);
+        return Optional.of(that);
       }
       if (that == ALL) {
-        return  Optional.of(this);
+        return Optional.of(this);
       }
       if (this == that) {
         return Optional.of(this);
