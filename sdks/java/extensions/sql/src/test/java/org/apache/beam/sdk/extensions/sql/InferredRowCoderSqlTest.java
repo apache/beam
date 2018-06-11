@@ -85,7 +85,7 @@ public class InferredRowCoderSqlTest {
 
     String sql = "SELECT name, ageYears FROM PCOLLECTION";
 
-    PCollection<Row> result = input.apply("sql", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -110,7 +110,7 @@ public class InferredRowCoderSqlTest {
 
     String sql = "SELECT name FROM PCOLLECTION";
 
-    PCollection<Row> result = input.apply("sql", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -153,7 +153,7 @@ public class InferredRowCoderSqlTest {
         tuple(
                 "buyers", people,
                 "orders", orders)
-            .apply("sql", BeamSql.query(sql));
+            .apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -200,7 +200,7 @@ public class InferredRowCoderSqlTest {
         tuple(
                 "buyers", people,
                 "orders", orders)
-            .apply("sql", BeamSql.query(sql));
+            .apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
         .containsInAnyOrder(
