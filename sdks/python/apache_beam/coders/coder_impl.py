@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to
@@ -32,7 +34,6 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
-import sys
 from builtins import chr
 from builtins import object
 
@@ -48,6 +49,8 @@ try:
   from .stream import OutputStream as create_OutputStream
   from .stream import ByteCountingOutputStream
   from .stream import get_varint_size
+  # Make it possible to import create_InputStream and other cdef-classes
+  # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
@@ -95,7 +98,9 @@ class CoderImpl(object):
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
-    return self._get_nested_size(len(self.encode(value)), nested)
+    out = ByteCountingOutputStream()
+    self.encode_to_stream(value, out, nested)
+    return out.get_count()
 
   def _get_nested_size(self, inner_size, nested):
     if not nested:
@@ -310,13 +315,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      # Use iteritems() on Python 2 instead of future.builtins.iteritems to
-      # avoid performance regression in Cython compiled code.
-      if sys.version_info[0] == 2:
-        items = dict_value.iteritems()  # pylint: disable=dict-iter-method
-      else:
-        items = dict_value.items()
-      for k, v in items:
+      for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
     elif t is bool:

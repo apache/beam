@@ -153,11 +153,17 @@ task runPojoExample(type: JavaExec) {
 task integrationTest(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
           "--project=${gcpProject}",
-          "--blockOnRun=false"
-  ])
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
   maxParallelForks 4

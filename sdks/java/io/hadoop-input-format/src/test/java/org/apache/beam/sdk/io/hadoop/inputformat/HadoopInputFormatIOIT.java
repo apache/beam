@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
 import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
@@ -26,11 +27,10 @@ import java.sql.SQLException;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -87,9 +87,8 @@ public class HadoopInputFormatIOIT {
 
   @BeforeClass
   public static void setUp() throws SQLException {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+    PostgresIOTestPipelineOptions options = readIOTestPipelineOptions(
+      PostgresIOTestPipelineOptions.class);
 
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     numberOfRows = options.getNumberOfRecords();
@@ -99,7 +98,7 @@ public class HadoopInputFormatIOIT {
     setupHadoopConfiguration(options);
   }
 
-  private static void setupHadoopConfiguration(IOTestPipelineOptions options) {
+  private static void setupHadoopConfiguration(PostgresIOTestPipelineOptions options) {
     Configuration conf = new Configuration();
     DBConfiguration.configureDB(
         conf,
@@ -127,31 +126,25 @@ public class HadoopInputFormatIOIT {
 
   @Test
   public void readUsingHadoopInputFormat() {
-    writePipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
-        .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
-        .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
-        .apply(
-            "Write using JDBCIO",
-            JdbcIO.<TestRow>write()
-                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                .withStatement(String.format("insert into %s values(?, ?)", tableName))
-                .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
+    writePipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
+      .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
+      .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
+      .apply("Write using JDBCIO", JdbcIO.<TestRow>write()
+        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+        .withStatement(String.format("insert into %s values(?, ?)", tableName))
+        .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
 
     writePipeline.run().waitUntilFinish();
 
-    PCollection<String> consolidatedHashcode =
-        readPipeline
-            .apply(
-                "Read using HadoopInputFormat",
-                HadoopInputFormatIO.<LongWritable, TestRowDBWritable>read()
-                    .withConfiguration(hadoopConfiguration.get()))
-            .apply("Get values only", Values.create())
-            .apply("Values as string", ParDo.of(new SelectNameFn()))
-            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode = readPipeline
+      .apply("Read using HadoopInputFormat", HadoopInputFormatIO.
+        <LongWritable, TestRowDBWritable>read()
+        .withConfiguration(hadoopConfiguration.get()))
+      .apply("Get values only", Values.create())
+      .apply("Values as string", ParDo.of(new SelectNameFn()))
+      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    PAssert.thatSingleton(consolidatedHashcode)
-        .isEqualTo(getExpectedHashForRowCount(numberOfRows));
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     readPipeline.run().waitUntilFinish();
   }

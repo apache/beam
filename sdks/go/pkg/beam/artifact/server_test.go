@@ -87,7 +87,7 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 	if header.GetMetadata() == nil {
 		return fmt.Errorf("expected header as first message: %v", header)
 	}
-	key := header.GetMetadata().Name
+	key := header.GetMetadata().GetMetadata().Name
 
 	// Read chunks
 
@@ -148,7 +148,7 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 	}
 	m.md = req.GetManifest()
 
-	return &pb.CommitManifestResponse{StagingToken: id}, nil
+	return &pb.CommitManifestResponse{RetrievalToken: id}, nil
 }
 
 func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*pb.GetManifestResponse, error) {

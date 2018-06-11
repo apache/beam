@@ -46,6 +46,8 @@ class BeamBuiltinAggregations {
   /** {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createMax(SqlTypeName fieldType) {
     switch (fieldType) {
+      case BOOLEAN:
+        return new CustMax<Boolean>();
       case INTEGER:
         return Max.ofIntegers();
       case SMALLINT:
@@ -68,9 +70,11 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /** {@link CombineFn} for MAX based on {@link Min} and {@link Combine.BinaryCombineFn}. */
+  /** {@link CombineFn} for MIN based on {@link Min} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createMin(SqlTypeName fieldType) {
     switch (fieldType) {
+      case BOOLEAN:
+        return new CustMin<Boolean>();
       case INTEGER:
         return Min.ofIntegers();
       case SMALLINT:
@@ -93,7 +97,7 @@ class BeamBuiltinAggregations {
     }
   }
 
-  /** {@link CombineFn} for MAX based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
+  /** {@link CombineFn} for Sum based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
   public static CombineFn createSum(SqlTypeName fieldType) {
     switch (fieldType) {
       case INTEGER:

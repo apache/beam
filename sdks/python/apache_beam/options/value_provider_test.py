@@ -187,6 +187,8 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg14.get(), 2)
 
   def test_experiments_setup(self):
+    self.assertFalse('feature_1' in RuntimeValueProvider.experiments)
+
     RuntimeValueProvider.set_runtime_options(
         {'experiments': ['feature_1', 'feature_2']}
     )

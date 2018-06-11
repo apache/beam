@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -38,8 +38,8 @@ public class BeamSqlNotExpression extends BeamSqlLogicalExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Boolean value = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Boolean value = opValueEvaluated(0, inputRow, window, env);
     if (value == null) {
       return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, window);
     } else {

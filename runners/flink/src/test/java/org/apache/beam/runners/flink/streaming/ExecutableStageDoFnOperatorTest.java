@@ -240,7 +240,7 @@ public class ExecutableStageDoFnOperatorTest {
           public void close() {}
         };
     // Wire the stage bundle factory into our context.
-    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    when(stageContext.<Void>getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     ExecutableStageDoFnOperator<Integer, Integer> operator = getOperator(mainOutput,
             ImmutableList.of(additionalOutput1, additionalOutput2),

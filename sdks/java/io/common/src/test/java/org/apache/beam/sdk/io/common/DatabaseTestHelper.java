@@ -30,7 +30,7 @@ import org.postgresql.ds.PGSimpleDataSource;
  */
 public class DatabaseTestHelper {
 
-  public static PGSimpleDataSource getPostgresDataSource(IOTestPipelineOptions options) {
+  public static PGSimpleDataSource getPostgresDataSource(PostgresIOTestPipelineOptions options) {
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
     dataSource.setDatabaseName(options.getPostgresDatabaseName());
     dataSource.setServerName(options.getPostgresServerName());
@@ -67,7 +67,7 @@ public class DatabaseTestHelper {
     return String.format("BEAMTEST_%s_%s", testIdentifier, formatter.format(new Date()));
   }
 
-  public static String getPostgresDBUrl(IOTestPipelineOptions options) {
+  public static String getPostgresDBUrl(PostgresIOTestPipelineOptions options) {
     return String.format(
         "jdbc:postgresql://%s:%s/%s",
         options.getPostgresServerName(),

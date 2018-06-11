@@ -257,6 +257,147 @@ message ProcessBundleProgressRequest {
   string instruction_reference = 1;
 }
 
+message MonitoringInfo {
+  // The name defining the metric or monitored state.
+  string urn = 1;
+
+  // This is specified as a URN that implies:
+  // A message class: (Distribution, Counter, Extrema, MonitoringDataTable).
+  // Sub types like field formats - int64, double, string.
+  // Aggregation methods - SUM, LATEST, TOP-N, BOTTOM-N, DISTRIBUTION
+  // valid values are:
+  // beam:metrics:[SumInt64|LatestInt64|Top-NInt64|Bottom-NInt64|
+  //     SumDouble|LatestDouble|Top-NDouble|Bottom-NDouble|DistributionInt64|
+  //     DistributionDouble|MonitoringDataTable]
+  string type = 2;
+
+  // The Metric or monitored state.
+  oneof data {
+    MonitoringTableData monitoring_table_data = 3;
+    Metric metric = 4;
+  }
+
+  enum MonitoringInfoLabels {
+    TRANSFORM = 0;
+    PCOLLECTION = 1;
+    WINDOWING_STRATEGY = 2;
+    CODER = 3;
+    ENVIRONMENT = 4;
+  }
+  // A set of key+value labels which define the scope of the metric.
+  // Either a well defined entity id for matching the enum names in
+  // the MonitoringInfoLabels enum or any arbitrary label
+  // set by a custom metric or user metric.
+  // A monitoring system is expected to be able to aggregate the metrics together
+  // for all updates having the same URN and labels.
+  // Some systems such as Stackdriver will be able to aggregate the metrics
+  // using a subset of the provided labels
+  map<string, string> labels = 5;
+}
+
+message Metric {
+  // (Required) The data for this metric.
+  oneof data {
+    CounterData counter_data = 1;
+    DistributionData distribution_data = 2;
+    ExtremaData extrema_data = 3;
+  }
+}
+
+// Data associated with a Counter or Gauge metric.
+// This is designed to be compatible with metric collection
+// systems such as DropWizard.
+message CounterData {
+   oneof value {
+     int64 int64_value = 1;
+     double double_value = 2;
+     string string_value = 3;
+   }
+}
+
+// Extrema messages are used for calculating
+// Top-N/Bottom-N metrics.
+message ExtremaData {
+  oneof extrema {
+    IntExtremaData int_extrema_data = 1;
+    DoubleExtremaData double_extrema_data = 2;
+  }
+}
+
+message IntExtremaData {
+  repeated int64 int_values = 1;
+}
+
+message DoubleExtremaData {
+  repeated double double_values = 2;
+}
+
+// Data associated with a distribution metric.
+// This is based off of the current DistributionData metric.
+// This is not a stackdriver or dropwizard compatible
+// style of distribution metric.
+message DistributionData {
+  oneof distribution {
+    IntDistributionData int_distribution_data = 1;
+    DoubleDistributionData double_distribution_data = 2;
+  }
+}
+
+message IntDistributionData {
+  int64 count = 1;
+  int64 sum = 2;
+  int64 min = 3;
+  int64 max = 4;
+}
+
+message DoubleDistributionData {
+  int64 count = 1;
+  double sum = 2;
+  double min = 3;
+  double max = 4;
+}
+
+// General MonitoredState information which contains
+// structured information which does not fit into a typical
+// metric format. For example, a table of important files
+// and metadata which an I/O source is reading.
+// Note: Since MonitoredState is designed to be
+// customizable, and allow engines to aggregate these
+// metrics in custom ways.
+// Engines can use custom aggregation functions for specific URNs
+// by inspecting the column values.
+// An SDK should always report its current state, that is all
+// relevant MonitoredState for its PTransform at the current moment
+// and this should be kept small.
+// For example, an SDK can emit the oldest three files which
+// have been waiting for data for over 1 hour.
+// If an engine supports the URN with a custom aggregation then
+// it can filter these and keep only the Top-3 rows based on
+// how long the files have been waiting for data.
+// Otherwise an engine can ignore the MonitoringTableData
+// or union all the rows together into one large table and display
+// them in a UI.
+message MonitoringTableData {
+  message MonitoringColumnValue {
+    oneof value {
+      int64 int64_value = 1;
+      double double_value = 2;
+      string string_value = 3;
+      google.protobuf.Timestamp timestamp = 4;
+    }
+  }
+
+  message MonitoringRow {
+    repeated MonitoringColumnValue values = 1;
+  }
+
+ // The number of column names must match the
+ // number of values in each MonitoringRow.
+ repeated string column_names = 1;
+ repeated MonitoringRow row_data = 2;
+}
+
+// DEPRECATED
 message Metrics {
   // PTransform level metrics.
   // These metrics are split into processed and active element groups for

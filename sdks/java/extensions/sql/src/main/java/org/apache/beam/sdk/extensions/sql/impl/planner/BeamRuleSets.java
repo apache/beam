@@ -22,13 +22,13 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamFilterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamProjectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
@@ -56,6 +56,11 @@ import org.apache.calcite.rel.rules.SortProjectTransposeRule;
 import org.apache.calcite.rel.rules.SortRemoveRule;
 import org.apache.calcite.rel.rules.UnionEliminatorRule;
 import org.apache.calcite.rel.rules.UnionToDistinctRule;
+import org.apache.calcite.rel.rules.CalcMergeRule;
+import org.apache.calcite.rel.rules.FilterCalcMergeRule;
+import org.apache.calcite.rel.rules.FilterToCalcRule;
+import org.apache.calcite.rel.rules.ProjectCalcMergeRule;
+import org.apache.calcite.rel.rules.ProjectToCalcRule;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
@@ -65,29 +70,18 @@ import org.apache.calcite.tools.RuleSets;
  */
 @Internal
 public class BeamRuleSets {
-  public static final List<RelOptRule> BEAM_CONVERSIONS =
+  private static final List<RelOptRule> LOGICAL_OPTIMIZATIONS =
       ImmutableList.of(
-          BeamAggregationRule.INSTANCE,
-          BeamEnumerableConverterRule.INSTANCE,
-          BeamFilterRule.INSTANCE,
-          BeamIntersectRule.INSTANCE,
-          BeamIOSinkRule.INSTANCE,
-          BeamJoinRule.INSTANCE,
-          BeamMinusRule.INSTANCE,
-          BeamProjectRule.INSTANCE,
-          BeamSortRule.INSTANCE,
-          BeamUnionRule.INSTANCE,
-          BeamUncollectRule.INSTANCE,
-          BeamUnnestRule.INSTANCE,
-          BeamUnnestRule.INSTANCE,
-          BeamJoinRule.INSTANCE,
-          BeamEnumerableConverterRule.INSTANCE,
-          BeamValuesRule.INSTANCE);
-
-  public static final List<RelOptRule> CALCITE_LOGICAL_OPTIMIZATIONS =
-      ImmutableList.of(
-          // push a filter into a join
+          // Rules so we only have to implement Calc
+          FilterCalcMergeRule.INSTANCE,
+          ProjectCalcMergeRule.INSTANCE,
+          FilterToCalcRule.INSTANCE,
+          ProjectToCalcRule.INSTANCE,
+          // https://issues.apache.org/jira/browse/BEAM-4522
+          // CalcRemoveRule.INSTANCE,
+          CalcMergeRule.INSTANCE// push a filter into a join
           FilterJoinRule.FILTER_ON_JOIN,
+
           // push filter into the children of a join
           FilterJoinRule.JOIN,
           // push filter through an aggregation
@@ -138,12 +132,36 @@ public class BeamRuleSets {
           PruneEmptyRules.SORT_INSTANCE,
           PruneEmptyRules.UNION_INSTANCE);
 
+  private static final List<RelOptRule> BEAM_CONVERTERS =
+      ImmutableList.of(
+          BeamCalcRule.INSTANCE,
+          BeamAggregationRule.INSTANCE,
+          BeamEnumerableConverterRule.INSTANCE,
+          BeamFilterRule.INSTANCE,
+          BeamIntersectRule.INSTANCE,
+          BeamIOSinkRule.INSTANCE,
+          BeamJoinRule.INSTANCE,
+          BeamMinusRule.INSTANCE,
+          BeamProjectRule.INSTANCE,
+          BeamSortRule.INSTANCE,
+          BeamUnionRule.INSTANCE,
+          BeamUncollectRule.INSTANCE,
+          BeamUnnestRule.INSTANCE,
+          BeamUnnestRule.INSTANCE,
+          BeamJoinRule.INSTANCE,
+          BeamEnumerableConverterRule.INSTANCE,
+          BeamValuesRule.INSTANCE);
+
+  private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
+      ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
+
   public static RuleSet[] getRuleSets() {
     return new RuleSet[] {
       RuleSets.ofList(
           ImmutableList.<RelOptRule>builder()
-              .addAll(CALCITE_LOGICAL_OPTIMIZATIONS)
               .addAll(BEAM_CONVERSIONS)
+              .addAll(BEAM_TO_ENUMERABLE)
+              .addAll(LOGICAL_OPTIMIZATIONS)
               .build())
     };
   }

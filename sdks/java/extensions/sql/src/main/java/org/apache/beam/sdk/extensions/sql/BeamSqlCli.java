@@ -20,13 +20,11 @@ package org.apache.beam.sdk.extensions.sql;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.ValidationException;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
 @Experimental
@@ -47,14 +45,12 @@ public class BeamSqlCli {
   }
 
   /** Returns a human readable representation of the query execution plan. */
-  public String explainQuery(String sqlString)
-      throws ValidationException, RelConversionException, SqlParseException {
+  public String explainQuery(String sqlString) throws ParseException {
     return env.explain(sqlString);
   }
 
   /** Executes the given sql. */
-  public void execute(String sqlString)
-      throws ValidationException, RelConversionException, SqlParseException {
+  public void execute(String sqlString) throws ParseException {
 
     if (env.isDdl(sqlString)) {
       env.executeDdl(sqlString);

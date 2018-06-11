@@ -22,7 +22,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
@@ -37,7 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
  * Utilities for interacting with portability {@link Environment environments}.
  */
 public class Environments {
-  private static final Map<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
+  private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
       ImmutableMap.<String, EnvironmentIdExtractor>builder()
           .put(PTransformTranslation.COMBINE_TRANSFORM_URN, Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)

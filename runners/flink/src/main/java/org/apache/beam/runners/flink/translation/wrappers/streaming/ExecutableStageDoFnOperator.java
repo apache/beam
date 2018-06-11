@@ -61,8 +61,6 @@ import org.joda.time.Instant;
  * which will be even more expensive with SDK harness container.
  * Refactor for above should be looked into once streaming side inputs (and push back) take
  * shape.
- * @param <InputT>
- * @param <OutputT>
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
@@ -93,7 +91,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     super(new NoOpDoFn(),
             stepName, inputCoder, mainOutputTag, additionalOutputTags,
             outputManagerFactory, WindowingStrategy.globalDefault() /* unused */,
-            sideInputTagMapping, sideInputs, options, null /*keyCoder*/);
+            sideInputTagMapping, sideInputs, options, null /*keyCoder*/, null /* key selector */);
       this.payload = payload;
       this.jobInfo = jobInfo;
       this.contextFactory = contextFactory;
