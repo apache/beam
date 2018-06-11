@@ -34,7 +34,11 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
     final Mapper<InputT, OutputT> mapper =
-        new Mapper<>(operator, accumulators);
+        new Mapper<>(
+            operator.getName(),
+            operator.getFunctor(),
+            accumulators,
+            operator.getEventTimeExtractor());
     return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
   }
 
@@ -50,13 +54,13 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     private final DoFnCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
-        FlatMap<InputT, OutputT> operator,
-        AccumulatorProvider accumulators) {
-      this.mapper = operator.getFunctor();
-      @Nullable ExtractEventTime<InputT> eventTimeExtractor = operator.getEventTimeExtractor();
+        String operatorName,
+        UnaryFunctor<InputT, OutputT> mapper,
+        AccumulatorProvider accumulators,
+        @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
+      this.mapper = mapper;
       this.collector =
-          new DoFnCollector<>(
-              accumulators, new Collector<>(eventTimeExtractor, operator.getName()));
+          new DoFnCollector<>(accumulators, new Collector<>(operatorName, eventTimeExtractor));
     }
 
     @ProcessElement
@@ -74,8 +78,7 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     private final ExtractEventTime<InputT> eventTimeExtractor;
     private final String operatorName;
 
-    private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor,
-        String operatorName) {
+    private Collector(String operatorName, @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;
       this.operatorName = operatorName;
     }

@@ -77,7 +77,7 @@ public class DoFnCollector<InputT, OutputT, ElemT> implements Collector<ElemT>, 
 
   @Override
   public Timer getTimer(String name) {
-    return accumulators.getTimer(beamCollector.getOperatorName(), name);
+    throw new UnsupportedOperationException("Timer not supported. Use histogram instead.");
   }
 
   void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
