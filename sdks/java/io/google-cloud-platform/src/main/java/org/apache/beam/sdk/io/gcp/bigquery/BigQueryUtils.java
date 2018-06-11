@@ -18,14 +18,21 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+import static org.apache.beam.sdk.values.Row.toRow;
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableMap;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -56,20 +63,27 @@ public class BigQueryUtils {
           .put(TypeName.INT16, StandardSQLTypeName.INT64)
           .put(TypeName.INT32, StandardSQLTypeName.INT64)
           .put(TypeName.INT64, StandardSQLTypeName.INT64)
-
           .put(TypeName.FLOAT, StandardSQLTypeName.FLOAT64)
           .put(TypeName.DOUBLE, StandardSQLTypeName.FLOAT64)
-
           .put(TypeName.DECIMAL, StandardSQLTypeName.FLOAT64)
-
           .put(TypeName.BOOLEAN, StandardSQLTypeName.BOOL)
-
           .put(TypeName.ARRAY, StandardSQLTypeName.ARRAY)
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
-
           .put(TypeName.DATETIME, StandardSQLTypeName.TIMESTAMP)
           .put(TypeName.STRING, StandardSQLTypeName.STRING)
+          .build();
 
+  private static final Map<TypeName, Function<String, Object>> JSON_VALUE_PARSERS =
+      ImmutableMap.<TypeName, Function<String, Object>>builder()
+          .put(TypeName.BYTE, Byte::valueOf)
+          .put(TypeName.INT16, Short::valueOf)
+          .put(TypeName.INT32, Integer::valueOf)
+          .put(TypeName.INT64, Long::valueOf)
+          .put(TypeName.FLOAT, Float::valueOf)
+          .put(TypeName.DOUBLE, Double::valueOf)
+          .put(TypeName.DECIMAL, BigDecimal::new)
+          .put(TypeName.BOOLEAN, Boolean::valueOf)
+          .put(TypeName.STRING, str -> str)
           .build();
 
   private static final Map<byte[], StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
@@ -82,8 +96,8 @@ public class BigQueryUtils {
           .build();
 
   /**
-   * Get the corresponding BigQuery {@link StandardSQLTypeName}
-   * for supported Beam {@link FieldType}.
+   * Get the corresponding BigQuery {@link StandardSQLTypeName} for supported Beam {@link
+   * FieldType}.
    */
   private static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
@@ -100,8 +114,7 @@ public class BigQueryUtils {
     for (Field schemaField : schema.getFields()) {
       FieldType type = schemaField.getType();
 
-      TableFieldSchema field = new TableFieldSchema()
-        .setName(schemaField.getName());
+      TableFieldSchema field = new TableFieldSchema().setName(schemaField.getName());
       if (schemaField.getDescription() != null && !"".equals(schemaField.getDescription())) {
         field.setDescription(schemaField.getDescription());
       }
@@ -124,16 +137,12 @@ public class BigQueryUtils {
     return fields;
   }
 
-  /**
-   * Convert a Beam {@link Schema} to a BigQuery {@link TableSchema}.
-   */
+  /** Convert a Beam {@link Schema} to a BigQuery {@link TableSchema}. */
   public static TableSchema toTableSchema(Schema schema) {
     return new TableSchema().setFields(toTableFieldSchema(schema));
   }
 
-  /**
-   * Convert a Beam {@link PCollection} to a BigQuery {@link TableSchema}.
-   */
+  /** Convert a Beam {@link PCollection} to a BigQuery {@link TableSchema}. */
   public static TableSchema toTableSchema(PCollection<Row> rows) {
     RowCoder coder = (RowCoder) rows.getCoder();
     return toTableSchema(coder.getSchema());
@@ -141,16 +150,12 @@ public class BigQueryUtils {
 
   private static final SerializableFunction<Row, TableRow> TO_TABLE_ROW = new ToTableRow();
 
-  /**
-   * Convert a Beam {@link Row} to a BigQuery {@link TableRow}.
-   */
+  /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   public static SerializableFunction<Row, TableRow> toTableRow() {
     return TO_TABLE_ROW;
   }
 
-  /**
-   * Convert a Beam {@link Row} to a BigQuery {@link TableRow}.
-   */
+  /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   private static class ToTableRow implements SerializableFunction<Row, TableRow> {
     @Override
     public TableRow apply(Row input) {
@@ -180,10 +185,56 @@ public class BigQueryUtils {
         value = toTableRow((Row) value);
       }
 
-      output = output.set(
-          schemaField.getName(),
-          value);
+      output = output.set(schemaField.getName(), value);
     }
     return output;
+  }
+
+  /**
+   * Tries to parse the JSON {@link TableRow} from BigQuery.
+   *
+   * <p>Only supports basic types and arrays. Doesn't support date types.
+   */
+  public static Row toBeamRow(Schema rowSchema, TableSchema bqSchema, TableRow jsonBqRow) {
+    List<TableFieldSchema> bqFields = bqSchema.getFields();
+
+    Map<String, Integer> bqFieldIndices =
+        IntStream.range(0, bqFields.size())
+            .boxed()
+            .collect(toMap(i -> bqFields.get(i).getName(), i -> i));
+
+    List<Object> rawJsonValues =
+        rowSchema
+            .getFields()
+            .stream()
+            .map(field -> bqFieldIndices.get(field.getName()))
+            .map(index -> jsonBqRow.getF().get(index).getV())
+            .collect(toList());
+
+    return IntStream.range(0, rowSchema.getFieldCount())
+        .boxed()
+        .map(index -> toBeamValue(rowSchema.getField(index).getType(), rawJsonValues.get(index)))
+        .collect(toRow(rowSchema));
+  }
+
+  private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
+    if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
+      return JSON_VALUE_PARSERS.get((fieldType.getTypeName())).apply((String) jsonBQValue);
+    }
+
+    if (jsonBQValue instanceof List) {
+      return ((List<Object>) jsonBQValue)
+          .stream()
+          .map(v -> ((Map<String, Object>) v).get("v"))
+          .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+          .collect(toList());
+    }
+
+    throw new UnsupportedOperationException(
+        "Converting BigQuery type '"
+            + jsonBQValue.getClass()
+            + "' to '"
+            + fieldType
+            + "' is not supported");
   }
 }
