@@ -63,43 +63,16 @@ public class BeamSqlExplainTest {
   }
 
   @Test
-  public void testExplainFilterPushIntoJoin()
-      throws SqlParseException, RelConversionException, ValidationException {
-    String plan = cli.explainQuery("SELECT A.c1, B.c2 FROM A JOIN B ON A.c1 = B.c2 WHERE A.c1 > 0");
-
-    assertEquals(
-        "BeamJoinRel(condition=[=($0, $1)], joinType=[inner])\n"
-            + "  BeamProjectRel(c1=[$0])\n"
-            + "    BeamFilterRel(condition=[>($0, 0)])\n"
-            + "      BeamIOSourceRel(table=[[beam, A]])\n"
-            + "  BeamProjectRel(c2=[$1])\n"
-            + "    BeamIOSourceRel(table=[[beam, B]])\n",
-        plan);
-  }
-
-  @Test
-  public void testExplainCommaJoin()
-      throws SqlParseException, RelConversionException, ValidationException {
+  public void testExplainCommaJoin() {
     String plan = cli.explainQuery("SELECT A.c1, B.c2 FROM A, B WHERE A.c1 = B.c2 AND A.c1 > 0");
 
     assertEquals(
-        "BeamJoinRel(condition=[=($0, $1)], joinType=[inner])\n"
-            + "  BeamProjectRel(c1=[$0])\n"
-            + "    BeamFilterRel(condition=[>($0, 0)])\n"
-            + "      BeamIOSourceRel(table=[[beam, A]])\n"
-            + "  BeamProjectRel(c2=[$1])\n"
+        "BeamCalcRel(expr#0..3=[{inputs}], expr#4=[=($t0, $t3)], expr#5=[0],"
+            + " expr#6=[>($t0, $t5)], expr#7=[AND($t4, $t6)], c1=[$t0],"
+            + " c2=[$t3], $condition=[$t7])\n"
+            + "  BeamJoinRel(condition=[true], joinType=[inner])\n"
+            + "    BeamIOSourceRel(table=[[beam, A]])\n"
             + "    BeamIOSourceRel(table=[[beam, B]])\n",
-        plan);
-  }
-
-  @Test
-  public void testExplainProject()
-      throws SqlParseException, RelConversionException, ValidationException {
-    String plan = cli.explainQuery("select * from person");
-
-    assertEquals(
-        "BeamProjectRel(id=[$0], name=[$1], age=[$2])\n"
-            + "  BeamIOSourceRel(table=[[beam, person]])\n",
         plan);
   }
 }

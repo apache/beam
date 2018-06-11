@@ -122,7 +122,6 @@ class BeamQueryPlanner {
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException, CannotPlanException {
     RelNode beamRelNode;
-    RelNode optRelNode;
     Planner planner = getPlanner();
     try {
       SqlNode parsed = planner.parse(sqlStatement);
@@ -172,7 +171,7 @@ class BeamQueryPlanner {
 
   private RelNode optimizeLogicPlan(RelNode relNode, RelTraitSet desiredTraits)
       throws CannotPlanException {
-    RuleSet logicalOptRuleSet = BeamRuleSets.getRuleSets()[0];
+    RuleSet logicalOptRuleSet = BeamRuleSets.getOptRuleSet();
 
     return runVolcanoPlanner(logicalOptRuleSet, relNode, desiredTraits);
   }
