@@ -68,6 +68,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -327,9 +328,12 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
                     .returns(workItemTypeInfo)
                     .name("ToKeyedWorkItem");
 
+    WorkItemKeySelector<K, V> keySelector = new WorkItemKeySelector<>(
+        inputElementCoder.getKeyCoder());
+
     KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>
             keyedWorkItemStream =
-            workItemStream.keyBy(new WorkItemKeySelector<>(inputElementCoder.getKeyCoder()));
+            workItemStream.keyBy(keySelector);
 
     SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn =
             SystemReduceFn.buffering(inputElementCoder.getValueCoder());
@@ -358,7 +362,8 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
                     new HashMap<>(), /* side-input mapping */
                     Collections.emptyList(), /* side inputs */
                     context.getPipelineOptions(),
-                    inputElementCoder.getKeyCoder());
+                    inputElementCoder.getKeyCoder(),
+                    (KeySelector) keySelector /* key selector */);
 
     SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<V>>>> outputDataStream =
             keyedWorkItemStream

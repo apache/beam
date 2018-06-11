@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.jdbc;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -27,11 +28,15 @@ import java.sql.Driver;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.ServiceLoader;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /** Test for JDBC via {@link java.net.URLClassLoader}. */
 public class JdbcIT {
   private static final String DRIVER_URL = "jdbc:beam:";
+
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   private Connection getConnection() throws Exception {
     URL jdbcUrl = new File(System.getProperty("driver.jar")).toURI().toURL();
@@ -49,5 +54,36 @@ public class JdbcIT {
     Statement statement = connection.createStatement();
     // SELECT 1 is a special case and does not reach the parser
     assertTrue(statement.execute("SELECT 1"));
+  }
+
+  @Test
+  public void classLoader_parse() throws Exception {
+    Connection connection = getConnection();
+    Statement statement = connection.createStatement();
+    assertTrue(statement.execute("SELECT 'beam'"));
+  }
+
+  @Test
+  public void classLoader_ddl() throws Exception {
+    Connection connection = getConnection();
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("CREATE TABLE test (id INTEGER) TYPE 'text'"));
+    assertEquals(0, statement.executeUpdate("DROP TABLE test"));
+  }
+
+  @Test
+  public void classLoader_readFile() throws Exception {
+    File simpleTable = folder.newFile();
+
+    Connection connection = getConnection();
+    Statement statement = connection.createStatement();
+    assertEquals(
+        0,
+        statement.executeUpdate(
+            "CREATE TABLE test (id INTEGER) TYPE 'text' LOCATION '"
+                + simpleTable.getAbsolutePath()
+                + "'"));
+    assertTrue(statement.execute("SELECT * FROM test"));
+    assertEquals(0, statement.executeUpdate("DROP TABLE test"));
   }
 }

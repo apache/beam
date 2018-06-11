@@ -603,8 +603,8 @@ public class Create<T> {
 
     private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
       @ProcessElement
-      public void processElement(ProcessContext c) {
-        c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
+      public void processElement(@Element TimestampedValue<T> element, OutputReceiver<T> r) {
+        r.outputWithTimestamp(element.getValue(), element.getTimestamp());
       }
     }
   }

@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -31,7 +31,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <flink.version>1.4.0</flink.version>
+    <flink.version>1.5.0</flink.version>
   </properties>
 
   <profiles>
@@ -222,13 +222,12 @@
     <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-core</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-jdk14</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>beam-model-pipeline</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-fn-execution</artifactId>
     </dependency>
 
     <dependency>
@@ -271,12 +270,18 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-fn-execution</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-jdk14</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-model-pipeline</artifactId>
+      <artifactId>beam-sdks-java-fn-execution</artifactId>
     </dependency>
 
     <dependency>
@@ -412,12 +417,6 @@
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-model-fn-execution</artifactId>
       <scope>test</scope>
     </dependency>
 

@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	cpus   = flag.Int("cpus", 10, "Number of tests to run in parallel")
-	filter = flag.String("filter", ".*", "Test filer to run a subset of tests")
+	parallel = flag.Int("parallel", 10, "Number of tests to run in parallel")
+	filter   = flag.String("filter", ".*", "Test filer to run a subset of tests")
 )
 
 const old_pond = "memfs://old_pond"
@@ -50,8 +50,8 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
-	if *cpus < 1 {
-		*cpus = 1
+	if *parallel < 1 {
+		*parallel = 1
 	}
 
 	pipelines := []namedPipeline{
@@ -73,7 +73,7 @@ func main() {
 
 	var failures int32
 	var wg sync.WaitGroup
-	for i := 0; i < *cpus; i++ {
+	for i := 0; i < *parallel; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

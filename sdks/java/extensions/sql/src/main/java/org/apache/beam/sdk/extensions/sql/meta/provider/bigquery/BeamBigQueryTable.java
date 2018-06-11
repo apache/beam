@@ -68,7 +68,7 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
     };
   }
 
-  public String getTableSpec() {
+  String getTableSpec() {
     return tableSpec;
   }
 }

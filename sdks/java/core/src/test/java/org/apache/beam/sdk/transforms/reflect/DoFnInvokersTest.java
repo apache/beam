@@ -89,7 +89,7 @@ public class DoFnInvokersTest {
 
   @Before
   public void setUp() {
-    mockElement =  new String("element");
+    mockElement = new String("element");
     mockTimestamp = new Instant(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);

@@ -281,7 +281,7 @@ public class ProcessBundleHandler {
 
     private BlockTillStateCallsFinish(BeamFnStateClient beamFnStateClient) {
       this.beamFnStateClient = beamFnStateClient;
-      this.phaser  = new Phaser(1 /* initial party is the process bundle handler */);
+      this.phaser = new Phaser(1 /* initial party is the process bundle handler */);
       this.currentPhase = phaser.getPhase();
     }
 

@@ -124,7 +124,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
-        String namespace = common_job_properties.getKubernetesNamespace('filebasedioithdfs')
+        String namespace = common_job_properties.getKubernetesNamespace(testConfiguration.jobName)
         String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
         def argMap = [

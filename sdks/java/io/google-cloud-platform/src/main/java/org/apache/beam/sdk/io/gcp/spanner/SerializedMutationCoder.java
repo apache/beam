@@ -51,7 +51,7 @@ class SerializedMutationCoder extends AtomicCoder<SerializedMutation> {
   @Override
   public SerializedMutation decode(InputStream in)
       throws IOException {
-    String tableName =  stringCoder.decode(in);
+    String tableName = stringCoder.decode(in);
     byte[] encodedKey = byteArrayCoder.decode(in);
     byte[] mutationBytes = byteArrayCoder.decode(in);
     return SerializedMutation.create(tableName, encodedKey, mutationBytes);

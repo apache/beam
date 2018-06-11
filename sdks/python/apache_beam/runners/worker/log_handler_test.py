@@ -82,7 +82,7 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
         self.assertEqual(u'log_handler_test._verify_fn_log_handler',
                          log_entry.log_location)
         self.assertGreater(log_entry.timestamp.seconds, 0)
-        self.assertGreater(log_entry.timestamp.nanos, 0)
+        self.assertGreaterEqual(log_entry.timestamp.nanos, 0)
         num_received_log_entries += 1
 
     self.assertEqual(num_received_log_entries, num_log_entries)

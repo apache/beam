@@ -211,7 +211,7 @@ public class EvaluationContext {
    * @param <T>  Type of object to return.
    * @return Native object.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T get(PValue value) {
     if (pobjects.containsKey(value)) {
       T result = (T) pobjects.get(value);

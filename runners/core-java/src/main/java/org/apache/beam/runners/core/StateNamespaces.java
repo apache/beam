@@ -280,7 +280,7 @@ public class StateNamespaces {
       } else {
         return window(windowCoder, window);
       }
-    } catch (Exception  e) {
+    } catch (Exception e) {
       throw new RuntimeException("Invalid namespace string: '" + stringKey + "'", e);
     }
   }

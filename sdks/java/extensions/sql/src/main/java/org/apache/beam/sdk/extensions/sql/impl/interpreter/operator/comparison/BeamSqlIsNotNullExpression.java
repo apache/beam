@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -45,8 +45,8 @@ public class BeamSqlIsNotNullExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window, correlateEnv).getValue();
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Object leftValue = operands.get(0).evaluate(inputRow, window, env).getValue();
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue != null);
   }
 }

@@ -46,14 +46,15 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         "SELECT f_int2, squaresum1(f_int) AS `squaresum`" + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result1 =
         boundedInput1.apply(
-            "testUdaf1", BeamSql.query(sql1).registerUdaf("squaresum1", new SquareSum()));
+            "testUdaf1", SqlTransform.query(sql1).registerUdaf("squaresum1", new SquareSum()));
     PAssert.that(result1).containsInAnyOrder(row);
 
     String sql2 =
         "SELECT f_int2, squaresum2(f_int) AS `squaresum`" + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result2 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
-            .apply("testUdaf2", BeamSql.query(sql2).registerUdaf("squaresum2", new SquareSum()));
+            .apply(
+                "testUdaf2", SqlTransform.query(sql2).registerUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
@@ -72,7 +73,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PCollection<Row> result1 =
         boundedInput1.apply(
             "testUdaf",
-            BeamSql.query(sql1).registerUdaf("double_square_sum", new SquareSquareSum()));
+            SqlTransform.query(sql1).registerUdaf("double_square_sum", new SquareSquareSum()));
     PAssert.that(result1).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
@@ -96,7 +97,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         "SELECT f_int2, squaresum(f_int) AS `squaresum`" + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result1 =
         boundedInput1.apply(
-            "testUdaf", BeamSql.query(sql1).registerUdaf("squaresum", new RawCombineFn()));
+            "testUdaf", SqlTransform.query(sql1).registerUdaf("squaresum", new RawCombineFn()));
   }
 
   /** test UDF. */
@@ -108,19 +109,21 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result1 =
         boundedInput1.apply(
-            "testUdf1", BeamSql.query(sql1).registerUdf("cubic1", CubicInteger.class));
+            "testUdf1", SqlTransform.query(sql1).registerUdf("cubic1", CubicInteger.class));
     PAssert.that(result1).containsInAnyOrder(row);
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result2 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
-            .apply("testUdf2", BeamSql.query(sql2).registerUdf("cubic2", new CubicIntegerFn()));
+            .apply(
+                "testUdf2", SqlTransform.query(sql2).registerUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(row);
 
     String sql3 = "SELECT f_int, substr(f_string) as sub_string FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result3 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
-            .apply("testUdf3", BeamSql.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
+            .apply(
+                "testUdf3", SqlTransform.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
 
     Schema subStrSchema =
         Schema.builder().addInt32Field("f_int").addStringField("sub_string").build();

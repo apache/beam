@@ -88,7 +88,11 @@ public class LocalFileSystemArtifactStagerServiceTest {
     String name = "my-artifact";
     requestObserver.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()
-            .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
+            .setMetadata(
+                ArtifactApi.PutArtifactMetadata.newBuilder()
+                    .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
+                    .setStagingSessionToken("token")
+                    .build())
             .build());
     requestObserver.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()
@@ -119,7 +123,11 @@ public class LocalFileSystemArtifactStagerServiceTest {
     String name = "my-artifact";
     requestObserver.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()
-            .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
+            .setMetadata(
+                ArtifactApi.PutArtifactMetadata.newBuilder()
+                    .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
+                    .setStagingSessionToken("token")
+                    .build())
             .build());
     requestObserver.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()
@@ -213,7 +221,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
     assertThat(commitResponseObserver.completed, is(true));
     assertThat(commitResponseObserver.responses, Matchers.hasSize(1));
     ArtifactApi.CommitManifestResponse commitResponse = commitResponseObserver.responses.get(0);
-    assertThat(commitResponse.getStagingToken(), Matchers.not(Matchers.nullValue()));
+    assertThat(commitResponse.getRetrievalToken(), Matchers.not(Matchers.nullValue()));
   }
 
   @Test
@@ -245,7 +253,11 @@ public class LocalFileSystemArtifactStagerServiceTest {
         stub.putArtifact(new RecordingStreamObserver<>());
     requests.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()
-            .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
+            .setMetadata(
+                ArtifactApi.PutArtifactMetadata.newBuilder()
+                    .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
+                    .setStagingSessionToken("token")
+                    .build())
             .build());
     requests.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()

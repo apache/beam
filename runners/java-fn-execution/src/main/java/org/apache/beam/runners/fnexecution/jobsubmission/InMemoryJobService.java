@@ -114,6 +114,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               .newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
+              // TODO: Pass the correct token for staging. The token depends on the
+              // ArtifactStagingService implementation.
+              .setStagingSessionToken("token")
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -141,7 +144,10 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       // create new invocation
       JobInvocation invocation =
-          invoker.invoke(preparation.pipeline(), preparation.options(), request.getStagingToken());
+          invoker.invoke(
+              preparation.pipeline(),
+              preparation.options(),
+              request.getRetrievalToken());
       String invocationId = invocation.getId();
       invocation.start();
       invocations.put(invocationId, invocation);

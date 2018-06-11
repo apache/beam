@@ -36,6 +36,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -44,7 +45,6 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -355,7 +355,7 @@ public class UnboundedSourceWrapperTest {
       assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
       // draw a snapshot
-      OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+      OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
       // test that finalizeCheckpoint on CheckpointMark is called
       final ArrayList<Integer> finalizeList = new ArrayList<>();
@@ -477,7 +477,7 @@ public class UnboundedSourceWrapperTest {
 
       testHarness.open();
 
-      OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+      OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
       UnboundedSourceWrapper<
           KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =

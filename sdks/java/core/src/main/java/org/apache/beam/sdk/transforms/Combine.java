@@ -1859,14 +1859,14 @@ public class Combine {
             }
 
             @ProcessElement
-            public void processElement(ProcessContext c) {
-              KV<K, InputT> kv = c.element();
+            public void processElement(@Element KV<K, InputT> kv,
+                                       MultiOutputReceiver receiver) {
               int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
               if (spread <= 1) {
-                c.output(kv);
+                receiver.get(cold).output(kv);
               } else {
                 int nonce = counter++ % spread;
-                c.output(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                receiver.get(hot).output(KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
               }
             }
           })
