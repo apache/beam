@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -38,10 +39,13 @@ public class SumByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, Pair<Integer, Long>>() {
           @Override
           protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
-            return SumByKey.of(input)
+
+            Dataset<Integer> inputWithTime = AssignEventTime.of(input).using(i -> 0).output();
+
+            return SumByKey.of(inputWithTime)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> (long) e)
-                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
                 .triggeredBy(DefaultTrigger.of())
                 .discardingFiredPanes()
                 .output();
