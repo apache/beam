@@ -24,8 +24,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamFilterRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
@@ -36,31 +34,19 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.AggregateUnionAggregateRule;
-import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
-import org.apache.calcite.rel.rules.FilterJoinRule;
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
-import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
-import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
-import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
-import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
-import org.apache.calcite.rel.rules.ProjectMergeRule;
-import org.apache.calcite.rel.rules.ProjectSetOpTransposeRule;
-import org.apache.calcite.rel.rules.ProjectSortTransposeRule;
-import org.apache.calcite.rel.rules.PruneEmptyRules;
-import org.apache.calcite.rel.rules.PushProjector;
-import org.apache.calcite.rel.rules.SortProjectTransposeRule;
-import org.apache.calcite.rel.rules.SortRemoveRule;
-import org.apache.calcite.rel.rules.UnionEliminatorRule;
-import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.rel.rules.CalcMergeRule;
 import org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.calcite.rel.rules.FilterToCalcRule;
+import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.calcite.rel.rules.ProjectToCalcRule;
+import org.apache.calcite.rel.rules.PruneEmptyRules;
+import org.apache.calcite.rel.rules.SortRemoveRule;
+import org.apache.calcite.rel.rules.UnionEliminatorRule;
+import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
@@ -70,7 +56,7 @@ import org.apache.calcite.tools.RuleSets;
  */
 @Internal
 public class BeamRuleSets {
-  private static final List<RelOptRule> LOGICAL_OPTIMIZATIONS =
+  private static final List<RelOptRule> CALC_OPTIMIZATIONS =
       ImmutableList.of(
           // Rules so we only have to implement Calc
           FilterCalcMergeRule.INSTANCE,
@@ -79,32 +65,10 @@ public class BeamRuleSets {
           ProjectToCalcRule.INSTANCE,
           // https://issues.apache.org/jira/browse/BEAM-4522
           // CalcRemoveRule.INSTANCE,
-          CalcMergeRule.INSTANCE// push a filter into a join
-          FilterJoinRule.FILTER_ON_JOIN,
+          CalcMergeRule.INSTANCE);
 
-          // push filter into the children of a join
-          FilterJoinRule.JOIN,
-          // push filter through an aggregation
-          FilterAggregateTransposeRule.INSTANCE,
-          // push filter through set operation
-          FilterSetOpTransposeRule.INSTANCE,
-          // push project through set operation
-          ProjectSetOpTransposeRule.INSTANCE,
-
-          // push a projection past a filter or vice versa
-          ProjectFilterTransposeRule.INSTANCE,
-          FilterProjectTransposeRule.INSTANCE,
-
-          // push a projection to the children of a join
-          // push all expressions to handle the time indicator correctly
-          new ProjectJoinTransposeRule(
-              PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
-          // merge projections
-          ProjectMergeRule.INSTANCE,
-          // reorder sort and projection
-          SortProjectTransposeRule.INSTANCE,
-          ProjectSortTransposeRule.INSTANCE,
-
+  private static final List<RelOptRule> LOGICAL_OPTIMIZATIONS =
+      ImmutableList.of(
           // join rules
           JoinPushExpressionsRule.INSTANCE,
 
@@ -136,32 +100,30 @@ public class BeamRuleSets {
       ImmutableList.of(
           BeamCalcRule.INSTANCE,
           BeamAggregationRule.INSTANCE,
-          BeamEnumerableConverterRule.INSTANCE,
-          BeamFilterRule.INSTANCE,
-          BeamIntersectRule.INSTANCE,
-          BeamIOSinkRule.INSTANCE,
-          BeamJoinRule.INSTANCE,
-          BeamMinusRule.INSTANCE,
-          BeamProjectRule.INSTANCE,
           BeamSortRule.INSTANCE,
+          BeamValuesRule.INSTANCE,
+          BeamIntersectRule.INSTANCE,
+          BeamMinusRule.INSTANCE,
           BeamUnionRule.INSTANCE,
           BeamUncollectRule.INSTANCE,
           BeamUnnestRule.INSTANCE,
-          BeamUnnestRule.INSTANCE,
-          BeamJoinRule.INSTANCE,
-          BeamEnumerableConverterRule.INSTANCE,
-          BeamValuesRule.INSTANCE);
+          BeamJoinRule.INSTANCE);
 
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
+
+  public static RuleSet getOptRuleSet() {
+    return RuleSets.ofList(
+        ImmutableList.<RelOptRule>builder().addAll(LOGICAL_OPTIMIZATIONS).build());
+  }
 
   public static RuleSet[] getRuleSets() {
     return new RuleSet[] {
       RuleSets.ofList(
           ImmutableList.<RelOptRule>builder()
-              .addAll(BEAM_CONVERSIONS)
+              .addAll(BEAM_CONVERTERS)
               .addAll(BEAM_TO_ENUMERABLE)
-              .addAll(LOGICAL_OPTIMIZATIONS)
+              .addAll(CALC_OPTIMIZATIONS)
               .build())
     };
   }
