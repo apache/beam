@@ -50,6 +50,7 @@ func TryCombine(s Scope, combinefn interface{}, col PCollection) (PCollection, e
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollection.
 func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
+	s = s.Scope(graph.CombinePerKeyScope)
 	ValidateKVType(col)
 	col, err := TryGroupByKey(s, col)
 	if err != nil {
