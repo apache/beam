@@ -1,3 +1,4 @@
+#!/bin/bash
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -17,13 +18,10 @@
 # from developer's machine. Once the cluster is working, scripts waits till
 # external cluster endpoint will be available. It prints out configuration lines that
 # should be added to /etc/hosts file in order to work with hdfs cluster.
-#
 
-#!/bin/sh
 set -e
 
 kubectl create -f hdfs-multi-datanode-cluster.yml
-
 kubectl create -f hdfs-multi-datanode-cluster-for-local-dev.yml
 
 external_ip="$(kubectl get svc hadoop -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
@@ -36,21 +34,20 @@ do
 done
 
 hadoop_master_pod_name="$(kubectl get pods --selector=name=namenode -o jsonpath='{.items[*].metadata.name}')"
-
 hadoop_datanodes_pod_names="$(kubectl get pods --selector=name=datanode -o jsonpath='{.items[*].metadata.name}')"
 
 echo "For local tests please add the following 4 entries to /etc/hosts file"
-echo $external_ip$'\t'$hadoop_master_pod_name
-datanodes_pods=(${hadoop_datanodes_pod_names})
+printf "%s\\t%s\\n" "${external_ip}" "${hadoop_master_pod_name}"
+read -ra datanodes_pods <<< "${hadoop_datanodes_pod_names}"
 
 for pod in "${datanodes_pods[@]}"; do
-  external_ip="$(kubectl get svc ${pod} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+  external_ip="$(kubectl get svc "${pod}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
   while [ -z "$external_ip" ]
   do
   sleep 10s
-  external_ip="$(kubectl get svc hadoop -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+  external_ip="$(kubectl get svc "${pod}"  -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
   done
-  echo $external_ip$'\t'$pod".hadoop-datanodes.default.svc.cluster.local"
+  printf "%s\\t%s.hadoop-datanodes.default.svc.cluster.local\\n" "${external_ip}" "${pod}"
 done
 
 echo "Done."
