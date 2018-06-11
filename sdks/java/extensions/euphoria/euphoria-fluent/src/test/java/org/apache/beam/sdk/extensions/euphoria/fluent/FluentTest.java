@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
 
-import java.time.Duration;
-import org.apache.beam.sdk.extensions.euphoria.beam.BeamExecutor;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-
 /** Test behavior of Fluent API. */
 public class FluentTest {
 
@@ -59,12 +54,7 @@ public class FluentTest {
 //        // ~ strip the needless key
 //        .mapElements(Pair::getSecond)
 //        .persist(out)
-//        .execute(createExecutor());
+//        .executeSync(createExecutor());
 //  }
 
-  static BeamExecutor createExecutor() {
-    String[] args = {"--runner=DirectRunner"};
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    return new BeamExecutor(options).withAllowedLateness(Duration.ofHours(1));
-  }
 }
