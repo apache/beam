@@ -37,4 +37,4 @@ hbase_master_pod_name="$(kubectl get pods --selector=name=hbase -o jsonpath='{.i
 hbase_master_namespace="$(kubectl get pods --selector=name=hbase -o jsonpath='{.items[*].metadata.namespace}')"
 
 echo "For local tests please add the following entry to /etc/hosts file"
-printf "%s\\t%s.hbase.%s.svc.cluster.local\n" "${external_ip}" "${hbase_master_pod_name}" "${hbase_master_namespace}"
+printf "%s\\t%s.hbase.%s.svc.cluster.local\\n" "${external_ip}" "${hbase_master_pod_name}" "${hbase_master_namespace}"
