@@ -21,9 +21,11 @@ import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
@@ -227,9 +229,10 @@ public class BeamSqlCliTest {
             + "COMMENT '' LOCATION '/home/admin/orders'");
 
     String plan = cli.explainQuery("select * from person");
-    assertEquals(
-        "BeamProjectRel(id=[$0], name=[$1], age=[$2])\n"
-            + "  BeamIOSourceRel(table=[[beam, person]])\n",
-        plan);
+    assertThat(
+        plan,
+        equalTo(
+            "BeamCalcRel(expr#0..2=[{inputs}], proj#0..2=[{exprs}])\n"
+                + "  BeamIOSourceRel(table=[[beam, person]])\n"));
   }
 }

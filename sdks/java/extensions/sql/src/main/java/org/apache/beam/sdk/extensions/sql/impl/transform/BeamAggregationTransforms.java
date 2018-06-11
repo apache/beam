@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
@@ -250,7 +250,7 @@ public class BeamAggregationTransforms implements Serializable {
                   .get(idx)
                   .addInput(
                       accumulator.accumulatorElements.get(idx),
-                      exp.evaluate(input, null, ImmutableMap.of()).getValue()));
+                      exp.evaluate(input, null, BeamSqlExpressionEnvironments.empty()).getValue()));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
           /**
            * If source expression is type of KV pair, we bundle the value of two expressions into KV
@@ -264,8 +264,12 @@ public class BeamAggregationTransforms implements Serializable {
                   .addInput(
                       accumulator.accumulatorElements.get(idx),
                       KV.of(
-                          exp.getKey().evaluate(input, null, ImmutableMap.of()).getValue(),
-                          exp.getValue().evaluate(input, null, ImmutableMap.of()).getValue())));
+                          exp.getKey()
+                              .evaluate(input, null, BeamSqlExpressionEnvironments.empty())
+                              .getValue(),
+                          exp.getValue()
+                              .evaluate(input, null, BeamSqlExpressionEnvironments.empty())
+                              .getValue())));
         }
       }
       return deltaAcc;

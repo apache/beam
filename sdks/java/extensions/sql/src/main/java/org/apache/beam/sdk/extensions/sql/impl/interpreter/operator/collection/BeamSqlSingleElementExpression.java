@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -45,8 +45,8 @@ public class BeamSqlSingleElementExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Collection<Object> collection = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Collection<Object> collection = opValueEvaluated(0, inputRow, window, env);
 
     if (collection.size() <= 1) {
       return (collection.size() == 0)
