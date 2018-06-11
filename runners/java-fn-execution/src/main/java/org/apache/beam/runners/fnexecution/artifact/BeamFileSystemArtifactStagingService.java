@@ -101,7 +101,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
       }
       // TODO: Validate integrity of staged files.
       responseObserver.onNext(CommitManifestResponse.newBuilder()
-          .setStagingToken(manifestResourceId.toString())
+          .setRetrievalToken(manifestResourceId.toString())
           .build());
       responseObserver.onCompleted();
     } catch (Exception e) {

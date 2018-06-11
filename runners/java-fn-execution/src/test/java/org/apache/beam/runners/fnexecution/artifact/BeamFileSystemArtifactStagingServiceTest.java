@@ -176,7 +176,7 @@ public class BeamFileSystemArtifactStagingServiceTest {
         new StreamObserver<CommitManifestResponse>() {
           @Override
           public void onNext(CommitManifestResponse commitManifestResponse) {
-            stagingTokenFuture.complete(commitManifestResponse.getStagingToken());
+            stagingTokenFuture.complete(commitManifestResponse.getRetrievalToken());
           }
 
           @Override
