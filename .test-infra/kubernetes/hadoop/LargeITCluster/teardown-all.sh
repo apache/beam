@@ -1,3 +1,4 @@
+#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -15,19 +16,15 @@
 #
 # This script terminates hdfs cluster and hadoop service. It checks /etc/hosts file
 # for any unneeded entries and notifies user about them.
-#
 
-#!/bin/sh
 set -e
 
 external_ip="$(kubectl get svc hadoop -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
-
 hadoop_master_pod_name="$(kubectl get pods --selector=name=namenode -o jsonpath='{.items[*].metadata.name}')"
 
 kubectl delete -f hdfs-multi-datanode-cluster.yml
-
 kubectl delete -f hdfs-multi-datanode-cluster-for-local-dev.yml
 
-if grep "$external_ip\|$hadoop_master_pod_name" /etc/hosts ; then
+if grep "$external_ip\\|$hadoop_master_pod_name" /etc/hosts ; then
     echo "Remove entries from /etc/hosts."
 fi
