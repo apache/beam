@@ -41,7 +41,7 @@ public class InMemoryMetrics implements Sink {
     internalMetricRegistry = metricRegistry;
   }
 
-  @SuppressWarnings({"unchecked", "WeakerAccess"})
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public static <T> T valueOf(final String name) {
     final T retVal;
 

@@ -126,6 +126,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     }
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   private static void produce(Map<String, Instant> messages) {
     Properties producerProps = new Properties();
     producerProps.putAll(EMBEDDED_KAFKA_CLUSTER.getProps());
