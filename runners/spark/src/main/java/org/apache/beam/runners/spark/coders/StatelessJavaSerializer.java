@@ -64,7 +64,7 @@ class StatelessJavaSerializer extends Serializer {
     this(null, null);
   }
 
-  @SuppressWarnings("unchecked")
+  @Override
   public void write(Kryo kryo, Output output, Object object) {
     try {
       ObjectOutputStream objectStream = new ObjectOutputStream(output);
@@ -75,7 +75,7 @@ class StatelessJavaSerializer extends Serializer {
     }
   }
 
-  @SuppressWarnings("unchecked")
+  @Override
   public Object read (Kryo kryo, Input input, Class type) {
     try {
       return new ObjectInputStreamWithClassLoader(input, kryo.getClassLoader()).readObject();
