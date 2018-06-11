@@ -48,18 +48,13 @@
     <module>common</module>
     <module>elasticsearch</module>
     <module>elasticsearch-tests</module>
-    <module>file-based-io-tests</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
     <module>hadoop-file-system</module>
-    <module>hadoop-input-format</module>
     <module>hbase</module>
-    <module>hcatalog</module>
-    <module>jdbc</module>
     <module>jms</module>
     <module>kafka</module>
     <module>kinesis</module>
-    <module>mongodb</module>
     <module>mqtt</module>
     <module>parquet</module>
     <module>redis</module>
