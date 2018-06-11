@@ -77,7 +77,7 @@ public class Checkpoint {
     return is != null ? IOUtils.toByteArray(is) : null;
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public static <T> T readObject(FileSystem fileSystem, Path checkpointfilePath)
       throws IOException, ClassNotFoundException {
     byte[] bytes = read(fileSystem, checkpointfilePath);

@@ -282,6 +282,7 @@ class SparkStateInternals<K> implements StateInternals {
     }
   }
 
+  @SuppressWarnings("TypeParameterShadowing")
   private class SparkCombiningState<K, InputT, AccumT, OutputT>
       extends AbstractState<AccumT>
           implements CombiningState<InputT, AccumT, OutputT> {
