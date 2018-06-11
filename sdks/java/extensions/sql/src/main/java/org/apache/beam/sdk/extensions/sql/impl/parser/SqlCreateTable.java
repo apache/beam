@@ -23,6 +23,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
 
 import com.alibaba.fastjson.JSONObject;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -148,8 +149,14 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
     }
   }
 
-  private String getString(SqlNode n) {
-    return n == null ? null : ((NlsString) SqlLiteral.value(n)).getValue();
+  private @Nullable String getString(SqlNode n) {
+    if (n == null) {
+      return null;
+    }
+    if (n instanceof SqlIdentifier) {
+      return ((SqlIdentifier) n).toString();
+    }
+    return ((NlsString) SqlLiteral.value(n)).getValue();
   }
 
   private Table toTable() {
