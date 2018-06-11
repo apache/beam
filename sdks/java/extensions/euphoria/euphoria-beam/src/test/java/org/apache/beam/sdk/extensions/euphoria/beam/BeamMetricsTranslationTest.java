@@ -59,7 +59,7 @@ public class BeamMetricsTranslationTest {
     ListDataSink<Integer> sink = ListDataSink.get();
     Dataset<Integer> input = flow.createInput(source);
     final String counterName1 = "counter1";
-    final String operatorName1 = "step1";
+    final String operatorName1 = "count_elements_and_save_even_numbers";
 
     final Dataset<Pair<Integer, Integer>> pairedInput =
         ReduceByKey.named(operatorName1)
@@ -79,7 +79,7 @@ public class BeamMetricsTranslationTest {
 
 
     final String counterName2 = "counter2";
-    final String operatorName2 = "step2";
+    final String operatorName2 = "map_to_integer";
 
     final Dataset<Integer> mapElementsOutput =
         MapElements.named(operatorName2)

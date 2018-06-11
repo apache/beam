@@ -37,8 +37,13 @@ public interface AccumulatorProvider {
    */
   Counter getCounter(String name);
 
-
-  default Counter getCounter(String operatorName, String name){
+  /**
+   * Get an existing instance of a counter or create a new one.
+   * @param namespace of counter (e.g. operator name)
+   * @param name of the counter
+   * @return Instance of a counter.
+   */
+  default Counter getCounter(String namespace, String name){
     return getCounter(name);
   }
   /**
@@ -50,8 +55,13 @@ public interface AccumulatorProvider {
    */
   Histogram getHistogram(String name);
 
-
-  default Histogram getHistogram(String operatorName, String name){
+  /**
+   * Get an existing instance of a histogram or create a new one.
+   * @param namespace of histogram (e.g. operator name)
+   * @param name of the counter
+   * @return Instance of a counter.
+   */
+  default Histogram getHistogram(String namespace, String name){
     return getHistogram(name);
   }
 
@@ -60,13 +70,9 @@ public interface AccumulatorProvider {
    *
    * @param name Unique name of the timer.
    * @return Instance of a timer.
-   * @Deprecated use {@link #getTimer(String, String)}  instead
+   * @Deprecated use {@link #getHistogram(String, String)} instead
    */
   Timer getTimer(String name);
-
-  default Timer getTimer(String operatorName, String name){
-    return getTimer(name);
-  }
 
   /**
    * Creates a new instance of {@link AccumulatorProvider} initialized by given settings.

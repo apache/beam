@@ -21,18 +21,18 @@ package org.apache.beam.sdk.extensions.euphoria.beam;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.LongStream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Translation of accumulators to {@link Metrics}. Metric's namespace is taken from operatorName.
+ * Translation of accumulators to {@link Metrics}. Metric's namespace is taken from operator name.
  * So for better orientation in metrics it's recommended specify operator name with method .named().
  */
 public class BeamAccumulatorProvider implements AccumulatorProvider {
@@ -57,40 +57,39 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   }
 
   @Override
-  public Counter getCounter(final String operatorName, final String name) {
+  public Counter getCounter(final String namespace, final String name) {
     return counterMap.computeIfAbsent(
-        getMetricKey(operatorName, name), key -> new BeamMetricsCounter(operatorName, name));
+        getMetricKey(namespace, name), key -> new BeamMetricsCounter(namespace, name));
   }
 
   @Override
   public Histogram getHistogram(String name) {
     throw new UnsupportedOperationException(
         "BeamAccumulatorProvider doesn't support"
-            + " getHistogram(String name). Need specify operatorName and name");
+            + " getHistogram(String name). Need specify namespace and name");
   }
 
   @Override
-  public Histogram getHistogram(final String operatorName, final String name) {
+  public Histogram getHistogram(final String namespace, final String name) {
     return histogramMap.computeIfAbsent(
-        getMetricKey(operatorName, name), key -> new BeamMetricsHistogram(operatorName, name));
+        getMetricKey(namespace, name), key -> new BeamMetricsHistogram(namespace, name));
   }
 
   @Override
   public Timer getTimer(String name) {
     throw new UnsupportedOperationException(
         "BeamAccumulatorProvider doesn't support"
-            + " getTimer(String name). Need specify operatorName and name");
+            + " getTimer(String name). Need specify namespace and name");
   }
 
-  @Override
-  public Timer getTimer(String operatorName, String name) {
-    throw new UnsupportedOperationException(
-        "BeamAccumulatorProvider doesn't support"
-            + " getTimer(String name). Use getHistogram instead");
-  }
-
-  private static String getMetricKey(String operatorName, String name) {
-    return operatorName.concat(KEY_METRIC_SEPARATOR).concat(name);
+  /**
+   * Metric key for accumulator map.
+   * @param namespace = operator name
+   * @param name of metric
+   * @return metricKey = namespace + SEPARATOR + name
+   */
+  private static String getMetricKey(String namespace, String name) {
+    return namespace.concat(KEY_METRIC_SEPARATOR).concat(name);
   }
 
   // ------------------------
@@ -154,8 +153,10 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
 
     @Override
     public void add(long value, long times) {
-      LongStream.range(0, times)
-          .forEach(i -> Metrics.distribution(getNamespace(), getName()).update(value));
+      final Distribution histogram = Metrics.distribution(getNamespace(), getName());
+      for (long i = 0; i < times; i++) {
+        histogram.update(value);
+      }
     }
   }
 
