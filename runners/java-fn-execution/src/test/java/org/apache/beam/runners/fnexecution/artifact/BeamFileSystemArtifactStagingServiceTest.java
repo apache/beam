@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -37,7 +38,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -222,13 +223,14 @@ public class BeamFileSystemArtifactStagingServiceTest {
   @Test
   public void putArtifactsMultipleFilesTest() throws Exception {
     String stagingSession = "123";
-    Map<String, Integer> files = new HashMap<>();
-    files.put("file5cb", (DATA_1KB / 2) /*500b*/);
-    files.put("file1kb", DATA_1KB /*1 kb*/);
-    files.put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/);
-    files.put("nested/file1kb", DATA_1KB /*1 kb*/);
-    files.put("file10kb", 10 * DATA_1KB /*10 kb*/);
-    files.put("file100kb", 100 * DATA_1KB /*100 kb*/);
+    Map<String, Integer> files = ImmutableMap.<String, Integer>builder()
+        .put("file5cb", (DATA_1KB / 2) /*500b*/)
+        .put("file1kb", DATA_1KB /*1 kb*/)
+        .put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/)
+        .put("nested/file1kb", DATA_1KB /*1 kb*/)
+        .put("file10kb", 10 * DATA_1KB /*10 kb*/)
+        .put("file100kb", 100 * DATA_1KB /*100 kb*/)
+        .build();
 
     final String text = "abcdefghinklmop\n";
     files.forEach((fileName, size) -> {
@@ -261,13 +263,14 @@ public class BeamFileSystemArtifactStagingServiceTest {
   @Test
   public void putArtifactsMultipleFilesConcurrentlyTest() throws Exception {
     String stagingSession = "123";
-    Map<String, Integer> files = new HashMap<>();
-    files.put("file5cb", (DATA_1KB / 2) /*500b*/);
-    files.put("file1kb", DATA_1KB /*1 kb*/);
-    files.put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/);
-    files.put("nested/file1kb", DATA_1KB /*1 kb*/);
-    files.put("file10kb", 10 * DATA_1KB /*10 kb*/);
-    files.put("file100kb", 100 * DATA_1KB /*100 kb*/);
+    Map<String, Integer> files = ImmutableMap.<String, Integer>builder()
+        .put("file5cb", (DATA_1KB / 2) /*500b*/)
+        .put("file1kb", DATA_1KB /*1 kb*/)
+        .put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/)
+        .put("nested/file1kb", DATA_1KB /*1 kb*/)
+        .put("file10kb", 10 * DATA_1KB /*10 kb*/)
+        .put("file100kb", 100 * DATA_1KB /*100 kb*/)
+        .build();
 
     final String text = "abcdefghinklmop\n";
     files.forEach((fileName, size) -> {
@@ -313,44 +316,55 @@ public class BeamFileSystemArtifactStagingServiceTest {
   public void putArtifactsMultipleFilesConcurrentSessionsTest() throws Exception {
     String stagingSession1 = "123";
     String stagingSession2 = "abc";
-    Map<String, Integer> files = new HashMap<>();
-    files.put("file5cb", (DATA_1KB / 2) /*500b*/);
-    files.put("file1kb", DATA_1KB /*1 kb*/);
-    files.put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/);
-    files.put("nested/file1kb", DATA_1KB /*1 kb*/);
-    files.put("file10kb", 10 * DATA_1KB /*10 kb*/);
-    files.put("file100kb", 100 * DATA_1KB /*100 kb*/);
+    Map<String, Integer> files1 = ImmutableMap.<String, Integer>builder()
+        .put("file5cb", (DATA_1KB / 2) /*500b*/)
+        .put("file1kb", DATA_1KB /*1 kb*/)
+        .put("file15cb", (DATA_1KB * 3) / 2  /*1.5 kb*/)
+        .build();
+    Map<String, Integer> files2 = ImmutableMap.<String, Integer>builder()
+        .put("nested/file1kb", DATA_1KB /*1 kb*/)
+        .put("file10kb", 10 * DATA_1KB /*10 kb*/)
+        .put("file100kb", 100 * DATA_1KB /*100 kb*/)
+        .build();
 
     final String text = "abcdefghinklmop\n";
-    files.forEach((fileName, size) -> {
-      Path filePath = Paths.get(srcDir.toString(), fileName).toAbsolutePath();
-      try {
-        Files.createDirectories(filePath.getParent());
-        Files.write(filePath,
-            Strings.repeat(text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
-                .getBytes(CHARSET));
-      } catch (IOException ignored) {
-      }
-    });
+    ImmutableMap.<String, Integer>builder().putAll(files1).putAll(files2).build()
+        .forEach((fileName, size) -> {
+          Path filePath = Paths.get(srcDir.toString(), fileName).toAbsolutePath();
+          try {
+            Files.createDirectories(filePath.getParent());
+            Files.write(filePath,
+                Strings
+                    .repeat(text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
+                    .getBytes(CHARSET));
+          } catch (IOException ignored) {
+          }
+        });
     String stagingSessionToken1 = BeamFileSystemArtifactStagingService
         .generateStagingSessionToken(stagingSession1, destDir.toUri().getPath());
     String stagingSessionToken2 = BeamFileSystemArtifactStagingService
         .generateStagingSessionToken(stagingSession2, destDir.toUri().getPath());
 
-    List<ArtifactMetadata> metadata = new ArrayList<>();
+    List<ArtifactMetadata> metadata1 = new ArrayList<>();
+    List<ArtifactMetadata> metadata2 = new ArrayList<>();
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try {
-      for (String fileName : files.keySet()) {
+      Iterator<String> iterator1 = files1.keySet().iterator();
+      Iterator<String> iterator2 = files2.keySet().iterator();
+      while (iterator1.hasNext() && iterator2.hasNext()) {
+        String fileName1 = iterator1.next();
+        String fileName2 = iterator2.next();
         executorService.execute(() -> {
           try {
             putArtifact(stagingSessionToken1,
-                Paths.get(srcDir.toString(), fileName).toAbsolutePath().toString(), fileName);
+                Paths.get(srcDir.toString(), fileName1).toAbsolutePath().toString(), fileName1);
             putArtifact(stagingSessionToken2,
-                Paths.get(srcDir.toString(), fileName).toAbsolutePath().toString(), fileName);
+                Paths.get(srcDir.toString(), fileName2).toAbsolutePath().toString(), fileName2);
           } catch (Exception e) {
             Assert.fail(e.getMessage());
           }
-          metadata.add(ArtifactMetadata.newBuilder().setName(fileName).build());
+          metadata1.add(ArtifactMetadata.newBuilder().setName(fileName1).build());
+          metadata2.add(ArtifactMetadata.newBuilder().setName(fileName2).build());
         });
       }
     } finally {
@@ -358,16 +372,16 @@ public class BeamFileSystemArtifactStagingServiceTest {
       executorService.awaitTermination(2, TimeUnit.SECONDS);
     }
 
-    String stagingToken1 = commitManifest(stagingSessionToken1, metadata);
-    String stagingToken2 = commitManifest(stagingSessionToken2, metadata);
+    String stagingToken1 = commitManifest(stagingSessionToken1, metadata1);
+    String stagingToken2 = commitManifest(stagingSessionToken2, metadata2);
     Assert.assertEquals(
         Paths.get(destDir.toAbsolutePath().toString(), stagingSession1, "MANIFEST").toString(),
         stagingToken1);
     Assert.assertEquals(
         Paths.get(destDir.toAbsolutePath().toString(), stagingSession2, "MANIFEST").toString(),
         stagingToken2);
-    assertFiles(files.keySet(), stagingToken1);
-    assertFiles(files.keySet(), stagingToken2);
+    assertFiles(files1.keySet(), stagingToken1);
+    assertFiles(files2.keySet(), stagingToken2);
   }
 
   private void assertFiles(Set<String> files, String stagingToken) throws IOException {

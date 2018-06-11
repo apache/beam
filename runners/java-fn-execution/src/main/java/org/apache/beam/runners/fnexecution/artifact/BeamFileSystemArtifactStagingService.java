@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.stub.StreamObserver;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
@@ -48,7 +49,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link ArtifactStagingServiceImplBase} based on beam file system.
+ * This implementation is experimental.
+ *
+ * {@link ArtifactStagingServiceImplBase} based on beam file system. {@link
+ * BeamFileSystemArtifactStagingService} requires {@link StagingSessionToken} in every me call. The
+ * manifest is put in {@link StagingSessionToken#getBasePath()}/{@link
+ * StagingSessionToken#getSessionId()} and artifacts are put in {@link
+ * StagingSessionToken#getBasePath()}/{@link StagingSessionToken#getSessionId()}/{@link
+ * BeamFileSystemArtifactStagingService#ARTIFACTS}.
+ *
+ * <p>The returned token is the path to the manifest file.
+ *
+ * <p>The manifest file is encoded in {@link ProxyManifest}.
  */
 public class BeamFileSystemArtifactStagingService extends ArtifactStagingServiceImplBase implements
     FnService {
@@ -59,6 +71,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
   // Use UTF8 for all text encoding.
   private static final Charset CHARSET = StandardCharsets.UTF_8;
   public static final String MANIFEST = "MANIFEST";
+  public static final String ARTIFACTS = "artifacts";
 
   @Override
   public StreamObserver<PutArtifactRequest> putArtifact(
@@ -91,7 +104,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           .setStagingToken(manifestResourceId.toString())
           .build());
       responseObserver.onCompleted();
-    } catch (IOException e) {
+    } catch (Exception e) {
       // TODO: Cleanup all the artifacts.
       LOG.error("Unable to commit manifest.", e);
       responseObserver.onError(e);
@@ -123,20 +136,15 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         .toString();
   }
 
-  private StagingSessionToken decodeStagingSessionToken(String stagingSessionToken)
-      throws IOException {
+  private static StagingSessionToken decodeStagingSessionToken(String stagingSessionToken)
+      throws Exception {
     try {
       return MAPPER.readValue(stagingSessionToken, StagingSessionToken.class);
-    } catch (IOException e) {
-      try {
-        LOG.error(
-            "Unable to deserialize staging token {}. Expected format {}. Error {}",
-            stagingSessionToken, MAPPER.writeValueAsString(new StagingSessionToken()),
-            e.getMessage());
-      } catch (JsonProcessingException e1) {
-        LOG.error("Error {} occurred while serializing {}.", e.getMessage(),
-            StagingSessionToken.class);
-      }
+    } catch (JsonProcessingException e) {
+      LOG.error(
+          "Unable to deserialize staging token {}. Expected format {}. Error {}",
+          stagingSessionToken, "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"",
+          e.getMessage());
       throw e;
     }
   }
@@ -147,35 +155,30 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
       return MAPPER.writeValueAsString(stagingSessionToken);
     } catch (JsonProcessingException e) {
       LOG.error("Error {} occurred while serializing {}.", e.getMessage(),
-          StagingSessionToken.class);
+          stagingSessionToken);
       throw e;
     }
   }
 
-  private ResourceId getJobDirResourceId(String stagingSessionToken) throws IOException {
+  private ResourceId getJobDirResourceId(String stagingSessionToken) throws Exception {
     ResourceId baseResourceId;
     StagingSessionToken parsedToken = decodeStagingSessionToken(stagingSessionToken);
-    try {
-      baseResourceId = FileSystems.matchSingleFileSpec(parsedToken.getBasePath())
-          .resourceId();
-    } catch (FileNotFoundException fne) {
-      // Create the base path
-      baseResourceId = FileSystems
-          .matchNewResource(parsedToken.getBasePath(), true /* isDirectory */);
-    }
+    // Get or Create the base path
+    baseResourceId = FileSystems
+        .matchNewResource(parsedToken.getBasePath(), true /* isDirectory */);
     // Using sessionId as the subDir to store artifacts and manifest.
     return baseResourceId
         .resolve(parsedToken.getSessionId(), StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
-  private ResourceId getManifestFileResourceId(String stagingSessionToken) throws IOException {
+  private ResourceId getManifestFileResourceId(String stagingSessionToken) throws Exception {
     return getJobDirResourceId(stagingSessionToken)
         .resolve(MANIFEST, StandardResolveOptions.RESOLVE_FILE);
   }
 
-  private ResourceId getArtifactDirResourceId(String stagingSessionToken) throws IOException {
+  private ResourceId getArtifactDirResourceId(String stagingSessionToken) throws Exception {
     return getJobDirResourceId(stagingSessionToken)
-        .resolve("artifacts", StandardResolveOptions.RESOLVE_DIRECTORY);
+        .resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
   private class PutArtifactStreamObserver implements StreamObserver<PutArtifactRequest> {
@@ -193,18 +196,19 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     public void onNext(PutArtifactRequest putArtifactRequest) {
       // Create the directory structure for storing artifacts in the first call.
       if (metadata == null) {
+        checkNotNull(putArtifactRequest);
+        checkNotNull(putArtifactRequest.getMetadata());
         metadata = putArtifactRequest.getMetadata();
         // Check the base path exists or create the base path
         try {
           ResourceId artifactsDirId = getArtifactDirResourceId(
               putArtifactRequest.getMetadata().getStagingSessionToken());
-          LOG.info("Going to stage artifact {} in {}.", metadata.getMetadata().getName(),
-              artifactsDirId);
-          artifactId = artifactsDirId
-              .resolve(encodedFileName(metadata.getMetadata()),
-                  StandardResolveOptions.RESOLVE_FILE);
+          artifactId = artifactsDirId.resolve(encodedFileName(metadata.getMetadata()),
+              StandardResolveOptions.RESOLVE_FILE);
+          LOG.info("Going to stage artifact {} to {}.", metadata.getMetadata().getName(),
+              artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
-        } catch (IOException e) {
+        } catch (Exception e) {
           LOG.error("Staging failed for artifact {} for staging token {}",
               encodedFileName(metadata.getMetadata()), metadata.getStagingSessionToken());
           outboundObserver.onError(e);
@@ -287,6 +291,12 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
 
     private void setBasePath(String basePath) {
       this.basePath = basePath;
+    }
+
+    @Override
+    public String toString() {
+      return "StagingSessionToken{" + "sessionId='" + sessionId + "', " + "basePath='" + basePath
+          + "'" + "}";
     }
   }
 }
