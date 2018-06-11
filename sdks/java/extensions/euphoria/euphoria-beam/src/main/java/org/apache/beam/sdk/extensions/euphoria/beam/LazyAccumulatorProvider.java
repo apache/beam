@@ -46,8 +46,8 @@ class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
   }
 
   @Override
-  public Counter getCounter(String operatorName, String name) {
-    return getAccumulatorProvider().getCounter(operatorName, name);
+  public Counter getCounter(String namespace, String name) {
+    return getAccumulatorProvider().getCounter(namespace, name);
   }
 
   @Override
@@ -56,18 +56,13 @@ class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
   }
 
   @Override
-  public Histogram getHistogram(String operatorName, String name) {
-    return getAccumulatorProvider().getHistogram(operatorName, name);
+  public Histogram getHistogram(String namespace, String name) {
+    return getAccumulatorProvider().getHistogram(namespace, name);
   }
 
   @Override
   public Timer getTimer(String name) {
     return getAccumulatorProvider().getTimer(name);
-  }
-
-  @Override
-  public Timer getTimer(String operatorName, String name) {
-    return getAccumulatorProvider().getTimer(operatorName, name);
   }
 
   private AccumulatorProvider getAccumulatorProvider() {
