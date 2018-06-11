@@ -17,23 +17,28 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.AbstractExecutor;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Executor implementation using Apache Beam as a runtime.
+ * Wrapper around Beam's runner. Allows for {@link #executeSync(Flow) synchronous} and {@link
+ * #submitAsync(Flow) asycnhronous} executions of {@link Flow}.
  */
-public class BeamExecutor extends AbstractExecutor {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamExecutor.class);
+public class BeamRunnerWrapper {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BeamRunnerWrapper.class);
 
   private final PipelineOptions options;
   private final Settings settings;
@@ -41,17 +46,33 @@ public class BeamExecutor extends AbstractExecutor {
 
   private AccumulatorProvider.Factory accumulatorFactory = BeamAccumulatorProvider.getFactory();
 
-  public BeamExecutor(PipelineOptions options) {
+  /**
+   * Executor to submit flows, if closed all executions should be interrupted.
+   */
+  private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
+
+  private BeamRunnerWrapper(PipelineOptions options) {
     this(options, new Settings());
   }
 
-  public BeamExecutor(PipelineOptions options, Settings settings) {
+  private BeamRunnerWrapper(PipelineOptions options, Settings settings) {
     this.options = options;
     this.settings = settings;
   }
 
-  @Override
-  protected Result execute(Flow flow) {
+  /**
+   * @return wrapper around Beam's direct runner. It allows to run {@link Flow} locally.
+   */
+  public static BeamRunnerWrapper ofDirect() {
+    final String[] args = {"--runner=DirectRunner"};
+    final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
+    return new BeamRunnerWrapper(options).withAllowedLateness(java.time.Duration.ofHours(1));
+  }
+
+  /**
+   * Blocks until a given {@link Flow} is executed.
+   */
+  public Result executeSync(Flow flow) {
     final Pipeline pipeline;
     if (flow instanceof BeamFlow && ((BeamFlow) flow).hasPipeline()) {
       pipeline = ((BeamFlow) flow).getPipeline();
@@ -79,7 +100,6 @@ public class BeamExecutor extends AbstractExecutor {
     }
   }
 
-  @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory accumulatorFactory) {
     this.accumulatorFactory = accumulatorFactory;
   }
@@ -90,8 +110,24 @@ public class BeamExecutor extends AbstractExecutor {
    * @param duration the allowed lateness for all windows
    * @return this
    */
-  public BeamExecutor withAllowedLateness(java.time.Duration duration) {
+  public BeamRunnerWrapper withAllowedLateness(java.time.Duration duration) {
     this.allowedLateness = Duration.millis(duration.toMillis());
     return this;
+  }
+
+  public CompletableFuture<Result> submitAsync(Flow flow) {
+    return CompletableFuture.supplyAsync(() -> executeSync(flow), submitExecutor);
+  }
+
+  public void shutdown() {
+    LOG.info("Shutting down executor.");
+    submitExecutor.shutdownNow();
+  }
+
+  /**
+   * Result of pipeline's run.
+   */
+  private static class Result {
+
   }
 }
