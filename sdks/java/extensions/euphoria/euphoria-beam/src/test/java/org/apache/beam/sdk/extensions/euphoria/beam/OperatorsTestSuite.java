@@ -18,9 +18,14 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import java.time.Duration;
+import org.apache.beam.sdk.extensions.euphoria.beam.testkit.CountByKeyTest;
+import org.apache.beam.sdk.extensions.euphoria.beam.testkit.DistinctTest;
+import org.apache.beam.sdk.extensions.euphoria.beam.testkit.FilterTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.FlatMapTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.JoinTest;
+import org.apache.beam.sdk.extensions.euphoria.beam.testkit.MapElementsTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.ReduceByKeyTest;
+import org.apache.beam.sdk.extensions.euphoria.beam.testkit.SumByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.ExecutorEnvironment;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.ExecutorProvider;
@@ -36,22 +41,19 @@ import org.junit.runners.Suite;
  */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({
-    //    BroadcastHashJoinTest.class,
-    //    CountByKeyTest.class,
-    //    DistinctTest.class,
-    //    FilterTest.class,
+//        BroadcastHashJoinTest.class,
+    CountByKeyTest.class,
+    DistinctTest.class,
+    FilterTest.class,
     FlatMapTest.class,
     JoinTest.class,
-    //    JoinWindowEnforcementTest.class,
-    //    MapElementsTest.class,
+    MapElementsTest.class,
     ReduceByKeyTest.class,
     //    ReduceStateByKeyTest.class,
-    //    SumByKeyTest.class,
-    //    TopPerKeyTest.class,
-    //    SortTest.class,
+    SumByKeyTest.class,
+//    TopPerKeyTest.class, - uncomment when ReduceStateByKey is supported
     UnionTest.class,
-    //    WindowingTest.class,
-    //    WatermarkTest.class,
+//        WindowingTest.class,
 })
 public class OperatorsTestSuite implements ExecutorProvider {
 
