@@ -124,6 +124,10 @@ class TranslationContext {
     this.currentTransform = null;
   }
 
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
+  }
+
   /**
    * Uniquely identify a node when doing a topological traversal of the BEAM
    * {@link org.apache.beam.sdk.Pipeline}. It's changed on a per-node basis.

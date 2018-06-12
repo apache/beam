@@ -19,7 +19,6 @@
 package org.apache.beam.runners.samza;
 
 import java.util.Map;
-
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
@@ -35,12 +34,10 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.MapConfig;
-import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.operators.ContextManager;
 import org.apache.samza.operators.StreamGraph;
 import org.apache.samza.runtime.ApplicationRunner;
-import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.task.TaskContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,9 +81,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final Map<String, String> config = ConfigBuilder.buildConfig(pipeline, options, idMap);
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext();
-    final SamzaPipelineResult result = new SamzaPipelineResult(executionContext);
 
-    final ApplicationRunner runner = new LocalApplicationRunner(new MapConfig(config));
+    final ApplicationRunner runner = ApplicationRunner.fromConfig(new MapConfig(config));
 
     final StreamApplication app = new StreamApplication() {
       @Override
@@ -114,57 +110,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
       }
     };
 
-    // TODO: we should not need to use a separate runner thread... replace when Samza is fixed
-    final Thread runnerThread = new Thread(new RunnerTask(runner, app, result));
-    runnerThread.start();
-
+    final SamzaPipelineResult result = new SamzaPipelineResult(app, runner, executionContext);
+    runner.run(app);
     return result;
-  }
-
-  private static class RunnerTask implements Runnable {
-    private final ApplicationRunner runner;
-    private final StreamApplication app;
-    private final SamzaPipelineResult result;
-
-
-    private RunnerTask(ApplicationRunner runner,
-                       StreamApplication app,
-                       SamzaPipelineResult result) {
-      this.runner = runner;
-      this.app = app;
-      this.result = result;
-    }
-
-    @Override
-    public void run() {
-      result.markStarted();
-
-      try {
-        runner.run(app);
-      } catch (Exception e) {
-        result.markFailure(e);
-        return;
-      }
-
-      // TODO: replace this with a proper async setup when Samza makes this possible.
-      while (true) {
-        final ApplicationStatus status = runner.status(app);
-        switch (status.getStatusCode()) {
-          case UnsuccessfulFinish:
-            result.markFailure(runner.status(app).getThrowable());
-            return;
-          case SuccessfulFinish:
-            result.markSuccess();
-            return;
-        }
-
-        try {
-          Thread.sleep(500);
-        } catch (InterruptedException e) {
-          result.markFailure(e);
-          return;
-        }
-      }
-    }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.metrics;
 
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
@@ -65,6 +66,10 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
     withMetrics(() -> underlying.finishBundle());
 
     metricsContainer.updateMetrics();
+  }
+
+  @Override public DoFn<InT, OutT> getFn() {
+    return underlying.getFn();
   }
 
   private void withMetrics(Runnable runnable) {

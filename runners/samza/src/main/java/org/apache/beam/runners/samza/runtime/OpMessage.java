@@ -19,6 +19,7 @@
 package org.apache.beam.runners.samza.runtime;
 
 import org.apache.beam.sdk.util.WindowedValue;
+import org.joda.time.Instant;
 
 /**
  * Actual message type used in Samza {@link org.apache.samza.operators.StreamGraph}.
@@ -34,31 +35,38 @@ public class OpMessage<T> {
    * <li>SIDE_INPUT - a collection of elements from a view.
    * </ul>
    */
-  public enum Type { ELEMENT, SIDE_INPUT }
+  public enum Type { ELEMENT, SIDE_INPUT, SIDE_INPUT_WATERMARK }
 
   private final Type type;
   private final WindowedValue<T> element;
   private final String viewId;
   private final WindowedValue<? extends Iterable<?>> viewElements;
+  private final Instant sideInputWatermark;
 
   public static <T> OpMessage<T> ofElement(WindowedValue<T> element) {
-    return new OpMessage<>(Type.ELEMENT, element, null, null);
+    return new OpMessage<>(Type.ELEMENT, element, null, null, null);
   }
 
   public static <T, ElemT> OpMessage<T> ofSideInput(
       String viewId,
       WindowedValue<? extends Iterable<ElemT>> elements) {
-    return new OpMessage<>(Type.SIDE_INPUT, null, viewId, elements);
+    return new OpMessage<>(Type.SIDE_INPUT, null, viewId, elements, null);
+  }
+
+  public static <T, ElemT> OpMessage<T> ofSideInputWatermark(Instant watermark) {
+    return new OpMessage<>(Type.SIDE_INPUT_WATERMARK, null, null, null, watermark);
   }
 
   private OpMessage(Type type,
                     WindowedValue<T> element,
                     String viewId,
-                    WindowedValue<? extends Iterable<?>> viewElements) {
+                    WindowedValue<? extends Iterable<?>> viewElements,
+                    Instant sideInputWatermark) {
     this.type = type;
     this.element = element;
     this.viewId = viewId;
     this.viewElements = viewElements;
+    this.sideInputWatermark = sideInputWatermark;
   }
 
   public Type getType() {
@@ -78,6 +86,10 @@ public class OpMessage<T> {
   public WindowedValue<? extends Iterable<?>> getViewElements() {
     ensureType(Type.SIDE_INPUT, "getViewElements");
     return viewElements;
+  }
+
+  public Instant getSideInputWatermark() {
+    return sideInputWatermark;
   }
 
   private void ensureType(Type type, String method) {

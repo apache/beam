@@ -16,22 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.samza.translation;
-
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.values.PCollection;
-
 /**
- * Translates {@link org.apache.beam.sdk.io.Read.Bounded} to Samza input
- * {@link org.apache.samza.operators.MessageStream}.
+ * Internal implementation of the Beam runner for Apache Samza.
  */
-class ReadBoundedTranslator<T> implements TransformTranslator<Read.Bounded<T>> {
-  @Override
-  public void translate(Read.Bounded<T> transform,
-                        TransformHierarchy.Node node,
-                        TranslationContext ctx) {
-    final PCollection<T> output = ctx.getOutput(transform);
-    ctx.registerInputMessageStream(output);
-  }
-}
+package org.apache.beam.runners.samza.state;

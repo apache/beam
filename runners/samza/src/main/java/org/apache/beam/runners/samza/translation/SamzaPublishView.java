@@ -19,6 +19,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -29,6 +30,8 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 class SamzaPublishView<ElemT, ViewT>
     extends PTransform<PCollection<List<ElemT>>, PCollection<List<ElemT>>> {
+  static final String SAMZA_PUBLISH_VIEW_URN = "beam:transform:samza:publish-view:v1";
+
   private final PCollectionView<ViewT> view;
 
   SamzaPublishView(PCollectionView<ViewT> view) {
@@ -51,5 +54,16 @@ class SamzaPublishView<ElemT, ViewT>
   @Override
   public String getName() {
     return view.getName();
+  }
+
+  static class SamzaPublishViewPayloadTranslator extends
+      PTransformTranslation.TransformPayloadTranslator.NotSerializable<SamzaPublishView<?, ?>> {
+
+    SamzaPublishViewPayloadTranslator() {}
+
+    @Override
+    public String getUrn(SamzaPublishView<?, ?> transform) {
+      return SAMZA_PUBLISH_VIEW_URN;
+    }
   }
 }
