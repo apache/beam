@@ -38,6 +38,7 @@ class common_job_properties {
         branch('${sha1}')
         extensions {
           cleanAfterCheckout()
+          disableRemotePoll() // needed for included regions PR triggering; see [JENKINS-23606]
           relativeTargetDirectory(checkoutDir)
         }
       }
@@ -128,7 +129,8 @@ class common_job_properties {
                                                  String commitStatusContext,
                                                  String prTriggerPhrase = '',
                                                  boolean onlyTriggerPhraseToggle = true,
-                                                 String successComment = '--none--') {
+                                                 String successComment = '--none--',
+                                                 List<String> triggerPathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -146,6 +148,9 @@ class common_job_properties {
         }
         if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
+        }
+        if (!triggerPathPatterns.isEmpty()) {
+          includedRegions(triggerPathPatterns.join('\n'))
         }
 
         extensions {
@@ -193,13 +198,31 @@ class common_job_properties {
     context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
   }
 
-  // Sets common config for PreCommit jobs.
+  /**
+   * Sets common config for PreCommit jobs.
+   *
+   * @param commitStatusName Status displayed in pull request for the job
+   * @param prTriggerPhrase Adding a comment to the PR with this phrase will trigger the job to re-run
+   * @param triggerPathPatterns List of path includes regex which will trigger the PR. Patterns should
+   *                            match the entire file path. A default set of paths will also be added.
+   */
+
   static void setPreCommit(context,
                            String commitStatusName,
                            String prTriggerPhrase = '',
-                           String successComment = '--none--') {
+                           List<String> triggerPathPatterns = []) {
+    def defaultPathTriggers = [
+      '^build.gradle$',
+      '^build_rules.gradle$',
+      '^gradle.properties$',
+      '^gradlew$',
+      '^gradle.bat$',
+      '^settings.gradle$'
+    ]
+
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false, successComment)
+    triggerPathPatterns.addAll(defaultPathTriggers)
+    setPullRequestBuildTrigger context, commitStatusName, prTriggerPhrase, false, '--none--', triggerPathPatterns
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
