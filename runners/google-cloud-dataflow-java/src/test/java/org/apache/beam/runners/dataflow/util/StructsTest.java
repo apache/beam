@@ -74,7 +74,7 @@ public class StructsTest {
     addStringList(o, "multipleStringsKey", Arrays.asList("hi", "there", "bob"));
     addLongs(o, "multipleLongsKey", 47L, 1L << 42, -5L);
     addLong(o, "singletonLongKey", 42L);
-    addDouble(o, "singletonDoubleKey", 3.14);
+    addDouble(o, "singletonDoubleKey", Math.PI);
     addBoolean(o, "singletonBooleanKey", true);
     addNull(o, "noObjectsKey");
     addList(o, "multipleObjectsKey", makeCloudObjects());
