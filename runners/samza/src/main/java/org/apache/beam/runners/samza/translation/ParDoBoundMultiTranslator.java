@@ -50,7 +50,8 @@ import org.joda.time.Instant;
 
 /** Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutput} to Samza {@link DoFnOp}. */
 class ParDoBoundMultiTranslator<InT, OutT>
-    implements TransformTranslator<ParDo.MultiOutput<InT, OutT>> {
+    implements TransformTranslator<ParDo.MultiOutput<InT, OutT>>,
+        TransformConfigGenerator<ParDo.MultiOutput<InT, OutT>> {
 
   @Override
   public void translate(
@@ -58,7 +59,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TransformHierarchy.Node node,
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
-
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Coder<?> keyCoder =
         signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
@@ -128,6 +128,25 @@ class ParDoBoundMultiTranslator<InT, OutT>
       registerSideOutputStream(
           taggedOutputStream, idToPCollectionMap.get(outputIndex), outputIndex, ctx);
     }
+  }
+
+  @Override
+  public Map<String, String> createConfig(
+      ParDo.MultiOutput<InT, OutT> transform, TransformHierarchy.Node node, ConfigContext ctx) {
+    final Map<String, String> config = new HashMap<>();
+    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    if (signature.usesState()) {
+      // set up user state configs
+      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
+        final String storeId = state.id();
+        config.put(
+            "stores." + storeId + ".factory",
+            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+        config.put("stores." + storeId + ".key.serde", "byteSerde");
+        config.put("stores." + storeId + ".msg.serde", "byteSerde");
+      }
+    }
+    return config;
   }
 
   private <T> void registerSideOutputStream(
