@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.common.collect.ImmutableList;
-import java.util.Collections;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -33,7 +32,6 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
@@ -46,10 +44,7 @@ import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
-import org.apache.calcite.tools.Program;
-import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,7 +116,7 @@ class BeamQueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException, CannotPlanException {
-    RelNode beamRelNode;
+    BeamRelNode beamRelNode;
     Planner planner = getPlanner();
     try {
       SqlNode parsed = planner.parse(sqlStatement);
@@ -139,41 +134,13 @@ class BeamQueryPlanner {
               .replace(root.collation)
               .simplify();
 
-      // original logical plan
-      RelNode originalRelNode = planner.transform(0, desiredTraits, root.rel);
-
-      // optimized logical plan
-      beamRelNode = optimizeLogicPlan(originalRelNode, desiredTraits);
-      LOG.info("OptimizedPlan>\n" + RelOptUtil.toString(beamRelNode));
+      // beam physical plan
+      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
+      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
     }
-    return (BeamRelNode) beamRelNode;
-  }
-
-  /** execute volcano planner. */
-  private RelNode runVolcanoPlanner(
-      RuleSet logicalOptRuleSet, RelNode relNode, RelTraitSet logicalOptTraitSet)
-      throws CannotPlanException {
-    Program optProgram = Programs.ofRules(logicalOptRuleSet);
-
-    try {
-      return optProgram.run(
-          relNode.getCluster().getPlanner(),
-          relNode,
-          logicalOptTraitSet,
-          Collections.EMPTY_LIST,
-          Collections.EMPTY_LIST);
-    } catch (CannotPlanException e) {
-      throw e;
-    }
-  }
-
-  private RelNode optimizeLogicPlan(RelNode relNode, RelTraitSet desiredTraits)
-      throws CannotPlanException {
-    RuleSet logicalOptRuleSet = BeamRuleSets.getOptRuleSet();
-
-    return runVolcanoPlanner(logicalOptRuleSet, relNode, desiredTraits);
+    return beamRelNode;
   }
 
   private Planner getPlanner() {

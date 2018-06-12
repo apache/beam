@@ -67,11 +67,11 @@ public class BeamSqlExplainTest {
     String plan = cli.explainQuery("SELECT A.c1, B.c2 FROM A, B WHERE A.c1 = B.c2 AND A.c1 > 0");
 
     assertEquals(
-        "BeamCalcRel(expr#0..3=[{inputs}], expr#4=[=($t0, $t3)], expr#5=[0],"
-            + " expr#6=[>($t0, $t5)], expr#7=[AND($t4, $t6)], c1=[$t0],"
-            + " c2=[$t3], $condition=[$t7])\n"
-            + "  BeamJoinRel(condition=[true], joinType=[inner])\n"
-            + "    BeamIOSourceRel(table=[[beam, A]])\n"
+        "BeamCalcRel(expr#0..3=[{inputs}], c1=[$t0], c2=[$t3])\n"
+            + "  BeamJoinRel(condition=[=($0, $3)], joinType=[inner])\n"
+            + "    BeamCalcRel(expr#0..1=[{inputs}], expr#2=[0], expr#3=[>($t0, $t2)],"
+            + " proj#0..1=[{exprs}], $condition=[$t3])\n"
+            + "      BeamIOSourceRel(table=[[beam, A]])\n"
             + "    BeamIOSourceRel(table=[[beam, B]])\n",
         plan);
   }
