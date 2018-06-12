@@ -26,6 +26,7 @@ public class POJOUtilsTest {
     public DateTime dateTime;
     public byte[] bytes1;
     public ByteBuffer bytes2;
+    // TODO: Test this.
     public List<Byte> bytes3;
   }
 
@@ -185,7 +186,7 @@ public class POJOUtilsTest {
     setters.get(5).set(simplePojo, true);
     setters.get(6).set(simplePojo, DateTime.parse("1979-03-14"));
     setters.get(7).set(simplePojo, "bytes1".getBytes(Charset.defaultCharset()));
-    setters.get(8).set(simplePojo, ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset())));
+    setters.get(8).set(simplePojo, "bytes2".getBytes(Charset.defaultCharset()));
 
     assertEquals("field1", simplePojo.str);
     assertEquals((byte) 41, simplePojo.aByte);
@@ -242,5 +243,21 @@ public class POJOUtilsTest {
     assertEquals((int) 43, pojo.anInt.intValue());
     assertEquals((long) 44, pojo.aLong.longValue());
     assertEquals(true, pojo.aBoolean.booleanValue());
+  }
+
+  public static class POJOWithByteArray {
+    public byte[] bytes1;
+    public ByteBuffer bytes2;
+  }
+
+  @Test
+  public void testGeneratedByteBufferSetters() {
+    POJOWithByteArray pojo = new POJOWithByteArray();
+    List<FieldValueSetter> setters = POJOUtils.getSetters(POJOWithByteArray.class);
+    setters.get(0).set(pojo, "field1".getBytes(Charset.defaultCharset()));
+    setters.get(1).set(pojo, "field2".getBytes(Charset.defaultCharset()));
+
+    assertArrayEquals("not equal", "field1".getBytes(Charset.defaultCharset()), pojo.bytes1);
+    assertEquals(ByteBuffer.wrap("field2".getBytes(Charset.defaultCharset())), pojo.bytes2);
   }
 }
