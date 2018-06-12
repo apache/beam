@@ -21,20 +21,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
-import java.time.Duration;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.MockStreamDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.VoidSink;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.Executor;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.FlowUnfolder;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Test usage of hints in different operators.  */
@@ -57,7 +58,9 @@ public class HintTest {
             .of(mapped)
             .keyBy(e -> e)
             .reduceBy(values -> 1L)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output(new Util.TestHint(), new Util.TestHint2());
 
     Dataset<Object> mapped2 =
@@ -72,7 +75,9 @@ public class HintTest {
             .of(mapped, reduced)
             .by(e -> e, Pair::getFirst)
             .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .discardingFiredPanes()
             .output(new Util.TestHint());
 
     output.persist(new VoidSink<>());

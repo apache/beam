@@ -32,7 +32,6 @@ import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.accumulators.SnapshotProvider;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
-import org.apache.beam.sdk.extensions.euphoria.beam.window.BeamWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -54,7 +53,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -276,16 +274,18 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<Pair<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
+
+            WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
+
             return FullJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Optional<Integer> l, Optional<Long> r, Collector<String> c) -> {
                       c.collect(l.orElse(null) + "+" + r.orElse(null));
                     })
-                .windowBy(BeamWindowing.of(
-                    new EvenOddWindowFn(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(evenOddWindowFn)
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -329,16 +329,18 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<Pair<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
+
+            WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
+
             return LeftJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Integer l, Optional<Long> r, Collector<String> c) -> {
                       c.collect(l + "+" + r.orElse(null));
                     })
-                .windowBy(BeamWindowing.of(
-                    new EvenOddWindowFn(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(evenOddWindowFn)
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -377,16 +379,18 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<Pair<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
+
+            WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
+
             return RightJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Optional<Integer> l, Long r, Collector<String> c) -> {
                       c.collect(l.orElse(null) + "+" + r);
                     })
-                .windowBy(BeamWindowing.of(
-                    new EvenOddWindowFn(),
-                    AfterWatermark.pastEndOfWindow(),
-                    AccumulationMode.DISCARDING_FIRED_PANES))
+                .windowBy(evenOddWindowFn)
+                .triggeredBy(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -449,11 +453,11 @@ public class JoinTest extends AbstractOperatorTest {
                         (Pair<String, Long> l, Pair<String, Long> r,
                             Collector<Pair<String, String>> c) ->
                             c.collect(Pair.of(l.getFirst(), r.getFirst())))
-                    .windowBy(BeamWindowing.of(
-                        Sessions.withGapDuration(org.joda.time.Duration.millis(10)),
-                        AfterWatermark.pastEndOfWindow(),
-                        AccumulationMode.DISCARDING_FIRED_PANES))
+                    .windowBy(Sessions.withGapDuration(org.joda.time.Duration.millis(10)))
+                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
                     .output();
+
             return MapElements.of(joined).using(Pair::getSecond).output();
           }
 
@@ -507,11 +511,11 @@ public class JoinTest extends AbstractOperatorTest {
                           c.collect(Triple.of(window, l.getFirst(), r.getFirst()));
                         })
 //                    .windowBy(Time.of(Duration.ofMillis(3)))
-                    .windowBy(BeamWindowing.of(
-                        FixedWindows.of(org.joda.time.Duration.millis(3)),
-                        AfterWatermark.pastEndOfWindow(),
-                        AccumulationMode.DISCARDING_FIRED_PANES))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.millis(3)))
+                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
                     .output();
+
             return MapElements.of(joined).using(Pair::getSecond).output();
           }
 

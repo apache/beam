@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,10 +24,11 @@ import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperat
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing.Type;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Test for the {@link Distinct} operator. */
@@ -74,7 +74,9 @@ public class DistinctTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(Pair::getSecond).output();
             return Distinct.of(input)
                 .mapped(Pair::getFirst)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 
@@ -106,7 +108,9 @@ public class DistinctTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(Pair::getSecond).output();
             return Distinct.of(input)
                 .mapped(Pair::getFirst)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 

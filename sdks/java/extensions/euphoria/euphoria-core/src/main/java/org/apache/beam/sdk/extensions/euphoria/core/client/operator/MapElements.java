@@ -28,6 +28,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 
@@ -171,7 +174,10 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
+   */
   public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
     private final String name;
     private final Dataset<InputT> input;

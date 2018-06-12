@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
 import java.util.stream.Stream;
@@ -28,10 +27,16 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Tim
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test behavior of operator {@code ReduceWindow}. */
+/**
+ * Test behavior of operator {@code ReduceWindow}.
+ */
 public class ReduceWindowTest {
 
   @Test
@@ -53,15 +58,23 @@ public class ReduceWindowTest {
   public void testSimpleBuildWithoutValue() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
-    Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
 
-    Dataset<Long> output = ReduceWindow.of(dataset).reduceBy(e -> 1L).windowBy(windowing).output();
+    Dataset<Long> output = ReduceWindow.of(dataset).reduceBy(e -> 1L)
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(DefaultTrigger.of())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+        .output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(producer.getReducer(), Stream.of("blah")));
     assertEquals("blah", producer.valueExtractor.apply("blah"));
-    assertEquals(windowing, producer.windowing);
+
+    WindowingDesc windowingDesc = producer.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
   }
 
   @Test
@@ -69,21 +82,21 @@ public class ReduceWindowTest {
   public void testSimpleBuildWithValueSorted() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
-    Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
 
     Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .withSortedValues((l, r) -> l.compareTo(r))
-            .windowBy(windowing)
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
 
     ReduceWindow<String, String, Long, ?> producer;
-    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
+        producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertNotNull(producer.valueComparator);
   }
 
-  @SuppressWarnings("unchecked")
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -94,12 +107,22 @@ public class ReduceWindowTest {
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .withSortedValues((l, r) -> l.compareTo(r))
-            .applyIf(true, b -> b.windowBy(windowing))
+            .applyIf(true, b -> b
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
+            )
             .output();
 
-    ReduceWindow<String, String, Long, ?> producer;
-    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertTrue(producer.windowing instanceof Time);
+    @SuppressWarnings("unchecked")
+    ReduceWindow<String, String, Long, ?> producer =
+        (ReduceWindow<String, String, Long, ?>) output.getProducer();
+    WindowingDesc windowingDesc = producer.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
   private <InputT, OutputT> OutputT collectSingle(

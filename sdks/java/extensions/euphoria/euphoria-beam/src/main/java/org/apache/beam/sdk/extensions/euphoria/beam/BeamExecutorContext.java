@@ -36,10 +36,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;

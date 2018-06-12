@@ -32,7 +32,6 @@ import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.Processing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.WindowedElement;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
@@ -54,6 +53,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerConte
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Tests capabilities of {@link Windowing}. */
@@ -75,7 +76,9 @@ public class WindowingTest extends AbstractOperatorTest {
             Dataset<ComparablePair<Type, String>> distinct =
                 Distinct.of(input)
                     .mapped(t -> new ComparablePair<>(t.getSecond(), t.getThird()))
-                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
 
             Dataset<Pair<Type, Long>> reduced =
@@ -83,7 +86,9 @@ public class WindowingTest extends AbstractOperatorTest {
                     .keyBy(ComparablePair::getFirst)
                     .valueBy(p -> 1L)
                     .combineBy(Sums.ofLongs())
-                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
 
             // extract window end timestamp
@@ -144,7 +149,9 @@ public class WindowingTest extends AbstractOperatorTest {
                     .valueBy(t -> null)
                     .stateFactory(DistinctState::new)
                     .mergeStatesBy((t, os) -> {})
-                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
 
             Dataset<ComparablePair<Type, String>> distinct =
@@ -155,7 +162,9 @@ public class WindowingTest extends AbstractOperatorTest {
                     .keyBy(ComparablePair::getFirst)
                     .valueBy(p -> 1L)
                     .combineBy(Sums.ofLongs())
-                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
 
             // extract window timestamp
@@ -264,7 +273,7 @@ public class WindowingTest extends AbstractOperatorTest {
                     .keyBy(e -> "")
                     .valueBy(e -> 1)
                     .combineBy(Sums.ofInts())
-                    .windowBy(windowing)
+                    //.windowBy(windowing) //TODO modify tes to Beam windowing when needed
                     .output();
 
             // extract window timestamp
@@ -317,7 +326,9 @@ public class WindowingTest extends AbstractOperatorTest {
                 ReduceWindow.of(timed)
                     .valueBy(e -> 1)
                     .combineBy(Sums.ofInts())
-                    .windowBy(Time.of(Duration.ofHours(1)))
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
                     .output();
 
             return Util.extractWindow(counts);

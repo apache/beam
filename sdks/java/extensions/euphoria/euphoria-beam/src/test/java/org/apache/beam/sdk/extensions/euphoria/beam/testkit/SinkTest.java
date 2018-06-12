@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.beam.testkit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -28,13 +27,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.beam.testkit.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.junit.Test;
 
 /** Test that a sub-flow applied on sink is correctly preserved. */
@@ -50,7 +50,9 @@ public class SinkTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(e -> 0).output();
             return CountByKey.of(input)
                 .keyBy(e -> e)
-                .windowBy(Time.of(Duration.ofSeconds(1)))
+                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                .triggeredBy(DefaultTrigger.of())
+                .discardingFiredPanes()
                 .output();
           }
 

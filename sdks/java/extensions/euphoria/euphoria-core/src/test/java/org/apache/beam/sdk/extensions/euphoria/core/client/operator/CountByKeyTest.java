@@ -20,16 +20,19 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
-/** Test operator CountByKey. */
+/**
+ * Test operator CountByKey.
+ */
 public class CountByKeyTest {
 
   @Test
@@ -37,9 +40,14 @@ public class CountByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Time<String> windowing = Time.of(Duration.ofHours(1));
+    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    DefaultTrigger trigger = DefaultTrigger.of();
+
     Dataset<Pair<String, Long>> counted =
-        CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s).windowBy(windowing).output();
+        CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s)
+            .windowBy(windowing).triggeredBy(trigger)
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
 
     assertEquals(flow, counted.getFlow());
     assertEquals(1, flow.size());
@@ -47,9 +55,14 @@ public class CountByKeyTest {
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertEquals(flow, count.getFlow());
     assertEquals("CountByKey1", count.getName());
-    assertNotNull(count.keyExtractor);
+    assertNotNull(count.getKeyExtractor());
     assertEquals(counted, count.output());
-    assertSame(windowing, count.getWindowing());
+
+    WindowingDesc windowingDesc = count.getWindowing();
+    assertNotNull(windowingDesc);
+    assertSame(windowing, windowingDesc.getWindowFn());
+    assertSame(trigger, windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
   @Test
@@ -71,11 +84,18 @@ public class CountByKeyTest {
     CountByKey.named("CountByKey1")
         .of(dataset)
         .keyBy(s -> s)
-        .windowBy(Time.of(Duration.ofHours(1)))
+        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+        .triggeredBy(DefaultTrigger.of())
+        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
         .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
-    assertTrue(count.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = count.getWindowing();
+    assertNotNull(windowingDesc);
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)),
+        windowingDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 
   @Test
@@ -83,13 +103,22 @@ public class CountByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
+    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    DefaultTrigger trigger = DefaultTrigger.of();
+
     CountByKey.named("CountByKey1")
         .of(dataset)
         .keyBy(s -> s)
-        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .applyIf(true, b -> b.windowBy(windowing)
+        .triggeredBy(trigger)
+        .discardingFiredPanes())
         .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
-    assertTrue(count.getWindowing() instanceof Time);
+    WindowingDesc windowingDesc = count.getWindowing();
+    assertNotNull(windowingDesc);
+    assertSame(windowing, windowingDesc.getWindowFn());
+    assertSame(trigger, windowingDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
   }
 }
