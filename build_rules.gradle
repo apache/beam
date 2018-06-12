@@ -740,58 +740,65 @@ artifactId=${project.name}
             classifier "javadoc"
           }
 
+          pom {
+            name = project.description
+            if (project.hasProperty("summary")) {
+                description = project.summary
+            }
+            url = "http://beam.apache.org"
+            inceptionYear = "2016"
+            licenses {
+              license {
+                name = "Apache License, Version 2.0"
+                url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                distribution = "repo"
+              }
+            }
+            scm {
+              connection = "scm:git:https://gitbox.apache.org/repos/asf/beam.git"
+              developerConnection = "scm:git:https://gitbox.apache.org/repos/asf/beam.git"
+              url = "https://gitbox.apache.org/repos/asf?p=beam.git;a=summary"
+            }
+            issueManagement {
+              system = "jira"
+              url = "https://issues.apache.org/jira/browse/BEAM"
+            }
+            mailingLists {
+              mailingList {
+                name = "Beam Dev"
+                subscribe = "dev-subscribe@beam.apache.org"
+                unsubscribe = "dev-unsubscribe@beam.apache.org"
+                post = "dev@beam.apache.org"
+                archive = "http://www.mail-archive.com/dev%beam.apache.org"
+              }
+              mailingList {
+                name = "Beam User"
+                subscribe = "user-subscribe@beam.apache.org"
+                unsubscribe = "user-unsubscribe@beam.apache.org"
+                post = "user@beam.apache.org"
+                archive = "http://www.mail-archive.com/user%beam.apache.org"
+              }
+              mailingList {
+                name = "Beam Commits"
+                subscribe = "commits-subscribe@beam.apache.org"
+                unsubscribe = "commits-unsubscribe@beam.apache.org"
+                post = "commits@beam.apache.org"
+                archive = "http://www.mail-archive.com/commits%beam.apache.org"
+              }
+            }
+            developers {
+              developer {
+                name = "The Apache Beam Team"
+                email = "dev@beam.apache.org"
+                url = "http://beam.apache.org"
+                organization = "Apache Software Foundation"
+                organizationUrl = "http://www.apache.org"
+              }
+            }
+          }
+
           pom.withXml {
             def root = asNode()
-            root.appendNode('name', project.description)
-            if (project.hasProperty("summary")) {
-                root.appendNode('description', project.summary)
-            }
-            root.appendNode('url', "http://beam.apache.org")
-            root.appendNode('inceptionYear', "2016")
-
-            def licenseNode = root.appendNode('licenses').appendNode('license')
-            licenseNode.appendNode('name', "Apache License, Version 2.0")
-            licenseNode.appendNode('url', "http://www.apache.org/licenses/LICENSE-2.0.txt")
-            licenseNode.appendNode('distribution', "repo")
-
-            def scmNode = root.appendNode('scm')
-            scmNode.appendNode('connection', "scm:git:https://gitbox.apache.org/repos/asf/beam.git")
-            scmNode.appendNode('developerConnection', "scm:git:https://gitbox.apache.org/repos/asf/beam.git")
-            scmNode.appendNode('url', "https://gitbox.apache.org/repos/asf?p=beam.git;a=summary")
-
-            def issueMgmtNode = root.appendNode('issueManagement')
-            issueMgmtNode.appendNode('system', "jira")
-            issueMgmtNode.appendNode('url', "https://issues.apache.org/jira/browse/BEAM")
-
-            def mailingListsNode = root.appendNode('mailingLists')
-            def devListNode = mailingListsNode.appendNode('mailingList')
-            devListNode.appendNode('name', "Beam Dev")
-            devListNode.appendNode('subscribe', "dev-subscribe@beam.apache.org")
-            devListNode.appendNode('unsubscribe', "dev-unsubscribe@beam.apache.org")
-            devListNode.appendNode('post', "dev@beam.apache.org")
-            devListNode.appendNode('archive', "http://www.mail-archive.com/dev%beam.apache.org")
-            def userListNode = mailingListsNode.appendNode('mailingList')
-            userListNode.appendNode('name', "Beam User")
-            userListNode.appendNode('subscribe', "user-subscribe@beam.apache.org")
-            userListNode.appendNode('unsubscribe', "user-unsubscribe@beam.apache.org")
-            userListNode.appendNode('post', "user@beam.apache.org")
-            userListNode.appendNode('archive', "http://www.mail-archive.com/user%beam.apache.org")
-            def commitListNode = mailingListsNode.appendNode('mailingList')
-            commitListNode.appendNode('name', "Beam Commits")
-            commitListNode.appendNode('subscribe', "commits-subscribe@beam.apache.org")
-            commitListNode.appendNode('unsubscribe', "commits-unsubscribe@beam.apache.org")
-            commitListNode.appendNode('post', "commits@beam.apache.org")
-            commitListNode.appendNode('archive', "http://www.mail-archive.com/commits%beam.apache.org")
-
-            def developerNode = root.appendNode('developers').appendNode('developer')
-            developerNode.appendNode('name', "The Apache Beam Team")
-            developerNode.appendNode('email', "dev@beam.apache.org")
-            developerNode.appendNode('url', "http://beam.apache.org")
-            developerNode.appendNode('organization', "Apache Software Foundation")
-            developerNode.appendNode('organizationUrl', "http://www.apache.org")
-
-            // Iterate over the dependencies that would exist post shading,
-            // adding a <dependency> node for each
             def dependenciesNode = root.appendNode('dependencies')
             def generateDependenciesFromConfiguration = { param ->
               configurations."${param.configuration}".allDependencies.each {
