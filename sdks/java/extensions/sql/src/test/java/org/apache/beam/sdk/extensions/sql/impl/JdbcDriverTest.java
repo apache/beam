@@ -37,9 +37,12 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,6 +50,7 @@ import org.junit.rules.ExpectedException;
 
 /** Test for {@link JdbcDriver}. */
 public class JdbcDriverTest {
+  public static final DateTime FIRST_DATE = new DateTime(1);
 
   private static final Schema BASIC_SCHEMA =
       Schema.builder()
@@ -220,6 +224,73 @@ public class JdbcDriverTest {
     assertEquals(1, resultSet.getInt("id"));
     assertEquals("first", resultSet.getString("name"));
     assertFalse(resultSet.next());
+  }
+
+  @Test
+  public void testInternalConnect_bounded_limit() throws Exception {
+    ReadOnlyTableProvider tableProvider =
+        new ReadOnlyTableProvider(
+            "test",
+            ImmutableMap.of(
+                "test",
+                MockedBoundedTable.of(
+                        Schema.FieldType.INT32, "id",
+                        Schema.FieldType.STRING, "name")
+                    .addRows(1, "first")
+                    .addRows(1, "second first")
+                    .addRows(2, "second")));
+
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    Statement statement = connection.createStatement();
+    ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 5");
+    assertTrue(resultSet1.next());
+    assertTrue(resultSet1.next());
+    assertTrue(resultSet1.next());
+    assertFalse(resultSet1.next());
+    assertFalse(resultSet1.next());
+
+    ResultSet resultSet2 = statement.executeQuery("SELECT * FROM test LIMIT 1");
+    assertTrue(resultSet2.next());
+    assertFalse(resultSet2.next());
+
+    ResultSet resultSet3 = statement.executeQuery("SELECT * FROM test LIMIT 2");
+    assertTrue(resultSet3.next());
+    assertTrue(resultSet3.next());
+    assertFalse(resultSet3.next());
+
+    ResultSet resultSet4 = statement.executeQuery("SELECT * FROM test LIMIT 3");
+    assertTrue(resultSet4.next());
+    assertTrue(resultSet4.next());
+    assertTrue(resultSet4.next());
+    assertFalse(resultSet4.next());
+  }
+
+  @Test
+  public void testInternalConnect_unbounded_limit() throws Exception {
+    ReadOnlyTableProvider tableProvider =
+        new ReadOnlyTableProvider(
+            "test",
+            ImmutableMap.of(
+                "test",
+                MockedUnboundedTable.of(
+                        Schema.FieldType.INT32, "order_id",
+                        Schema.FieldType.INT32, "site_id",
+                        Schema.FieldType.INT32, "price",
+                        Schema.FieldType.DATETIME, "order_time")
+                    .timestampColumnIndex(3)
+                    .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 6, FIRST_DATE)));
+
+    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    Statement statement = connection.createStatement();
+
+    ResultSet resultSet1 = statement.executeQuery("SELECT * FROM test LIMIT 1");
+    assertTrue(resultSet1.next());
+    assertFalse(resultSet1.next());
+
+    ResultSet resultSet2 = statement.executeQuery("SELECT * FROM test LIMIT 2");
+    assertTrue(resultSet2.next());
+    assertTrue(resultSet2.next());
+    assertFalse(resultSet2.next());
   }
 
   private List<List<Object>> readResultSet(ResultSet result) throws Exception {
