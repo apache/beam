@@ -18,10 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -126,37 +122,28 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       return this;
     }
 
-    private String getSql() {
-      List<String> expStrs = new ArrayList<>();
-      for (Pair<String, Object> pair : exps) {
-        expStrs.add(pair.getKey());
-      }
-      return "SELECT " + Joiner.on(",\n  ").join(expStrs) + " FROM PCOLLECTION";
-    }
-
     /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
     public void buildRunAndCheck() {
       PCollection<Row> inputCollection = getTestPCollection();
-      System.out.println("SQL:>\n" + getSql());
-      try {
+
+      for (Pair<String, Object> testCase : exps) {
+        String expression = testCase.left;
+        Object expectedValue = testCase.right;
+        String sql = String.format("SELECT %s FROM PCOLLECTION", expression);
         Schema schema =
-            exps.stream()
-                .map(
-                    exp ->
-                        Schema.Field.of(
-                            exp.getKey(),
-                            FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
-                .collect(toSchema());
+            Schema.builder()
+                .addField(
+                    expression, FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(expectedValue.getClass())))
+                .build();
 
-        List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
+        PCollection<Row> output =
+            inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
 
-        PCollection<Row> rows = inputCollection.apply(SqlTransform.query(getSql()));
-        PAssert.that(rows)
-            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(values).getRows());
-        inputCollection.getPipeline().run();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
+        PAssert.that(output)
+            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
       }
+
+      inputCollection.getPipeline().run();
     }
   }
 }

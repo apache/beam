@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.integrationtest;
+package org.apache.beam.sdk.extensions.sql;
 
+import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.junit.Test;
 
 /** Integration test for string functions. */
-public class BeamSqlStringFunctionsIntegrationTest
-    extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+public class BeamSqlDslStringOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Test
   public void testStringFunctions() throws Exception {
     ExpressionChecker checker =
@@ -29,18 +29,26 @@ public class BeamSqlStringFunctionsIntegrationTest
             .addExpr("'hello' || ' world'", "hello world")
             .addExpr("CHAR_LENGTH('hello')", 5)
             .addExpr("CHARACTER_LENGTH('hello')", 5)
-            .addExpr("UPPER('hello')", "HELLO")
+            .addExpr("INITCAP('hello world')", "Hello World")
             .addExpr("LOWER('HELLO')", "hello")
             .addExpr("POSITION('world' IN 'helloworld')", 6)
             .addExpr("POSITION('world' IN 'helloworldworld' FROM 7)", 11)
+            .addExpr("POSITION('world' IN 'hello')", 0)
             .addExpr("TRIM(' hello ')", "hello")
-            .addExpr("TRIM(LEADING ' ' FROM ' hello ')", "hello ")
-            .addExpr("TRIM(TRAILING ' ' FROM ' hello ')", " hello")
+            .addExpr("TRIM(LEADING 'eh' FROM 'hehe__hehe')", "__hehe")
+            .addExpr("TRIM(TRAILING 'eh' FROM 'hehe__hehe')", "hehe__")
+            .addExpr("TRIM(BOTH 'eh' FROM 'hehe__hehe')", "__")
             .addExpr("TRIM(BOTH ' ' FROM ' hello ')", "hello")
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3)", "w3resou3rce")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 4)", "w3resou33rce")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 5)", "w3resou3rce")
+            .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 7)", "w3resouce")
             .addExpr("SUBSTRING('hello' FROM 2)", "ello")
+            .addExpr("SUBSTRING('hello' FROM -1)", "o")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 2)", "el")
-            .addExpr("INITCAP('hello world')", "Hello World");
+            .addExpr("SUBSTRING('hello' FROM 2 FOR 100)", "ello")
+            .addExpr("SUBSTRING('hello' FROM -3 for 2)", "ll")
+            .addExpr("UPPER('hello')", "HELLO");
 
     checker.buildRunAndCheck();
   }
