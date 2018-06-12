@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 @Audience(Audience.Type.INTERNAL)
 public abstract class WindowWiseOperator<InputT, OutputT, W extends BoundedWindow>
     extends Operator<InputT, OutputT> implements
-    WindowAware<Object, W> { //TODO remove WindowInT
+    WindowAware<Object, W> {
 
   @Nullable
   protected WindowingDesc<Object, W> windowing;
