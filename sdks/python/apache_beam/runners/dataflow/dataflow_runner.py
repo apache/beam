@@ -423,12 +423,13 @@ class DataflowRunner(PipelineRunner):
     return self._get_typehint_based_encoding(
         element_type, window_coder=window_coder)
 
-  def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
+  def _add_step(self, step_kind, step_label, transform_node, side_tags=(),
+                step_name=None):
     """Creates a Step object and adds it to the cache."""
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
-    step = apiclient.Step(step_kind, self._get_unique_step_name())
+    step = apiclient.Step(step_kind, step_name or self._get_unique_step_name())
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)
     # Cache the node/step association for the main output of the transform node.
@@ -581,6 +582,8 @@ class DataflowRunner(PipelineRunner):
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
 
+    pardo_step_name = self._get_unique_step_name()
+
     # Attach side inputs.
     si_dict = {}
     # We must call self._cache.get_pvalue exactly once due to refcounting.
@@ -590,7 +593,7 @@ class DataflowRunner(PipelineRunner):
     for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = 'side%d' % ix
+      si_label = 'side-%s-%d' % (pardo_step_name, ix)
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
           side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
@@ -621,7 +624,8 @@ class DataflowRunner(PipelineRunner):
             '/{}'.format(transform_name)
             if transform_node.side_inputs else ''),
         transform_node,
-        transform_node.transform.output_tags)
+        transform_node.transform.output_tags,
+        step_name=pardo_step_name)
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
