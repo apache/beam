@@ -57,13 +57,14 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
-  shadow library.java.junit
-  shadow library.java.hamcrest_core
   shadow library.java.commons_lang3
   shadow library.java.kafka_clients
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
+  provided library.java.junit
+  provided library.java.hamcrest_core
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompileOnly library.java.findbugs_annotations
 
   gradleRun project(path: project.path, configuration: "shadow")
