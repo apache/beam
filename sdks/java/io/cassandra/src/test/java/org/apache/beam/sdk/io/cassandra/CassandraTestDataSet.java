@@ -37,20 +37,18 @@ public class CassandraTestDataSet {
   /**
    * Use this to create the read tables before IT read tests.
    *
-   * <p>To invoke this class, you can use this command line:
-   * (run from the cassandra root directory)
+   * <p>To invoke this class, you can use this command line: (run from the cassandra root directory)
    * mvn test-compile exec:java -Dexec.mainClass=org.apache.beam.sdk.io.cassandra
-   * .CassandraTestDataSet \
-   *   -Dexec.args="--cassandraHost=localhost --cassandraPort=9042 \
-   *   -Dexec.classpathScope=test
+   * .CassandraTestDataSet \ -Dexec.args="--cassandraHost=localhost --cassandraPort=9042 \
+   * -Dexec.classpathScope=test
+   *
    * @param args Please pass options from IOTestPipelineOptions used for connection to Cassandra as
-   * shown above.
+   *     shown above.
    */
   public static void main(String[] args) {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
-
+    CassandraIOITOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(CassandraIOITOptions.class);
     createDataTable(options);
   }
 
@@ -58,20 +56,21 @@ public class CassandraTestDataSet {
   public static final String TABLE_READ_NAME = "BEAM_READ_TEST";
   public static final String TABLE_WRITE_NAME = "BEAM_WRITE_TEST";
 
-  private static void createDataTable(IOTestPipelineOptions options) {
+  private static void createDataTable(CassandraIOITOptions options) {
     createTable(options, TABLE_READ_NAME);
     insertTestData(options, TABLE_READ_NAME);
     createTable(options, TABLE_WRITE_NAME);
   }
 
-  public static Cluster getCluster(IOTestPipelineOptions options) {
+  public static Cluster getCluster(CassandraIOITOptions options) {
     return Cluster.builder()
-        .addContactPoint(options.getCassandraHost())
+        .addContactPoints(
+            options.getCassandraHosts().toArray(new String[options.getCassandraHosts().size()]))
         .withPort(options.getCassandraPort())
         .build();
   }
 
-  private static void createTable(IOTestPipelineOptions options, String tableName) {
+  private static void createTable(CassandraIOITOptions options, String tableName) {
     try (Cluster cluster = getCluster(options); Session session = cluster.connect()) {
       LOG.info("Create {} keyspace if not exists", KEYSPACE);
       session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = "
@@ -85,7 +84,7 @@ public class CassandraTestDataSet {
     }
   }
 
-  private static void insertTestData(IOTestPipelineOptions options, String tableName) {
+  private static void insertTestData(CassandraIOITOptions options, String tableName) {
     try (Cluster cluster = getCluster(options); Session session = cluster.connect()) {
       LOG.info("Insert test dataset");
       String[] scientists = {
@@ -108,10 +107,9 @@ public class CassandraTestDataSet {
     }
   }
 
-  public static void cleanUpDataTable(IOTestPipelineOptions options) {
+  public static void cleanUpDataTable(CassandraIOITOptions options) {
     try (Cluster cluster = getCluster(options); Session session = cluster.connect()) {
       session.execute("TRUNCATE TABLE " + KEYSPACE + "." + TABLE_WRITE_NAME);
     }
   }
-
 }

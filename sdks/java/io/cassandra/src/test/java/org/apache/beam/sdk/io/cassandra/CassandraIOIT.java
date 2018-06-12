@@ -28,7 +28,6 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -70,15 +69,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CassandraIOIT implements Serializable {
 
-  private static IOTestPipelineOptions options;
+  private static CassandraIOITOptions options;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(CassandraIOITOptions.class);
   }
 
   @AfterClass
@@ -90,7 +88,7 @@ public class CassandraIOIT implements Serializable {
   @Test
   public void testRead() {
     PCollection<Scientist> output = pipeline.apply(CassandraIO.<Scientist>read()
-        .withHosts(Collections.singletonList(options.getCassandraHost()))
+        .withHosts(options.getCassandraHosts())
         .withPort(options.getCassandraPort())
         .withMinNumberOfSplits(20)
         .withKeyspace(CassandraTestDataSet.KEYSPACE)
@@ -125,8 +123,8 @@ public class CassandraIOIT implements Serializable {
 
   @Test
   public void testWrite() {
-    IOTestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
+    CassandraIOITOptions options =
+        TestPipeline.testingPipelineOptions().as(CassandraIOITOptions.class);
 
     options.setOnSuccessMatcher(
         new CassandraMatcher(
@@ -144,7 +142,7 @@ public class CassandraIOIT implements Serializable {
     pipeline
         .apply(Create.of(data))
         .apply(CassandraIO.<ScientistForWrite>write()
-            .withHosts(Collections.singletonList(options.getCassandraHost()))
+            .withHosts(options.getCassandraHosts())
             .withPort(options.getCassandraPort())
             .withKeyspace(CassandraTestDataSet.KEYSPACE)
             .withEntity(ScientistForWrite.class));
@@ -157,9 +155,8 @@ public class CassandraIOIT implements Serializable {
    */
   static class CassandraMatcher extends TypeSafeMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
-
-    private final String tableName;
     private final Cluster cluster;
+    private final String tableName;
 
     CassandraMatcher(Cluster cluster, String tableName) {
       this.cluster = cluster;
@@ -197,10 +194,10 @@ public class CassandraIOIT implements Serializable {
   static class Scientist implements Serializable {
     @PartitionKey
     @Column(name = "id")
-    final int id;
+    private final int id;
 
     @Column(name = "name")
-    final String name;
+    private final String name;
 
     Scientist(int id, String name) {
       this.id = id;
