@@ -18,10 +18,11 @@
 
 package org.apache.beam.runners.samza.translation;
 
+import java.util.Map;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/** Interface of Samza translator for BEAM {@link PTransform}. */
-public interface TransformTranslator<T extends PTransform<?, ?>> {
-  void translate(T transform, TransformHierarchy.Node node, TranslationContext ctx);
+/** Generates config for a BEAM {@link PTransform}. */
+public interface TransformConfigGenerator<T extends PTransform<?, ?>> {
+  Map<String, String> createConfig(T transform, TransformHierarchy.Node node, ConfigContext ctx);
 }
