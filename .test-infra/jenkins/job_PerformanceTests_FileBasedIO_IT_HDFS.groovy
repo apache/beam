@@ -78,6 +78,17 @@ def testsConfigurations = [
                         numberOfRecords: '100000',
                         charset: 'UTF-8'
                 ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_ParquetIOIT_HDFS',
+                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_ParquetIOIT on HDFS',
+                itClass           : 'org.apache.beam.sdk.io.parquet.ParquetIOIT',
+                bqTable           : 'beam_performance.parquetioit_hdfs_pkb_results',
+                prCommitStatusName: 'Java ParquetIOPerformance Test on HDFS',
+                prTriggerPhase    : 'Run Java ParquetIO Performance Test HDFS',
+                extraPipelineArgs: [
+                        numberOfRecords: '1000000'
+                ]
         ]
 ]
 
