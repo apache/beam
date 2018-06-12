@@ -34,7 +34,11 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
     final Mapper<InputT, OutputT> mapper =
-        new Mapper<>(operator.getFunctor(), accumulators, operator.getEventTimeExtractor());
+        new Mapper<>(
+            operator.getName(),
+            operator.getFunctor(),
+            accumulators,
+            operator.getEventTimeExtractor());
     return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
   }
 
@@ -50,11 +54,13 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     private final DoFnCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
+        String operatorName,
         UnaryFunctor<InputT, OutputT> mapper,
         AccumulatorProvider accumulators,
         @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.mapper = mapper;
-      this.collector = new DoFnCollector<>(accumulators, new Collector<>(eventTimeExtractor));
+      this.collector =
+          new DoFnCollector<>(accumulators, new Collector<>(operatorName, eventTimeExtractor));
     }
 
     @ProcessElement
@@ -70,9 +76,11 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 
     @Nullable
     private final ExtractEventTime<InputT> eventTimeExtractor;
+    private final String operatorName;
 
-    private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor) {
+    private Collector(String operatorName, @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;
+      this.operatorName = operatorName;
     }
 
     @Override
@@ -83,6 +91,11 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
       } else {
         ctx.output(out);
       }
+    }
+
+    @Override
+    public String getOperatorName() {
+      return operatorName;
     }
   }
 }

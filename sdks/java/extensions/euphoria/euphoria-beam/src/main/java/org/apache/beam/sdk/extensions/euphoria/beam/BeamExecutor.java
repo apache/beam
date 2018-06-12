@@ -21,7 +21,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.AbstractExecutor;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
@@ -40,7 +39,7 @@ public class BeamExecutor extends AbstractExecutor {
   private final Settings settings;
   private Duration allowedLateness = Duration.ZERO;
 
-  private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.Factory.get();
+  private AccumulatorProvider.Factory accumulatorFactory = BeamAccumulatorProvider.getFactory();
 
   public BeamExecutor(PipelineOptions options) {
     this(options, new Settings());
@@ -64,7 +63,20 @@ public class BeamExecutor extends AbstractExecutor {
     // TODO handle result
     State state = result.waitUntilFinish();
     LOG.info("Pipeline result state: {}.", state);
-    return new Result();
+    return new ExecutorResult(result);
+  }
+
+  static class ExecutorResult extends Result{
+
+    private final PipelineResult result;
+
+    public ExecutorResult(PipelineResult result) {
+      this.result = result;
+    }
+
+    public PipelineResult getResult() {
+      return result;
+    }
   }
 
   @Override

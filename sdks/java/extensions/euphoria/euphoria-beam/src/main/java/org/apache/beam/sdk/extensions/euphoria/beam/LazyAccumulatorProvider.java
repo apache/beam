@@ -46,8 +46,18 @@ class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
   }
 
   @Override
+  public Counter getCounter(String namespace, String name) {
+    return getAccumulatorProvider().getCounter(namespace, name);
+  }
+
+  @Override
   public Histogram getHistogram(String name) {
     return getAccumulatorProvider().getHistogram(name);
+  }
+
+  @Override
+  public Histogram getHistogram(String namespace, String name) {
+    return getAccumulatorProvider().getHistogram(namespace, name);
   }
 
   @Override

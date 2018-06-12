@@ -104,7 +104,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
               .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
 
       return grouped.apply(
-          operator.getName() + "::reduce", ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
+          operator.getName() + "::reduce",
+          ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName())));
     }
   }
 
@@ -137,9 +138,10 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     private final ReduceFunctor<V, OutT> reducer;
     private final DoFnCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> collector;
 
-    ReduceDoFn(ReduceFunctor<V, OutT> reducer, AccumulatorProvider accumulators) {
+    ReduceDoFn(
+        ReduceFunctor<V, OutT> reducer, AccumulatorProvider accumulators, String operatorName) {
       this.reducer = reducer;
-      this.collector = new DoFnCollector<>(accumulators, new Collector<>());
+      this.collector = new DoFnCollector<>(accumulators, new Collector<>(operatorName));
     }
 
     @ProcessElement
@@ -150,12 +152,27 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
   }
 
+  /**
+   * Translation of {@link Collector} collect to Beam's context output. OperatorName serve
+   * as namespace for Beam's metrics.
+   */
   private static class Collector<K, V, OutT>
       implements DoFnCollector.BeamCollector<KV<K, Iterable<V>>, Pair<K, OutT>, OutT> {
+
+    private final String operatorName;
+
+    public Collector(String operatorName) {
+      this.operatorName = operatorName;
+    }
 
     @Override
     public void collect(DoFn<KV<K, Iterable<V>>, Pair<K, OutT>>.ProcessContext ctx, OutT out) {
       ctx.output(Pair.of(ctx.element().getKey(), out));
+    }
+
+    @Override
+    public String getOperatorName() {
+      return operatorName;
     }
   }
 }
