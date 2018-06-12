@@ -19,9 +19,9 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
-import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
+import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 
@@ -31,7 +31,7 @@ import org.joda.time.Instant;
  * can be overridden so we can hold watermarks for side inputs. The output values and watermark
  * will be collected via {@link OpEmitter}.
  */
-public interface Op<InT, OutT> extends Serializable {
+public interface Op<InT, OutT, K> extends Serializable {
   /**
    * A hook that allows initialization for any non-serializable operator state, such as getting
    * stores.
@@ -43,14 +43,12 @@ public interface Op<InT, OutT> extends Serializable {
    */
   default void open(Config config,
                     TaskContext taskContext,
-                    SamzaExecutionContext executionContext,
+                    TimerRegistry<KeyedTimerData<K>> timerRegistry,
                     OpEmitter<OutT> emitter) {}
 
-  void processElement(WindowedValue<InT> inputElement,
-                      OpEmitter<OutT> emitter);
+  void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);
 
-  default void processWatermark(Instant watermark,
-                                OpEmitter<OutT> emitter) {
+  default void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
     emitter.emitWatermark(watermark);
   }
 
@@ -59,6 +57,10 @@ public interface Op<InT, OutT> extends Serializable {
                                 OpEmitter<OutT> emitter) {
     throw new UnsupportedOperationException("Side inputs not supported for: " + this.getClass());
   }
+
+  default void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {}
+
+  default void processTimer(KeyedTimerData<K> keyedTimerData) {};
 
   default void close() {}
 }

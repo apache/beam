@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 /**
  * Samza operator for {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}.
  */
-public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T> {
+public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void> {
   private final WindowFn<T, W> windowFn;
 
   public WindowAssignOp(WindowFn<T, W> windowFn) {

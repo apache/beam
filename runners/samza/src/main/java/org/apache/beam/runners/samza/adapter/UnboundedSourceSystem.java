@@ -20,7 +20,6 @@ package org.apache.beam.runners.samza.adapter;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.FnWithMetricsWrapper;
@@ -361,7 +359,7 @@ public class UnboundedSourceSystem {
         }
       }
 
-      private void updateWatermark() throws InterruptedException, IOException {
+      private void updateWatermark() throws InterruptedException {
         final long time = System.currentTimeMillis();
         if (time - lastWatermarkTime > watermarkInterval) {
           for (UnboundedReader reader : readers) {
@@ -380,8 +378,7 @@ public class UnboundedSourceSystem {
         }
       }
 
-      private void enqueueWatermark(UnboundedReader reader)
-          throws InterruptedException, IOException {
+      private void enqueueWatermark(UnboundedReader reader) throws InterruptedException {
         final SystemStreamPartition ssp = readerToSsp.get(reader);
         final IncomingMessageEnvelope envelope = IncomingMessageEnvelope
             .buildWatermarkEnvelope(ssp, reader.getWatermark().getMillis());
@@ -389,9 +386,9 @@ public class UnboundedSourceSystem {
         queues.get(ssp).put(envelope);
       }
 
-      private void enqueueMessage(UnboundedReader reader)
-          throws InterruptedException, IOException {
-        @SuppressWarnings("unchecked") final T value = (T) reader.getCurrent();
+      private void enqueueMessage(UnboundedReader reader) throws InterruptedException {
+        @SuppressWarnings("unchecked")
+        final T value = (T) reader.getCurrent();
         final Instant time = reader.getCurrentTimestamp();
         final SystemStreamPartition ssp = readerToSsp.get(reader);
         final WindowedValue<T> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
@@ -439,12 +436,17 @@ public class UnboundedSourceSystem {
         return envelopes;
       }
 
-      private String getOffset(UnboundedReader reader) throws IOException {
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        @SuppressWarnings("unchecked")
-        final CheckpointMarkT checkpointMark = (CheckpointMarkT) reader.getCheckpointMark();
-        checkpointMarkCoder.encode(checkpointMark, baos);
-        return Base64.getEncoder().encodeToString(baos.toByteArray());
+      private String getOffset(UnboundedReader reader) {
+        try {
+          final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          @SuppressWarnings("unchecked")
+          final CheckpointMarkT checkpointMark = (CheckpointMarkT) metricsWrapper
+              .wrap(reader::getCheckpointMark);
+          checkpointMarkCoder.encode(checkpointMark, baos);
+          return Base64.getEncoder().encodeToString(baos.toByteArray());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
       }
     }
   }

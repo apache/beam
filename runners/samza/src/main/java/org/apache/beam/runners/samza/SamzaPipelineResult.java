@@ -21,12 +21,13 @@ package org.apache.beam.runners.samza;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.samza.application.StreamApplication;
+import org.apache.samza.job.ApplicationStatus;
+import org.apache.samza.runtime.ApplicationRunner;
+import org.apache.samza.runtime.LocalApplicationRunner;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,57 +38,58 @@ import org.slf4j.LoggerFactory;
 public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
 
-  private final CountDownLatch doneLatch = new CountDownLatch(1);
-  private final AtomicReference<StateInfo> stateRef =
-      new AtomicReference<>(new StateInfo(State.STOPPED));
   private final SamzaExecutionContext executionContext;
+  private final ApplicationRunner runner;
+  private final StreamApplication app;
 
-  public SamzaPipelineResult(SamzaExecutionContext executionContext) {
+  public SamzaPipelineResult(StreamApplication app,
+                             ApplicationRunner runner,
+                             SamzaExecutionContext executionContext) {
     this.executionContext = executionContext;
+    this.runner = runner;
+    this.app = app;
   }
 
   @Override
   public State getState() {
-    return stateRef.get().state;
+    return getStateInfo().state;
   }
 
   @Override
   public State cancel() throws IOException {
-    throw new UnsupportedOperationException("Cancellation is not supported by the SamzaRunner");
+    runner.kill(app);
+
+    //TODO: runner.waitForFinish() after SAMZA-1653 done
+    return getState();
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    try {
-      if (!doneLatch.await(duration.getMillis(), TimeUnit.MILLISECONDS)) {
-        return null;
-      }
-    } catch (InterruptedException e) {
-      // Ignore
-    }
-
-    final StateInfo stateInfo = stateRef.get();
-    if (stateInfo.error != null) {
-      throw stateInfo.error;
-    }
-
-    return stateInfo.state;
+    //TODO: SAMZA-1653
+    throw new UnsupportedOperationException(
+        "waitUntilFinish(duration) is not supported by the SamzaRunner");
   }
 
   @Override
   public State waitUntilFinish() {
-    try {
-      doneLatch.await();
-    } catch (InterruptedException e) {
-      // Ignore
-    }
+    if (runner instanceof LocalApplicationRunner) {
+      try {
+        ((LocalApplicationRunner) runner).waitForFinish();
+      } catch (Exception e) {
+        throw new Pipeline.PipelineExecutionException(e);
+      }
 
-    final StateInfo stateInfo = stateRef.get();
-    if (stateInfo.error != null) {
-      throw stateInfo.error;
-    }
+      final StateInfo stateInfo = getStateInfo();
+      if (stateInfo.state == State.FAILED) {
+        throw stateInfo.error;
+      }
 
-    return stateInfo.state;
+      return stateInfo.state;
+    } else {
+      // TODO: SAMZA-1653 support waitForFinish in remote runner too
+      throw new UnsupportedOperationException(
+          "waitUntilFinish is not supported by the SamzaRunner when running remotely");
+    }
   }
 
   @Override
@@ -95,51 +97,22 @@ public class SamzaPipelineResult implements PipelineResult {
     return asAttemptedOnlyMetricResults(executionContext.getMetricsContainer().getContainers());
   }
 
-  public void markStarted() {
-    StateInfo currentState;
-    do {
-      currentState = stateRef.get();
-      if (currentState.state != State.STOPPED) {
-        LOG.warn(
-            "Invalid state transition from {} to RUNNING. "
-                + "Only valid transition is from STOPPED. Ignoring.",
-            currentState.state);
-      }
-    } while (!stateRef.compareAndSet(currentState, new StateInfo(State.RUNNING)));
-  }
-
-  public void markSuccess() {
-    StateInfo currentState;
-    do {
-      currentState = stateRef.get();
-      if (currentState.state != State.RUNNING) {
-        LOG.warn(
-            "Invalid state transition from {} to DONE. "
-                + "Only valid transition is from RUNNING. Ignoring. ",
-            currentState.state);
-      }
-    } while (!stateRef.compareAndSet(currentState, new StateInfo(State.DONE)));
-
-    doneLatch.countDown();
-  }
-
-  public void markFailure(Throwable error) {
-    // TODO: do we need to unwrap error to find UserCodeException?
-    final Pipeline.PipelineExecutionException wrappedException =
-        new Pipeline.PipelineExecutionException(error);
-
-    StateInfo currentState;
-    do {
-      currentState = stateRef.get();
-      if (currentState.state != State.RUNNING) {
-        LOG.warn(
-            "Invalid state transition from {} to FAILED. "
-                + "Only valid transition is from RUNNING. Ignoring. ",
-            currentState.state);
-      }
-    } while (!stateRef.compareAndSet(currentState, new StateInfo(State.FAILED, wrappedException)));
-
-    doneLatch.countDown();
+  private StateInfo getStateInfo() {
+    final ApplicationStatus status = runner.status(app);
+    switch (status.getStatusCode()) {
+      case New:
+        return new StateInfo(State.STOPPED);
+      case Running:
+        return new StateInfo(State.RUNNING);
+      case SuccessfulFinish:
+        return new StateInfo(State.DONE);
+      case UnsuccessfulFinish:
+        LOG.error(status.getThrowable().getMessage(), status.getThrowable());
+        return new StateInfo(State.FAILED,
+            new Pipeline.PipelineExecutionException(status.getThrowable()));
+      default:
+        return new StateInfo(State.UNKNOWN);
+    }
   }
 
   private static class StateInfo {
