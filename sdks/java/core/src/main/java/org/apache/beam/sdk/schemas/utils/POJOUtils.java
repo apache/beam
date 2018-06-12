@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -310,13 +309,29 @@ public class POJOUtils {
               .getOnly()));
     }
 
+    private StackManipulation captureIntoByteBuffer(StackManipulation previous) {
+      ForLoadedType byteBufferType = new ForLoadedType(ByteBuffer.class);
+      ForLoadedType byteArrayType = new ForLoadedType(byte[].class);
+
+      // We currently assume that a byte[] setter will always accept a parameter of type byte[].
+      return new StackManipulation.Compound(
+          previous,
+          // Load the parameter and cast it to a byte[].
+          MethodVariableAccess.REFERENCE.loadFrom(2),
+          TypeCasting.to(byteArrayType),
+          // Create a new ByteBuffer that wraps this byte[].
+          MethodInvocation.invoke(byteBufferType
+              .getDeclaredMethods()
+              .filter(ElementMatchers.named("wrap")
+                  .and(ElementMatchers.takesArguments(byteArrayType)))
+              .getOnly()));
+    }
+
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
-
-        boolean isDateTime = ReadableInstant.class.isAssignableFrom(field.getType());
 
         ForLoadedType fieldType = new ForLoadedType(field.getType());
         ForLoadedType objectType = new ForLoadedType(field.getDeclaringClass());
@@ -325,8 +340,10 @@ public class POJOUtils {
             // Object param is offset 1.
             MethodVariableAccess.REFERENCE.loadFrom(1),
             TypeCasting.to(objectType));
-        if (isDateTime) {
+        if (ReadableInstant.class.isAssignableFrom(field.getType())) {
           stackManipulation = captureDateTime(stackManipulation, fieldType);
+        } else if (field.getType().equals(ByteBuffer.class)) {
+          stackManipulation = captureIntoByteBuffer(stackManipulation);
         } else {
           // Otherwise cast to the matching field type.
           stackManipulation = new StackManipulation.Compound(
