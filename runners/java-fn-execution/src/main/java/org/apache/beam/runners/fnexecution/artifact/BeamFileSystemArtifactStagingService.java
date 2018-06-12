@@ -143,7 +143,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     } catch (JsonProcessingException e) {
       LOG.error(
           "Unable to deserialize staging token {}. Expected format {}. Error {}",
-          stagingSessionToken, "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"",
+          stagingSessionToken, "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"}",
           e.getMessage());
       throw e;
     }
