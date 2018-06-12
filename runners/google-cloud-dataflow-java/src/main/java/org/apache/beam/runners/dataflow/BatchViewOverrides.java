@@ -25,7 +25,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -192,7 +191,7 @@ class BatchViewOverrides {
       }
     }
 
-    private final DataflowRunner runner;
+    private final transient DataflowRunner runner;
     private final PCollectionView<Map<K, V>> view;
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
@@ -676,7 +675,7 @@ class BatchViewOverrides {
       }
     }
 
-    private final DataflowRunner runner;
+    private final transient DataflowRunner runner;
     private final PCollectionView<Map<K, Iterable<V>>> view;
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
@@ -723,11 +722,6 @@ class BatchViewOverrides {
                   inputCoder.getKeyCoder(),
                   IterableCoder.of(
                       FullWindowedValueCoder.of(inputCoder.getValueCoder(), windowCoder))));
-
-      TransformedMap<K, Iterable<WindowedValue<V>>, Iterable<V>> defaultValue =
-          new TransformedMap<>(
-              IterableWithWindowedValuesToIterable.of(),
-              ImmutableMap.<K, Iterable<WindowedValue<V>>>of());
 
       return BatchViewAsSingleton.applyForSingleton(
           runner, input, new ToMultimapDoFn<>(windowCoder), finalValueCoder, view);
@@ -900,7 +894,7 @@ class BatchViewOverrides {
       }
     }
 
-    private final DataflowRunner runner;
+    private final transient DataflowRunner runner;
     private final PCollectionView<T> view;
     private final CombineFn<T, ?, T> combineFn;
     private final int fanout;
@@ -1054,7 +1048,7 @@ class BatchViewOverrides {
       }
     }
 
-    private final DataflowRunner runner;
+    private final transient DataflowRunner runner;
     private final PCollectionView<List<T>> view;
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
@@ -1134,7 +1128,7 @@ class BatchViewOverrides {
    */
   static class BatchViewAsIterable<T> extends PTransform<PCollection<T>, PCollection<?>> {
 
-    private final DataflowRunner runner;
+    private final transient DataflowRunner runner;
     private final PCollectionView<Iterable<T>> view;
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
@@ -1375,6 +1369,11 @@ class BatchViewOverrides {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass()).add("value", getValue()).toString();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getValue());
     }
 
     @Override

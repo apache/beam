@@ -89,7 +89,7 @@ class DataflowMetrics extends MetricResults {
   }
 
   @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
+  public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     List<MetricUpdate> metricUpdates;
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
@@ -345,12 +345,19 @@ class DataflowMetrics extends MetricResults {
   abstract static class DataflowMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
+    @Override
     public abstract MetricName getName();
+
+    @Override
     public abstract String getStep();
+
     @Nullable
     protected abstract T committedInternal();
+
+    @Override
     public abstract T getAttempted();
 
+    @Override
     public T getCommitted() {
       T committed = committedInternal();
       if (committed == null) {

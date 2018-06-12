@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyListOf;
@@ -129,7 +130,7 @@ public class PackageUtilTest {
   private File makeFileWithContents(String name, String contents) throws Exception {
     File tmpFile = tmpFolder.newFile(name);
     Files.write(contents, tmpFile, StandardCharsets.UTF_8);
-    tmpFile.setLastModified(0);  // required for determinism with directories
+    assertTrue(tmpFile.setLastModified(0));  // required for determinism with directories
     return tmpFile;
   }
 
@@ -306,11 +307,12 @@ public class PackageUtilTest {
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
     verifyNoMoreInteractions(mockGcsUtil);
 
-    ZipInputStream inputStream = new ZipInputStream(Channels.newInputStream(pipe.source()));
     List<String> zipEntryNames = new ArrayList<>();
-    for (ZipEntry entry = inputStream.getNextEntry(); entry != null;
-        entry = inputStream.getNextEntry()) {
-      zipEntryNames.add(entry.getName());
+    try (ZipInputStream inputStream = new ZipInputStream(Channels.newInputStream(pipe.source()))) {
+      for (ZipEntry entry = inputStream.getNextEntry(); entry != null;
+           entry = inputStream.getNextEntry()) {
+        zipEntryNames.add(entry.getName());
+      }
     }
 
     assertThat(zipEntryNames,
@@ -338,7 +340,10 @@ public class PackageUtilTest {
 
     assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".jar"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
-    assertNull(new ZipInputStream(Channels.newInputStream(pipe.source())).getNextEntry());
+    try (ZipInputStream zipInputStream =
+             new ZipInputStream(Channels.newInputStream(pipe.source()))) {
+      assertNull(zipInputStream.getNextEntry());
+    }
   }
 
   @Test(expected = RuntimeException.class)
