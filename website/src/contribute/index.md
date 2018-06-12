@@ -165,7 +165,7 @@ properly test your code.
 The following commands should be run in the `sdks/python` directory.
 This installs Python from source and includes the test and gcp dependencies.
 
-On macOS/Linix:
+On macOS/Linux:
 
     $ virtualenv env
     $ . ./env/bin/activate
