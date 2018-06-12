@@ -24,6 +24,7 @@
     <artifactId>beam-sdks-parent</artifactId>
     <version>2.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
+
   </parent>
 
   <artifactId>beam-sdks-java-parent</artifactId>
