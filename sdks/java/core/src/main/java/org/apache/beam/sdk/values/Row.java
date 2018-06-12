@@ -39,6 +39,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
@@ -350,8 +351,12 @@ public abstract class Row implements Serializable {
   /** Builder for {@link Row}. */
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
+<<<<<<< HEAD
     private boolean attached = false;
     private List<FieldValueGetter> fieldValueGetters = Lists.newArrayList();
+=======
+    private FieldValueGetterFactory fieldValueGetterFactory;
+>>>>>>> 3736ad80bf... Introduce FieldValueGetterFactory.
     private Object getterTarget;
     private Schema schema;
 
@@ -383,6 +388,7 @@ public abstract class Row implements Serializable {
       return this;
     }
 
+<<<<<<< HEAD
     public Builder attachValues(List<Object> values) {
       this.attached = true;
       return addValues(values);
@@ -403,6 +409,11 @@ public abstract class Row implements Serializable {
     }
 
     public Builder withObjectTarget(Object getterTarget) {
+=======
+    public Builder withFieldValueGetters(FieldValueGetterFactory fieldValueGetterFactory,
+                                         Object getterTarget) {
+      this.fieldValueGetterFactory = fieldValueGetterFactory;
+>>>>>>> 3736ad80bf... Introduce FieldValueGetterFactory.
       this.getterTarget = getterTarget;
       return this;
     }
@@ -578,15 +589,17 @@ public abstract class Row implements Serializable {
     public Row build() {
       checkNotNull(schema);
       List<Object> values = attached ? this.values : verify(schema, this.values);
-      if (!values.isEmpty() && !fieldValueGetters.isEmpty()) {
+      if (!values.isEmpty() && fieldValueGetterFactory != null ){
         throw new IllegalArgumentException(("Cannot specify both values and getters."));
       }
       if (!values.isEmpty()) {
         checkState(getterTarget == null, "withGetterTarget requires getters.");
         return new RowWithStorage(schema, verify(schema, values));
-      } else {
+      } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
-        return new RowWithGetters(schema, fieldValueGetters, getterTarget);
+        return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+      } else {
+        return new RowWithStorage(schema, Collections.emptyList());
       }
     }
   }

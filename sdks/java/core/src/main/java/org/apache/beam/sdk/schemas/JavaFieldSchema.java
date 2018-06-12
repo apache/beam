@@ -9,8 +9,11 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
+import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
+import org.apache.beam.sdk.values.reflect.PojoValueGetterFactory;
+import org.apache.beam.sdk.values.reflect.PojoValueSetterFactory;
 
 public class JavaFieldSchema extends SchemaProvider {
     @Override
@@ -23,19 +26,17 @@ public class JavaFieldSchema extends SchemaProvider {
     @Override
     public <T> SerializableFunction<T, Row> toRowFunction(
       TypeDescriptor<T> typeDescriptor) {
-      List<FieldValueGetter> getters = POJOUtils.getGetters(typeDescriptor.getRawType());
       return o -> Row
           .withSchema(schemaFor(typeDescriptor))
-          .addFieldValueGetters(getters)
-          .withObjectTarget(o)
+          .withFieldValueGetters(fieldValueGetterFactory(), o)
           .build();
     }
 
   @Override
     public <T> SerializableFunction<Row, T> fromRowFunction(
       TypeDescriptor<T> typeDescriptor) {
-      // TODO: Implement fast path for the case where the Row simply wraps the POJO.
-      List<FieldValueSetter> setters = POJOUtils.getSetters(typeDescriptor.getRawType());
+      List<FieldValueSetter> setters = fieldValueSetterFactory().createSetters(
+          typeDescriptor.getRawType());
       return r -> {
         if (r instanceof RowWithGetters) {
           // Efficient path: simply extract the underlying POJO instead of creating a new one.
@@ -59,8 +60,11 @@ public class JavaFieldSchema extends SchemaProvider {
       };
   }
 
-  private <T> List<FieldValueGetter> fieldGetters(TypeDescriptor<T> typeDescriptor) {
-      return POJOUtils.getGetters(typeDescriptor.getRawType());
+  private  FieldValueGetterFactory fieldValueGetterFactory() {
+      return new PojoValueGetterFactory();
   }
 
+  private FieldValueSetterFactory fieldValueSetterFactory() {
+      return new PojoValueSetterFactory();
+  }
 }
