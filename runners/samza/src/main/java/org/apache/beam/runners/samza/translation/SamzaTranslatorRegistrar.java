@@ -18,10 +18,9 @@
 
 package org.apache.beam.runners.samza.translation;
 
-import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.PTransform;
+import java.util.Map;
 
-/** Interface of Samza translator for BEAM {@link PTransform}. */
-public interface TransformTranslator<T extends PTransform<?, ?>> {
-  void translate(T transform, TransformHierarchy.Node node, TranslationContext ctx);
+/** A registrar of TransformTranslator. */
+public interface SamzaTranslatorRegistrar {
+  Map<String, TransformTranslator<?>> getTransformTranslators();
 }
