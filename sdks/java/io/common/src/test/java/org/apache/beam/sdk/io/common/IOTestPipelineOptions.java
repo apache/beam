@@ -44,17 +44,6 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getSolrZookeeperServer();
   void setSolrZookeeperServer(String value);
 
-  /* Cassandra */
-  @Description("Host for Cassandra server (host name/ip address)")
-  @Default.String("cassandra-host")
-  String getCassandraHost();
-  void setCassandraHost(String host);
-
-  @Description("Port for Cassandra server")
-  @Default.Integer(7001)
-  Integer getCassandraPort();
-  void setCassandraPort(Integer port);
-
   /* Used by most IOIT */
   @Description("Number records that will be written and read by the test")
   @Default.Integer(100000)
