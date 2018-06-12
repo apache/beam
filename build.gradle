@@ -152,15 +152,17 @@ task javaPostCommit() {
 task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
-  dependsOn ":beam-sdks-go-examples:build"
-  dependsOn ":beam-sdks-go-test:build"
+
+  // TODO: reenable when https://github.com/gogradle/gogradle/issues/225 is fixed
+  // dependsOn ":beam-sdks-go-examples:build"
+  // dependsOn ":beam-sdks-go-test:build"
 
   // Ensure all container Go boot code builds as well.
-  dependsOn ":beam-sdks-java-container:build"
-  dependsOn ":beam-sdks-python-container:build"
-  dependsOn ":beam-sdks-go-container:build"
-  dependsOn ":beam-runners-gcp-gcemd:build"
-  dependsOn ":beam-runners-gcp-gcsproxy:build"
+  // dependsOn ":beam-sdks-java-container:build"
+  // dependsOn ":beam-sdks-python-container:build"
+  // dependsOn ":beam-sdks-go-container:build"
+  // dependsOn ":beam-runners-gcp-gcemd:build"
+  // dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {
