@@ -18,21 +18,20 @@
 
 package org.apache.beam.sdk.values.reflect;
 
-import org.apache.beam.sdk.annotations.Internal;
+public class BoundFieldValueGetter<T> {
+  private FieldValueGetter fieldValueGetter;
+  private T boundObject;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime by {@link RowFactory} to map pojo
- * fields to BeamRecord fields.
- */
-@Internal
-public interface FieldValueGetter {
-  Object get(Object object);
-  String name();
+  public BoundFieldValueGetter(FieldValueGetter fieldValueGetter, T boundObject) {
+    this.fieldValueGetter = fieldValueGetter;
+    this.boundObject = boundObject;
+  }
 
-  Class type();
-  boolean isRecursive();
+  public FieldValueGetter getFieldValueGetter() {
+    return fieldValueGetter;
+  }
+
+  public T getBoundObject() {
+    return boundObject;
+  }
 }

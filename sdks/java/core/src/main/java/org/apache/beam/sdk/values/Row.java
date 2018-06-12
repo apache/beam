@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
@@ -38,6 +39,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.values.reflect.BoundFieldValueGetter;
+import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
@@ -82,8 +85,15 @@ public abstract class Row implements Serializable {
   /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
   @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(int fieldIdx) {
-    return (T) getValues().get(fieldIdx);
+  public <T, O> T getValue(int fieldIdx) {
+    if (getValues().size() > fieldIdx) {
+      return (T) getValues().get(fieldIdx);
+    } else if (getValueGetters().size() > fieldIdx) {
+      BoundFieldValueGetter<O> bound = getValueGetters().get(fieldIdx);
+      return (T) bound.getFieldValueGetter().get(bound.getBoundObject());
+    } else {
+      throw new IllegalArgumentException("No field at index " + fieldIdx);
+    }
   }
 
   /**
@@ -313,13 +323,21 @@ public abstract class Row implements Serializable {
 
   /** Return the size of data fields. */
   public int getFieldCount() {
-    return getValues().size();
+    return !getValues().isEmpty() ? getValues().size() : getValueGetters().size();
   }
 
   /** Return the list of data values. */
   public abstract List<Object> getValues();
 
+<<<<<<< HEAD
   /** Return {@link Schema} which describes the fields. */
+=======
+  @Nullable
+  public abstract List<BoundFieldValueGetter> getValueGetters();
+  /**
+   * Return {@link Schema} which describes the fields.
+   */
+>>>>>>> 9a8be6cd74... Add automatic getter/setter inference from POJOS.
   public abstract Schema getSchema();
 
   @Override
@@ -328,13 +346,25 @@ public abstract class Row implements Serializable {
       return false;
     }
     Row other = (Row) o;
+    List<Object> values = getValues();
     return Objects.equals(getSchema(), other.getSchema())
-        && Objects.equals(getValues(), other.getValues());
+        && Objects.equals(resolveAllValues(), other.resolveAllValues());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getValues());
+    return Objects.hash(getSchema(), resolveAllValues());
+  }
+
+  private List<Object> resolveAllValues() {
+    if (!getValues().isEmpty()) {
+      return getValues();
+    }
+    List<Object> values = Lists.newArrayList(getFieldCount());
+    for (int i = 0; i < getFieldCount(); ++i) {
+      values.add(getValue(i));
+    }
+    return  values;
   }
 
   /**
@@ -348,8 +378,9 @@ public abstract class Row implements Serializable {
 
   /** Builder for {@link Row}. */
   public static class Builder {
-    private List<Object> values = new ArrayList<>();
+    private List<Object> values = Lists.newArrayList();
     private boolean attached = false;
+    private List<BoundFieldValueGetter> fieldValueGetters = Lists.newArrayList();
     private Schema schema;
 
     Builder(Schema schema) {
@@ -383,6 +414,19 @@ public abstract class Row implements Serializable {
     public Builder attachValues(List<Object> values) {
       this.attached = true;
       return addValues(values);
+
+    public Builder addFieldValueGetter(BoundFieldValueGetter<?> fieldValueGetter) {
+      this.fieldValueGetters.add(fieldValueGetter);
+      return this;
+    }
+
+    public Builder addFieldValueGetters(List<BoundFieldValueGetter<?>> fieldValueGetters) {
+      this.fieldValueGetters.addAll(fieldValueGetters);
+      return this;
+    }
+
+    public Builder addFieldValueGetters(BoundFieldValueGetter<?>... fieldValueGetters) {
+      return addFieldValueGetters(Arrays.asList(fieldValueGetters));
     }
 
     private List<Object> verify(Schema schema, List<Object> values) {
@@ -556,7 +600,14 @@ public abstract class Row implements Serializable {
     public Row build() {
       checkNotNull(schema);
       List<Object> values = attached ? this.values : verify(schema, this.values);
-      return new AutoValue_Row(values, schema);
+      if (!values.isEmpty() && !fieldValueGetters.isEmpty()) {
+        throw new IllegalArgumentException(("Cannot specify both values and getters."));
+      }
+      if (!values.isEmpty()) {
+        return new AutoValue_Row(verify(schema, values), Collections.emptyList(), schema);
+      } else {
+        return new AutoValue_Row(Collections.emptyList(), fieldValueGetters, schema);
+      }
     }
   }
 }
