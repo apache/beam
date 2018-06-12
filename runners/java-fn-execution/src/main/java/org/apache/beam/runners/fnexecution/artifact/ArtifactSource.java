@@ -37,5 +37,5 @@ public interface ArtifactSource {
   /**
    * Get an artifact by its name.
    */
-  void getArtifact(String name, StreamObserver<ArtifactChunk> responseObserver);
+  void getArtifact(String name, StreamObserver<ArtifactChunk> responseObserver) throws IOException;
 }
