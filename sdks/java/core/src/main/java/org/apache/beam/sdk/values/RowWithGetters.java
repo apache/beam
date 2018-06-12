@@ -23,15 +23,18 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 
 public class RowWithGetters extends Row {
-  private List<FieldValueGetter> getters;
+  private FieldValueGetterFactory fieldValueGetterFactory;
   private Object getterTarget;
+  private List<FieldValueGetter> getters;
 
-  RowWithGetters(Schema schema, List<FieldValueGetter> getters, Object getterTarget) {
+  RowWithGetters(Schema schema, FieldValueGetterFactory getterFactory, Object getterTarget) {
     super(schema);
-    this.getters = getters;
+    this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
+    this.getters = fieldValueGetterFactory.createGetters(getterTarget.getClass());
   }
 
   @Nullable
@@ -40,6 +43,7 @@ public class RowWithGetters extends Row {
   public <T> T getValue(int fieldIdx) {
     return (T) getters.get(fieldIdx).get(getterTarget);
   }
+
 
   @Override
   public int getFieldCount() {
