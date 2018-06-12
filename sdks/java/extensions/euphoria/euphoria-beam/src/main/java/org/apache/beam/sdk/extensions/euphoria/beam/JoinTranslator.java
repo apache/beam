@@ -18,8 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.euphoria.beam.common.InputToKvDoFn;
+import org.apache.beam.sdk.extensions.euphoria.beam.common.OperatorTranslatorUtil;
 import org.apache.beam.sdk.extensions.euphoria.beam.io.KryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.FullJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.InnerJoinFn;
@@ -28,7 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.beam.join.LeftOuterJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.join.RightOuterJoinFn;
 import org.apache.beam.sdk.extensions.euphoria.beam.window.WindowingUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -64,12 +62,12 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     @SuppressWarnings("unchecked") final PCollection<RightT> right = (PCollection<RightT>) context
         .getInputs(operator).get(1);
 
-    PCollection<KV<K, LeftT>> leftKvInput = getKVInputCollection(left,
-        operator.getLeftKeyExtractor(),
+    PCollection<KV<K, LeftT>> leftKvInput = OperatorTranslatorUtil.getKVInputCollection(
+        left, operator.getLeftKeyExtractor(),
         keyCoder, new KryoCoder<>(), "::extract-keys-left");
 
-    PCollection<KV<K, RightT>> rightKvInput = getKVInputCollection(right,
-        operator.getRightKeyExtractor(),
+    PCollection<KV<K, RightT>> rightKvInput = OperatorTranslatorUtil.getKVInputCollection(
+        right, operator.getRightKeyExtractor(),
         keyCoder, new KryoCoder<>(), "::extract-keys-right");
 
     // and apply the same widowing on input Pcolections since the documentation states:
@@ -93,20 +91,6 @@ public class JoinTranslator implements OperatorTranslator<Join> {
     JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);
 
     return coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
-  }
-
-  private <K, ValueT> PCollection<KV<K, ValueT>> getKVInputCollection(
-      PCollection<ValueT> inputPCollection,
-      UnaryFunction<ValueT, K> keyExtractor,
-      Coder<K> keyCoder, Coder<ValueT> valueCoder, String transformName) {
-
-    inputPCollection.setCoder(valueCoder);
-
-    PCollection<KV<K, ValueT>> kvInput =
-        inputPCollection.apply(transformName, ParDo.of(new InputToKvDoFn<>(keyExtractor)));
-    kvInput.setCoder(KvCoder.of(keyCoder, valueCoder));
-
-    return kvInput;
   }
 
   private <K, LeftT, RightT, OutputT, W extends BoundedWindow> JoinFn<LeftT, RightT, K, OutputT>

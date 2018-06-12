@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
@@ -38,11 +37,11 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 /**
  * Common methods used in operator builders.
  *
- * <p>They serves several purposes:
+ * <p>They serve several purposes:
  * <ul>
- *   <li>Defines united API among all the {@link Operator Operators}.</li>
- *   <li>Enables to share related javadoc.</li>
- *   <li>Allows for mandatory chaining of some builders. See {@link WindowBy}.</li>
+ * <li>Defines united API among all the {@link Operator Operators}.</li>
+ * <li>Enables to share related javadoc.</li>
+ * <li>Allows for mandatory chaining of some builders. See {@link WindowBy}.</li>
  * </ul>
  *
  * <p>For internal usage only.
@@ -68,6 +67,7 @@ public class Builders {
 
   /**
    * Builder which adds a key extractor to the {@link Operator} in focus.
+   *
    * @param <InputT> type of input elements
    */
   public interface KeyBy<InputT> {
@@ -109,7 +109,7 @@ public class Builders {
      * {@link WindowFn}.It represents windowing strategy to apply to the input elements.
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <W extends BoundedWindow> OutTriggerBuilderT windowBy(@Nonnull WindowFn<Object, W> windowing);
+    <W extends BoundedWindow> OutTriggerBuilderT windowBy(WindowFn<Object, W> windowing);
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
@@ -133,7 +133,7 @@ public class Builders {
    */
   public interface TriggeredBy<OutAccBuilderT extends AccumulatorMode> {
 
-    OutAccBuilderT triggeredBy(@Nonnull Trigger trigger);
+    OutAccBuilderT triggeredBy(Trigger trigger);
   }
 
   /**
@@ -144,7 +144,7 @@ public class Builders {
    */
   public interface AccumulatorMode<OutBuilderT> {
 
-    OutBuilderT accumulationMode(@Nonnull WindowingStrategy.AccumulationMode accumulationMode);
+    OutBuilderT accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
 
     default OutBuilderT discardingFiredPanes() {
       return accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES);

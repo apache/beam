@@ -122,7 +122,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * First builder in chain. It adds a input {@link Dataset}.
    */
   public static class OfBuilder implements Builders.Of {
 
@@ -139,7 +139,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * A builder which defines key extractor {@link UnaryFunction}.
    */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
@@ -160,7 +160,7 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
   }
 
   /**
-   * TODO: complete javadoc.
+   * First windowing builder which starts builders chain defining Beam windowing.
    */
   public static class WindowingBuilder<InputT, K>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
