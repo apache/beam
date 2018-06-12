@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
@@ -30,12 +29,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -65,7 +61,9 @@ import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -81,8 +79,10 @@ public class BeamFileSystemArtifactStagingServiceTest {
   private GrpcFnServer<BeamFileSystemArtifactStagingService> server;
   private BeamFileSystemArtifactStagingService artifactStagingService;
   private ArtifactStagingServiceStub stub;
-  private Path srcDir;
   private Path destDir;
+  private Path srcDir;
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {
@@ -92,10 +92,8 @@ public class BeamFileSystemArtifactStagingServiceTest {
     stub =
         ArtifactStagingServiceGrpc.newStub(
             InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());
-
-    srcDir = Files.createTempDirectory("BFSTemp");
-    destDir = Files.createTempDirectory("BFDTemp");
-
+    srcDir = tempFolder.newFolder("BFSTemp").toPath();
+    destDir = tempFolder.newFolder("BFDTemp").toPath();
   }
 
   @After
@@ -106,29 +104,6 @@ public class BeamFileSystemArtifactStagingServiceTest {
     if (artifactStagingService != null) {
       artifactStagingService.close();
     }
-    deleteDir(srcDir, "BFSTemp");
-    deleteDir(destDir, "BFDTemp");
-    server = null;
-    artifactStagingService = null;
-    stub = null;
-  }
-
-  private void deleteDir(Path dir, String sanityString) throws IOException {
-    checkArgument(dir != null && dir.toAbsolutePath().toString().contains(sanityString),
-        "Invalid directory.");
-    Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
-      @Override
-      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        Files.deleteIfExists(file);
-        return FileVisitResult.CONTINUE;
-      }
-
-      @Override
-      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-        Files.deleteIfExists(dir);
-        return FileVisitResult.CONTINUE;
-      }
-    });
   }
 
   private void putArtifact(String stagingSessionToken, final String filePath, final String fileName)
@@ -155,16 +130,17 @@ public class BeamFileSystemArtifactStagingServiceTest {
             .setMetadata(ArtifactMetadata.newBuilder().setName(fileName).build())
             .setStagingSessionToken(stagingSessionToken)).build());
 
-    FileInputStream fileInputStream = new FileInputStream(filePath);
-    byte[] buffer = new byte[DATA_1KB]; // 1kb chunk
-    int read = fileInputStream.read(buffer);
-    while (read != -1) {
-      outputStreamObserver.onNext(PutArtifactRequest.newBuilder().setData(
-          ArtifactChunk.newBuilder().setData(ByteString.copyFrom(buffer, 0, read)).build())
-          .build());
-      read = fileInputStream.read(buffer);
+    try (FileInputStream fileInputStream = new FileInputStream(filePath)) {
+      byte[] buffer = new byte[DATA_1KB]; // 1kb chunk
+      int read = fileInputStream.read(buffer);
+      while (read != -1) {
+        outputStreamObserver.onNext(PutArtifactRequest.newBuilder().setData(
+            ArtifactChunk.newBuilder().setData(ByteString.copyFrom(buffer, 0, read)).build())
+            .build());
+        read = fileInputStream.read(buffer);
+      }
+      outputStreamObserver.onCompleted();
     }
-    outputStreamObserver.onCompleted();
   }
 
   private String commitManifest(String stagingSessionToken, List<ArtifactMetadata> artifacts)
