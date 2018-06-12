@@ -18,9 +18,8 @@
 package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
@@ -39,7 +38,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.values.reflect.BoundFieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -55,45 +53,36 @@ import org.joda.time.base.AbstractInstant;
  * {see @link Schema#getRowCoder()}.
  */
 @Experimental
-@AutoValue
 public abstract class Row implements Serializable {
-  /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
-  public static <T> Collector<T, List<Object>, Row> toRow(Schema schema) {
-    return Collector.of(
-        () -> new ArrayList<>(schema.getFieldCount()),
-        List::add,
-        (left, right) -> {
-          left.addAll(right);
-          return left;
-        },
-        values -> Row.withSchema(schema).addValues(values).build());
+  private Schema schema;
+
+  Row(Schema schema) {
+    this.schema = schema;
   }
 
-  /** Creates a new record filled with nulls. */
-  public static Row nullRow(Schema schema) {
-    return Row.withSchema(schema)
-        .addValues(Collections.nCopies(schema.getFieldCount(), null))
-        .build();
-  }
+  // Abstract methods to be implemented by subclasses that handle object access.
+
+  /**
+   * Get value by field index, {@link ClassCastException} is thrown
+   * if schema doesn't match.
+   */
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  public abstract  <T>  T getValue(int fieldIdx);
+
+  /**
+   * Return the size of data fields.
+   */
+  public abstract int getFieldCount();
+  /**
+   * Return the list of data values.
+   */
+  public abstract List<Object> getValues();
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
-  }
-
-  /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
-  @Nullable
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T, O> T getValue(int fieldIdx) {
-    if (getValues().size() > fieldIdx) {
-      return (T) getValues().get(fieldIdx);
-    } else if (getValueGetters().size() > fieldIdx) {
-      BoundFieldValueGetter<O> bound = getValueGetters().get(fieldIdx);
-      return (T) bound.getFieldValueGetter().get(bound.getBoundObject());
-    } else {
-      throw new IllegalArgumentException("No field at index " + fieldIdx);
-    }
   }
 
   /**
@@ -321,24 +310,18 @@ public abstract class Row implements Serializable {
     return getValue(idx);
   }
 
-  /** Return the size of data fields. */
-  public int getFieldCount() {
-    return !getValues().isEmpty() ? getValues().size() : getValueGetters().size();
-  }
-
   /** Return the list of data values. */
   public abstract List<Object> getValues();
 
-<<<<<<< HEAD
-  /** Return {@link Schema} which describes the fields. */
-=======
   @Nullable
   public abstract List<BoundFieldValueGetter> getValueGetters();
+
   /**
    * Return {@link Schema} which describes the fields.
    */
->>>>>>> 9a8be6cd74... Add automatic getter/setter inference from POJOS.
-  public abstract Schema getSchema();
+  public Schema getSchema() {
+    return schema;
+  }
 
   @Override
   public boolean equals(Object o) {
@@ -346,25 +329,13 @@ public abstract class Row implements Serializable {
       return false;
     }
     Row other = (Row) o;
-    List<Object> values = getValues();
     return Objects.equals(getSchema(), other.getSchema())
-        && Objects.equals(resolveAllValues(), other.resolveAllValues());
+        && Objects.equals(getValues(), other.getValues());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), resolveAllValues());
-  }
-
-  private List<Object> resolveAllValues() {
-    if (!getValues().isEmpty()) {
-      return getValues();
-    }
-    List<Object> values = Lists.newArrayList(getFieldCount());
-    for (int i = 0; i < getFieldCount(); ++i) {
-      values.add(getValue(i));
-    }
-    return  values;
+    return Objects.hash(getSchema(), getValues());
   }
 
   /**
@@ -373,14 +344,15 @@ public abstract class Row implements Serializable {
    * match the number of fields specified.
    */
   public static Builder withSchema(Schema schema) {
-    return new AutoValue_Row.Builder(schema);
+    return new Builder(schema);
   }
 
   /** Builder for {@link Row}. */
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
     private boolean attached = false;
-    private List<BoundFieldValueGetter> fieldValueGetters = Lists.newArrayList();
+    private List<FieldValueGetter> fieldValueGetters = Lists.newArrayList();
+    private Object getterTarget;
     private Schema schema;
 
     Builder(Schema schema) {
@@ -414,19 +386,25 @@ public abstract class Row implements Serializable {
     public Builder attachValues(List<Object> values) {
       this.attached = true;
       return addValues(values);
+    }
 
-    public Builder addFieldValueGetter(BoundFieldValueGetter<?> fieldValueGetter) {
+    public Builder addFieldValueGetter(FieldValueGetter fieldValueGetter) {
       this.fieldValueGetters.add(fieldValueGetter);
       return this;
     }
 
-    public Builder addFieldValueGetters(List<BoundFieldValueGetter<?>> fieldValueGetters) {
+    public Builder addFieldValueGetters(List<FieldValueGetter> fieldValueGetters) {
       this.fieldValueGetters.addAll(fieldValueGetters);
       return this;
     }
 
-    public Builder addFieldValueGetters(BoundFieldValueGetter<?>... fieldValueGetters) {
+    public Builder addFieldValueGetters(FieldValueGetter... fieldValueGetters) {
       return addFieldValueGetters(Arrays.asList(fieldValueGetters));
+    }
+
+    public Builder withObjectTarget(Object getterTarget) {
+      this.getterTarget = getterTarget;
+      return this;
     }
 
     private List<Object> verify(Schema schema, List<Object> values) {
@@ -604,10 +582,38 @@ public abstract class Row implements Serializable {
         throw new IllegalArgumentException(("Cannot specify both values and getters."));
       }
       if (!values.isEmpty()) {
-        return new AutoValue_Row(verify(schema, values), Collections.emptyList(), schema);
+        checkState(getterTarget == null, "withGetterTarget requires getters.");
+        return new RowWithStorage(schema, verify(schema, values));
       } else {
-        return new AutoValue_Row(Collections.emptyList(), fieldValueGetters, schema);
+        checkState(getterTarget != null, "getters require withGetterTarget.");
+        return new RowWithGetters(schema, fieldValueGetters, getterTarget);
       }
     }
+  }
+
+  /**
+   * Creates a {@link Row} from the list of values and {@link #getSchema()}.
+   */
+  public static <T> Collector<T, List<Object>, Row> toRow(
+      Schema schema) {
+    return Collector.of(
+        () -> new ArrayList<>(schema.getFieldCount()),
+        List::add,
+        (left, right) -> {
+          left.addAll(right);
+          return left;
+        },
+        values -> Row.withSchema(schema).addValues(values).build());
+  }
+
+  /**
+   * Creates a new record filled with nulls.
+   */
+  public static Row nullRow(Schema schema) {
+    return
+        Row
+            .withSchema(schema)
+            .addValues(Collections.nCopies(schema.getFieldCount(), null))
+            .build();
   }
 }

@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 
 import java.nio.charset.Charset;
 import org.apache.beam.sdk.values.Row;
@@ -103,5 +104,16 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, pojo.aLong);
     assertEquals(true, pojo.aBoolean);
     assertEquals(DateTime.parse("1979-03-14"), pojo.dateTime);
+  }
+
+  @Test
+  public void testFromRowWithGetters() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimplePojo pojo = new SimplePojo("string", (byte) 1, (short) 2, 3, 4L,true,
+        DateTime.parse("1979-03-14"), "bytearray".getBytes(Charset.defaultCharset()));
+    Row row = registry.getToRowFunction(SimplePojo.class).apply(pojo);
+    // Test that the fromRowFunction simply returns the original object back.
+    SimplePojo extracted = registry.getFromRowFunction(SimplePojo.class).apply(row);
+    assertSame(pojo, extracted);
   }
 }
