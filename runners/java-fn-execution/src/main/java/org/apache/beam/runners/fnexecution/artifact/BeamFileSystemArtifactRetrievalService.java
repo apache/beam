@@ -21,8 +21,11 @@ package org.apache.beam.runners.fnexecution.artifact;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.util.JsonFormat;
 import io.grpc.stub.StreamObserver;
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.InvalidObjectException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -31,24 +34,31 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+// TODO: unit tests
 
 /**
  * An {@link ArtifactRetrievalService} that uses distributed file systems as its backing storage.
  */
-public class DfsArtifactRetrievalService
+public class BeamFileSystemArtifactRetrievalService
     extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase
     implements ArtifactRetrievalService {
 
-  private static int artifactChunkSizeBytes = 2000000; // 2MB
+  private static final int ARTIFACT_CHUNK_SIZE_BYTES = 2 * 1000 * 1000; // 2MB
+  private static final Logger LOG =
+      LoggerFactory.getLogger(BeamFileSystemArtifactRetrievalService.class);
 
-  public static DfsArtifactRetrievalService create() {
-    return new DfsArtifactRetrievalService();
+  public static BeamFileSystemArtifactRetrievalService create() {
+    return new BeamFileSystemArtifactRetrievalService();
   }
 
   @Override
   public void getManifest(
       ArtifactApi.GetManifestRequest request,
       StreamObserver<ArtifactApi.GetManifestResponse> responseObserver) {
+    // TODO: add logging: retrieval token
     try {
       ArtifactApi.ProxyManifest proxyManifest = loadManifestFrom(request.getRetrievalToken());
       ArtifactApi.GetManifestResponse response =
@@ -67,6 +77,7 @@ public class DfsArtifactRetrievalService
   public void getArtifact(
       ArtifactApi.GetArtifactRequest request,
       StreamObserver<ArtifactApi.ArtifactChunk> responseObserver) {
+    // TODO: add logging: retrieval token, name, location
     try {
       ArtifactApi.ProxyManifest proxyManifest = loadManifestFrom(request.getRetrievalToken());
       // validate that name is contained in manifest and location list
@@ -88,14 +99,16 @@ public class DfsArtifactRetrievalService
               .orElseThrow(() -> new ArtifactNotFoundException(request.getName()));
       ResourceId artifactResourceId =
           FileSystems.matchNewResource(location.getUri(), false /* is directory */);
-      ReadableByteChannel artifactByteChannel = FileSystems.open(artifactResourceId);
-      ByteBuffer byteBuffer = ByteBuffer.allocate(artifactChunkSizeBytes);
-      while (artifactByteChannel.read(byteBuffer) > -1) {
-        ByteString data = ByteString.copyFrom(byteBuffer);
-        byteBuffer.clear();
-        ArtifactApi.ArtifactChunk artifactChunk =
-            ArtifactApi.ArtifactChunk.newBuilder().setData(data).build();
-        responseObserver.onNext(artifactChunk);
+      ByteBuffer byteBuffer = ByteBuffer.allocate(ARTIFACT_CHUNK_SIZE_BYTES);
+      try (ReadableByteChannel artifactByteChannel = FileSystems.open(artifactResourceId)){
+        while (artifactByteChannel.read(byteBuffer) > -1) {
+          byteBuffer.flip();
+          ByteString data = ByteString.copyFrom(byteBuffer);
+          byteBuffer.clear();
+          ArtifactApi.ArtifactChunk artifactChunk =
+              ArtifactApi.ArtifactChunk.newBuilder().setData(data).build();
+          responseObserver.onNext(artifactChunk);
+        }
       }
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -110,11 +123,16 @@ public class DfsArtifactRetrievalService
   }
 
   private ArtifactApi.ProxyManifest loadManifestFrom(String retrievalToken) throws Exception {
-    // look for file at $retrieval_token/$manifestName
+    // look for manifest file at $retrieval_token
     ResourceId manifestResourceId =
         FileSystems.matchNewResource(retrievalToken, false /* is directory */);
-    InputStream manifestStream = Channels.newInputStream(FileSystems.open(manifestResourceId));
-    ArtifactApi.ProxyManifest proxyManifest =  ArtifactApi.ProxyManifest.parseFrom(manifestStream);
+    ArtifactApi.ProxyManifest proxyManifest;
+    try(InputStream manifestStream = Channels.newInputStream(FileSystems.open(manifestResourceId))) {
+      BufferedReader manifestReader = new BufferedReader(new InputStreamReader(manifestStream));
+      ArtifactApi.ProxyManifest.Builder manifestBuilder = ArtifactApi.ProxyManifest.newBuilder();
+      JsonFormat.parser().merge(manifestReader, manifestBuilder);
+      proxyManifest = manifestBuilder.build();
+    }
     // ensure that manifest field is set (it always should be).
     // otherwise we'd be returning a null field.
     if (!proxyManifest.hasManifest()) {
@@ -123,6 +141,9 @@ public class DfsArtifactRetrievalService
     }
     return proxyManifest;
   }
+
+  // TODO: implement LoadingCache for proxy manifest
+  // TODO: log when loading cache from file
 
   /**
    * Thrown when an artifact name is requested that is not found in the corresponding manifest.
