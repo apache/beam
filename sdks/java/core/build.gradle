@@ -67,10 +67,10 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
-  shadow library.java.hamcrest_core
-  shadow library.java.hamcrest_library
-  shadow library.java.junit
   shadow "org.tukaani:xz:1.5"
+  provided library.java.junit
+  provided library.java.hamcrest_core
+  provided library.java.hamcrest_library
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14

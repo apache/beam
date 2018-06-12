@@ -50,6 +50,7 @@ dependencies {
   testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.hadoop_minicluster
   testCompile library.java.hadoop_hdfs
   testCompile library.java.hadoop_common

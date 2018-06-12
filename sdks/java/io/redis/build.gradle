@@ -32,6 +32,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile "com.github.kstyrc:embedded-redis:0.6"
   testCompileOnly library.java.findbugs_annotations
 }
