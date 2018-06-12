@@ -23,16 +23,12 @@ import org.apache.beam.sdk.annotations.Internal;
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * <p>An interface to access a field of a class.
+ * <p>An interface to set a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime by {@link RowFactory} to map pojo
- * fields to BeamRecord fields.
+ * <p>Implementations of this interface are generated at runtime by {@link RowFactory}
+ * to map pojo fields to BeamRecord fields.
  */
 @Internal
-public interface FieldValueGetter {
-  Object get(Object object);
-  String name();
-
-  Class type();
-  boolean isRecursive();
+public interface FieldValueSetter {
+  void set(Object object, Object value);
 }

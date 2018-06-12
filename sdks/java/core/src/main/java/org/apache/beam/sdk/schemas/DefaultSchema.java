@@ -81,11 +81,8 @@ public @interface DefaultSchema {
               return null;
             }
             Class<? extends SchemaProvider> providerClass = annotation.value();
-            checkArgument(
-                providerClass != null,
-                "Type "
-                    + type
-                    + " has a @DefaultSchemaProvider annotation "
+            checkArgument(providerClass != null,
+                "Type " + type + " has a @DefaultSchema annotation "
                     + " with a null argument.");
 
             try {

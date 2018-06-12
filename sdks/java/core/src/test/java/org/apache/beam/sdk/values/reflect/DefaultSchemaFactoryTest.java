@@ -73,8 +73,8 @@ public class DefaultSchemaFactoryTest {
         Arrays.<FieldValueGetter>asList(getter("unsupportedGetter", UnsupportedClass.class)));
   }
 
-  private static FieldValueGetter<Object> getter(final String fieldName, final Class fieldType) {
-    return new FieldValueGetter<Object>() {
+  private static FieldValueGetter getter(final String fieldName, final Class fieldType) {
+    return new FieldValueGetter() {
       @Override
       public Object get(Object object) {
         return null;
@@ -88,6 +88,11 @@ public class DefaultSchemaFactoryTest {
       @Override
       public Class type() {
         return fieldType;
+      }
+
+      @Override
+      public boolean isRecursive() {
+        return false;
       }
     };
   }
