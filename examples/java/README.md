@@ -28,6 +28,7 @@ the development of more complex pipelines.
 A good starting point for new users is our set of
 [word count](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples) examples, which computes word frequencies.  This series of four successively more detailed pipelines is described in detail in the accompanying [walkthrough](https://beam.apache.org/get-started/wordcount-example/).
 
+
 1. [`MinimalWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java) is the simplest word count pipeline and introduces basic concepts like [Pipelines](https://beam.apache.org/documentation/programming-guide/#pipeline),
 [PCollections](https://beam.apache.org/documentation/programming-guide/#pcollection),
 [ParDo](https://beam.apache.org/documentation/programming-guide/#transforms-pardo),
