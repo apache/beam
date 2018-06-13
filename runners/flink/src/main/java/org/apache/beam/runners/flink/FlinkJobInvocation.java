@@ -1,4 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.flink;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.FutureCallback;
@@ -12,16 +31,20 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -34,11 +57,8 @@ import org.slf4j.LoggerFactory;
 public class FlinkJobInvocation implements JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvocation.class);
 
-  public static FlinkJobInvocation create(
-      String id,
-      ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions,
+  public static FlinkJobInvocation create(String id, ListeningExecutorService executorService,
+      RunnerApi.Pipeline pipeline, FlinkPipelineOptions pipelineOptions,
       ArtifactSource artifactSource) {
     return new FlinkJobInvocation(id, executorService, pipeline, pipelineOptions, artifactSource);
   }
@@ -49,16 +69,13 @@ public class FlinkJobInvocation implements JobInvocation {
   private final FlinkPipelineOptions pipelineOptions;
   private final ArtifactSource artifactSource;
   private Enum jobState;
-  private List<StreamObserver<Enum>> stateObservers;
+  private List<Consumer<Enum>> stateObservers;
 
   @Nullable
   private ListenableFuture<PipelineResult> invocationFuture;
 
-  private FlinkJobInvocation(
-      String id,
-      ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions,
+  private FlinkJobInvocation(String id, ListeningExecutorService executorService,
+      RunnerApi.Pipeline pipeline, FlinkPipelineOptions pipelineOptions,
       ArtifactSource artifactSource) {
     this.id = id;
     this.executorService = executorService;
@@ -78,15 +95,17 @@ public class FlinkJobInvocation implements JobInvocation {
     LOG.info("Translating pipeline to Flink program.");
     // Fused pipeline proto.
     RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
+    JobInfo jobInfo = JobInfo.create(
+        id, pipelineOptions.getJobName(), PipelineOptionsTranslation.toProto(pipelineOptions));
     final JobExecutionResult result;
 
-    if (!pipelineOptions.isStreaming()
-        && !FlinkTranslationUtils.hasUnboundedPCollections(fusedPipeline)) {
+    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(fusedPipeline)) {
       // TODO: Do we need to inspect for unbounded sources before fusing?
       // batch translation
-      FlinkBatchPortablePipelineTranslator translator = new FlinkBatchPortablePipelineTranslator();
+      FlinkBatchPortablePipelineTranslator translator =
+          FlinkBatchPortablePipelineTranslator.createTranslator();
       FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
-          FlinkBatchPortablePipelineTranslator.createBatchContext(pipelineOptions);
+          FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo);
       translator.translate(context, fusedPipeline);
       LOG.info("Registering pipeline artifacts in Flink program.");
       try {
@@ -101,7 +120,7 @@ public class FlinkJobInvocation implements JobInvocation {
       FlinkStreamingPortablePipelineTranslator translator =
           new FlinkStreamingPortablePipelineTranslator();
       FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context =
-          FlinkStreamingPortablePipelineTranslator.createStreamingContext(pipelineOptions);
+          FlinkStreamingPortablePipelineTranslator.createTranslationContext(jobInfo);
       translator.translate(context, fusedPipeline);
       LOG.info("Registering pipeline artifacts in Flink program.");
       try {
@@ -113,7 +132,7 @@ public class FlinkJobInvocation implements JobInvocation {
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     }
 
-    return FlinkRunner.createPipelineResult(result);
+    return FlinkRunner.createPipelineResult(result, pipelineOptions);
   }
 
   @Override
@@ -165,20 +184,20 @@ public class FlinkJobInvocation implements JobInvocation {
   }
 
   @Override
-  public synchronized void addStateObserver(StreamObserver<Enum> stateStreamObserver) {
-    stateStreamObserver.onNext(getState());
+  public synchronized void addStateListener(Consumer<Enum> stateStreamObserver) {
+    stateStreamObserver.accept(getState());
     stateObservers.add(stateStreamObserver);
   }
 
   @Override
-  public synchronized void addMessageObserver(StreamObserver<JobMessage> messageStreamObserver) {
+  public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
     LOG.warn("addMessageObserver() not yet implemented.");
   }
 
   private synchronized void setState(Enum state) {
     this.jobState = state;
-    for (StreamObserver<Enum> observer : stateObservers) {
-      observer.onNext(state);
+    for (Consumer<Enum> observer : stateObservers) {
+      observer.accept(state);
     }
   }
 
@@ -251,4 +270,15 @@ public class FlinkJobInvocation implements JobInvocation {
   private interface FileCache {
     void registerCachedFile(String fileUri, String name);
   }
+
+  /** Indicates whether the given pipeline has any unbounded PCollections. */
+  private static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
+    checkArgument(pipeline != null);
+    Collection<RunnerApi.PCollection> pCollecctions = pipeline.getComponents()
+        .getPcollectionsMap().values();
+    // Assume that all PCollections are consumed at some point in the pipeline.
+    return pCollecctions.stream()
+        .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
+  }
+
 }
