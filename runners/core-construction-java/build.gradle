@@ -49,6 +49,7 @@ dependencies {
   shadow library.java.grpc_stub
   testCompileOnly library.java.findbugs_annotations
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_annotations

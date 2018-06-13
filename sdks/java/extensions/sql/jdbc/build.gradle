@@ -30,6 +30,7 @@ dependencies {
   compile library.java.slf4j_jdk14
   compileOnly library.java.findbugs_annotations
   testCompileOnly library.java.findbugs_annotations
+  testCompile library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output

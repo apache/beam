@@ -74,6 +74,7 @@ dependencies {
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
+  provided library.java.hamcrest_library
   provided "org.apache.zookeeper:zookeeper:3.4.11"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"

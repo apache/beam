@@ -29,6 +29,7 @@ dependencies {
   shadow library.java.jackson_databind
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompileOnly library.java.findbugs_annotations
 }

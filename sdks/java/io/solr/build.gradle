@@ -34,6 +34,7 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.slf4j_api
   testCompile "org.apache.solr:solr-test-framework:5.5.4"
