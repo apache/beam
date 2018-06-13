@@ -20,6 +20,10 @@
 For experimental usage only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
+from builtins import object
+
 
 class BeamPlugin(object):
   """Plugin base class to be extended by dependent users such as FileSystem.

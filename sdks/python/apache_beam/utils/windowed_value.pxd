@@ -31,9 +31,6 @@ cdef class WindowedValue(object):
 
   cpdef WindowedValue with_value(self, new_value)
 
-  @staticmethod
-  cdef inline bint _typed_eq(WindowedValue left, WindowedValue right) except? -2
-
 @cython.locals(wv=WindowedValue)
 cpdef WindowedValue create(
   object value, int64_t timestamp_micros, object windows, object pane_info=*)
