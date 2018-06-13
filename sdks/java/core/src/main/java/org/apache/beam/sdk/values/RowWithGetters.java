@@ -18,10 +18,15 @@
 
 package org.apache.beam.sdk.values;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 
@@ -29,6 +34,9 @@ public class RowWithGetters extends Row {
   private FieldValueGetterFactory fieldValueGetterFactory;
   private Object getterTarget;
   private List<FieldValueGetter> getters;
+
+  private Map<Integer, List> cachedLists = Maps.newHashMap();
+  private Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
   RowWithGetters(Schema schema, FieldValueGetterFactory getterFactory, Object getterTarget) {
     super(schema);
@@ -39,11 +47,51 @@ public class RowWithGetters extends Row {
 
   @Nullable
   @Override
-  @SuppressWarnings("TypeParameterUnusedInFormals")
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   public <T> T getValue(int fieldIdx) {
-    return (T) getters.get(fieldIdx).get(getterTarget);
+    FieldType type = getSchema().getField(fieldIdx).getType();
+    Object fieldValue = getters.get(fieldIdx).get(getterTarget);
+
+    return getValue(type, fieldValue, fieldIdx);
   }
 
+  private List getListValue(FieldType elementType, Iterable fieldValue) {
+    Iterable iterable = (Iterable) fieldValue;
+    List<Object> list = Lists.newArrayList();
+    for (Object o : iterable) {
+      list.add(getValue(elementType, o, null));
+    }
+    return list;
+  }
+
+  private Map<?, ?> getMapValue(FieldType keyType, FieldType valueType, Map<?, ?> fieldValue) {
+    Map returnMap = Maps.newHashMap();
+    for (Map.Entry<?, ?> entry : fieldValue.entrySet()) {
+      returnMap.put(getValue(keyType, entry.getKey(), null),
+          getValue(valueType, entry.getValue(), null));
+    }
+    return  returnMap;
+  }
+
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+  private <T> T getValue(FieldType type, Object fieldValue, @Nullable Integer cacheKey) {
+    if (type.getTypeName().equals(TypeName.ROW)) {
+      return (T) new RowWithGetters(type.getRowSchema(), fieldValueGetterFactory, fieldValue);
+    } else if (type.getTypeName().equals(TypeName.ARRAY)) {
+      return cacheKey != null
+          ? (T) cachedLists.computeIfAbsent(cacheKey,
+          i -> getListValue(type.getCollectionElementType(), (Iterable) fieldValue))
+          : (T) getListValue(type.getCollectionElementType(), (Iterable) fieldValue);
+    }  else if (type.getTypeName().equals(TypeName.MAP)) {
+      Map map = (Map) fieldValue;
+      return cacheKey != null
+          ? (T) cachedMaps.computeIfAbsent(cacheKey,
+          i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue))
+          : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) fieldValue);
+    } else {
+      return (T) fieldValue;
+    }
+  }
 
   @Override
   public int getFieldCount() {

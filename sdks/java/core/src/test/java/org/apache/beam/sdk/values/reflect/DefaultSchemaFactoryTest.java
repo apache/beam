@@ -89,11 +89,6 @@ public class DefaultSchemaFactoryTest {
       public Class type() {
         return fieldType;
       }
-
-      @Override
-      public boolean isRecursive() {
-        return false;
-      }
     };
   }
 }

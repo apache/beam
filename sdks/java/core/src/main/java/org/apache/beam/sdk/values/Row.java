@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
@@ -38,7 +39,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -337,6 +337,11 @@ public abstract class Row implements Serializable {
   @Override
   public int hashCode() {
     return Objects.hash(getSchema(), getValues());
+  }
+
+  @Override
+  public String toString() {
+    return Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
   }
 
   /**

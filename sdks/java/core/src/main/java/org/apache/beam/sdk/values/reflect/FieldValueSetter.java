@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.values.reflect;
 
+import java.lang.reflect.Type;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -25,10 +27,38 @@ import org.apache.beam.sdk.annotations.Internal;
  *
  * <p>An interface to set a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime by {@link RowFactory}
- * to map pojo fields to BeamRecord fields.
+ * <p>Implementations of this interface are generated at runtime to map Row fields back into
+ * objet fields.
  */
 @Internal
 public interface FieldValueSetter {
+  /**
+   * Sets the specified field on object to value.
+   */
   void set(Object object, Object value);
+
+  /**
+   * Returns the name of the field.
+   */
+  String name();
+
+  /**
+   * Returns the field type.
+   */
+  Class type();
+
+  /**
+   * If the field is a container type, returns the element type.
+   */
+  @Nullable Type elementType();
+
+  /**
+   * If the field is a map type, returns the key type.
+   */
+  @Nullable Type mapKeyType();
+
+  /**
+   * If the field is a map type, returns the key type.
+   */
+  @Nullable Type mapValueType();
 }

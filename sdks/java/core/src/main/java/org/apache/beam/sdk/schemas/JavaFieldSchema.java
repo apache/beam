@@ -2,8 +2,14 @@ package org.apache.beam.sdk.schemas;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -42,25 +48,74 @@ public class JavaFieldSchema extends SchemaProvider {
           // Efficient path: simply extract the underlying POJO instead of creating a new one.
           return (T) ((RowWithGetters) r).getGetterTarget();
         } else {
-          T object;
-          try {
-            object = ((Class<T>) typeDescriptor.getType()).getDeclaredConstructor().newInstance();
-          } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException
-              | InstantiationException e) {
-            throw new RuntimeException("Failed to instantiate object ", e);
-          }
-          List<Object> values = r.getValues();
-          checkState(setters.size() == values.size(),
-              "Did not have a matching number of setters and values");
-          for (int i = 0; i < values.size(); ++i) {
-            setters.get(i).set(object, values.get(i));
-          }
-          return object;
+          return fromRow(r, (Class<T>) typeDescriptor.getType());
         }
       };
   }
 
-  private  FieldValueGetterFactory fieldValueGetterFactory() {
+  private <T> T fromRow(Row row, Class<T> clazz) {
+    T object;
+    try {
+      object = clazz.getDeclaredConstructor().newInstance();
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException
+        | InstantiationException e) {
+      throw new RuntimeException("Failed to instantiate object ", e);
+    }
+
+    List<FieldValueSetter> setters = fieldValueSetterFactory().createSetters(clazz);
+    checkState(setters.size() == row.getFieldCount(),
+        "Did not have a matching number of setters and fields.");
+
+    Schema schema = row.getSchema();
+    for (int i = 0; i < row.getFieldCount(); ++i) {
+      FieldType type = schema.getField(i).getType();
+      FieldValueSetter setter = setters.get(i);
+      setter.set(object,
+          fromValue(
+              type,
+              row.getValue(i),
+              setter.type(),
+              setter.elementType(),
+              setter.mapKeyType(),
+              setter.mapValueType()));
+    }
+    return object;
+  }
+
+  private <T> T fromValue(FieldType type, T value, Type fieldType, Type elemenentType,
+                          Type keyType, Type valueType) {
+    if (TypeName.ROW.equals(type.getTypeName())) {
+      return (T) fromRow((Row) value, (Class) fieldType);
+    } else if (TypeName.ARRAY.equals(type.getTypeName())) {
+      return (T) fromListValue(type.getCollectionElementType(), (List) value, elemenentType);
+    } else if (TypeName.MAP.equals(type.getTypeName())) {
+      return (T) fromMapValue(type.getMapKeyType(), type.getMapValueType(), (Map) value,
+          keyType, valueType);
+    } else {
+      return value;
+    }
+  }
+
+  private <T> List fromListValue(FieldType elementType, List<T> rowList, Type elementClass) {
+    List list = Lists.newArrayList();
+    for (T element : rowList) {
+      list.add(fromValue(elementType, element, elementClass, null, null, null));
+    }
+    return list;
+  }
+
+  private  Map<?, ?> fromMapValue(FieldType keyType, FieldType valueType, Map<?, ?> map,
+                                  Type keyClass, Type valueClass) {
+      Map newMap = Maps.newHashMap();
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        Object key = fromValue(keyType, entry.getKey(), keyClass, null, null, null);
+        Object value = fromValue(valueType, entry.getValue(), valueClass, null, null, null);
+        newMap.put(key, value);
+      }
+      return newMap;
+  }
+
+  private FieldValueGetterFactory fieldValueGetterFactory() {
       return new PojoValueGetterFactory();
   }
 
