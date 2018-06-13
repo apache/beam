@@ -52,6 +52,8 @@ from avro import io as avroio
 from avro import datafile
 from avro import schema
 
+from six import binary_type
+
 import apache_beam as beam
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
@@ -309,8 +311,8 @@ class _AvroBlock(object):
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
       # We take care to avoid extra copies of data while slicing large objects
-      # by use of a buffer.
-      result = snappy.decompress(buffer(data)[:-4])
+      # by use of a memoryview.
+      result = snappy.decompress(binary_type(memoryview(data)[:-4]))
       avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
       return result
     else:
