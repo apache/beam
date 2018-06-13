@@ -1433,8 +1433,12 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     cold.element_type = typehints.Any
     precombined_hot = (
         hot
+        # Avoid double counting that may happen with stacked accumulating mode.
+        | 'WindowIntoDiscarding' >> WindowInto(
+            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
         | CombinePerKey(PreCombineFn())
-        | Map(StripNonce))
+        | Map(StripNonce)
+        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
     return (
         (cold, precombined_hot)
         | Flatten()
@@ -1718,14 +1722,23 @@ class WindowInto(ParDo):
       timestamp_combiner: (optional) Timestamp combniner used for windowing,
           or None for default.
     """
+    if isinstance(windowfn, Windowing):
+      # Overlay windowing with kwargs.
+      windowing = windowfn
+      windowfn = windowing.windowfn
+      # Use windowing to fill in defaults for kwargs.
+      kwargs = dict(dict(
+          trigger=windowing.triggerfn,
+          accumulation_mode=windowing.accumulation_mode,
+          timestamp_combiner=windowing.timestamp_combiner), **kwargs)
     # Use kwargs to simulate keyword-only arguments.
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     timestamp_combiner = kwargs.pop('timestamp_combiner', None)
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
-    self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
-                               timestamp_combiner)
+    self.windowing = Windowing(
+        windowfn, triggerfn, accumulation_mode, timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):
