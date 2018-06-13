@@ -63,6 +63,14 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     return new InMemoryJobService(stagingServiceDescriptor, (String session) -> "token", invoker);
   }
 
+  /**
+   * Creates an InMemoryJobService.
+   *
+   * @param stagingServiceDescriptor Endpoint for the staging service.
+   * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
+   * @param invoker A JobInvoker that will actually create the jobs.
+   * @return A new InMemoryJobService.
+   */
   public static InMemoryJobService create(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
