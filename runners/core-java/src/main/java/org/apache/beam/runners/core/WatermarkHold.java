@@ -115,14 +115,13 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         windowingStrategy
             .getTimestampCombiner()
             .assign(window, windowingStrategy.getWindowFn().getOutputTime(timestamp, window));
-    // check if shifted is before timestamp first, before calling checkState()
-    // to avoid calling BoundedWindow.formatTimestamp() every time
+    // Don't call checkState(), to avoid calling BoundedWindow.formatTimestamp() every time
     if (shifted.isBefore(timestamp)) {
-      checkState(false,
+      throw new IllegalStateException(String.format(
           "TimestampCombiner moved element from %s to earlier time %s for window %s",
           BoundedWindow.formatTimestamp(timestamp),
           BoundedWindow.formatTimestamp(shifted),
-          window);
+          window));
     }
     checkState(timestamp.isAfter(window.maxTimestamp())
             || !shifted.isAfter(window.maxTimestamp()),
