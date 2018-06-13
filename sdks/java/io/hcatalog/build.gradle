@@ -66,6 +66,7 @@ dependencies {
   testCompile library.java.commons_io_2x
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
   testCompile "org.apache.hive:hive-exec:$hive_version"
   testCompile "org.apache.hive:hive-common:$hive_version"

@@ -37,6 +37,7 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.hadoop_minicluster

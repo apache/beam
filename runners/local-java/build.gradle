@@ -33,5 +33,6 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.findbugs_annotations
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
 }

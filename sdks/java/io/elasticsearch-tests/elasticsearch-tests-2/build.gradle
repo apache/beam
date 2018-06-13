@@ -39,6 +39,7 @@ dependencies {
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testCompile library.java.commons_io_1x
   testCompile library.java.junit
