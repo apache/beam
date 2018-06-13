@@ -17,9 +17,8 @@
  */
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
-job('beam_SeedJob') {
-  description('Automatically configures all Apache Beam Jenkins projects based' +
-              ' on Jenkins DSL groovy files checked into the code repository.')
+job('beam_SeedJob_TriggerPrototype') {
+  description('Regenerates TriggerPrototype job.')
 
   properties {
     githubProjectUrl('https://github.com/apache/beam/')
@@ -69,9 +68,6 @@ job('beam_SeedJob') {
   }
 
   triggers {
-    // Run once per day
-    cron('0 */6 * * *')
-
     githubPullRequest {
       admins(['asfbot'])
       useGitHubHooks()
@@ -80,12 +76,12 @@ job('beam_SeedJob') {
       permitAll()
 
       // Also run when manually kicked on a pull request
-      triggerPhrase('Run Seed Job')
+      triggerPhrase('Run Trigger Seed')
       onlyTriggerPhrase()
 
       extensions {
         commitStatus {
-          context("Jenkins: Seed Job")
+          context("Trigger Seed Job")
         }
 
         buildStatus {
@@ -97,17 +93,12 @@ job('beam_SeedJob') {
     }
   }
 
-  // If anything goes wrong, mail the main dev list, because it is a big deal
-  publishers {
-    mailer('dev@beam.apache.org', false, true)
-  }
-
   steps {
     dsl {
       // A list or a glob of other groovy files to process.
-      external('.test-infra/jenkins/job_*.groovy')
+      external('.test-infra/jenkins/job_PreCommit_TriggerPrototype.groovy')
 
-      // DO NOT SUBMIT; Added here to not stomp on eachother's prototyping
+      // Don't disable or delete jobs not generated from this Seed.
       removeAction('IGNORE')
     }
   }
