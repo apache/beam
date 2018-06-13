@@ -17,41 +17,85 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.List;
+import static java.util.Collections.emptySet;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
-/** Utilities for working with classpath resources for pipelines. */
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import org.apache.beam.runners.core.construction.classloader.Classloaders;
+import org.apache.beam.sdk.options.PipelineOptions;
+
+/**
+ * Utilities for working with classpath resources for pipelines.
+ */
 public class PipelineResources {
 
-  /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
-   *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException  If either the class loader is not a URLClassLoader or one
-   * of the resources the class loader exposes is not a file resource.
-   * @return A list of absolute paths to the resources the class loader uses.
-   */
-  public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
-      throw new IllegalArgumentException(message);
+    /**
+     * Attempts to detect all the resources the class loader has access to. This does not recurse
+     * to class loader parents stopping it from pulling in resources from the system class loader.
+     *
+     * @param options     The pipelineOptions to use to filter the files found.
+     * @param classLoader The URLClassLoader to use to detect resources to stage.
+     * @return A list of absolute paths to the resources the class loader uses.
+     * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one
+     *         of the resources the class loader exposes is not a file resource.
+     */
+    public static List<String> detectClassPathResourcesToStage(final PipelineOptions options,
+                                                               final ClassLoader classLoader) {
+        try {
+            final Set<File> parentFiles = classLoader == null
+                    ? emptySet() : Classloaders.toFiles(classLoader.getParent()).collect(toSet());
+            final Predicate<File> filter = toFilter(options);
+            return Classloaders.toFiles(classLoader)
+                    .filter(s -> !parentFiles.contains(s))
+                    .filter(filter)
+                    .map(f -> {
+                        try {
+                            return f.getCanonicalPath();
+                        } catch (IOException e) {
+                            return f.getAbsolutePath();
+                        }
+                    })
+                    .collect(toList());
+        } catch (final IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        throw new IllegalArgumentException(message, e);
-      }
+    private static Predicate<File> toFilter(final PipelineOptions options) {
+        if (options == null) {
+            return f -> true;
+        }
+        final FilterableStagingFilesPipelineOptions opts = options
+                .as(FilterableStagingFilesPipelineOptions.class);
+        final String include = opts.getClassLoaderIncludeFilter();
+        final String exclude = opts.getClassLoaderExcludeFilter();
+        if (include == null && exclude == null) {
+            return f -> true;
+        }
+        final Predicate<String> includeFilter = include == null
+                ? v -> true : new PatternFilter(include);
+        final Predicate<String> excludeFilter = exclude == null
+                ? v -> false : new PatternFilter(exclude);
+        final Predicate<String> predicate = includeFilter.and(excludeFilter.negate());
+        return f -> predicate.test(f.getName());
     }
-    return files;
-  }
+
+    private static class PatternFilter implements Predicate<String> {
+        private final Pattern pattern;
+
+        private PatternFilter(final String include) {
+            this.pattern = Pattern.compile(include);
+        }
+
+        @Override
+        public boolean test(final String value) {
+            return pattern.matcher(value).matches();
+        }
+    }
 }

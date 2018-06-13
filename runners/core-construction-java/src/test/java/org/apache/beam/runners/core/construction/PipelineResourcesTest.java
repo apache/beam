@@ -17,19 +17,23 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /**
  * Tests for PipelineResources.
@@ -42,35 +46,58 @@ public class PipelineResourcesTest {
 
   @Test
   public void detectClassPathResourceWithFileResources() throws Exception {
-    File file = tmpFolder.newFile("file");
-    File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {
+    File file = tmpFolder.newFile("file.jar");
+    try (final JarOutputStream jar = new JarOutputStream(new FileOutputStream(file))) {
+      // if there is anything in a valid jar this entry should be matched
+      // otherwise jar has nothing inside and we don't care about it anyway
+      jar.putNextEntry(new JarEntry(""));
+      jar.closeEntry();
+    }
+    File file2 = tmpFolder.newFolder("file2");
+    try (final URLClassLoader classLoader = new URLClassLoader(new URL[] {
         file.toURI().toURL(),
         file2.toURI().toURL()
-    });
-
-    assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        PipelineResources.detectClassPathResourcesToStage(classLoader));
+    })) {
+      assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
+              PipelineResources.detectClassPathResourcesToStage(null, classLoader).stream()
+                      .sorted().collect(toList()));
+    }
   }
 
   @Test
-  public void detectClassPathResourcesWithUnsupportedClassLoader() {
-    ClassLoader mockClassLoader = Mockito.mock(ClassLoader.class);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
-
-    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
+  public void detectClassPathResourceWithFilter() throws Exception {
+    File file = tmpFolder.newFile("file.jar");
+    try (final JarOutputStream jar = new JarOutputStream(new FileOutputStream(file))) {
+      // if there is anything in a valid jar this entry should be matched
+      // otherwise jar has nothing inside and we don't care about it anyway
+      jar.putNextEntry(new JarEntry(""));
+      jar.closeEntry();
+    }
+    File file2 = tmpFolder.newFolder("file2");
+    try (final URLClassLoader classLoader = new URLClassLoader(new URL[] {
+        file.toURI().toURL(),
+        file2.toURI().toURL()
+    })) {
+      assertEquals(ImmutableList.of(file.getAbsolutePath()),
+              PipelineResources.detectClassPathResourcesToStage(
+                      PipelineOptionsFactory.fromArgs("--classLoaderIncludeFilter=file\\.jar")
+                              .as(FilterableStagingFilesPipelineOptions.class), classLoader)
+                      .stream().sorted().collect(toList()));
+      assertEquals(ImmutableList.of(file2.getAbsolutePath()),
+              PipelineResources.detectClassPathResourcesToStage(
+                      PipelineOptionsFactory.fromArgs("--classLoaderExcludeFilter=file\\.jar")
+                              .as(FilterableStagingFilesPipelineOptions.class), classLoader)
+                      .stream().sorted().collect(toList()));
+    }
   }
 
   @Test
   public void detectClassPathResourceWithNonFileResources() throws Exception {
-    String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {
+    final String url = "http://www.google.com/all-the-secrets.jar";
+    try (final URLClassLoader classLoader = new URLClassLoader(new URL[] {
         new URL(url)
-    });
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to convert url (" + url + ") to file.");
-
-    PipelineResources.detectClassPathResourcesToStage(classLoader);
+    })) {
+      assertEquals(0, PipelineResources.detectClassPathResourcesToStage(null, classLoader).size());
+    }
   }
 }
