@@ -19,13 +19,11 @@
 package org.apache.beam.sdk.schemas;
 
 import javax.annotation.Nullable;
-import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 
 /**
  * Concrete implementations of this class allow creation of schema service objects that vend a
@@ -33,7 +31,7 @@ import org.apache.beam.sdk.values.reflect.FieldValueGetter;
  * contacts an external schema-registry service to determine the schema for a type.
  */
 @Experimental(Kind.SCHEMAS)
-public abstract class SchemaProvider {
+public interface SchemaProvider {
 
   /** Lookup a schema for the given type. If no schema exists, returns null. */
   @Nullable

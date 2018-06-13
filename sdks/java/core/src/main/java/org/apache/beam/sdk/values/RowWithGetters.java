@@ -55,7 +55,7 @@ public class RowWithGetters extends Row {
     return getValue(type, fieldValue, fieldIdx);
   }
 
-  private List getListValue(FieldType elementType, Iterable fieldValue) {
+  private List getListValue(FieldType elementType, Object fieldValue) {
     Iterable iterable = (Iterable) fieldValue;
     List<Object> list = Lists.newArrayList();
     for (Object o : iterable) {
@@ -80,8 +80,8 @@ public class RowWithGetters extends Row {
     } else if (type.getTypeName().equals(TypeName.ARRAY)) {
       return cacheKey != null
           ? (T) cachedLists.computeIfAbsent(cacheKey,
-          i -> getListValue(type.getCollectionElementType(), (Iterable) fieldValue))
-          : (T) getListValue(type.getCollectionElementType(), (Iterable) fieldValue);
+          i -> getListValue(type.getCollectionElementType(), fieldValue))
+          : (T) getListValue(type.getCollectionElementType(), fieldValue);
     }  else if (type.getTypeName().equals(TypeName.MAP)) {
       Map map = (Map) fieldValue;
       return cacheKey != null

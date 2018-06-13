@@ -26,8 +26,6 @@ public class POJOUtilsTest {
     public DateTime dateTime;
     public byte[] bytes1;
     public ByteBuffer bytes2;
-    // TODO: Test this.
-    public List<Byte> bytes3;
   }
 
   static final Schema SIMPLE_SCHEMA = Schema.builder()

@@ -69,7 +69,7 @@ public abstract class Row implements Serializable {
    */
   @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public abstract  <T>  T getValue(int fieldIdx);
+  public abstract <T> T getValue(int fieldIdx);
 
   /**
    * Return the size of data fields.
