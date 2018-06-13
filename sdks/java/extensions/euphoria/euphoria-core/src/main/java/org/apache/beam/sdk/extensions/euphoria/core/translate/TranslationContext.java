@@ -20,6 +20,11 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.Iterables;
+import java.lang.invoke.MethodType;
+import java.lang.invoke.SerializedLambda;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,14 +35,17 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
@@ -50,12 +58,15 @@ import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
  */
 class TranslationContext {
 
+  private static final Logger LOG = LoggerFactory.getLogger(BeamExecutorContext.class);
   private final Map<Dataset<?>, PCollection<?>> datasetToPCollection = new HashMap<>();
   private final Pipeline pipeline;
   private final Duration allowedLateness;
@@ -130,45 +141,112 @@ class TranslationContext {
     return false;
   }
 
+  /**
+   * Get return type of lambda function (e.g UnaryFunction).
+   *
+   * @return return type
+   */
+  static Type getLambdaReturnType(final Object lambda) {
+
+    Type returnType = null;
+    try {
+      final Method method = lambda.getClass().getDeclaredMethod("writeReplace");
+      method.setAccessible(true);
+      final SerializedLambda serializedLambda = SerializedLambda.class.cast(method.invoke(lambda));
+      final String signature = serializedLambda.getImplMethodSignature();
+      final MethodType methodType =
+          MethodType.fromMethodDescriptorString(signature, lambda.getClass().getClassLoader());
+      returnType = methodType.returnType();
+    } catch (IllegalAccessException
+        | IllegalArgumentException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      // not a lambda try pure reflection, algo is trivial since it is functional interfaces: take
+      // the only not Object methods ;)
+      for (final Method m : lambda.getClass().getMethods()) {
+        if (Object.class == m.getDeclaringClass()) {
+          continue;
+        }
+        returnType = m.getReturnType();
+        break;
+      }
+    }
+    return returnType;
+  }
+
   <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunction<InputT, OutputT> unaryFunction) {
+
     if (unaryFunction instanceof TypeAwareUnaryFunction) {
       return getCoder(((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeHint());
     }
-    if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("Missing type information for function " + unaryFunction);
-    }
-    return new KryoCoder<>();
+
+    return inferCoderFromLambda(unaryFunction).orElse(getFallbackCoder(unaryFunction));
   }
 
   <InputT, OutputT> Coder<OutputT> getCoder(UnaryFunctor<InputT, OutputT> unaryFunctor) {
     if (unaryFunctor instanceof TypeAwareUnaryFunctor) {
       return getCoder(((TypeAwareUnaryFunctor<InputT, OutputT>) unaryFunctor).getTypeHint());
     }
+
+    return getFallbackCoder(unaryFunctor);
+  }
+
+  <FuncT, OutputT> Coder<OutputT> getFallbackCoder(FuncT function) {
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("Missing type information for funtion " + unaryFunctor);
+      throw new IllegalArgumentException("Missing type information for function " + function);
     }
     return new KryoCoder<>();
+  }
+
+  /**
+   * Tries to get OutputT type from unaryFunction and get coder from CoderRegistry. Will get coder
+   * for standard Java types (Double, String, Long, Map, Integer, List etc.)
+   *
+   * @return coder for lambda return type
+   */
+  <InputT, OutputT> Optional<Coder<OutputT>> inferCoderFromLambda(
+      UnaryFunction<InputT, OutputT> unaryFunction) {
+    final Type lambdaType = getLambdaReturnType(unaryFunction);
+    if (lambdaType != null) {
+      try {
+        return Optional.of(getCoder(lambdaType));
+      } catch (IllegalArgumentException e) {
+        // suppress exception, failed to infer coder from return type.
+        LOG.debug("Couldn't infer coder for lambda return type {}", lambdaType);
+
+      }
+    }
+    return Optional.empty();
+  }
+
+  <LeftT, RightT, OutputT> Coder<OutputT> getCoder(
+      BinaryFunctor<LeftT, RightT, OutputT> binaryFunctor) {
+    if (binaryFunctor instanceof TypeAwareBinaryFunctor) {
+      return getCoder(
+          ((TypeAwareBinaryFunctor<LeftT, RightT, OutputT>) binaryFunctor).getTypeHint());
+    }
+    return getFallbackCoder(binaryFunctor);
   }
 
   <InputT, OutputT> Coder<OutputT> getCoder(ReduceFunctor<InputT, OutputT> reduceFunctor) {
     if (reduceFunctor instanceof TypeAwareReduceFunctor) {
       return getCoder(((TypeAwareReduceFunctor<InputT, OutputT>) reduceFunctor).getTypeHint());
     }
-    if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("Missing type information for function " + reduceFunctor);
+    return getFallbackCoder(reduceFunctor);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> Coder<T> getCoder(Type type) {
+    try {
+      return pipeline.getCoderRegistry().getCoder((TypeDescriptor<T>) TypeDescriptor.of(type));
+    } catch (CannotProvideCoderException e) {
+      throw new IllegalArgumentException("Unable to provide coder for type hint.", e);
     }
-    return new KryoCoder<>();
   }
 
   @SuppressWarnings("unchecked")
   private <T> Coder<T> getCoder(TypeHint<T> typeHint) {
-    try {
-      return pipeline
-          .getCoderRegistry()
-          .getCoder((TypeDescriptor<T>) TypeDescriptor.of(typeHint.getType()));
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalArgumentException("Unable to provide coder for type hint.", e);
-    }
+    return getCoder(typeHint.getType());
   }
 
   AccumulatorProvider.Factory getAccumulatorFactory() {
@@ -203,6 +281,11 @@ class TranslationContext {
     } else if (op == null) {
       // TODO
       return new KryoCoder<>();
+    } else if (op instanceof Join) {
+      Join join = (Join) op;
+      Coder keyCoder = getCoder(join.getLeftKeyExtractor());
+      Coder outputValueCoder = getCoder(join.getJoiner());
+      return PairCoder.of(keyCoder, outputValueCoder);
     }
     // TODO
     return new KryoCoder<>();
