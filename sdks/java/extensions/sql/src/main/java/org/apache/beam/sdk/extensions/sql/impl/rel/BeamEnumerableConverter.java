@@ -91,7 +91,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return toEnumerable(options, node);
   }
 
-  private static PipelineOptions createPipelineOptions(Map<String, String> map) {
+  public static PipelineOptions createPipelineOptions(Map<String, String> map) {
     final String[] args = new String[map.size()];
     int i = 0;
     for (Map.Entry<String, String> entry : map.entrySet()) {

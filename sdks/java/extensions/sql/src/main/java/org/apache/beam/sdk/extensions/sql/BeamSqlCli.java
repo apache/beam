@@ -21,9 +21,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.PCollectionTuple;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
@@ -56,9 +56,7 @@ public class BeamSqlCli {
       env.executeDdl(sqlString);
     } else {
       PipelineOptions options =
-          PipelineOptionsFactory.fromArgs(new String[] {})
-              .withValidation()
-              .as(PipelineOptions.class);
+          BeamEnumerableConverter.createPipelineOptions(env.getPipelineOptions());
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
       PCollectionTuple.empty(pipeline).apply(env.parseQuery(sqlString));
