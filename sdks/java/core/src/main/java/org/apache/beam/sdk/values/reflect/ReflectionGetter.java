@@ -56,9 +56,4 @@ class ReflectionGetter implements FieldValueGetter {
   public Class type() {
     return type;
   }
-
-  @Override
-  public boolean isRecursive() {
-    return false;
-  }
 }

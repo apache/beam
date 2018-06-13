@@ -195,8 +195,6 @@ public class POJOUtils {
   static DynamicType.Builder<FieldValueGetter> implementMethods(
       DynamicType.Builder<FieldValueGetter> builder,
       Field field) {
-    // TODO: Recursive access should return a list of getters as the object.
-    //ForLoadedField loadedField = new ForLoadedField(field);
     builder = builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(field.getName()));
@@ -255,6 +253,7 @@ public class POJOUtils {
                   fieldType.asBoxed().asGenericType(),
                   Typing.STATIC));
         }
+        // TODO: We need to potentially copy into type expected by the Row getters.
         stackManipulation = new StackManipulation.Compound(
             stackManipulation,
             MethodReturn.REFERENCE);
@@ -406,12 +405,70 @@ public class POJOUtils {
     return byteBuddy.subclass(FieldValueSetter.class);
   }
 
+  // If the Field is a container type, returns the element type. Otherwise returns a null reference.
+  static Implementation getArrayComponentType(Field field) {
+    Type fieldType = field.getGenericType();
+    if (fieldType instanceof GenericArrayType) {
+      Type component = ((GenericArrayType) fieldType).getGenericComponentType();
+      if (!component.equals(Byte.class) && !component.equals(byte.class)) {
+        return FixedValue.reference(component);
+      }
+    } else if (fieldType instanceof ParameterizedType) {
+      ParameterizedType ptype = (ParameterizedType) fieldType;
+      Class raw = (Class) ptype.getRawType();
+      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+      if (Collection.class.isAssignableFrom(raw)) {
+        checkArgument(params.length == 1);
+        if (!params[0].equals(Byte.class) && !params[0].equals(byte.class)) {
+          return FixedValue.reference(params[0]);
+        }
+      }
+    } else if (fieldType instanceof Class) {
+      Class clazz = (Class) fieldType;
+      if (clazz.isArray()) {
+        Class componentType = clazz.getComponentType();
+        if (componentType != Byte.TYPE) {
+          return FixedValue.reference(componentType);
+        }
+      }
+    }
+    return FixedValue.nullValue();
+  }
+
+  // If the Field is a map type, returns the key or value type. Otherwise returns a null reference.
+  static Implementation getMapType(Field field, int index) {
+    Type fieldType = field.getGenericType();
+    if (fieldType instanceof ParameterizedType) {
+      ParameterizedType ptype = (ParameterizedType) fieldType;
+      Class raw = (Class) ptype.getRawType();
+      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+      if (Map.class.isAssignableFrom(raw)) {
+        return FixedValue.reference(params[index]);
+      }
+    }
+    return FixedValue.nullValue();
+  }
+
+
   static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
       DynamicType.Builder<FieldValueSetter> builder,
       Field field) {
-    // TODO: Recursive access should return a list of getters as the object.
 
-    // TODO: handle recursive fields.
+    builder = builder
+        .method(ElementMatchers.named("name"))
+        .intercept(FixedValue.reference(field.getName()));
+    builder = builder
+        .method(ElementMatchers.named("type"))
+        .intercept(FixedValue.reference(field.getType()));
+    builder = builder
+        .method(ElementMatchers.named("elementType"))
+        .intercept(getArrayComponentType(field));
+    builder = builder
+        .method(ElementMatchers.named("mapKeyType"))
+        .intercept(getMapType(field, 0));
+    builder = builder
+        .method(ElementMatchers.named("mapValueType"))
+        .intercept(getMapType(field, 1));
     builder = builder
         .method(ElementMatchers.named("set"))
         .intercept(new SetFieldInstruction(field));
