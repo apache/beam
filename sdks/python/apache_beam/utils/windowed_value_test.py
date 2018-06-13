@@ -17,6 +17,8 @@
 
 """Unit tests for the windowed_value."""
 
+from __future__ import absolute_import
+
 import copy
 import pickle
 import unittest
