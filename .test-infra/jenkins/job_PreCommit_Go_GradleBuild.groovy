@@ -33,12 +33,7 @@ job('beam_PreCommit_Go_GradleBuild') {
     150)
 
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :goPreCommit', 'Run Go PreCommit', [
-      '^model/.*$',
-      '^sdks/go/.*$',
-      '^runners/.*$',
-      '^release/.*$',
-    ])
+  common_job_properties.setPreCommit(delegate, './gradlew :goPreCommit', 'Run Go PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
