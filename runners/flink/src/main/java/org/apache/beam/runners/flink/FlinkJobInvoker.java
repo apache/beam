@@ -24,7 +24,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactSource;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.slf4j.Logger;
@@ -70,7 +69,6 @@ public class FlinkJobInvoker implements JobInvoker {
         invocationId,
         executorService,
         pipeline,
-        flinkOptions,
-        BeamFileSystemArtifactSource.create(artifactToken));
+        flinkOptions);
   }
 }
