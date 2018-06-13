@@ -21,7 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 from abc import ABCMeta
-from abc import abstractmethod
+from functools import total_ordering
 
 from apache_beam import coders
 from apache_beam import core
@@ -46,44 +46,65 @@ class Event(object):
 
   __metaclass__ = ABCMeta
 
-  def __cmp__(self, other):
-    if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return self._typed_cmp(other)
 
-  @abstractmethod
-  def _typed_cmp(self, other):
-    raise NotImplementedError
-
-
+@total_ordering
 class ElementEvent(Event):
   """Element-producing test stream event."""
 
   def __init__(self, timestamped_values):
     self.timestamped_values = timestamped_values
 
-  def _typed_cmp(self, other):
-    return cmp(self.timestamped_values, other.timestamped_values)
+  def __eq__(self, other):
+    return (type(self) is type(other) and
+            self.timestamped_values == other.timestamped_values)
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __lt__(self, other):
+    if type(self) is not type(other):
+      return type(self) < type(other)
+    return self.timestamped_values < other.timestamped_values
 
 
+@total_ordering
 class WatermarkEvent(Event):
   """Watermark-advancing test stream event."""
 
   def __init__(self, new_watermark):
     self.new_watermark = timestamp.Timestamp.of(new_watermark)
 
-  def _typed_cmp(self, other):
-    return cmp(self.new_watermark, other.new_watermark)
+  def __eq__(self, other):
+    return (type(self) is type(other) and
+            self.new_watermark == other.new_watermark)
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __lt__(self, other):
+    if type(self) is not type(other):
+      return type(self) < type(other)
+    return self.new_watermark < other.new_watermark
 
 
+@total_ordering
 class ProcessingTimeEvent(Event):
   """Processing time-advancing test stream event."""
 
   def __init__(self, advance_by):
     self.advance_by = timestamp.Duration.of(advance_by)
 
-  def _typed_cmp(self, other):
-    return cmp(self.advance_by, other.advance_by)
+  def __eq__(self, other):
+    return (type(self) is type(other) and
+            self.advance_by == other.advance_by)
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __lt__(self, other):
+    if type(self) is not type(other):
+      return type(self) < type(other)
+    return self.advance_by < other.advance_by
 
 
 class TestStream(PTransform):

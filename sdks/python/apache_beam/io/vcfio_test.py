@@ -70,15 +70,6 @@ def get_full_dir():
   return os.path.join(os.path.dirname(__file__), '..', 'testing', 'data', 'vcf')
 
 
-# Helper method for comparing variants.
-def _variant_comparator(v1, v2):
-  if v1.reference_name == v2.reference_name:
-    if v1.start == v2.start:
-      return cmp(v1.end, v2.end)
-    return cmp(v1.start, v2.start)
-  return cmp(v1.reference_name, v2.reference_name)
-
-
 # Helper method for verifying equal count on PCollection.
 def _count_equals_to(expected_count):
   def _count_equal(actual_list):
