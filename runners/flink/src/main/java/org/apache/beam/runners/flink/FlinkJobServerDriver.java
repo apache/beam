@@ -38,7 +38,12 @@ import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server. */
 public class FlinkJobServerDriver implements Runnable {
+
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobServerDriver.class);
+
+  private final ListeningExecutorService executor;
+  private final ServerConfiguration configuration;
+  private final ServerFactory serverFactory;
 
   private static class ServerConfiguration {
     @Option(
@@ -61,7 +66,7 @@ public class FlinkJobServerDriver implements Runnable {
     try {
       parser.parseArgument(args);
     } catch (CmdLineException e) {
-      e.printStackTrace(System.err);
+      LOG.error("Unable to parse command line arguments.", e);
       printUsage(parser);
       return;
     }
@@ -92,10 +97,6 @@ public class FlinkJobServerDriver implements Runnable {
       ServerFactory serverFactory) {
     return new FlinkJobServerDriver(configuration, executor, serverFactory);
   }
-
-  private final ListeningExecutorService executor;
-  private final ServerConfiguration configuration;
-  private final ServerFactory serverFactory;
 
   private FlinkJobServerDriver(
       ServerConfiguration configuration,

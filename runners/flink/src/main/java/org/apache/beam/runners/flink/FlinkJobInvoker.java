@@ -56,7 +56,7 @@ public class FlinkJobInvoker implements JobInvoker {
 
     String invocationId = String.format(
         "%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
-    LOG.debug("Invoking job {}", invocationId);
+    LOG.info("Invoking job {}", invocationId);
 
     // Set Flink Master to [auto] if no option was specified.
     if (flinkOptions.getFlinkMaster() == null) {
