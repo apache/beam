@@ -110,7 +110,7 @@ function cleanup_pubsub() {
 
 
 # Python RC configurations
-VERSION=$(get_version)
+VERSION=2.5.0
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
 
@@ -122,7 +122,7 @@ DATASET='beam_postrelease_mobile_gaming'
 NUM_WORKERS=1
 
 # Quickstart configurations
-SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
+SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha512"
 ASC_FILE_NAME="apache-beam-$VERSION-python.zip.asc"
 
 WORDCOUNT_OUTPUT='wordcount_direct.txt'

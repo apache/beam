@@ -100,7 +100,7 @@ wget $CANDIDATE_URL$BEAM_PYTHON_SDK
 #
 
 print_separator "Checking sha1 and md5 hashes"
-hash_check=$(sha1sum -c $SHA1_FILE_NAME | head -1 |awk '{print $2}')
+hash_check=$(sha512sum -c $SHA1_FILE_NAME | head -1 |awk '{print $2}')
 if [[ "$hash_check" != "OK" ]]
 then
   echo "ERROR: The sha1 hash doesn't match."
@@ -125,6 +125,7 @@ gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
 if [[ "$gcloud_version" < "189" ]]; then
   update_gcloud
 fi
+pip install google-compute-engine
 pip install $BEAM_PYTHON_SDK[gcp]
 
 

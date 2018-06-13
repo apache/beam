@@ -82,7 +82,7 @@ function verify_hourly_team_score() {
     should_see='AntiqueBrassPlatypus'
     while(( $retry >= 0 )); do
         if [[ $retry > 0 ]]; then
-            bq_pull_result=$(bq head -n 100 $DATASET.hourly_team_score_python_$1)
+            bq_pull_result=$(bq head -n 500 $DATASET.hourly_team_score_python_$1)
             if [[ $bq_pull_result = *"$should_see"* ]]; then
                 echo "SUCCEED: hourly_team_score example successful run on $1-runner"
                 break
@@ -120,6 +120,7 @@ gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
 if [[ "$gcloud_version" < "189" ]]; then
   update_gcloud
 fi
+pip install google-compute-engine
 pip install $BEAM_PYTHON_SDK[gcp]
 
 
