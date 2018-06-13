@@ -73,7 +73,8 @@
                     <beamTestPipelineOptions>
                       [
                       "--runner=TestFlinkRunner",
-                      "--streaming=false"
+                      "--streaming=false",
+                      "--parallelism=1"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
@@ -107,7 +108,8 @@
                     <beamTestPipelineOptions>
                       [
                       "--runner=TestFlinkRunner",
-                      "--streaming=true"
+                      "--streaming=true",
+                      "--parallelism=1"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
