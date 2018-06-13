@@ -17,6 +17,8 @@
 
 """Unit tests for testing utilities."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam import Create
