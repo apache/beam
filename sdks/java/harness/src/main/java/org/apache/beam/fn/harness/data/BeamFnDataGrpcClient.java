@@ -19,15 +19,12 @@
 package org.apache.beam.fn.harness.data;
 
 import io.grpc.ManagedChannel;
-import io.grpc.stub.StreamObserver;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -39,7 +36,7 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -57,22 +54,16 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
-  private final BiFunction<
-          StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
-          StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-      outboundStreamObserverFactory;
+  private final OutboundObserverFactory outboundObserverFactory;
   private final PipelineOptions options;
 
   public BeamFnDataGrpcClient(
       PipelineOptions options,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<
-              StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
-              StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-          outboundStreamObserverFactory) {
+      OutboundObserverFactory outboundObserverFactory) {
     this.options = options;
     this.channelFactory = channelFactory;
-    this.outboundStreamObserverFactory = outboundStreamObserverFactory;
+    this.outboundObserverFactory = outboundObserverFactory;
     this.cache = new ConcurrentHashMap<>();
   }
 
@@ -153,9 +144,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         (Endpoints.ApiServiceDescriptor descriptor) ->
             new BeamFnDataGrpcMultiplexer(
                 descriptor,
-                (StreamObserver<BeamFnApi.Elements> inboundObserver) ->
-                    outboundStreamObserverFactory.apply(
-                        BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
-                        inboundObserver)));
+                outboundObserverFactory,
+                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data));
   }
 }

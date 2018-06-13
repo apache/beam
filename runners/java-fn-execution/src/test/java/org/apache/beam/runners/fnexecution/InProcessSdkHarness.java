@@ -33,6 +33,7 @@ import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -78,7 +79,9 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            serverFactory);
     controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
     InstructionRequestHandler requestHandler =

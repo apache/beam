@@ -43,9 +43,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -94,10 +93,9 @@ public class BeamFnStateGrpcClientCacheTest {
 
     clientCache =
         new BeamFnStateGrpcClientCache(
-            PipelineOptionsFactory.create(),
             IdGenerators.decrementingLongs(),
             (Endpoints.ApiServiceDescriptor descriptor) -> testChannel,
-            this::createStreamForTest);
+            OutboundObserverFactory.trivial());
   }
 
   @After
@@ -225,10 +223,5 @@ public class BeamFnStateGrpcClientCacheTest {
         outboundObserver.onNext(StateResponse.newBuilder().setId(value.getId()).build());
         return;
     }
-  }
-
-  private <ReqT, RespT> StreamObserver<RespT> createStreamForTest(
-      StreamObserverClientFactory<ReqT, RespT> clientFactory, StreamObserver<ReqT> handler) {
-    return clientFactory.outboundObserverFor(handler);
   }
 }

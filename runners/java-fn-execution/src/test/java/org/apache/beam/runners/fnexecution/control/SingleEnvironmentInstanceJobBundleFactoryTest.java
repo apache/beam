@@ -47,6 +47,7 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
 import org.junit.Before;
@@ -76,7 +77,9 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            serverFactory);
     stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     factory =
