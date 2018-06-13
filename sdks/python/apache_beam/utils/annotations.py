@@ -17,6 +17,17 @@
 
 """Deprecated and experimental annotations.
 
+Experimental: Signifies that a public API (public class, method or field) is
+subject to incompatible changes, or even removal, in a future release. Note that
+the presence of this annotation implies nothing about the quality or performance
+of the API in question, only the fact that the API or behavior may change in any
+way.
+
+Deprecated: Signifies that users are discouraged from using a public API
+typically because a better alternative exists, and the current form might be
+removed in a future version.
+
+Usage:
 For internal use only; no backwards-compatibility guarantees.
 
 Annotations come in two flavors: deprecated and experimental
