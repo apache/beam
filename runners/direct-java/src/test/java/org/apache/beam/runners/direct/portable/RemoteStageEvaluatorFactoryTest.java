@@ -51,6 +51,7 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -103,7 +104,9 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
             (workerId, timeout) -> clientPool.take());
     executor = Executors.newCachedThreadPool();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            serverFactory);
     stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     bundleFactory = ImmutableListBundleFactory.create();

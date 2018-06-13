@@ -73,6 +73,7 @@ import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -167,7 +168,8 @@ public class ReferenceRunner {
                 serverFactory);
         GrpcFnServer<GrpcDataService> data =
             GrpcFnServer.allocatePortAndCreateFor(
-                GrpcDataService.create(dataExecutor), serverFactory);
+                GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
+                serverFactory);
         GrpcFnServer<GrpcStateService> state =
             GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
 

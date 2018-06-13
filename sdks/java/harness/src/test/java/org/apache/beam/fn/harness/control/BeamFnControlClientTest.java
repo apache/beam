@@ -48,7 +48,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -139,7 +139,7 @@ public class BeamFnControlClientTest {
           new BeamFnControlClient(
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
-              this::createStreamForTest,
+              OutboundObserverFactory.trivial(),
               handlers);
 
       // Get the connected client and attempt to send and receive an instruction
@@ -221,7 +221,7 @@ public class BeamFnControlClientTest {
           new BeamFnControlClient(
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
-              this::createStreamForTest,
+              OutboundObserverFactory.trivial(),
               handlers);
 
       // Get the connected client and attempt to send and receive an instruction
@@ -255,10 +255,5 @@ public class BeamFnControlClientTest {
     } finally {
       server.shutdownNow();
     }
-  }
-
-  private <ReqT, RespT> StreamObserver<RespT> createStreamForTest(
-      StreamObserverClientFactory<ReqT, RespT> clientFactory, StreamObserver<ReqT> handler) {
-    return clientFactory.outboundObserverFor(handler);
   }
 }

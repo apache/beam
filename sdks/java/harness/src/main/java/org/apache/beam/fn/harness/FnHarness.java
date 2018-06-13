@@ -38,7 +38,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -104,14 +104,14 @@ public class FnHarness {
     } else {
       channelFactory = ManagedChannelFactory.createDefault();
     }
-    StreamObserverFactory streamObserverFactory =
+    OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
     main(
         options,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
         channelFactory,
-        streamObserverFactory);
+        outboundObserverFactory);
   }
 
   public static void main(
@@ -119,7 +119,7 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
-      StreamObserverFactory streamObserverFactory) {
+      OutboundObserverFactory outboundObserverFactory) {
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
         options,
@@ -133,11 +133,11 @@ public class FnHarness {
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer = new BeamFnDataGrpcClient(
-          options, channelFactory::forDescriptor, streamObserverFactory::from);
+          options, channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(
-              options, idGenerator, channelFactory::forDescriptor, streamObserverFactory::from);
+              idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
 
       ProcessBundleHandler processBundleHandler = new ProcessBundleHandler(
           options,
@@ -148,10 +148,12 @@ public class FnHarness {
           fnApiRegistry::register);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
-      BeamFnControlClient control = new BeamFnControlClient(controlApiServiceDescriptor,
-          channelFactory::forDescriptor,
-          streamObserverFactory::from,
-          handlers);
+      BeamFnControlClient control =
+          new BeamFnControlClient(
+              controlApiServiceDescriptor,
+              channelFactory::forDescriptor,
+              outboundObserverFactory,
+              handlers);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());

@@ -18,7 +18,12 @@
 
 package org.apache.beam.runners.direct.portable;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
@@ -30,11 +35,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -116,10 +119,14 @@ public class ReferenceRunnerTest implements Serializable {
                 // Multiple bundles will emit values onto the same key 42.
                 // They must be processed sequentially rather than in parallel, since
                 // the trigger firing code expects to receive values sequentially for a key.
-                .apply(GroupByKey.create())
-                .apply(Values.create())
-                .apply(Flatten.iterables()))
-        .containsInAnyOrder(0, 1, 2);
+                .apply(GroupByKey.create()))
+        .satisfies(
+            input -> {
+              KV<Integer, Iterable<Integer>> kv = Iterables.getOnlyElement(input);
+              assertEquals(42, kv.getKey().intValue());
+              assertThat(kv.getValue(), containsInAnyOrder(0, 1, 2));
+              return null;
+            });
 
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 

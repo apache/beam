@@ -79,8 +79,10 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -112,6 +114,11 @@ import org.joda.time.Instant;
  * concepts differently.
  */
 public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+
+  private final ProcessBundleContext processContext;
+  private final FinishBundleContext finishBundleContext;
+  private StartBundleContext startBundleContext;
+
   /**
    * A registrar which provides a factory to handle Java {@link DoFn}s.
    */
@@ -385,48 +392,15 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.doFnInvoker.invokeSetup();
     this.stateBinder = new BeamFnStateBinder();
     this.stateFinalizers = new ArrayList<>();
-  }
 
-  @Override
-  public void startBundle() {
-    doFnInvoker.invokeStartBundle(doFn.new StartBundleContext() {
+    this.startBundleContext = doFn.new StartBundleContext() {
       @Override
       public PipelineOptions getPipelineOptions() {
         return pipelineOptions;
       }
-    });
-  }
-
-  @Override
-  public void processElement(WindowedValue<InputT> elem) {
-    currentElement = elem;
-    try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
-        doFnInvoker.invokeProcessElement(new ProcessBundleContext());
-      }
-    } finally {
-      currentElement = null;
-      currentWindow = null;
-      encodedCurrentKey = null;
-      encodedCurrentWindow = null;
-    }
-  }
-
-  @Override
-  public void onTimer(
-      String timerId,
-      BoundedWindow window,
-      Instant timestamp,
-      TimeDomain timeDomain) {
-    throw new UnsupportedOperationException("TODO: Add support for timers");
-  }
-
-  @Override
-  public void finishBundle() {
-    doFnInvoker.invokeFinishBundle(doFn.new FinishBundleContext() {
+    };
+    this.processContext = new ProcessBundleContext();
+    finishBundleContext = doFn.new FinishBundleContext() {
       @Override
       public PipelineOptions getPipelineOptions() {
         return pipelineOptions;
@@ -447,7 +421,44 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         outputTo(consumers,
             WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
-    });
+    };
+  }
+
+  @Override
+  public void startBundle() {
+    doFnInvoker.invokeStartBundle(startBundleContext);
+  }
+
+  @Override
+  public void processElement(WindowedValue<InputT> elem) {
+    currentElement = elem;
+    try {
+      Iterator<BoundedWindow> windowIterator =
+          (Iterator<BoundedWindow>) elem.getWindows().iterator();
+      while (windowIterator.hasNext()) {
+        currentWindow = windowIterator.next();
+        doFnInvoker.invokeProcessElement(processContext);
+      }
+    } finally {
+      currentElement = null;
+      currentWindow = null;
+      encodedCurrentKey = null;
+      encodedCurrentWindow = null;
+    }
+  }
+
+  @Override
+  public void onTimer(
+      String timerId,
+      BoundedWindow window,
+      Instant timestamp,
+      TimeDomain timeDomain) {
+    throw new UnsupportedOperationException("TODO: Add support for timers");
+  }
+
+  @Override
+  public void finishBundle() {
+    doFnInvoker.invokeFinishBundle(finishBundleContext);
 
     // Persist all dirty state cells
     try {

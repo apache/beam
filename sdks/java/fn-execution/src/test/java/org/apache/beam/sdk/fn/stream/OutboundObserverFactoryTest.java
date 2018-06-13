@@ -25,7 +25,6 @@ import static org.junit.Assert.assertThat;
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.Executors;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,9 +32,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link StreamObserverFactory}. */
+/** Tests for {@link OutboundObserverFactory}. */
 @RunWith(JUnit4.class)
-public class StreamObserverFactoryTest {
+public class OutboundObserverFactoryTest {
   @Mock private StreamObserver<Integer> mockRequestObserver;
   @Mock private CallStreamObserver<String> mockResponseObserver;
 
@@ -47,28 +46,29 @@ public class StreamObserverFactoryTest {
   @Test
   public void testDefaultInstantiation() {
     StreamObserver<String> observer =
-        StreamObserverFactory.direct().from(this.fakeFactory(), mockRequestObserver);
+        OutboundObserverFactory.clientDirect()
+            .outboundObserverFor(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(DirectStreamObserver.class));
   }
 
   @Test
   public void testBufferedStreamInstantiation() {
     StreamObserver<String> observer =
-        StreamObserverFactory.buffered(Executors.newSingleThreadExecutor())
-            .from(this.fakeFactory(), mockRequestObserver);
+        OutboundObserverFactory.clientBuffered(Executors.newSingleThreadExecutor())
+            .outboundObserverFor(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
   }
 
   @Test
   public void testBufferedStreamWithLimitInstantiation() {
     StreamObserver<String> observer =
-        StreamObserverFactory.buffered(Executors.newSingleThreadExecutor(), 1)
-            .from(this.fakeFactory(), mockRequestObserver);
+        OutboundObserverFactory.clientBuffered(Executors.newSingleThreadExecutor(), 1)
+            .outboundObserverFor(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
     assertEquals(1, ((BufferingStreamObserver<String>) observer).getBufferSize());
   }
 
-  private StreamObserverClientFactory<Integer, String> fakeFactory() {
+  private OutboundObserverFactory.BasicFactory<Integer, String> fakeFactory() {
     return inboundObserver -> {
       assertThat(inboundObserver, instanceOf(ForwardingClientResponseObserver.class));
       return mockResponseObserver;

@@ -55,6 +55,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -301,7 +302,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         RemoteEnvironment environment, ServerFactory serverFactory) throws Exception {
       ExecutorService executor = Executors.newCachedThreadPool();
       GrpcFnServer<GrpcDataService> dataServer =
-          GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+          GrpcFnServer.allocatePortAndCreateFor(
+              GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+              serverFactory);
       GrpcFnServer<GrpcStateService> stateServer =
           GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
       SdkHarnessClient client =
