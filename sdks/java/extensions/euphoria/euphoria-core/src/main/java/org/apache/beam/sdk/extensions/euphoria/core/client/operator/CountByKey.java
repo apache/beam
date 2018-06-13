@@ -35,6 +35,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -156,6 +158,12 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
           (BuilderParams<InputT, K, ?>) params;
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
       return new WindowingBuilder<>(paramsCasted);
+    }
+
+    @Override
+    public <K> WindowingBuilder<InputT, K> keyBy(
+        UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
+      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 
