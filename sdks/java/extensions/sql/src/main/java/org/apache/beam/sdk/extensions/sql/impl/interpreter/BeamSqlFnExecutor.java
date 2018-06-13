@@ -149,7 +149,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
    * represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
   static BeamSqlExpression buildExpression(RexNode rexNode) {
-    BeamSqlExpression ret = null;
+    BeamSqlExpression ret;
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
       SqlTypeName type = node.getTypeName();
@@ -174,6 +174,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
         SqlTypeName realType = node.getType().getSqlTypeName();
         Object realValue = value;
+
         if (SqlTypeName.NUMERIC_TYPES.contains(type)) {
           switch (realType) {
             case TINYINT:
@@ -199,7 +200,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
               break;
             default:
               throw new IllegalStateException(
-                  "type / realType mismatch: " + type + " <-> " + realType);
+                  "Unsupported conversion: Attempted convert node "
+                      + node.toString()
+                      + " of type "
+                      + type
+                      + "to "
+                      + realType);
           }
         }
 
