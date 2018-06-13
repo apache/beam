@@ -50,14 +50,10 @@ include "beam-runners-google-cloud-dataflow-java"
 project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
-include "beam-local-artifact-service-java"
-project(":beam-local-artifact-service-java").dir = file("runners/local-artifact-service-java")
 include "beam-runners-local-java-core"
 project(":beam-runners-local-java-core").dir = file("runners/local-java")
 include "beam-runners-reference-java"
 project(":beam-runners-reference-java").dir = file("runners/reference/java")
-include "beam-runners-reference-job-server"
-project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
 include "beam-sdks-go"
@@ -66,6 +62,8 @@ include "beam-sdks-go-container"
 project(":beam-sdks-go-container").dir = file("sdks/go/container")
 include "beam-sdks-go-examples"
 project(":beam-sdks-go-examples").dir = file("sdks/go/examples")
+include "beam-sdks-go-test"
+project(":beam-sdks-go-test").dir = file("sdks/go/test")
 include "beam-sdks-java-build-tools"
 project(":beam-sdks-java-build-tools").dir = file("sdks/java/build-tools")
 include "beam-sdks-java-container"
@@ -86,6 +84,8 @@ include "beam-sdks-java-extensions-sorter"
 project(":beam-sdks-java-extensions-sorter").dir = file("sdks/java/extensions/sorter")
 include "beam-sdks-java-extensions-sql"
 project(":beam-sdks-java-extensions-sql").dir = file("sdks/java/extensions/sql")
+include "beam-sdks-java-extensions-sql-jdbc"
+project(":beam-sdks-java-extensions-sql-jdbc").dir = file("sdks/java/extensions/sql/jdbc")
 include "beam-sdks-java-fn-execution"
 project(":beam-sdks-java-fn-execution").dir = file("sdks/java/fn-execution")
 include "beam-sdks-java-harness"
@@ -132,6 +132,8 @@ include "beam-sdks-java-io-mongodb"
 project(":beam-sdks-java-io-mongodb").dir = file("sdks/java/io/mongodb")
 include "beam-sdks-java-io-mqtt"
 project(":beam-sdks-java-io-mqtt").dir = file("sdks/java/io/mqtt")
+include "beam-sdks-java-io-parquet"
+project(":beam-sdks-java-io-parquet").dir = file("sdks/java/io/parquet")
 include "beam-sdks-java-io-redis"
 project(":beam-sdks-java-io-redis").dir = file("sdks/java/io/redis")
 include "beam-sdks-java-io-solr"

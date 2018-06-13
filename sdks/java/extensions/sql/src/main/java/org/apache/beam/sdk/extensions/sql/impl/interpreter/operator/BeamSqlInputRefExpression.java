@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * A primitive operation for direct field extraction.
- */
+/** A primitive operation for direct field extraction. */
 public class BeamSqlInputRefExpression extends BeamSqlExpression {
   private int inputRef;
 
@@ -38,7 +37,8 @@ public class BeamSqlInputRefExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     return BeamSqlPrimitive.of(outputType, inputRow.getValue(inputRef));
   }
 

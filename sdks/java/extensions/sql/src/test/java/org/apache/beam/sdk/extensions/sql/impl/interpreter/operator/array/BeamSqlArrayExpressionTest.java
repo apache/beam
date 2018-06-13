@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -31,9 +32,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlArrayExpression}.
- */
+/** Unit tests for {@link BeamSqlArrayExpression}. */
 public class BeamSqlArrayExpressionTest {
 
   private static final Row NULL_ROW = null;
@@ -50,7 +49,9 @@ public class BeamSqlArrayExpressionTest {
 
     assertEquals(
         Arrays.asList("aaa", "bbb"),
-        arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test

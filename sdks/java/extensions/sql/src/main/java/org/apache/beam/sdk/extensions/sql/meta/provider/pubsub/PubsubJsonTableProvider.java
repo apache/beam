@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.TIMESTAMP;
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TIMESTAMP;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
 import com.alibaba.fastjson.JSONObject;
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -36,11 +36,12 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
- * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO}
- * for consumption by Beam SQL.
+ * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO} for consumption
+ * by Beam SQL.
  */
 @Internal
 @Experimental
+@AutoService(TableProvider.class)
 public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   @Override
@@ -54,14 +55,15 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
     JSONObject tableProperties = tableDefintion.getProperties();
     String timestampAttributeKey = tableProperties.getString("timestampAttributeKey");
+    String deadLetterQueue = tableProperties.getString("deadLetterQueue");
+    validateDlq(deadLetterQueue);
 
-    return
-        PubsubIOJsonTable
-            .builder()
-            .setSchema(tableDefintion.getSchema())
-            .setTimestampAttribute(timestampAttributeKey)
-            .setTopic(tableDefintion.getLocation())
-            .build();
+    return PubsubIOJsonTable.builder()
+        .setSchema(tableDefintion.getSchema())
+        .setTimestampAttribute(timestampAttributeKey)
+        .setDeadLetterQueue(deadLetterQueue)
+        .setTopic(tableDefintion.getLocation())
+        .build();
   }
 
   private void validatePubsubMessageSchema(Table tableDefinition) {
@@ -69,20 +71,26 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
     if (schema.getFieldCount() != 3
         || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)
-        || !fieldPresent(schema, ATTRIBUTES_FIELD, MAP.type().withMapType(VARCHAR, VARCHAR))
+        || !fieldPresent(schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR, VARCHAR))
         || !(schema.hasField(PAYLOAD_FIELD)
-             && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
+            && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
 
       throw new IllegalArgumentException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE. "
-          + "CREATE TABLE for Pubsub topic should define exactly the following fields: "
-          + "'event_timestamp' field of type 'TIMESTAMP', 'attributes' field of type "
-          + "MAP<VARCHAR, VARCHAR>, and 'payload' field of type 'ROW<...>' which matches the "
-          + "payload JSON format.");
+              + "CREATE TABLE for Pubsub topic should define exactly the following fields: "
+              + "'event_timestamp' field of type 'TIMESTAMP', 'attributes' field of type "
+              + "MAP<VARCHAR, VARCHAR>, and 'payload' field of type 'ROW<...>' which matches the "
+              + "payload JSON format.");
     }
   }
 
   private boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
     return schema.hasField(field) && expectedType.equals(schema.getField(field).getType());
+  }
+
+  private void validateDlq(String deadLetterQueue) {
+    if (deadLetterQueue != null && deadLetterQueue.isEmpty()) {
+      throw new IllegalArgumentException("Dead letter queue topic name is not specified");
+    }
   }
 }

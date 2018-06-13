@@ -29,9 +29,7 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 
-/**
- * Adapter from {@link TableProvider} to {@link Schema}.
- */
+/** Adapter from {@link TableProvider} to {@link Schema}. */
 public class BeamCalciteSchema implements Schema {
   private TableProvider tableProvider;
 

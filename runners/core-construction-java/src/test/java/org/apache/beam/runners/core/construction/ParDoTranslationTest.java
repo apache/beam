@@ -58,20 +58,13 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link ParDoTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  ParDoTranslationTest.TestParDoPayloadTranslation.class,
-  ParDoTranslationTest.TestStateAndTimerTranslation.class
-})
 public class ParDoTranslationTest {
 
   /**
@@ -120,9 +113,9 @@ public class ParDoTranslationTest {
       SdkComponents components = SdkComponents.create();
       ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
 
-      assertThat(ParDoTranslation.getDoFn(payload), Matchers.equalTo(parDo.getFn()));
+      assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(
-          ParDoTranslation.getMainOutputTag(payload), Matchers.equalTo(parDo.getMainOutputTag()));
+          ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
@@ -158,14 +151,14 @@ public class ParDoTranslationTest {
                 view.getPCollection(),
                 protoTransform,
                 rehydratedComponents);
-        assertThat(restoredView.getTagInternal(), Matchers.equalTo(view.getTagInternal()));
+        assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(
             restoredView.getWindowMappingFn(), instanceOf(view.getWindowMappingFn().getClass()));
         assertThat(
             restoredView.getWindowingStrategyInternal(),
-            Matchers.equalTo(view.getWindowingStrategyInternal().fixDefaults()));
-        assertThat(restoredView.getCoderInternal(), Matchers.equalTo(view.getCoderInternal()));
+            equalTo(view.getWindowingStrategyInternal().fixDefaults()));
+        assertThat(restoredView.getCoderInternal(), equalTo(view.getCoderInternal()));
       }
       String mainInputId = sdkComponents.registerPCollection(mainInput);
       assertThat(
@@ -205,7 +198,7 @@ public class ParDoTranslationTest {
       StateSpec<?> deserializedStateSpec =
           ParDoTranslation.fromProto(stateSpecProto, rehydratedComponents);
 
-      assertThat(stateSpec, Matchers.equalTo(deserializedStateSpec));
+      assertThat(stateSpec, equalTo(deserializedStateSpec));
     }
   }
 

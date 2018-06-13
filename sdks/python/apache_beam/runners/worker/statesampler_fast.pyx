@@ -41,6 +41,7 @@ from apache_beam.metrics.execution cimport MetricsContainer
 
 cimport cython
 from cpython cimport pythread
+from libc cimport math
 from libc.stdint cimport int32_t, int64_t
 
 
@@ -71,6 +72,8 @@ cdef inline int64_t get_nsec_time() nogil:
 cdef class StateSampler(object):
   """Tracks time spent in states during pipeline execution."""
   cdef int _sampling_period_ms
+  cdef int _sampling_period_ms_start
+  cdef double _sampling_period_ratio
 
   cdef list scoped_states_by_index
 
@@ -87,8 +90,16 @@ cdef class StateSampler(object):
 
   cdef int32_t current_state_index
 
-  def __init__(self, sampling_period_ms, *args):
+  def __init__(self,
+               sampling_period_ms,
+               sampling_period_ms_start=None,
+               sampling_period_ratio=1.2):
     self._sampling_period_ms = sampling_period_ms
+    # Slowly ramp up to avoid excessive waiting for short stages, as well
+    # as more precise information in that case.
+    self._sampling_period_ms_start = (
+          sampling_period_ms_start or max(1, sampling_period_ms // 100))
+    self._sampling_period_ratio = sampling_period_ratio
     self.started = False
     self.finished = False
 
@@ -118,9 +129,13 @@ cdef class StateSampler(object):
     cdef int64_t last_nsecs = get_nsec_time()
     cdef int64_t elapsed_nsecs
     cdef int64_t latest_transition_count = self.state_transition_count
+    cdef int64_t sampling_period_us = self._sampling_period_ms_start * 1000
     with nogil:
       while True:
-        usleep(self._sampling_period_ms * 1000)
+        usleep(sampling_period_us)
+        sampling_period_us = <int64_t>math.fmin(
+            sampling_period_us * self._sampling_period_ratio,
+            self._sampling_period_ms * 1000)
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
           if self.finished:

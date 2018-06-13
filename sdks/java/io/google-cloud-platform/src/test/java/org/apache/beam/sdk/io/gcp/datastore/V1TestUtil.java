@@ -339,7 +339,7 @@ class V1TestUtil {
     @Nullable
     private final String namespace;
     private boolean moreResults;
-    private java.util.Iterator<EntityResult> entities;
+    private Iterator<EntityResult> entities;
     // Current batch of query results
     private QueryResultBatch currentBatch;
     private Entity currentEntity;

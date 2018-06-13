@@ -39,7 +39,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
-// TODO: https://issues.apache.org/jira/browse/BEAM-2597 Implement this executable stage operator.
 /**
  * Flink operator that passes its input DataSet through an SDK-executed {@link
  * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
@@ -65,7 +64,7 @@ public class FlinkExecutableStageFunction<InputT>
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
   private transient StateRequestHandler stateRequestHandler;
-  private transient StageBundleFactory stageBundleFactory;
+  private transient StageBundleFactory<InputT> stageBundleFactory;
   private transient AutoCloseable distributedCacheCloser;
 
   public FlinkExecutableStageFunction(
@@ -85,10 +84,6 @@ public class FlinkExecutableStageFunction<InputT>
     runtimeContext = getRuntimeContext();
     // TODO: Wire this into the distributed cache and make it pluggable.
     ArtifactSource artifactSource = null;
-    // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
-    // It's a little strange because this operator is responsible for the lifetime of the stage
-    // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
-    // ownership of the higher level "factories" explicit? Do we care?
     FlinkExecutableStageContext stageContext = contextFactory.get(jobInfo);
     ArtifactSourcePool cachePool = stageContext.getArtifactSourcePool();
     distributedCacheCloser = cachePool.addToPool(artifactSource);

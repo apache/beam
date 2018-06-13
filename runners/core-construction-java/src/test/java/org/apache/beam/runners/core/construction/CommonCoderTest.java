@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
@@ -43,9 +44,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -148,9 +149,9 @@ public class CommonCoderTest {
     // Would like to use the InputStream directly with Jackson, but Jackson does not seem to
     // support streams of multiple entities. Instead, read the entire YAML as a String and split
     // it up manually, passing each to Jackson.
-    String specString = CharStreams.toString(new InputStreamReader(stream));
-    String[] specs = specString.split("\n---\n");
-    List<OneCoderTestSpec> ret = new LinkedList<>();
+    String specString = CharStreams.toString(new InputStreamReader(stream, StandardCharsets.UTF_8));
+    Iterable<String> specs = Splitter.on("\n---\n").split(specString);
+    List<OneCoderTestSpec> ret = new ArrayList<>();
     for (String spec : specs) {
       CommonCoderTestSpec coderTestSpec = parseSpec(spec);
       CommonCoder coder = coderTestSpec.getCoder();
@@ -224,7 +225,7 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))) {
       Coder elementCoder = ((IterableCoder) coder).getElemCoder();
       List<Object> elements = (List<Object>) value;
-      List<Object> convertedElements = new LinkedList<>();
+      List<Object> convertedElements = new ArrayList<>();
       for (Object element : elements) {
         convertedElements.add(
             convertValue(element, coderSpec.getComponents().get(0), elementCoder));
@@ -239,7 +240,7 @@ public class CommonCoderTest {
       Object windowValue = convertValue(
           kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
       Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
-      List<BoundedWindow> windows = new LinkedList<>();
+      List<BoundedWindow> windows = new ArrayList<>();
       for (Object window : ((List<Object>) kvMap.get("windows"))) {
         windows.add((BoundedWindow) convertValue(window, coderSpec.getComponents().get(1),
             windowCoder));
@@ -258,7 +259,7 @@ public class CommonCoderTest {
   }
 
   private static Coder<?> instantiateCoder(CommonCoder coder) {
-    List<Coder<?>> components = new LinkedList<>();
+    List<Coder<?>> components = new ArrayList<>();
     for (CommonCoder innerCoder : coder.getComponents()) {
       components.add(instantiateCoder(innerCoder));
     }

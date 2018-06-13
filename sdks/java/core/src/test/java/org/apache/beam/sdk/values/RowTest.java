@@ -23,15 +23,16 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Rule;
@@ -51,11 +52,11 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.Field.of("f_int", TypeName.INT32.type())
+                Schema.Field.of("f_int", FieldType.INT32)
                     .withNullable(true),
-                Schema.Field.of("f_str", TypeName.STRING.type())
+                Schema.Field.of("f_str", FieldType.STRING)
                     .withNullable(true),
-                Schema.Field.of("f_double", TypeName.DOUBLE.type())
+                Schema.Field.of("f_double", FieldType.DOUBLE)
                     .withNullable(true))
             .collect(toSchema());
 
@@ -68,7 +69,7 @@ public class RowTest {
 
   @Test
   public void testRejectsNullRecord() {
-    Schema type = Stream.of(Schema.Field.of("f_int", TypeName.INT32.type()))
+    Schema type = Stream.of(Schema.Field.of("f_int", Schema.FieldType.INT32))
         .collect(toSchema());
     thrown.expect(IllegalArgumentException.class);
     Row.nullRow(type);
@@ -77,16 +78,16 @@ public class RowTest {
   @Test
   public void testCreatesRecord() {
     Schema schema = Schema.builder()
-        .addByteField("f_byte", false)
-        .addInt16Field("f_int16", false)
-        .addInt32Field("f_int32", false)
-        .addInt64Field("f_int64", false)
-        .addDecimalField("f_decimal", false)
-        .addFloatField("f_float", false)
-        .addDoubleField("f_double", false)
-        .addStringField("f_string", false)
-        .addDateTimeField("f_datetime", false)
-        .addBooleanField("f_boolean", false).build();
+        .addByteField("f_byte")
+        .addInt16Field("f_int16")
+        .addInt32Field("f_int32")
+        .addInt64Field("f_int64")
+        .addDecimalField("f_decimal")
+        .addFloatField("f_float")
+        .addDoubleField("f_double")
+        .addStringField("f_string")
+        .addDateTimeField("f_datetime")
+        .addBooleanField("f_boolean").build();
 
     DateTime dateTime = new DateTime().withDate(1979, 03, 14)
         .withTime(1, 2, 3, 4)
@@ -115,15 +116,15 @@ public class RowTest {
   @Test
   public void testCreatesNestedRow() {
     Schema nestedType = Stream.of(
-        Schema.Field.of("f1_str", TypeName.STRING.type()))
+        Schema.Field.of("f1_str", Schema.FieldType.STRING))
         .collect(toSchema());
 
     Schema type =
         Stream
-            .of(Schema.Field.of("f_int", TypeName.INT32.type()),
+            .of(Schema.Field.of("f_int", Schema.FieldType.INT32),
                 Schema.Field.of("nested",
-                    TypeName.ROW.type()
-                    .withRowSchema(nestedType)))
+                    Schema.FieldType.row(
+                    nestedType)))
         .collect(toSchema());
     Row nestedRow = Row.withSchema(nestedType).addValues("foobar").build();
     Row row = Row.withSchema(type).addValues(42, nestedRow).build();
@@ -136,8 +137,7 @@ public class RowTest {
     List<Integer> data = Lists.newArrayList(2, 3, 5, 7);
     Schema type = Stream
         .of(Schema.Field.of("array",
-            TypeName.ARRAY.type()
-                .withCollectionElementType(TypeName.INT32.type())))
+            Schema.FieldType.array(Schema.FieldType.INT32)))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -146,7 +146,7 @@ public class RowTest {
   @Test
   public void testCreatesRowArray() {
     Schema nestedType = Stream.of(
-        Schema.Field.of("f1_str", TypeName.STRING.type()))
+        Schema.Field.of("f1_str", FieldType.STRING))
         .collect(toSchema());
     List<Row> data = Lists.newArrayList(
         Row.withSchema(nestedType).addValues("one").build(),
@@ -155,9 +155,7 @@ public class RowTest {
 
     Schema type = Stream
         .of(Schema.Field.of("array",
-            TypeName.ARRAY.type()
-                .withCollectionElementType(TypeName.ROW.type()
-                    .withRowSchema(nestedType))))
+            FieldType.array(FieldType.row(nestedType))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -169,9 +167,7 @@ public class RowTest {
         Lists.newArrayList(1, 2, 3, 4));
     Schema type = Stream
         .of(Schema.Field.of("array",
-            TypeName.ARRAY.type()
-                .withCollectionElementType(TypeName.ARRAY.type()
-                    .withCollectionElementType(TypeName.INT32.type()))))
+            FieldType.array(FieldType.array(FieldType.INT32))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -179,20 +175,13 @@ public class RowTest {
 
   @Test
   public void testCreatesArrayOfMap() {
-    List<Map<Integer, String>> data = Lists
-        .<Map<Integer, String>>newArrayList(Lists.newArrayList(new HashMap<Integer, String>() {
-          {
-            put(1, "value1");
-          }
-        }, new HashMap<Integer, String>() {
-          {
-            put(2, "value2");
-          }
-        }));
+    List<Map<Integer, String>> data = ImmutableList.<Map<Integer, String>>builder()
+        .add(ImmutableMap.of(1, "value1"))
+        .add(ImmutableMap.of(2, "value2"))
+        .build();
     Schema type = Stream
         .of(Schema.Field.of("array",
-            TypeName.ARRAY.type().withCollectionElementType(
-                TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type()))))
+            FieldType.array(FieldType.map(FieldType.INT32, FieldType.STRING))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -200,17 +189,15 @@ public class RowTest {
 
   @Test
   public void testCreateMapWithPrimitiveValue() {
-    Map<Integer, String> data = new HashMap<Integer, String>() {
-      {
-        put(1, "value1");
-        put(2, "value2");
-        put(3, "value3");
-        put(4, "value4");
-      }
-    };
+    Map<Integer, String> data = ImmutableMap.<Integer, String>builder()
+        .put(1, "value1")
+        .put(2, "value2")
+        .put(3, "value3")
+        .put(4, "value4")
+        .build();
     Schema type = Stream
         .of(Schema.Field.of("map",
-            TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type())))
+            FieldType.map(FieldType.INT32, FieldType.STRING)))
         .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
@@ -218,16 +205,14 @@ public class RowTest {
 
   @Test
   public void testCreateMapWithArrayValue() {
-    Map<Integer, List<String>> data = new HashMap<Integer, List<String>>() {
-      {
-        put(1, Arrays.asList("value1"));
-        put(2, Arrays.asList("value2"));
-      }
-    };
+    Map<Integer, List<String>> data = ImmutableMap.<Integer, List<String>>builder()
+        .put(1, Arrays.asList("value1"))
+        .put(2, Arrays.asList("value2"))
+        .build();
     Schema type = Stream
         .of(Schema.Field.of("map",
-            TypeName.MAP.type().withMapType(TypeName.INT32.type(),
-                TypeName.ARRAY.type().withCollectionElementType(TypeName.STRING.type()))))
+            FieldType.map(FieldType.INT32,
+                FieldType.array(FieldType.STRING))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
@@ -235,24 +220,13 @@ public class RowTest {
 
   @Test
   public void testCreateMapWithMapValue() {
-    Map<Integer, Map<Integer, String>> data = new HashMap<Integer, Map<Integer, String>>() {
-      {
-        put(1, new HashMap<Integer, String>() {
-          {
-            put(1, "value1");
-          }
-        });
-        put(2, new HashMap<Integer, String>() {
-          {
-            put(2, "value2");
-          }
-        });
-      }
-    };
+    Map<Integer, Map<Integer, String>> data = ImmutableMap.<Integer, Map<Integer, String>>builder()
+        .put(1, ImmutableMap.of(1, "value1"))
+        .put(2, ImmutableMap.of(2, "value2"))
+        .build();
     Schema type = Stream
         .of(Schema.Field.of("map",
-            TypeName.MAP.type().withMapType(TypeName.INT32.type(),
-                TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type()))))
+            FieldType.map(FieldType.INT32, FieldType.map(FieldType.INT32, FieldType.STRING))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
@@ -260,17 +234,15 @@ public class RowTest {
 
   @Test
   public void testCreateMapWithRowValue() {
-    Schema nestedType = Stream.of(Schema.Field.of("f1_str", TypeName.STRING.type()))
+    Schema nestedType = Stream.of(Schema.Field.of("f1_str", FieldType.STRING))
         .collect(toSchema());
-    Map<Integer, Row> data = new HashMap<Integer, Row>() {
-      {
-        put(1, Row.withSchema(nestedType).addValues("one").build());
-        put(2, Row.withSchema(nestedType).addValues("two").build());
-      }
-    };
-    Schema type = Stream.of(Schema.Field.of("map", TypeName.MAP.type().withMapType(
-        TypeName.INT32.type(),
-        TypeName.ROW.type().withRowSchema(nestedType)))).collect(toSchema());
+    Map<Integer, Row> data = ImmutableMap.<Integer, Row>builder()
+        .put(1, Row.withSchema(nestedType).addValues("one").build())
+        .put(2, Row.withSchema(nestedType).addValues("two").build())
+        .build();
+    Schema type = Stream.of(Schema.Field.of("map", FieldType.map(
+        FieldType.INT32,
+        FieldType.row(nestedType)))).collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
   }
@@ -280,9 +252,9 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.Field.of("f_int", TypeName.INT32.type()),
-                Schema.Field.of("f_str", TypeName.STRING.type()),
-                Schema.Field.of("f_double", TypeName.DOUBLE.type()))
+                Schema.Field.of("f_int", FieldType.INT32),
+                Schema.Field.of("f_str", FieldType.STRING),
+                Schema.Field.of("f_double", FieldType.DOUBLE))
             .collect(toSchema());
 
     Row row =
@@ -300,9 +272,9 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.Field.of("f_int", TypeName.INT32.type()),
-                Schema.Field.of("f_str", TypeName.STRING.type()),
-                Schema.Field.of("f_double", TypeName.DOUBLE.type()))
+                Schema.Field.of("f_int", FieldType.INT32),
+                Schema.Field.of("f_str", FieldType.STRING),
+                Schema.Field.of("f_double", FieldType.DOUBLE))
             .collect(toSchema());
 
     thrown.expect(IllegalArgumentException.class);

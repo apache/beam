@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,9 +41,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BeamSqlTimestampMinusIntervalExpression}.
- */
+/** Unit tests for {@link BeamSqlTimestampMinusIntervalExpression}. */
 public class BeamSqlTimestampMinusIntervalExpressionTest {
   private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
@@ -50,18 +49,21 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
   private static final DateTime DATE = new DateTime(329281L);
   private static final DateTime DATE_MINUS_2_SEC = DATE.minusSeconds(2);
 
-  private static final BeamSqlPrimitive TIMESTAMP = BeamSqlPrimitive.of(
-      SqlTypeName.TIMESTAMP, DATE);
+  private static final BeamSqlPrimitive TIMESTAMP =
+      BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, DATE);
 
-  private static final BeamSqlPrimitive INTERVAL_2_SEC = BeamSqlPrimitive.of(
-      SqlTypeName.INTERVAL_SECOND, TimeUnit.SECOND.multiplier.multiply(new BigDecimal(2)));
+  private static final BeamSqlPrimitive INTERVAL_2_SEC =
+      BeamSqlPrimitive.of(
+          SqlTypeName.INTERVAL_SECOND, TimeUnit.SECOND.multiplier.multiply(new BigDecimal(2)));
 
-  private static final BeamSqlPrimitive INTERVAL_3_MONTHS = BeamSqlPrimitive.of(
-      SqlTypeName.INTERVAL_MONTH, TimeUnit.MONTH.multiplier.multiply(new BigDecimal(3)));
+  private static final BeamSqlPrimitive INTERVAL_3_MONTHS =
+      BeamSqlPrimitive.of(
+          SqlTypeName.INTERVAL_MONTH, TimeUnit.MONTH.multiplier.multiply(new BigDecimal(3)));
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Test public void testBasicProperties() {
+  @Test
+  public void testBasicProperties() {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.INTERVAL_DAY_MINUTE, TIMESTAMP, INTERVAL_3_MONTHS);
 
@@ -69,28 +71,32 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     assertEquals(Arrays.asList(TIMESTAMP, INTERVAL_3_MONTHS), minusExpression.getOperands());
   }
 
-  @Test public void testAcceptsHappyPath() {
+  @Test
+  public void testAcceptsHappyPath() {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
 
     assertTrue(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptOneOperand() {
+  @Test
+  public void testDoesNotAcceptOneOperand() {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP);
 
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptThreeOperands() {
+  @Test
+  public void testDoesNotAcceptThreeOperands() {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC, INTERVAL_3_MONTHS);
 
     assertFalse(minusExpression.accept());
   }
 
-  @Test public void testDoesNotAcceptWrongOutputType() {
+  @Test
+  public void testDoesNotAcceptWrongOutputType() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
 
@@ -102,7 +108,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     }
   }
 
-  @Test public void testDoesNotAcceptWrongFirstOperand() {
+  @Test
+  public void testDoesNotAcceptWrongFirstOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
 
@@ -117,7 +124,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     }
   }
 
-  @Test public void testDoesNotAcceptWrongSecondOperand() {
+  @Test
+  public void testDoesNotAcceptWrongSecondOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.removeAll(INTERVALS_DURATIONS_TYPES.keySet());
 
@@ -132,7 +140,8 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     }
   }
 
-  @Test public void testAcceptsAllSupportedIntervalTypes() {
+  @Test
+  public void testAcceptsAllSupportedIntervalTypes() {
     for (SqlTypeName unsupportedType : INTERVALS_DURATIONS_TYPES.keySet()) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
       doReturn(unsupportedType).when(unsupportedOperand).getOutputType();
@@ -144,11 +153,13 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
     }
   }
 
-  @Test public void testEvaluateHappyPath() {
+  @Test
+  public void testEvaluateHappyPath() {
     BeamSqlTimestampMinusIntervalExpression minusExpression =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
 
-    BeamSqlPrimitive subtractionResult = minusExpression.evaluate(NULL_ROW, NULL_WINDOW);
+    BeamSqlPrimitive subtractionResult =
+        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
 
     assertEquals(SqlTypeName.TIMESTAMP, subtractionResult.getOutputType());
     assertEquals(DATE_MINUS_2_SEC, subtractionResult.getDate());

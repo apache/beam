@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -417,7 +417,7 @@ public class TrafficRoutes {
    * Define some small hard-wired San Diego 'routes' to track based on sensor station ID.
    */
   private static Map<String, String> buildStationInfo() {
-    Map<String, String> stations = new Hashtable<>();
+    Map<String, String> stations = new LinkedHashMap<>();
       stations.put("1108413", "SDRoute1"); // from freeway 805 S
       stations.put("1108699", "SDRoute2"); // from freeway 78 E
       stations.put("1108702", "SDRoute2");

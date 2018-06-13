@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -31,9 +31,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BeamSqlFieldAccessExpression}.
- */
+/** Unit tests for {@link BeamSqlFieldAccessExpression}. */
 public class BeamSqlFieldAccessExpressionTest {
 
   private static final Row NULL_ROW = null;
@@ -44,38 +42,39 @@ public class BeamSqlFieldAccessExpressionTest {
   @Test
   public void testAccessesFieldOfArray() {
     BeamSqlPrimitive<List<String>> targetArray =
-        BeamSqlPrimitive.of(
-            SqlTypeName.ARRAY,
-            Arrays.asList("aaa", "bbb", "ccc"));
+        BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb", "ccc"));
 
     BeamSqlFieldAccessExpression arrayExpression =
         new BeamSqlFieldAccessExpression(targetArray, 1, SqlTypeName.VARCHAR);
 
-    assertEquals("bbb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals(
+        "bbb",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
   public void testAccessesFieldOfRow() {
     Schema schema =
-        RowSqlTypes
-            .builder()
-            .withVarcharField("f_string1")
-            .withVarcharField("f_string2")
-            .withVarcharField("f_string3")
+        Schema.builder()
+            .addStringField("f_string1")
+            .addStringField("f_string2")
+            .addStringField("f_string3")
             .build();
 
     BeamSqlPrimitive<Row> targetRow =
         BeamSqlPrimitive.of(
-            SqlTypeName.ROW,
-            Row
-                .withSchema(schema)
-                .addValues("aa", "bb", "cc")
-                .build());
+            SqlTypeName.ROW, Row.withSchema(schema).addValues("aa", "bb", "cc").build());
 
     BeamSqlFieldAccessExpression arrayExpression =
         new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR);
 
-    assertEquals("bb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals(
+        "bb",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -86,6 +85,7 @@ public class BeamSqlFieldAccessExpressionTest {
     thrown.expectMessage("unsupported type");
 
     new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW).getValue();
+        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+        .getValue();
   }
 }

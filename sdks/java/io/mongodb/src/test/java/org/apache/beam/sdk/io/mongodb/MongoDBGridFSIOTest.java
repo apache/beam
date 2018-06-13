@@ -131,8 +131,10 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     for (int x = 0; x < 100; x++) {
-      out.write(("Einstein\nDarwin\nCopernicus\nPasteur\n"
-                  + "Curie\nFaraday\nNewton\nBohr\nGalilei\nMaxwell\n").getBytes());
+      out.write(
+          ("Einstein\nDarwin\nCopernicus\nPasteur\n"
+                  + "Curie\nFaraday\nNewton\nBohr\nGalilei\nMaxwell\n")
+              .getBytes(StandardCharsets.UTF_8));
     }
     for (int x = 0; x < 5; x++) {
       gridfs.createFile(new ByteArrayInputStream(out.toByteArray()), "file" + x).save();
@@ -146,7 +148,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     for (int x = 0; x < 10; x++) {
       GridFSInputFile file = gridfs.createFile("file_" + x);
       OutputStream outf = file.getOutputStream();
-      OutputStreamWriter writer = new OutputStreamWriter(outf);
+      OutputStreamWriter writer = new OutputStreamWriter(outf, StandardCharsets.UTF_8);
       for (int y = 0; y < 5000; y++) {
         long time = now - random.nextInt(3600000);
         String name = scientists[y % scientists.length];
@@ -210,7 +212,9 @@ public class MongoDBGridFSIOTest implements Serializable {
                 .<KV<String, Integer>>withParser(
                     (input, callback) -> {
                       try (final BufferedReader reader =
-                          new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+                          new BufferedReader(
+                              new InputStreamReader(
+                                  input.getInputStream(), StandardCharsets.UTF_8))) {
                         String line = reader.readLine();
                         while (line != null) {
                           try (Scanner scanner = new Scanner(line.trim())) {

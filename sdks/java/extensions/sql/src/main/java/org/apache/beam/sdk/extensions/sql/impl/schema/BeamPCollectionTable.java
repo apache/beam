@@ -26,8 +26,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * {@code BeamPCollectionTable} converts a {@code PCollection<Row>} as a virtual table,
- * then a downstream query can query directly.
+ * {@code BeamPCollectionTable} converts a {@code PCollection<Row>} as a virtual table, then a
+ * downstream query can query directly.
  */
 public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
@@ -35,8 +35,8 @@ public class BeamPCollectionTable extends BaseBeamTable {
 
   public BeamPCollectionTable(PCollection<Row> upstream) {
     super(((RowCoder) upstream.getCoder()).getSchema());
-    ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
-        ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
+    ioType =
+        upstream.isBounded().equals(IsBounded.BOUNDED) ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
     this.upstream = upstream;
   }
 
@@ -54,5 +54,4 @@ public class BeamPCollectionTable extends BaseBeamTable {
   public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
-
 }

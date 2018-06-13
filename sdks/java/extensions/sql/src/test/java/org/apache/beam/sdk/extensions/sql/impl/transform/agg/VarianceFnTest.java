@@ -32,9 +32,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Unit tests for {@link VarianceFnTest}.
- */
+/** Unit tests for {@link VarianceFnTest}. */
 @RunWith(Parameterized.class)
 public class VarianceFnTest {
   private static final BigDecimal FIFTEEN = new BigDecimal(15);
@@ -43,25 +41,29 @@ public class VarianceFnTest {
 
   @Parameters(name = "varianceFn {index}")
   public static Iterable<Object[]> varianceFns() {
-    return Arrays.asList(new Object[][]{{
-        VarianceFn.newPopulation(BigDecimal::intValue),
-        newVarianceAccumulator(FIFTEEN, THREE, ZERO),
-        5
-    }, {
-        VarianceFn.newSample(BigDecimal::intValue),
-        newVarianceAccumulator(FIFTEEN, FOUR, ZERO),
-        5
-    }
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {
+            VarianceFn.newPopulation(BigDecimal::intValue),
+            newVarianceAccumulator(FIFTEEN, THREE, ZERO),
+            5
+          },
+          {
+            VarianceFn.newSample(BigDecimal::intValue),
+            newVarianceAccumulator(FIFTEEN, FOUR, ZERO),
+            5
+          }
+        });
   }
 
   private VarianceFn varianceFn;
   private VarianceAccumulator testAccumulatorInput;
   private int expectedExtractedResult;
 
-  public VarianceFnTest(VarianceFn varianceFn,
-                        VarianceAccumulator testAccumulatorInput,
-                        int expectedExtractedResult) {
+  public VarianceFnTest(
+      VarianceFn varianceFn,
+      VarianceAccumulator testAccumulatorInput,
+      int expectedExtractedResult) {
 
     this.varianceFn = varianceFn;
     this.testAccumulatorInput = testAccumulatorInput;
@@ -75,8 +77,7 @@ public class VarianceFnTest {
 
   @Test
   public void testReturnsAccumulatorUnchangedForNullInput() {
-    VarianceAccumulator accumulator =
-        newVarianceAccumulator(ZERO, BigDecimal.ONE, BigDecimal.TEN);
+    VarianceAccumulator accumulator = newVarianceAccumulator(ZERO, BigDecimal.ONE, BigDecimal.TEN);
 
     assertEquals(accumulator, varianceFn.addInput(accumulator, null));
   }

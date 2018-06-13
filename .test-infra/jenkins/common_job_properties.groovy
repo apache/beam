@@ -117,6 +117,7 @@ class common_job_properties {
       }
       credentialsBinding {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
     }
   }
@@ -260,7 +261,11 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      k8s_get_retry_count: 36, // wait up to 6 minutes for K8s LoadBalancer
+      k8s_get_wait_interval: 10,
       temp_dir: '$WORKSPACE',
+      // Use source cloned by Jenkins and not clone it second time (redundantly).
+      beam_location: '$WORKSPACE/src',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
@@ -286,8 +291,10 @@ class common_job_properties {
     }
   }
 
-  static String getKubernetesNamespace(def testName) {
-    return "${testName}-${new Date().getTime()}"
+  // Namespace must contain lower case alphanumeric characters or '-'
+  static String getKubernetesNamespace(def jobName) {
+    jobName = jobName.replaceAll("_", "-").toLowerCase()
+    return "${jobName}-\${BUILD_ID}"
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {

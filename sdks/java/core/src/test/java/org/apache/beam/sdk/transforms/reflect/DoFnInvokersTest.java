@@ -89,7 +89,7 @@ public class DoFnInvokersTest {
 
   @Before
   public void setUp() {
-    mockElement =  new String("element");
+    mockElement = new String("element");
     mockTimestamp = new Instant(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
@@ -152,7 +152,7 @@ public class DoFnInvokersTest {
 
   interface LayersOfInterfaces extends InterfaceWithProcessElement {}
 
-  private class IdentityUsingInterfaceWithProcessElement extends DoFn<String, String>
+  private static class IdentityUsingInterfaceWithProcessElement extends DoFn<String, String>
       implements LayersOfInterfaces {
     @Override
     public void processElement(DoFn<String, String>.ProcessContext c) {}
@@ -166,13 +166,15 @@ public class DoFnInvokersTest {
     verify(fn).processElement(mockProcessContext);
   }
 
-  private class IdentityParent extends DoFn<String, String> {
+  private static class IdentityParent extends DoFn<String, String> {
     @ProcessElement
     public void process(ProcessContext c) {}
   }
 
+  @SuppressWarnings("ClassCanBeStatic")
   private class IdentityChildWithoutOverride extends IdentityParent {}
 
+  @SuppressWarnings("ClassCanBeStatic")
   private class IdentityChildWithOverride extends IdentityParent {
     @Override
     public void process(DoFn<String, String>.ProcessContext c) {

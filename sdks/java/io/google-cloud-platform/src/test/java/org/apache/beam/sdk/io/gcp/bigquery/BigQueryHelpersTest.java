@@ -48,9 +48,9 @@ public class BigQueryHelpersTest {
   public void testTableParsing() {
     TableReference ref = BigQueryHelpers
         .parseTableSpec("my-project:data_set.table_name");
-    Assert.assertEquals("my-project", ref.getProjectId());
-    Assert.assertEquals("data_set", ref.getDatasetId());
-    Assert.assertEquals("table_name", ref.getTableId());
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("table_name", ref.getTableId());
   }
 
   @Test
@@ -64,9 +64,9 @@ public class BigQueryHelpersTest {
   public void testTableParsing_noProjectId() {
     TableReference ref = BigQueryHelpers
         .parseTableSpec("data_set.table_name");
-    Assert.assertEquals(null, ref.getProjectId());
-    Assert.assertEquals("data_set", ref.getDatasetId());
-    Assert.assertEquals("table_name", ref.getTableId());
+    assertEquals(null, ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("table_name", ref.getTableId());
   }
 
   @Test

@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -30,62 +29,53 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for BeamKafkaCSVTable.
- */
+/** Test for BeamKafkaCSVTable. */
 public class BeamKafkaCSVTableTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  private static final Row ROW1 =
-      Row
-          .withSchema(genRowType())
-          .addValues(1L, 1, 1.0)
-          .build();
+  private static final Row ROW1 = Row.withSchema(genSchema()).addValues(1L, 1, 1.0).build();
 
-  private static final Row ROW2 =
-      Row.withSchema(genRowType())
-          .addValues(2L, 2, 2.0)
-          .build();
+  private static final Row ROW2 = Row.withSchema(genSchema()).addValues(2L, 2, 2.0).build();
 
-  @Test public void testCsvRecorderDecoder() throws Exception {
-    PCollection<Row> result = pipeline
-        .apply(
-            Create.of("1,\"1\",1.0", "2,2,2.0")
-        )
-        .apply(ParDo.of(new String2KvBytes()))
-        .apply(
-            new BeamKafkaCSVTable.CsvRecorderDecoder(genRowType(), CSVFormat.DEFAULT)
-        );
+  @Test
+  public void testCsvRecorderDecoder() throws Exception {
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of("1,\"1\",1.0", "2,2,2.0"))
+            .apply(ParDo.of(new String2KvBytes()))
+            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genSchema(), CSVFormat.DEFAULT));
 
     PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
     pipeline.run();
   }
 
-  @Test public void testCsvRecorderEncoder() throws Exception {
-    PCollection<Row> result = pipeline
-        .apply(
-            Create.of(ROW1, ROW2)
-        )
-        .apply(
-            new BeamKafkaCSVTable.CsvRecorderEncoder(genRowType(), CSVFormat.DEFAULT)
-        ).apply(
-            new BeamKafkaCSVTable.CsvRecorderDecoder(genRowType(), CSVFormat.DEFAULT)
-        );
+  @Test
+  public void testCsvRecorderEncoder() throws Exception {
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of(ROW1, ROW2))
+            .apply(new BeamKafkaCSVTable.CsvRecorderEncoder(genSchema(), CSVFormat.DEFAULT))
+            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genSchema(), CSVFormat.DEFAULT));
 
     PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
     pipeline.run();
   }
 
-  private static Schema genRowType() {
+  private static Schema genSchema() {
+    JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
     return CalciteUtils.toBeamSchema(
-        BeamQueryPlanner.TYPE_FACTORY.builder()
+        typeFactory
+            .builder()
             .add("order_id", SqlTypeName.BIGINT)
             .add("site_id", SqlTypeName.INTEGER)
             .add("price", SqlTypeName.DOUBLE)

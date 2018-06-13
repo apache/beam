@@ -46,7 +46,6 @@ public class DirectRunnerApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam.sdk",
             "org.apache.beam.runners.direct",
-            "org.apache.beam.runners.direct.portable",
             "org.joda.time",
             "javax.annotation");
 
@@ -67,6 +66,9 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
             .pruningClass(ExecutableGraphBuilder.class)
+            .pruningPattern(
+                "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
+                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")

@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCod
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.hamcrest.Matchers;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -58,7 +57,6 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
-@RunWith(Enclosed.class)
 public class CoderTranslationTest {
   private static final Set<StructuredCoder<?>> KNOWN_CODERS =
       ImmutableSet.<StructuredCoder<?>>builder()
@@ -144,7 +142,7 @@ public class CoderTranslationTest {
       Coder<?> decodedCoder =
           CoderTranslation.fromProto(
               coderProto, RehydratedComponents.forComponents(encodedComponents));
-      assertThat(decodedCoder, Matchers.equalTo(coder));
+      assertThat(decodedCoder, equalTo(coder));
 
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {

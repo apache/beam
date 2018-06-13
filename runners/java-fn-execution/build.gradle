@@ -22,7 +22,9 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
 
 dependencies {
   compile library.java.guava
+  compile library.java.findbugs_annotations
   compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-harness")
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")

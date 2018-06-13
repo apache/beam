@@ -19,9 +19,7 @@ package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
 
-/**
- * Describes a customer.
- */
+/** Describes a customer. */
 public class Customer implements Serializable {
   private String name;
   private int id;

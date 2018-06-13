@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -85,16 +86,16 @@ public class MqttIOTest {
         .withMaxNumRecords(10);
     PCollection<byte[]> output = pipeline.apply(mqttReader);
     PAssert.that(output).containsInAnyOrder(
-        "This is test 0".getBytes(),
-        "This is test 1".getBytes(),
-        "This is test 2".getBytes(),
-        "This is test 3".getBytes(),
-        "This is test 4".getBytes(),
-        "This is test 5".getBytes(),
-        "This is test 6".getBytes(),
-        "This is test 7".getBytes(),
-        "This is test 8".getBytes(),
-        "This is test 9".getBytes()
+        "This is test 0".getBytes(StandardCharsets.UTF_8),
+        "This is test 1".getBytes(StandardCharsets.UTF_8),
+        "This is test 2".getBytes(StandardCharsets.UTF_8),
+        "This is test 3".getBytes(StandardCharsets.UTF_8),
+        "This is test 4".getBytes(StandardCharsets.UTF_8),
+        "This is test 5".getBytes(StandardCharsets.UTF_8),
+        "This is test 6".getBytes(StandardCharsets.UTF_8),
+        "This is test 7".getBytes(StandardCharsets.UTF_8),
+        "This is test 8".getBytes(StandardCharsets.UTF_8),
+        "This is test 9".getBytes(StandardCharsets.UTF_8)
     );
 
     // produce messages on the brokerService in another thread
@@ -117,8 +118,11 @@ public class MqttIOTest {
           }
         }
         for (int i = 0; i < 10; i++) {
-          publishConnection.publish(topicName, ("This is test " + i).getBytes(),
-              QoS.EXACTLY_ONCE, false);
+          publishConnection.publish(
+              topicName,
+              ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+              QoS.EXACTLY_ONCE,
+              false);
         }
       } catch (Exception e) {
         // nothing to do
@@ -142,16 +146,16 @@ public class MqttIOTest {
                     "READ_PIPELINE"))
             .withMaxReadTime(Duration.standardSeconds(3)));
     PAssert.that(output).containsInAnyOrder(
-        "This is test 0".getBytes(),
-        "This is test 1".getBytes(),
-        "This is test 2".getBytes(),
-        "This is test 3".getBytes(),
-        "This is test 4".getBytes(),
-        "This is test 5".getBytes(),
-        "This is test 6".getBytes(),
-        "This is test 7".getBytes(),
-        "This is test 8".getBytes(),
-        "This is test 9".getBytes()
+        "This is test 0".getBytes(StandardCharsets.UTF_8),
+        "This is test 1".getBytes(StandardCharsets.UTF_8),
+        "This is test 2".getBytes(StandardCharsets.UTF_8),
+        "This is test 3".getBytes(StandardCharsets.UTF_8),
+        "This is test 4".getBytes(StandardCharsets.UTF_8),
+        "This is test 5".getBytes(StandardCharsets.UTF_8),
+        "This is test 6".getBytes(StandardCharsets.UTF_8),
+        "This is test 7".getBytes(StandardCharsets.UTF_8),
+        "This is test 8".getBytes(StandardCharsets.UTF_8),
+        "This is test 9".getBytes(StandardCharsets.UTF_8)
     );
 
     // produce messages on the brokerService in another thread
@@ -174,8 +178,11 @@ public class MqttIOTest {
           }
         }
         for (int i = 0; i < 10; i++) {
-          publishConnection.publish("READ_TOPIC", ("This is test " + i).getBytes(),
-              QoS.EXACTLY_ONCE, false);
+          publishConnection.publish(
+              "READ_TOPIC",
+              ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+              QoS.EXACTLY_ONCE,
+              false);
         }
       } catch (Exception e) {
         // nothing to do
@@ -219,7 +226,7 @@ public class MqttIOTest {
       try {
         for (int i = 0; i < numberOfTestMessages; i++) {
           Message message = connection.receive();
-          messages.add(new String(message.getPayload()));
+          messages.add(new String(message.getPayload(), StandardCharsets.UTF_8));
           message.ack();
         }
       } catch (Exception e) {
@@ -230,7 +237,7 @@ public class MqttIOTest {
 
     ArrayList<byte[]> data = new ArrayList<>();
     for (int i = 0; i < numberOfTestMessages; i++) {
-      data.add(("Test " + i).getBytes());
+      data.add(("Test " + i).getBytes(StandardCharsets.UTF_8));
     }
     pipeline.apply(Create.of(data))
         .apply(MqttIO.write()

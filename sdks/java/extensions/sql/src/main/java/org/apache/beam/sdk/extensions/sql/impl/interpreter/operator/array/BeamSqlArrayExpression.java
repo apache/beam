@@ -20,15 +20,14 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Represents ARRAY expression in SQL.
- */
+/** Represents ARRAY expression in SQL. */
 public class BeamSqlArrayExpression extends BeamSqlExpression {
   public BeamSqlArrayExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.ARRAY);
@@ -36,20 +35,16 @@ public class BeamSqlArrayExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return
-        operands
-            .stream()
-            .map(BeamSqlExpression::getOutputType)
-            .distinct()
-            .count() == 1;
+    return operands.stream().map(BeamSqlExpression::getOutputType).distinct().count() == 1;
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     List<Object> elements =
         operands
             .stream()
-            .map(op -> op.evaluate(inputRow, window).getValue())
+            .map(op -> op.evaluate(inputRow, window, env).getValue())
             .collect(Collectors.toList());
 
     return BeamSqlPrimitive.of(outputType, elements);

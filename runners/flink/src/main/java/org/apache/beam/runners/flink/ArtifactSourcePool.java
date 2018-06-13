@@ -24,6 +24,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 
+// TODO: Pull in https://github.com/apache/beam/pull/5359 once we use Flink 1.6.
 /**
  * A pool of {@link ArtifactSource ArtifactSources} that can be used as a single source. At least
  * one source must be registered before artifacts can be requested from it.
@@ -38,6 +39,11 @@ import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
  */
 @ThreadSafe
 public class ArtifactSourcePool implements ArtifactSource {
+
+  /** Creates a new {@link ArtifactSourcePool}. */
+  public static ArtifactSourcePool create() {
+    return new ArtifactSourcePool();
+  }
 
   private ArtifactSourcePool() {}
 

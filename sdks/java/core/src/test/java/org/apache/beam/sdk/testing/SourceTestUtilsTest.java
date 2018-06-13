@@ -44,8 +44,8 @@ public class SourceTestUtilsTest {
     BoundedSource<Long> baseSource = CountingSource.upTo(100);
     BoundedSource<Long> unsplittableSource = SourceTestUtils.toUnsplittableSource(baseSource);
     List<?> splits = unsplittableSource.split(1, options);
-    assertEquals(splits.size(), 1);
-    assertEquals(splits.get(0), unsplittableSource);
+    assertEquals(1, splits.size());
+    assertEquals(unsplittableSource, splits.get(0));
 
     BoundedReader<Long> unsplittableReader = unsplittableSource.createReader(options);
     assertEquals(0, unsplittableReader.getFractionConsumed(), 1e-15);

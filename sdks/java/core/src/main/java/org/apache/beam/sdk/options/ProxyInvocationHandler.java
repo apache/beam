@@ -291,6 +291,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
      * pipeline options will be added as display data.
      */
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       Set<PipelineOptionSpec> optionSpecs =
           PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
@@ -446,7 +447,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             // new "i" element in outer loop.
             i--;
             j = specs.size();
-          } else  if (iface2.isAssignableFrom(iface1)) {
+          } else if (iface2.isAssignableFrom(iface1)) {
             optionsMap.remove(entry.getKey(), specs.get(j));
             specs.remove(j);
 

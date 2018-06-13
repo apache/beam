@@ -41,6 +41,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -96,9 +97,9 @@ public class BigtableServiceImplTest {
    * @throws InterruptedException
    */
   @Test
-  public void testRead() throws IOException, InterruptedException {
-    ByteKey start = ByteKey.copyFrom("a".getBytes());
-    ByteKey end = ByteKey.copyFrom("b".getBytes());
+  public void testRead() throws IOException {
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of("table_name"));
     @SuppressWarnings("unchecked")

@@ -19,9 +19,11 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import com.alibaba.fastjson.JSONObject;
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.commons.csv.CSVFormat;
 
@@ -29,6 +31,7 @@ import org.apache.commons.csv.CSVFormat;
  * Text table provider.
  *
  * <p>A sample of text table is:
+ *
  * <pre>{@code
  * CREATE TABLE ORDERS(
  *   ID INT COMMENT 'this is the primary key',
@@ -40,13 +43,16 @@ import org.apache.commons.csv.CSVFormat;
  * TBLPROPERTIES '{"format": "Excel"}' -- format of each text line(csv format)
  * }</pre>
  */
+@AutoService(TableProvider.class)
 public class TextTableProvider extends InMemoryMetaTableProvider {
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "text";
   }
 
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
 
     String filePattern = table.getLocation();

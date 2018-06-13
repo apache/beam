@@ -49,7 +49,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -184,7 +183,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setProject("some-project");
     options.setRegion("some-region");
     options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
-    options.setFilesToStage(new LinkedList<>());
+    options.setFilesToStage(new ArrayList<>());
     options.setDataflowClient(buildMockDataflow(new IsValidCreateRequest()));
     options.setGcsUtil(mockGcsUtil);
 
@@ -593,7 +592,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     // This is the name that is "set by the user" that the Dataflow translator must override
     String userSpecifiedName =
-        Structs.getString(
+        getString(
             Structs.getListOfMaps(
                 step.getProperties(),
                 PropertyNames.OUTPUT_INFO,
@@ -644,7 +643,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     // The ParDo step
     Step step = job.getSteps().get(1);
-    String stepName = Structs.getString(step.getProperties(), PropertyNames.USER_NAME);
+    String stepName = getString(step.getProperties(), PropertyNames.USER_NAME);
 
     List<Map<String, Object>> outputInfos =
         Structs.getListOfMaps(step.getProperties(), PropertyNames.OUTPUT_INFO, null);
@@ -654,7 +653,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     // The names set by the user _and_ the tags _must_ be ignored, or metrics will not show up.
     for (int i = 0; i < outputInfos.size(); ++i) {
       assertThat(
-          Structs.getString(outputInfos.get(i), PropertyNames.USER_NAME),
+          getString(outputInfos.get(i), PropertyNames.USER_NAME),
           equalTo(String.format("%s.out%s", stepName, i)));
     }
   }
@@ -759,7 +758,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         (DoFnInfo<String, Integer>)
             SerializableUtils.deserializeFromByteArray(
                 jsonStringToByteArray(
-                    Structs.getString(
+                    getString(
                         processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN)),
                 "DoFnInfo");
     assertThat(fnInfo.getDoFn(), instanceOf(TestSplittableFn.class));
@@ -1017,7 +1016,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
           (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
       if (outputInfoList != null) {
         for (Map<String, Object> outputInfo : outputInfoList) {
-          outputIds.add(Structs.getString(outputInfo, PropertyNames.OUTPUT_NAME));
+          outputIds.add(getString(outputInfo, PropertyNames.OUTPUT_NAME));
         }
       }
     }

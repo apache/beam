@@ -20,11 +20,13 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
@@ -42,8 +44,10 @@ import org.apache.beam.sdk.schemas.Schema;
  * TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
  * }</pre>
  */
+@AutoService(TableProvider.class)
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
-  @Override public BeamSqlTable buildBeamSqlTable(Table table) {
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
 
     JSONObject properties = table.getProperties();
@@ -57,7 +61,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     return txtTable;
   }
 
-  @Override public String getTableType() {
+  @Override
+  public String getTableType() {
     return "kafka";
   }
 }

@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Extensions Java :: Metrics"
 ext.summary = "Beam Runners Extensions Metrics provides implementations of runners core metrics APIs."
@@ -25,10 +25,12 @@ ext.summary = "Beam Runners Extensions Metrics provides implementations of runne
 
 dependencies {
     compile library.java.guava
+    compileOnly library.java.findbugs_annotations
     shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
     shadow library.java.jackson_databind
     shadow library.java.jackson_datatype_joda
-    shadow library.java.joda_time
-    shadow library.java.findbugs_annotations
+    shadow library.java.findbugs_jsr305
+    testCompileOnly library.java.findbugs_annotations
+    shadowTest library.java.joda_time
     shadowTest library.java.junit
 }

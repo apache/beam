@@ -398,6 +398,7 @@ public class BigQueryIO {
 
     public static final TableRowParser INSTANCE = new TableRowParser();
 
+    @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
       return BigQueryAvroUtils.convertGenericRecordToTableRow(
           schemaAndRecord.getRecord(),
@@ -1126,6 +1127,8 @@ public class BigQueryIO {
 
     abstract Method getMethod();
 
+    @Nullable abstract ValueProvider<String> getLoadJobProjectId();
+
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
     @Nullable abstract ValueProvider<String> getCustomGcsTempLocation();
@@ -1155,6 +1158,7 @@ public class BigQueryIO {
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder<T> setMethod(Method method);
+      abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
@@ -1396,6 +1400,20 @@ public class BigQueryIO {
     }
 
     /**
+     * Set the project the BigQuery load job will be initiated from. This is only applicable when
+     * the write method is set to {@link Method#FILE_LOADS}. If omitted, the project of the
+     * destination table is used.
+     */
+    public Write<T> withLoadJobProjectId(String loadJobProjectId) {
+      return withLoadJobProjectId(StaticValueProvider.of(loadJobProjectId));
+    }
+
+    public Write<T> withLoadJobProjectId(ValueProvider<String> loadJobProjectId) {
+      checkArgument(loadJobProjectId != null, "loadJobProjectId can not be null");
+      return toBuilder().setLoadJobProjectId(loadJobProjectId).build();
+    }
+
+    /**
      * Choose the frequency at which file writes are triggered.
      *
      * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}, and
@@ -1624,7 +1642,8 @@ public class BigQueryIO {
             getJsonTableRef() != null,
             dynamicDestinations,
             destinationCoder,
-            getCustomGcsTempLocation());
+            getCustomGcsTempLocation(),
+            getLoadJobProjectId());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());

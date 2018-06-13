@@ -68,12 +68,12 @@ public class BigQueryTornadoesTest {
                    KV.of(4, Long.MAX_VALUE),
                    KV.of(5, Long.MIN_VALUE) };
     results = formatCountsFn.processBundle(input);
-    Assert.assertEquals(results.size(), 3);
-    Assert.assertEquals(results.get(0).get("month"), 3);
-    Assert.assertEquals(results.get(0).get("tornado_count"), 0L);
-    Assert.assertEquals(results.get(1).get("month"), 4);
-    Assert.assertEquals(results.get(1).get("tornado_count"), Long.MAX_VALUE);
-    Assert.assertEquals(results.get(2).get("month"), 5);
-    Assert.assertEquals(results.get(2).get("tornado_count"), Long.MIN_VALUE);
+    Assert.assertEquals(3, results.size());
+    Assert.assertEquals(3, results.get(0).get("month"));
+    Assert.assertEquals(0L, results.get(0).get("tornado_count"));
+    Assert.assertEquals(4, results.get(1).get("month"));
+    Assert.assertEquals(Long.MAX_VALUE, results.get(1).get("tornado_count"));
+    Assert.assertEquals(5, results.get(2).get("month"));
+    Assert.assertEquals(Long.MIN_VALUE, results.get(2).get("tornado_count"));
   }
 }

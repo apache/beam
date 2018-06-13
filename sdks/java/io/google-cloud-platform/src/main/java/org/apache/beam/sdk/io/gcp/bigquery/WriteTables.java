@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -90,6 +91,7 @@ class WriteTables<DestinationT>
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
+  private final ValueProvider<String> loadJobProjectId;
 
 
   private class WriteTablesDoFn
@@ -173,7 +175,7 @@ class WriteTables<DestinationT>
     }
   }
 
-  private class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
+  private static class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       removeTemporaryFiles(c.element());
@@ -187,7 +189,8 @@ class WriteTables<DestinationT>
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      @Nullable ValueProvider<String> loadJobProjectId) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -197,6 +200,7 @@ class WriteTables<DestinationT>
     this.dynamicDestinations = dynamicDestinations;
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
+    this.loadJobProjectId = loadJobProjectId;
   }
 
   @Override
@@ -251,7 +255,7 @@ class WriteTables<DestinationT>
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
-    String projectId = ref.getProjectId();
+    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
     Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());

@@ -34,7 +34,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -92,8 +91,7 @@ public class SdkHarnessClientTest {
   @Mock public FnApiControlClient fnApiControlClient;
   @Mock public FnDataService dataService;
 
-  @Rule
-  public InProcessSdkHarness harness = InProcessSdkHarness.withClientTimeout(Duration.ofSeconds(5));
+  @Rule public InProcessSdkHarness harness = InProcessSdkHarness.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 

@@ -28,8 +28,10 @@ abstract class SerializedMutation {
 
   abstract String getTableName();
 
+  @SuppressWarnings("mutable")
   abstract byte[] getEncodedKey();
 
+  @SuppressWarnings("mutable")
   abstract byte[] getMutationGroupBytes();
 
 }

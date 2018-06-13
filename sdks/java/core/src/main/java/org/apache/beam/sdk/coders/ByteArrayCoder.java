@@ -146,6 +146,6 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
-    return VarInt.getLength(value.length) + value.length;
+    return (long) VarInt.getLength(value.length) + value.length;
   }
 }

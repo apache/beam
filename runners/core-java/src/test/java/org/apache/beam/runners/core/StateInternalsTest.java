@@ -108,7 +108,7 @@ public abstract class StateInternalsTest {
     assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
     assertThat(
         underTest.state(NAMESPACE_2, STRING_VALUE_ADDR),
-        Matchers.not(equalTo(value)));
+        not(equalTo(value)));
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");
@@ -299,27 +299,34 @@ public abstract class StateInternalsTest {
       return new MapEntry<>(k, v);
     }
 
+    @Override
     public final K getKey() {
       return key;
     }
+
+    @Override
     public final V getValue() {
       return value;
     }
 
+    @Override
     public final String toString() {
       return key + "=" + value;
     }
 
+    @Override
     public final int hashCode() {
       return Objects.hashCode(key) ^ Objects.hashCode(value);
     }
 
+    @Override
     public final V setValue(V newValue) {
       V oldValue = value;
       value = newValue;
       return oldValue;
     }
 
+    @Override
     public final boolean equals(Object o) {
       if (o == this) {
         return true;
@@ -541,48 +548,6 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(readFuture.read(), Matchers.is(true));
-  }
-
-  @Test
-  public void testMergeEarliestWatermarkIntoSource() throws Exception {
-    WatermarkHoldState value1 =
-        underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
-    WatermarkHoldState value2 =
-        underTest.state(NAMESPACE_2, WATERMARK_EARLIEST_ADDR);
-
-    value1.add(new Instant(3000));
-    value2.add(new Instant(5000));
-    value1.add(new Instant(4000));
-    value2.add(new Instant(2000));
-
-    // Merging clears the old values and updates the merged value.
-    StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value1, WINDOW_1);
-
-    assertThat(value1.read(), equalTo(new Instant(2000)));
-    assertThat(value2.read(), equalTo(null));
-  }
-
-  @Test
-  public void testMergeLatestWatermarkIntoSource() throws Exception {
-    WatermarkHoldState value1 =
-        underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR);
-    WatermarkHoldState value2 =
-        underTest.state(NAMESPACE_2, WATERMARK_LATEST_ADDR);
-    WatermarkHoldState value3 =
-        underTest.state(NAMESPACE_3, WATERMARK_LATEST_ADDR);
-
-    value1.add(new Instant(3000));
-    value2.add(new Instant(5000));
-    value1.add(new Instant(4000));
-    value2.add(new Instant(2000));
-
-    // Merging clears the old values and updates the result value.
-    StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value3, WINDOW_1);
-
-    // Merging clears the old values and updates the result value.
-    assertThat(value3.read(), equalTo(new Instant(5000)));
-    assertThat(value1.read(), equalTo(null));
-    assertThat(value2.read(), equalTo(null));
   }
 
   @Test

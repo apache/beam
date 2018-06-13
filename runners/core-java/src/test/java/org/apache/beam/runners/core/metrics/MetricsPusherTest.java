@@ -36,9 +36,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A test that verifies that metrics push system works. */
+@RunWith(JUnit4.class)
 public class MetricsPusherTest {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);
 
   private static final long NUM_ELEMENTS = 1000L;
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -73,7 +79,7 @@ public class MetricsPusherTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        e.printStackTrace();
+        LOG.error(e.getMessage(), e);
       }
     }
   }

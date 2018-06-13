@@ -25,16 +25,12 @@ import static org.junit.Assert.assertTrue;
 import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Test;
 
-/**
- * UnitTest for {@link TextTableProvider}.
- */
+/** UnitTest for {@link TextTableProvider}. */
 public class TextTableProviderTest {
   private TextTableProvider provider = new TextTableProvider();
 
@@ -73,16 +69,15 @@ public class TextTableProviderTest {
     if (format != null) {
       properties.put("format", format);
     }
-    return Table
-        .builder()
+    return Table.builder()
         .name(name)
         .comment(name + " table")
         .location("/home/admin/" + name)
         .schema(
             Stream.of(
-                Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
-                Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
-                  .collect(toSchema()))
+                    Schema.Field.nullable("id", Schema.FieldType.INT32),
+                    Schema.Field.nullable("name", Schema.FieldType.STRING))
+                .collect(toSchema()))
         .type("text")
         .properties(properties)
         .build();

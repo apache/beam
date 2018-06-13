@@ -18,20 +18,28 @@
 
 import groovy.json.JsonOutput
 
+//the list used for defining include set and the set of project level dependencies
+def dependOnProjects = [":beam-model-pipeline", ":beam-runners-core-construction-java",
+                        ":beam-runners-core-java", ":beam-runners-local-java-core",
+                        ":beam-runners-java-fn-execution", ":beam-sdks-java-fn-execution"]
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.protobuf_java_util))
-    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
+    include(dependency("io.grpc:.*"))
+    dependOnProjects.each {
+      include(project(path: it, configuration: "shadow"))
+    }
   }
-  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
+  relocate "io.grpc", getJavaRelocatedPath("io.grpc")
+  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
+  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+  relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
+  relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
+  relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
 })
 
 description = "Apache Beam :: Runners :: Direct Java"
@@ -52,17 +60,17 @@ configurations {
 
 dependencies {
   compile library.java.guava
-  compile project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
-  compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  dependOnProjects.each {
+    compile project(path: it, configuration: "shadow")
+  }
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.hamcrest_core
   shadow library.java.junit
+  shadow library.java.args4j
+  testRuntime project(path: ":beam-sdks-java-harness")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
@@ -77,8 +85,11 @@ dependencies {
   needsRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   needsRunner project(path: project.path, configuration: "shadow")
   needsRunner project(path: project.path, configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(path: project.path, configuration: "shadowTest")
 }
 
 task needsRunnerTests(type: Test) {
@@ -107,11 +118,17 @@ task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
 
-  // Run in parallel up to configured --max-workers
-  maxParallelForks Integer.MAX_VALUE
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false", "--protoTranslation"])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  classpath = configurations.validatesRunner
+  // NOTE: We only add to the test class dirs to ensure that the direct runner
+  // tests (i.e., those from this subproject) get scanned.
+  testClassesDirs += files(project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
   }
 }

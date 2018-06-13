@@ -26,41 +26,39 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.reflect.DefaultRowTypeFactory;
+import org.apache.beam.sdk.values.reflect.DefaultSchemaFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.RowTypeFactory;
+import org.apache.beam.sdk.values.reflect.SchemaFactory;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- */
+/** */
 public class SqlSchemaFactoryTest {
 
-  private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES = ImmutableList
-      .<FieldValueGetter>builder()
-      .add(getter("byteGetter", Byte.class))
-      .add(getter("shortGetter", Short.class))
-      .add(getter("integerGetter", Integer.class))
-      .add(getter("longGetter", Long.class))
-      .add(getter("floatGetter", Float.class))
-      .add(getter("doubleGetter", Double.class))
-      .add(getter("bigDecimalGetter", BigDecimal.class))
-      .add(getter("booleanGetter", Boolean.class))
-      .add(getter("stringGetter", String.class))
-      .add(getter("timeGetter", DateTime.class))
-      .add(getter("dateGetter", DateTime.class))
-      .build();
+  private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES =
+      ImmutableList.<FieldValueGetter>builder()
+          .add(getter("byteGetter", Byte.class))
+          .add(getter("shortGetter", Short.class))
+          .add(getter("integerGetter", Integer.class))
+          .add(getter("longGetter", Long.class))
+          .add(getter("floatGetter", Float.class))
+          .add(getter("doubleGetter", Double.class))
+          .add(getter("bigDecimalGetter", BigDecimal.class))
+          .add(getter("booleanGetter", Boolean.class))
+          .add(getter("stringGetter", String.class))
+          .add(getter("timeGetter", DateTime.class))
+          .add(getter("dateGetter", DateTime.class))
+          .build();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testContainsCorrectFields() throws Exception {
-    RowTypeFactory factory = new DefaultRowTypeFactory();
+    SchemaFactory factory = new DefaultSchemaFactory();
 
-    Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
+    Schema schema = factory.createSchema(GETTERS_FOR_KNOWN_TYPES);
 
     assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), schema.getFieldCount());
     assertEquals(
@@ -83,9 +81,9 @@ public class SqlSchemaFactoryTest {
   public void testThrowsForUnsupportedTypes() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
 
-    RowTypeFactory factory = new DefaultRowTypeFactory();
+    SchemaFactory factory = new DefaultSchemaFactory();
 
-    factory.createRowType(
+    factory.createSchema(
         Arrays.<FieldValueGetter>asList(getter("arrayListGetter", ArrayList.class)));
   }
 

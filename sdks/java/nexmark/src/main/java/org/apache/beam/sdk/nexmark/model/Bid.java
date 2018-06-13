@@ -63,6 +63,11 @@ public class Bid implements KnownSize, Serializable {
     }
 
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(Bid v) {
+      return v;
+    }
   };
 
   /**

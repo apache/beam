@@ -64,30 +64,30 @@ import org.apache.calcite.util.Pair;
  * {@code BeamRelNode} to replace a {@code Join} node.
  *
  * <p>Support for join can be categorized into 3 cases:
+ *
  * <ul>
- *   <li>BoundedTable JOIN BoundedTable</li>
- *   <li>UnboundedTable JOIN UnboundedTable</li>
- *   <li>BoundedTable JOIN UnboundedTable</li>
+ *   <li>BoundedTable JOIN BoundedTable
+ *   <li>UnboundedTable JOIN UnboundedTable
+ *   <li>BoundedTable JOIN UnboundedTable
  * </ul>
  *
- * <p>For the first two cases, a standard join is utilized as long as the windowFn of the both
- * sides match.
+ * <p>For the first two cases, a standard join is utilized as long as the windowFn of the both sides
+ * match.
  *
  * <p>For the third case, {@code sideInput} is utilized to implement the join, so there are some
  * constraints:
  *
  * <ul>
- *   <li>{@code FULL OUTER JOIN} is not supported.</li>
- *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.</li>
- *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.</li>
+ *   <li>{@code FULL OUTER JOIN} is not supported.
+ *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.
+ *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.
  * </ul>
- *
  *
  * <p>There are also some general constraints:
  *
  * <ul>
- *  <li>Only equi-join is supported.</li>
- *  <li>CROSS JOIN is not supported.</li>
+ *   <li>Only equi-join is supported.
+ *   <li>CROSS JOIN is not supported.
  * </ul>
  */
 public class BeamJoinRel extends Join implements BeamRelNode {
@@ -111,8 +111,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       RelNode right,
       JoinRelType joinType,
       boolean semiJoinDone) {
-    return new BeamJoinRel(getCluster(), traitSet, left, right, conditionExpr, variablesSet,
-        joinType);
+    return new BeamJoinRel(
+        getCluster(), traitSet, left, right, conditionExpr, variablesSet, joinType);
   }
 
   @Override
@@ -134,8 +134,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       }
 
       PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform());
-      PCollection<Row> rightRows =
-          inputPCollections.apply("right", rightRelNode.toPTransform());
+      PCollection<Row> rightRows = inputPCollections.apply("right", rightRelNode.toPTransform());
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
@@ -151,10 +150,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       // build the extract key type
       // the name of the join field is not important
       Schema extractKeySchema =
-          pairs
-              .stream()
-              .map(pair -> leftSchema.getField(pair.getKey()))
-              .collect(toSchema());
+          pairs.stream().map(pair -> leftSchema.getField(pair.getKey())).collect(toSchema());
 
       Coder extractKeyRowCoder = extractKeySchema.getRowCoder();
 
@@ -367,9 +363,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   private PCollection<Row> joinAsLookup(
-      BeamRelNode leftRelNode,
-      BeamRelNode rightRelNode,
-      PCollectionTuple inputPCollections) {
+      BeamRelNode leftRelNode, BeamRelNode rightRelNode, PCollectionTuple inputPCollections) {
     PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform());
     BeamIOSourceRel srcRel = (BeamIOSourceRel) rightRelNode;
     BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) srcRel.getBeamSqlTable();

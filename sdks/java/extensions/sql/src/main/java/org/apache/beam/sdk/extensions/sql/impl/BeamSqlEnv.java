@@ -17,51 +17,71 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
+import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
-import org.apache.calcite.tools.RelRunner;
+import org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
 
 /**
- * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
- *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
- * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
+ * Contains the metadata of tables/UDF functions, and exposes APIs to
+ * query/validate/optimize/translate SQL statements.
  */
+@Internal
+@Experimental
 public class BeamSqlEnv {
-  final CalciteSchema schema;
-  final CalciteSchema defaultSchema;
+  final CalciteConnection connection;
+  final SchemaPlus defaultSchema;
   final BeamQueryPlanner planner;
 
-  public BeamSqlEnv(TableProvider tableProvider) {
-    schema = CalciteSchema.createRootSchema(true, false);
-    defaultSchema = schema.add("beam", new BeamCalciteSchema(tableProvider));
-    planner = new BeamQueryPlanner(defaultSchema.plus());
+  private BeamSqlEnv(TableProvider tableProvider) {
+    connection = JdbcDriver.connect(tableProvider);
+    defaultSchema = JdbcDriver.getDefaultSchema(connection);
+    planner = new BeamQueryPlanner(connection);
   }
 
-  /**
-   * Register a UDF function which can be used in SQL expression.
-   */
+  public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
+    return withTableProvider(new ReadOnlyTableProvider(tableType, tables));
+  }
+
+  public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
+    return new BeamSqlEnv(tableProvider);
+  }
+
+  public static BeamSqlEnv inMemory(TableProvider... tableProviders) {
+    InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
+    for (TableProvider tableProvider : tableProviders) {
+      inMemoryMetaStore.registerProvider(tableProvider);
+    }
+
+    return withTableProvider(inMemoryMetaStore);
+  }
+
+  /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    schema.plus().add(functionName, ScalarFunctionImpl.create(clazz, method));
+    defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
   }
 
-  /**
-   * Register a UDF function which can be used in SQL expression.
-   */
+  /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
     registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
@@ -75,65 +95,48 @@ public class BeamSqlEnv {
   }
 
   /**
-   * Register a UDAF function which can be used in GROUP-BY expression.
-   * See {@link org.apache.beam.sdk.transforms.Combine.CombineFn} on how to implement a UDAF.
+   * Register a UDAF function which can be used in GROUP-BY expression. See {@link
+   * org.apache.beam.sdk.transforms.Combine.CombineFn} on how to implement a UDAF.
    */
   public void registerUdaf(String functionName, Combine.CombineFn combineFn) {
-    schema.plus().add(functionName, new UdafImpl(combineFn));
+    defaultSchema.add(functionName, new UdafImpl(combineFn));
   }
 
-  public BeamQueryPlanner getPlanner() {
-    return planner;
+  public PTransform<PCollectionTuple, PCollection<Row>> parseQuery(String query)
+      throws ParseException {
+    try {
+      return planner.convertToBeamRel(query).toPTransform();
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
+      throw new ParseException("Unable to parse query", e);
+    }
+  }
+
+  public boolean isDdl(String sqlStatement) throws ParseException {
+    try {
+      return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+    } catch (SqlParseException e) {
+      throw new ParseException("Unable to parse statement", e);
+    }
+  }
+
+  public void executeDdl(String sqlStatement) throws ParseException {
+    try {
+      SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
+      ddl.execute(getContext());
+    } catch (SqlParseException e) {
+      throw new ParseException("Unable to parse DDL statement", e);
+    }
   }
 
   public CalcitePrepare.Context getContext() {
-    return new ContextImpl();
+    return connection.createPrepareContext();
   }
 
-  private class ContextImpl implements CalcitePrepare.Context {
-    @Override
-    public JavaTypeFactory getTypeFactory() {
-      return planner.TYPE_FACTORY;
-    }
-
-    @Override
-    public CalciteSchema getRootSchema() {
-      return schema;
-    }
-
-    @Override
-    public CalciteSchema getMutableRootSchema() {
-      return getRootSchema();
-    }
-
-    @Override
-    public List<String> getDefaultSchemaPath() {
-      return defaultSchema.path(null);
-    }
-
-    @Override
-    public List<String> getObjectPath() {
-      return null;
-    }
-
-    @Override
-    public CalciteConnectionConfig config() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public DataContext getDataContext() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public RelRunner getRelRunner() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public CalcitePrepare.SparkHandler spark() {
-      throw new UnsupportedOperationException();
+  public String explain(String sqlString) throws ParseException {
+    try {
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
+      throw new ParseException("Unable to parse statement", e);
     }
   }
 }

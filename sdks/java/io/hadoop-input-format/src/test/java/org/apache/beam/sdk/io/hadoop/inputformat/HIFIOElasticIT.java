@@ -14,7 +14,6 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
-import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -87,7 +86,7 @@ public class HIFIOElasticIT implements Serializable {
    * successfully.
    */
   @Test
-  public void testHifIOWithElastic() throws SecurityException, IOException {
+  public void testHifIOWithElastic() throws SecurityException {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     final long expectedRowCount = 1000L;
     String expectedHashCode = "42e254c8689050ed0a617ff5e80ea392";
@@ -106,7 +105,7 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  MapElements<LinkedMapWritable, String> transformFunc =
+  private final MapElements<LinkedMapWritable, String> transformFunc =
       MapElements.via(
           new SimpleFunction<LinkedMapWritable, String>() {
             @Override
@@ -145,7 +144,7 @@ public class HIFIOElasticIT implements Serializable {
    * separator.
    */
   private String addFieldValuesToRow(String row, MapWritable mapw, String columnName) {
-    Object valueObj = (Object) mapw.get(new Text(columnName));
+    Object valueObj = mapw.get(new Text(columnName));
     row += valueObj.toString() + "|";
     return row;
   }

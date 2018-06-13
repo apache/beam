@@ -16,11 +16,12 @@
 package beam
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 func init() {
@@ -61,16 +62,18 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	}
 
 	t := reflect.ValueOf(values[0]).Type()
-	fn := &createFn{T: EncodedType{T: t}}
+	coder := NewCoder(typex.New(t))
+	fn := &createFn{Coder: EncodedCoder{Coder: coder}}
+	en := exec.MakeElementEncoder(UnwrapCoder(coder))
 	for i, value := range values {
 		if other := reflect.ValueOf(value).Type(); other != t {
 			return PCollection{}, fmt.Errorf("value %v at index %v has type %v, want %v", value, i, other, t)
 		}
-		data, err := json.Marshal(value)
-		if err != nil {
+		var buf bytes.Buffer
+		if err := en.Encode(exec.FullValue{Elm: value}, &buf); err != nil {
 			return PCollection{}, fmt.Errorf("marshalling of %v failed: %v", value, err)
 		}
-		fn.Values = append(fn.Values, string(data))
+		fn.Values = append(fn.Values, buf.Bytes())
 	}
 
 	imp := Impulse(s)
@@ -85,17 +88,18 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.
 
 type createFn struct {
-	Values []string    `json:"values"`
-	T      EncodedType `json:"type"`
+	Values [][]byte     `json:"values"`
+	Coder  EncodedCoder `json:"coder"`
 }
 
 func (c *createFn) ProcessElement(_ []byte, emit func(T)) error {
-	for _, str := range c.Values {
-		value, err := reflectx.UnmarshalJSON(c.T.T, str)
+	dec := exec.MakeElementDecoder(UnwrapCoder(c.Coder.Coder))
+	for _, val := range c.Values {
+		fv, err := dec.Decode(bytes.NewBuffer(val))
 		if err != nil {
 			return err
 		}
-		emit(value)
+		emit(fv.Elm)
 	}
 	return nil
 }

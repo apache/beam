@@ -29,18 +29,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
-/**
- * IOReader for {@code BeamTextCSVTable}.
- */
-public class BeamTextCSVTableIOReader
-    extends PTransform<PCollection<String>, PCollection<Row>>
+/** IOReader for {@code BeamTextCSVTable}. */
+public class BeamTextCSVTableIOReader extends PTransform<PCollection<String>, PCollection<Row>>
     implements Serializable {
   private String filePattern;
   protected Schema schema;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(Schema schema, String filePattern,
-                                  CSVFormat csvFormat) {
+  public BeamTextCSVTableIOReader(Schema schema, String filePattern, CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.schema = schema;
     this.csvFormat = csvFormat;
@@ -48,12 +44,14 @@ public class BeamTextCSVTableIOReader
 
   @Override
   public PCollection<Row> expand(PCollection<String> input) {
-    return input.apply(ParDo.of(new DoFn<String, Row>() {
-          @ProcessElement
-          public void processElement(ProcessContext ctx) {
-            String str = ctx.element();
-            ctx.output(csvLine2BeamRow(csvFormat, str, schema));
-          }
-        }));
+    return input.apply(
+        ParDo.of(
+            new DoFn<String, Row>() {
+              @ProcessElement
+              public void processElement(ProcessContext ctx) {
+                String str = ctx.element();
+                ctx.output(csvLine2BeamRow(csvFormat, str, schema));
+              }
+            }));
   }
 }

@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -320,7 +321,7 @@ public class MqttIO {
 
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
-        throws java.io.IOException, ClassNotFoundException {
+        throws IOException, ClassNotFoundException {
       messages = new ArrayList<>();
     }
 
@@ -543,7 +544,7 @@ public class MqttIO {
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         byte[] payload = context.element();
-        LOG.debug("Sending message {}", new String(payload));
+        LOG.debug("Sending message {}", new String(payload, StandardCharsets.UTF_8));
         connection.publish(spec.connectionConfiguration().getTopic(), payload, QoS.AT_LEAST_ONCE,
             false);
       }

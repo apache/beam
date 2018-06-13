@@ -184,7 +184,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
 
     @SuppressWarnings("unchecked")
-    Matcher<Item> matchesAllOf = Matchers.allOf(
+    Matcher<Item> matchesAllOf = allOf(
         hasKey("foo"),
         hasType(DisplayData.Type.TIMESTAMP),
         hasValue(ISO_FORMATTER.print(value)));
@@ -264,7 +264,7 @@ public class DisplayDataTest implements Serializable {
             });
 
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
-    assertEquals(map.size(), 1);
+    assertEquals(1, map.size());
     assertThat(data, hasDisplayItem("foo", "bar"));
     assertEquals(map.values(), data.items());
   }
@@ -286,7 +286,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
 
     @SuppressWarnings("unchecked")
-    Matcher<Item> matchesAllOf = Matchers.allOf(
+    Matcher<Item> matchesAllOf = allOf(
         hasNamespace(DisplayDataTest.class),
         hasKey("now"),
         hasType(DisplayData.Type.TIMESTAMP),
@@ -421,7 +421,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testRootPath() {
     DisplayData.Path root = DisplayData.Path.root();
-    assertThat(root.getComponents(), Matchers.empty());
+    assertThat(root.getComponents(), empty());
   }
 
   @Test
@@ -732,7 +732,7 @@ public class DisplayDataTest implements Serializable {
     assertThat(data.items(), hasSize(2));
   }
 
-  private class DelegatingDisplayData implements HasDisplayData {
+  private static class DelegatingDisplayData implements HasDisplayData {
     private final HasDisplayData subComponent;
     public DelegatingDisplayData(HasDisplayData subComponent) {
       this.subComponent = subComponent;
@@ -931,8 +931,8 @@ public class DisplayDataTest implements Serializable {
       try {
         type.format(value);
       } catch (ClassCastException e) {
-        fail(String.format("Failed to format %s for DisplayData.%s",
-            value.getClass().getSimpleName(), type));
+        throw new AssertionError(String.format("Failed to format %s for DisplayData.%s",
+            value.getClass().getSimpleName(), type), e);
       }
     }
   }

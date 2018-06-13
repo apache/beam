@@ -27,40 +27,37 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * Collections of {@code PTransform} and {@code DoFn} used to perform Set operations.
- */
+/** Collections of {@code PTransform} and {@code DoFn} used to perform Set operations. */
 public abstract class BeamSetOperatorsTransforms {
-  /**
-   * Transform a {@code BeamSqlRow} to a {@code KV<BeamSqlRow, BeamSqlRow>}.
-   */
-  public static class BeamSqlRow2KvFn extends
-      SimpleFunction<Row, KV<Row, Row>> {
-    @Override public KV<Row, Row> apply(Row input) {
+  /** Transform a {@code BeamSqlRow} to a {@code KV<BeamSqlRow, BeamSqlRow>}. */
+  public static class BeamSqlRow2KvFn extends SimpleFunction<Row, KV<Row, Row>> {
+    @Override
+    public KV<Row, Row> apply(Row input) {
       return KV.of(input, input);
     }
   }
 
-  /**
-   * Filter function used for Set operators.
-   */
-  public static class SetOperatorFilteringDoFn extends
-      DoFn<KV<Row, CoGbkResult>, Row> {
+  /** Filter function used for Set operators. */
+  public static class SetOperatorFilteringDoFn extends DoFn<KV<Row, CoGbkResult>, Row> {
     private TupleTag<Row> leftTag;
     private TupleTag<Row> rightTag;
     private BeamSetOperatorRelBase.OpType opType;
     // ALL?
     private boolean all;
 
-    public SetOperatorFilteringDoFn(TupleTag<Row> leftTag, TupleTag<Row> rightTag,
-                                    BeamSetOperatorRelBase.OpType opType, boolean all) {
+    public SetOperatorFilteringDoFn(
+        TupleTag<Row> leftTag,
+        TupleTag<Row> rightTag,
+        BeamSetOperatorRelBase.OpType opType,
+        boolean all) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;
       this.opType = opType;
       this.all = all;
     }
 
-    @ProcessElement public void processElement(ProcessContext ctx) {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
       CoGbkResult coGbkResult = ctx.element().getValue();
       Iterable<Row> leftRows = coGbkResult.getAll(leftTag);
       Iterable<Row> rightRows = coGbkResult.getAll(rightTag);

@@ -20,8 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.Row;
@@ -48,7 +46,7 @@ import org.junit.BeforeClass;
 /** base class to test {@link BeamSqlFnExecutor} and subclasses of {@link BeamSqlExpression}. */
 public class BeamSqlFnExecutorTestBase {
   static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
-  static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
+  static RexBuilder rexBuilder = new RexBuilder(TYPE_FACTORY);
   static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
   static RelDataType relDataType;
   static RelBuilder relBuilder;
@@ -64,11 +62,12 @@ public class BeamSqlFnExecutorTestBase {
             .add("site_id", SqlTypeName.INTEGER)
             .add("price", SqlTypeName.DOUBLE)
             .add("order_time", SqlTypeName.BIGINT)
+            .add("order_info", SqlTypeName.VARCHAR)
             .build();
 
     row =
         Row.withSchema(CalciteUtils.toBeamSchema(relDataType))
-            .addValues(1234567L, 0, 8.9, 1234567L)
+            .addValues(1234567L, 0, 8.9, 1234567L, "This is an order.")
             .build();
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
@@ -83,9 +82,14 @@ public class BeamSqlFnExecutorTestBase {
             .context(Contexts.EMPTY_CONTEXT)
             .ruleSets(BeamRuleSets.getRuleSets())
             .costFactory(null)
-            .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
+            .typeSystem(TYPE_FACTORY.getTypeSystem())
             .build();
 
+    try {
+      Class.forName("org.apache.calcite.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     relBuilder = RelBuilder.create(config);
   }
 }

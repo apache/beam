@@ -126,7 +126,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     try {
       evaluator.finishBundle();
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(), Matchers.not(Matchers.theInstance(original)));
+      assertThat(lifecycleManager.get(), not(Matchers.theInstance(original)));
       return;
     }
     fail("Expected underlying evaluator to throw on method call");

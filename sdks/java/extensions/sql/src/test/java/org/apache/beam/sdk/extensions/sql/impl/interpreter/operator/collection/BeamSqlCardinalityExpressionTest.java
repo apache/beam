@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -31,11 +32,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link BeamSqlCardinalityExpression}.
- */
+/** Unit tests for {@link BeamSqlCardinalityExpression}. */
 public class BeamSqlCardinalityExpressionTest {
-
 
   private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
@@ -43,32 +41,37 @@ public class BeamSqlCardinalityExpressionTest {
   @Test
   public void testReturnsCardinalityForTwoElements() {
     List<BeamSqlExpression> inputWith2Elements =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
 
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(inputWith2Elements, SqlTypeName.INTEGER);
 
-    assertEquals(2, expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals(
+        2,
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
   public void testReturnsCardinalityForZeroElements() {
     List<BeamSqlExpression> emptyInput =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList()));
 
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(emptyInput, SqlTypeName.INTEGER);
 
-    assertEquals(0, expression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals(
+        0,
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
   public void testAcceptsOneOperand() {
     List<BeamSqlExpression> input =
-        ImmutableList.of(
-            BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
+        ImmutableList.of(BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")));
 
     BeamSqlCardinalityExpression expression =
         new BeamSqlCardinalityExpression(input, SqlTypeName.INTEGER);

@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import unittest
+from builtins import range
 
 from apache_beam.metrics.cells import CellCommitState
 from apache_beam.metrics.execution import MetricsContainer

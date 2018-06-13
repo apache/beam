@@ -28,7 +28,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,7 +60,7 @@ public class StepTransformResultTest {
     TransformResult<Integer> result =
         StepTransformResult.<Integer>withoutHold(transform).addOutput(bundle).build();
 
-    assertThat(result.getOutputBundles(), Matchers.containsInAnyOrder(bundle));
+    assertThat(result.getOutputBundles(), containsInAnyOrder(bundle));
   }
 
   @Test

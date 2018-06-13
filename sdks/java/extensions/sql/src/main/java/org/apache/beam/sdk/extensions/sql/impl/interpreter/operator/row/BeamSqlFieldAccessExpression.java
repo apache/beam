@@ -20,24 +20,21 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row;
 
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Represents a field access expression.
- */
+/** Represents a field access expression. */
 public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
 
   private BeamSqlExpression referenceExpression;
   private int nestedFieldIndex;
 
   public BeamSqlFieldAccessExpression(
-      BeamSqlExpression referenceExpression,
-      int nestedFieldIndex,
-      SqlTypeName nestedFieldType) {
+      BeamSqlExpression referenceExpression, int nestedFieldIndex, SqlTypeName nestedFieldType) {
 
     super(Collections.emptyList(), nestedFieldType);
     this.referenceExpression = referenceExpression;
@@ -50,8 +47,9 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window);
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window, env);
     SqlTypeName targetFieldType = targetObject.getOutputType();
 
     Object targetFieldValue;
@@ -63,8 +61,8 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
     } else {
       throw new IllegalArgumentException(
           "Attempt to access field of unsupported type "
-          + targetFieldType.getClass().getSimpleName()
-          + ". Field access operator is only supported for arrays or rows");
+              + targetFieldType.getClass().getSimpleName()
+              + ". Field access operator is only supported for arrays or rows");
     }
 
     return BeamSqlPrimitive.of(outputType, targetFieldValue);

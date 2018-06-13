@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Expressions implementing collections operations.
- */
+/** Expressions implementing collections operations. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection;
 

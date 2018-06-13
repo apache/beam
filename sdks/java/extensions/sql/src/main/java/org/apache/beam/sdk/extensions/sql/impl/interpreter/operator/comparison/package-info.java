@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Comparison operators.
- */
+/** Comparison operators. */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;

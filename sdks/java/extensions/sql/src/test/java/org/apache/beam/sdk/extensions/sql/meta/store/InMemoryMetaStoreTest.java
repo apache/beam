@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
-
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -28,19 +27,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * UnitTest for {@link InMemoryMetaStore}.
- */
+/** UnitTest for {@link InMemoryMetaStore}. */
 public class InMemoryMetaStoreTest {
   private InMemoryMetaStore store;
 
@@ -72,26 +67,28 @@ public class InMemoryMetaStoreTest {
     store.createTable(table);
   }
 
-  @Test public void testGetTables() throws Exception {
+  @Test
+  public void testGetTables() throws Exception {
     store.createTable(mockTable("hello"));
     store.createTable(mockTable("world"));
 
     assertEquals(2, store.getTables().size());
-    assertThat(store.getTables(),
-        Matchers.hasValue(mockTable("hello")));
-    assertThat(store.getTables(),
-        Matchers.hasValue(mockTable("world")));
+    assertThat(store.getTables(), Matchers.hasValue(mockTable("hello")));
+    assertThat(store.getTables(), Matchers.hasValue(mockTable("world")));
   }
 
-  @Test public void testBuildBeamSqlTable() throws Exception {
+  @Test
+  public void testBuildBeamSqlTable() throws Exception {
     Table table = mockTable("hello");
     store.createTable(table);
     BeamSqlTable actualSqlTable = store.buildBeamSqlTable(table);
     assertNotNull(actualSqlTable);
     assertEquals(
-        RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build(),
-        actualSqlTable.getSchema()
-    );
+        Schema.builder()
+            .addNullableField("id", Schema.FieldType.INT32)
+            .addNullableField("name", Schema.FieldType.STRING)
+            .build(),
+        actualSqlTable.getSchema());
   }
 
   @Test
@@ -118,16 +115,15 @@ public class InMemoryMetaStoreTest {
   }
 
   private static Table mockTable(String name, String type) {
-    return Table
-        .builder()
+    return Table.builder()
         .name(name)
         .comment(name + " table")
         .location("/home/admin/" + name)
         .schema(
             Stream.of(
-                Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
-                Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
-                  .collect(toSchema()))
+                    Schema.Field.nullable("id", Schema.FieldType.INT32),
+                    Schema.Field.nullable("name", Schema.FieldType.STRING))
+                .collect(toSchema()))
         .type(type)
         .properties(new JSONObject())
         .build();
@@ -140,24 +136,25 @@ public class InMemoryMetaStoreTest {
   private static class MockTableProvider implements TableProvider {
     private String type;
     private String[] names;
+
     public MockTableProvider(String type, String... names) {
       this.type = type;
       this.names = names;
     }
 
-    @Override public String getTableType() {
+    @Override
+    public String getTableType() {
       return type;
     }
 
-    @Override public void createTable(Table table) {
+    @Override
+    public void createTable(Table table) {}
 
-    }
+    @Override
+    public void dropTable(String tableName) {}
 
-    @Override public void dropTable(String tableName) {
-
-    }
-
-    @Override public Map<String, Table> getTables() {
+    @Override
+    public Map<String, Table> getTables() {
       Map<String, Table> ret = new HashMap(names.length);
       for (String name : names) {
         ret.put(name, mockTable(name, "mock"));
@@ -166,7 +163,8 @@ public class InMemoryMetaStoreTest {
       return ret;
     }
 
-    @Override public BeamSqlTable buildBeamSqlTable(Table table) {
+    @Override
+    public BeamSqlTable buildBeamSqlTable(Table table) {
       return null;
     }
   }

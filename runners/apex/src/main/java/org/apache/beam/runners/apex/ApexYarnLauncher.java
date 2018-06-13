@@ -24,6 +24,7 @@ import com.datatorrent.api.Attribute.AttributeMap;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +42,7 @@ import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -173,7 +175,8 @@ public class ApexYarnLauncher {
    */
   public static List<File> getYarnDeployDependencies() throws IOException {
     try (InputStream dependencyTree = ApexRunner.class.getResourceAsStream("dependency-tree")) {
-      try (BufferedReader br = new BufferedReader(new InputStreamReader(dependencyTree))) {
+      try (BufferedReader br =
+          new BufferedReader(new InputStreamReader(dependencyTree, StandardCharsets.UTF_8))) {
         String line;
         List<String> excludes = new ArrayList<>();
         int excludeLevel = Integer.MAX_VALUE;
@@ -198,7 +201,8 @@ public class ApexYarnLauncher {
 
         Set<String> excludeJarFileNames = Sets.newHashSet();
         for (String exclude : excludes) {
-          String[] mvnc = exclude.split(":");
+          List<String> strings = Splitter.on(':').splitToList(exclude);
+          String[] mvnc = strings.toArray(new String[strings.size()]);
           String fileName = mvnc[1] + "-";
           if (mvnc.length == 6) {
             fileName += mvnc[4] + "-" + mvnc[3]; // with classifier
@@ -250,7 +254,7 @@ public class ApexYarnLauncher {
         }
       }
 
-      final java.nio.file.Path root = dir.toPath();
+      final Path root = dir.toPath();
       Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<Path>() {
         String relativePath;
 
@@ -312,7 +316,7 @@ public class ApexYarnLauncher {
     checkArgument(args.length == 1, "exactly one argument expected");
     File file = new File(args[0]);
     checkArgument(file.exists() && file.isFile(), "invalid file path %s", file);
-    final LaunchParams params = (LaunchParams) SerializationUtils.deserialize(
+    final LaunchParams params = SerializationUtils.deserialize(
         new FileInputStream(file));
     StreamingApplication apexApp = (dag, conf) -> copyShallow(params.dag, dag);
     Configuration conf = new Configuration(); // configuration from Hadoop client

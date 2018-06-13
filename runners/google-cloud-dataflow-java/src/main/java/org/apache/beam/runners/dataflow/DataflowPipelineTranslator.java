@@ -48,7 +48,6 @@ import com.google.protobuf.TextFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -380,7 +379,7 @@ public class DataflowPipelineTranslator {
       settings.setMaxNumWorkers(options.getMaxNumWorkers());
       workerPool.setAutoscalingSettings(settings);
 
-      List<WorkerPool> workerPools = new LinkedList<>();
+      List<WorkerPool> workerPools = new ArrayList<>();
 
       workerPools.add(workerPool);
       environment.setWorkerPools(workerPools);
@@ -488,7 +487,7 @@ public class DataflowPipelineTranslator {
       // Start the next "steps" list item.
       List<Step> steps = job.getSteps();
       if (steps == null) {
-        steps = new LinkedList<>();
+        steps = new ArrayList<>();
         job.setSteps(steps);
       }
 
@@ -504,6 +503,7 @@ public class DataflowPipelineTranslator {
       return stepContext;
     }
 
+    @Override
     public OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer) {
       String stepName = stepNames.get(producer);
       checkArgument(stepName != null, "%s doesn't have a name specified", producer);
@@ -794,7 +794,7 @@ public class DataflowPipelineTranslator {
               Flatten.PCollections<T> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "Flatten");
 
-            List<OutputReference> inputs = new LinkedList<>();
+            List<OutputReference> inputs = new ArrayList<>();
             for (PValue input : context.getInputs(transform).values()) {
               inputs.add(
                   context.asOutputReference(

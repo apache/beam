@@ -36,9 +36,15 @@ import java.util.stream.Collectors;
 
 /** A docker command wrapper. Simplifies communications with the Docker daemon. */
 class DockerCommand {
+
+  private static final String DEFAULT_DOCKER_COMMAND = "docker";
   // TODO: Should we require 64-character container ids? Docker technically allows abbreviated ids,
   // but we _should_ always capture full ids.
   private static final Pattern CONTAINER_ID_PATTERN = Pattern.compile("\\p{XDigit}{64}");
+
+  public static DockerCommand getDefault() {
+    return forExecutable(DEFAULT_DOCKER_COMMAND, Duration.ofMinutes(2));
+  }
 
   static DockerCommand forExecutable(String dockerExecutable, Duration commandTimeout) {
     return new DockerCommand(dockerExecutable, commandTimeout);
@@ -55,8 +61,12 @@ class DockerCommand {
   /**
    * Runs the given container image with the given command line arguments. Returns the running
    * container id.
+   *
+   * @param imageTag the name of the image to run
+   * @param dockerOpts options to provide to docker
+   * @param args arguments to provide to the container
    */
-  public String runImage(String imageTag, List<String> args)
+  public String runImage(String imageTag, List<String> dockerOpts, List<String> args)
       throws IOException, TimeoutException, InterruptedException {
     checkArgument(!imageTag.isEmpty(), "Docker image tag required");
     // TODO: Validate args?
@@ -65,6 +75,7 @@ class DockerCommand {
             .add(dockerExecutable)
             .add("run")
             .add("-d")
+            .addAll(dockerOpts)
             .add(imageTag)
             .addAll(args)
             .build());

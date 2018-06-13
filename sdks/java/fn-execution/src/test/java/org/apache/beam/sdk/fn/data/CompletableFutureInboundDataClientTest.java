@@ -21,6 +21,7 @@ package org.apache.beam.sdk.fn.data;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -100,6 +101,7 @@ public class CompletableFutureInboundDataClientTest {
 
     try {
       waitingFuture.get(50, TimeUnit.MILLISECONDS);
+      fail();
     } catch (TimeoutException expected) {
       // This should time out, as the client should never complete without external completion
     }

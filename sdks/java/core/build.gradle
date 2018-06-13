@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(failOnWarning: true, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.byte_buddy))
@@ -59,6 +59,7 @@ dependencies {
   compile library.java.commons_lang3
   compile library.java.guava_testlib
   compileOnly library.java.findbugs_annotations
+  testCompileOnly library.java.findbugs_annotations
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind

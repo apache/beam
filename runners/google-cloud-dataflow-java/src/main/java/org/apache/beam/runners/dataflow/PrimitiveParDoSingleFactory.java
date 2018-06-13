@@ -135,7 +135,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
 
     @Override
     public String getUrn(ParDoSingle<?, ?> transform) {
-      return PTransformTranslation.PAR_DO_TRANSFORM_URN;
+      return PAR_DO_TRANSFORM_URN;
     }
 
     @Override

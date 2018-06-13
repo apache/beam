@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection;
 
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -32,9 +33,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class BeamSqlSingleElementExpression extends BeamSqlExpression {
 
-  public BeamSqlSingleElementExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlSingleElementExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
 
     super(operands, sqlTypeName);
   }
@@ -45,8 +44,9 @@ public class BeamSqlSingleElementExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    Collection<Object> collection = opValueEvaluated(0, inputRow, window);
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Collection<Object> collection = opValueEvaluated(0, inputRow, window, env);
 
     if (collection.size() <= 1) {
       return (collection.size() == 0)
@@ -56,9 +56,9 @@ public class BeamSqlSingleElementExpression extends BeamSqlExpression {
 
     throw new IllegalArgumentException(
         "ELEMENT expression accepts either empty collections "
-        + "or collections with a single element. "
-        + "Received collection with "
-        + collection.size()
-        + " elements");
+            + "or collections with a single element. "
+            + "Received collection with "
+            + collection.size()
+            + " elements");
   }
 }

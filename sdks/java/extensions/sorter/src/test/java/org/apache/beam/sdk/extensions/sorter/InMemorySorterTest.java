@@ -74,8 +74,6 @@ public class InMemorySorterTest {
 
   /**
    * Verify an exception is thrown when the in memory sorter runs out of space.
-   *
-   * @throws Exception
    */
   @Test
   public void testOutOfSpace() throws Exception {
@@ -92,7 +90,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testAddIfRoom() throws Exception {
+  public void testAddIfRoom() {
     InMemorySorter.Options options = new InMemorySorter.Options();
     options.setMemoryMB(1);
     InMemorySorter sorter = InMemorySorter.create(options);
@@ -106,7 +104,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testAddIfRoomOverhead() throws Exception {
+  public void testAddIfRoomOverhead() {
     InMemorySorter.Options options = new InMemorySorter.Options();
     options.setMemoryMB(1);
     InMemorySorter sorter = InMemorySorter.create(options);
@@ -124,7 +122,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testNegativeMemory() throws Exception {
+  public void testNegativeMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     InMemorySorter.Options options = new InMemorySorter.Options();
@@ -132,7 +130,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testZeroMemory() throws Exception {
+  public void testZeroMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     InMemorySorter.Options options = new InMemorySorter.Options();

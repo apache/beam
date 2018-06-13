@@ -29,7 +29,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -146,7 +146,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     private static class NodeRecorder extends PipelineVisitor.Defaults {
 
-      private final List<TransformHierarchy.Node> visited = new LinkedList<>();
+      private final List<TransformHierarchy.Node> visited = new ArrayList<>();
 
       @Override
       public void leaveCompositeTransform(final TransformHierarchy.Node node) {
@@ -324,11 +324,13 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Runs this {@link TestPipeline}, unwrapping any {@code AssertionError} that is raised during
    * testing.
    */
+  @Override
   public PipelineResult run() {
     return run(getOptions());
   }
 
   /** Like {@link #run} but with the given potentially modified options. */
+  @Override
   public PipelineResult run(PipelineOptions options) {
     checkState(
         enforcement.isPresent(),

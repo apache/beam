@@ -17,15 +17,16 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
+
 import java.sql.SQLException;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -75,9 +76,8 @@ public class JdbcIOIT {
 
   @BeforeClass
   public static void setup() throws SQLException {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+    PostgresIOTestPipelineOptions options = readIOTestPipelineOptions(
+      PostgresIOTestPipelineOptions.class);
 
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
@@ -109,11 +109,11 @@ public class JdbcIOIT {
    */
   private void runWrite() {
     pipelineWrite.apply(GenerateSequence.from(0).to(numberOfRows))
-        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(JdbcIO.<TestRow>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withStatement(String.format("insert into %s values(?, ?)", tableName))
-            .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
+      .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+      .apply(JdbcIO.<TestRow>write()
+        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+        .withStatement(String.format("insert into %s values(?, ?)", tableName))
+        .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 
     pipelineWrite.run().waitUntilFinish();
   }
@@ -137,8 +137,8 @@ public class JdbcIOIT {
    * can use the natural ordering of that key.
    */
   private void runRead() {
-    PCollection<TestRow> namesAndIds =
-        pipelineRead.apply(JdbcIO.<TestRow>read()
+    PCollection<TestRow> namesAndIds = pipelineRead
+      .apply(JdbcIO.<TestRow>read()
         .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
         .withQuery(String.format("select name,id from %s;", tableName))
         .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
@@ -148,18 +148,18 @@ public class JdbcIOIT {
         .isEqualTo((long) numberOfRows);
 
     PCollection<String> consolidatedHashcode = namesAndIds
-        .apply(ParDo.of(new TestRow.SelectNameFn()))
-        .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
+      .apply(ParDo.of(new TestRow.SelectNameFn()))
+      .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode)
-        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(numberOfRows));
+      .containsInAnyOrder(TestRow.getExpectedHashForRowCount(numberOfRows));
 
     PCollection<List<TestRow>> frontOfList = namesAndIds.apply(Top.smallest(500));
     Iterable<TestRow> expectedFrontOfList = TestRow.getExpectedValues(0, 500);
     PAssert.thatSingletonIterable(frontOfList).containsInAnyOrder(expectedFrontOfList);
 
     PCollection<List<TestRow>> backOfList = namesAndIds.apply(Top.largest(500));
-    Iterable<TestRow> expectedBackOfList =
-        TestRow.getExpectedValues(numberOfRows - 500, numberOfRows);
+    Iterable<TestRow> expectedBackOfList = TestRow
+      .getExpectedValues(numberOfRows - 500, numberOfRows);
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     pipelineRead.run().waitUntilFinish();

@@ -56,6 +56,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
     this.valueCoder = valueCoder;
   }
 
+  @Override
   public Iterable<V> get(K k) {
     ByteString.Output output = ByteString.newOutput();
     try {

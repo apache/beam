@@ -51,16 +51,8 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.Suite;
 
 /** Tests for {@link TestPipeline}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  TestPipelineTest.TestPipelineCreationTest.class,
-  TestPipelineTest.TestPipelineEnforcementsTest.WithRealPipelineRunner.class,
-  TestPipelineTest.TestPipelineEnforcementsTest.WithCrashingPipelineRunner.class,
-  TestPipelineTest.NewProviderTest.class
-})
 public class TestPipelineTest implements Serializable {
   private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
       ObjectMapper.findModules(ReflectHelpers.findClassLoader()));

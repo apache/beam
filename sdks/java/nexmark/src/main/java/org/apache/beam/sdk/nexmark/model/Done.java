@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,6 +50,10 @@ public class Done implements KnownSize, Serializable {
       return new Done(message);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+    @Override
+    public Object structuralValue(Done v) {
+      return v;
+    }
   };
 
   @JsonProperty
@@ -76,5 +81,22 @@ public class Done implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Done done = (Done) o;
+    return Objects.equal(message, done.message);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(message);
   }
 }

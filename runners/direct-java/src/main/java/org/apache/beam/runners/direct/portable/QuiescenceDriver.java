@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -157,8 +158,8 @@ class QuiescenceDriver implements ExecutionDriver {
         Collection<TimerData> delivery = transformTimers.getTimers();
         KeyedWorkItem<?, Object> work =
             KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
-        // TODO: Extract from graph
-        PCollectionNode inputPCollection = null;
+        PCollectionNode inputPCollection =
+            Iterables.getOnlyElement(graph.getPerElementInputs(transformTimers.getExecutable()));
         @SuppressWarnings({"unchecked", "rawtypes"})
         CommittedBundle<?> bundle =
             evaluationContext
@@ -170,7 +171,6 @@ class QuiescenceDriver implements ExecutionDriver {
             bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
         state.set(ExecutorState.ACTIVE);
       }
-      throw new UnsupportedOperationException();
     } catch (Exception e) {
       LOG.error("Internal Error while delivering timers", e);
       pipelineMessageReceiver.failed(e);
@@ -296,6 +296,7 @@ class QuiescenceDriver implements ExecutionDriver {
 
     @Override
     public void handleError(Error err) {
+      outstandingWork.decrementAndGet();
       pipelineMessageReceiver.failed(err);
     }
   }

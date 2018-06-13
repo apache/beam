@@ -49,7 +49,9 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
     }
   }
 
+  // Suppression since errors are tracked in SendCallback(), and checked in finishBundle()
   @ProcessElement
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void processElement(ProcessContext ctx) throws Exception {
     checkForFailures();
 

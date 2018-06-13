@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -42,6 +45,8 @@ public class JsonToRowUtils {
   public static Row jsonToRow(ObjectMapper objectMapper, String jsonString) {
     try {
       return objectMapper.readValue(jsonString, Row.class);
+    } catch (JsonParseException | JsonMappingException jsonException) {
+      throw new UnsupportedRowJsonException("Unable to parse Row", jsonException);
     } catch (IOException e) {
       throw new IllegalArgumentException("Unable to parse json object: " + jsonString, e);
     }

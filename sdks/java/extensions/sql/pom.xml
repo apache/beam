@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-extensions-parent</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -39,12 +39,6 @@
     <avatica.version>1.11.0</avatica.version>
     <mockito.version>1.9.5</mockito.version>
     <quickcheck.version>0.8</quickcheck.version>
-    
-    <!-- charset that calcite will use for the tables in the tests -->
-    <!-- need to setup as system property prior to running any tests
-         or some of the tests may fail as calcite will init itself
-         with it's default of ISO-8859-1 -->
-    <calcite.charset>UTF-16LE</calcite.charset>
   </properties>
 
   <profiles>
@@ -209,13 +203,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <saffron.default.charset>${calcite.charset}</saffron.default.charset>
-            <saffron.default.nationalcharset>${calcite.charset}</saffron.default.nationalcharset>
-            <saffron.default.collation.name>${calcite.charset}$en_US</saffron.default.collation.name>
-          </systemPropertyVariables>
-        </configuration>
       </plugin>
 
       <plugin>
@@ -378,6 +365,23 @@
     </dependency>
 
     <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>fastjson</artifactId>
+      <version>1.2.12</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <!-- this is a hack to make it available at compile time but not bundled.-->
@@ -414,27 +418,25 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>com.pholser</groupId>
       <artifactId>junit-quickcheck-core</artifactId>
       <version>${quickcheck.version}</version>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.alibaba</groupId>
-      <artifactId>fastjson</artifactId>
-      <version>1.2.12</version>
     </dependency>
   </dependencies>
 </project>

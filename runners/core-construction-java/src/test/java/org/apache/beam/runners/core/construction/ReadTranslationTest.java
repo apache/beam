@@ -43,7 +43,6 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -77,7 +76,7 @@ public class ReadTranslationTest {
     ReadPayload payload = ReadTranslation.toProto(boundedRead, SdkComponents.create());
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
-    assertThat(deserializedSource, Matchers.equalTo(source));
+    assertThat(deserializedSource, equalTo(source));
   }
 
   @Test
@@ -88,7 +87,7 @@ public class ReadTranslationTest {
     ReadPayload payload = ReadTranslation.toProto(unboundedRead, SdkComponents.create());
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
-    assertThat(deserializedSource, Matchers.equalTo(source));
+    assertThat(deserializedSource, equalTo(source));
   }
 
   private static class TestBoundedSource extends BoundedSource<String> {
@@ -157,7 +156,7 @@ public class ReadTranslationTest {
       return TestUnboundedSource.class.hashCode();
     }
 
-    private class TestCheckpointMarkCoder extends AtomicCoder<CheckpointMark> {
+    private static class TestCheckpointMarkCoder extends AtomicCoder<CheckpointMark> {
       @Override
       public void encode(CheckpointMark value, OutputStream outStream)
           throws CoderException, IOException {

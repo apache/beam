@@ -160,17 +160,17 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       ApiServiceDescriptor artifactStagingEndpoint =
           prepareJobResponse.getArtifactStagingEndpoint();
 
-      String stagingToken = null;
+      String retrievalToken = null;
       try (CloseableResource<ManagedChannel> artifactChannel =
           CloseableResource.of(
               channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
         ArtifactServiceStager stager = ArtifactServiceStager.overChannel(artifactChannel.get());
         LOG.debug("Actual files staged: {}", filesToStage);
-        stagingToken = stager.stage(filesToStage);
+        retrievalToken = stager.stage(filesToStage);
       } catch (CloseableResource.CloseException e) {
         LOG.warn("Error closing artifact staging channel", e);
         // CloseExceptions should only be thrown while closing the channel.
-        checkState(stagingToken != null);
+        checkState(retrievalToken != null);
       } catch (Exception e) {
         throw new RuntimeException("Error staging files.", e);
       }
@@ -178,7 +178,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       RunJobRequest runJobRequest =
           RunJobRequest.newBuilder()
               .setPreparationId(prepareJobResponse.getPreparationId())
-              .setStagingToken(stagingToken)
+              .setRetrievalToken(retrievalToken)
               .build();
 
       RunJobResponse runJobResponse = jobService.run(runJobRequest);

@@ -95,7 +95,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public <T> Window[] apply(Context<T> context) {
+    public <T2> Window[] apply(Context<T2> context) {
       try {
         Object element = context.element();
         if (element instanceof TranslatorUtils.RawUnionValue) {
@@ -162,7 +162,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public KV<org.joda.time.Instant, WindowedValue<KV<K, V>>> map(
+    public KV<Instant, WindowedValue<KV<K, V>>> map(
         WindowedValue<KV<K, V>> wv) {
       BoundedWindow window = Iterables.getOnlyElement(wv.getWindows());
       Instant timestamp = timestampCombiner.assign(window
@@ -249,7 +249,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
           WindowedValue<KV<K, List<V>>>> {
 
     @Override
-    public WindowedValue<KV<K, List<V>>> map(KV<org.joda.time.Instant,
+    public WindowedValue<KV<K, List<V>>> map(KV<Instant,
         WindowedValue<KV<K, List<V>>>> kv) {
       Instant timestamp = kv.getKey();
       WindowedValue<KV<K, List<V>>> wv = kv.getValue();

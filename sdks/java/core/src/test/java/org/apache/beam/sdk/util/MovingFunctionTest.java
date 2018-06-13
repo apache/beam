@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class MovingFunctionTest {
 
   private static final long SAMPLE_PERIOD = 100;
-  private static final long SAMPLE_UPDATE = 10;
+  private static final int SAMPLE_UPDATE = 10;
   private static final int SIGNIFICANT_BUCKETS = 2;
   private static final int SIGNIFICANT_SAMPLES = 10;
 

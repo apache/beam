@@ -26,7 +26,7 @@ import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -53,7 +53,7 @@ import org.apache.beam.sdk.values.Row;
 public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
-      BeamSql.query("SELECT * FROM PCOLLECTION");
+      SqlTransform.query("SELECT * FROM PCOLLECTION");
 
   public SqlQuery0() {
     super("SqlQuery0");

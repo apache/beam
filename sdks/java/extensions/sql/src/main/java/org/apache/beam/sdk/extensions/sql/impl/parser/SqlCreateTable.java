@@ -43,11 +43,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 
-/**
- * Parse tree for {@code CREATE TABLE} statement.
- */
-public class SqlCreateTable extends SqlCreate
-    implements SqlExecutableStatement {
+/** Parse tree for {@code CREATE TABLE} statement. */
+public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement {
   private final SqlIdentifier name;
   private final List<Schema.Field> columnList;
   private final SqlNode type;
@@ -58,9 +55,7 @@ public class SqlCreateTable extends SqlCreate
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
 
-  /**
-   * Creates a SqlCreateTable.
-   */
+  /** Creates a SqlCreateTable. */
   public SqlCreateTable(
       SqlParserPos pos,
       boolean replace,
@@ -118,14 +113,13 @@ public class SqlCreateTable extends SqlCreate
 
   @Override
   public void execute(CalcitePrepare.Context context) {
-    final Pair<CalciteSchema, String> pair =
-        SqlDdlNodes.schema(context, true, name);
+    final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, name);
     if (pair.left.plus().getTable(pair.right) != null) {
       // Table exists.
       if (!ifNotExists) {
         // They did not specify IF NOT EXISTS, so give error.
-        throw SqlUtil.newContextException(name.getParserPosition(),
-                                          RESOURCE.tableExists(pair.right));
+        throw SqlUtil.newContextException(
+            name.getParserPosition(), RESOURCE.tableExists(pair.right));
       }
       return;
     }
@@ -158,19 +152,16 @@ public class SqlCreateTable extends SqlCreate
     return n == null ? null : ((NlsString) SqlLiteral.value(n)).getValue();
   }
 
-  Table toTable() {
-    return
-        Table
-            .builder()
-            .type(getString(type))
-            .name(name.getSimple())
-            .schema(columnList.stream().collect(toSchema()))
-            .comment(getString(comment))
-            .location(getString(location))
-            .properties((tblProperties == null)
-                            ? new JSONObject()
-                            : parseObject(getString(tblProperties)))
-            .build();
+  private Table toTable() {
+    return Table.builder()
+        .type(getString(type))
+        .name(name.getSimple())
+        .schema(columnList.stream().collect(toSchema()))
+        .comment(getString(comment))
+        .location(getString(location))
+        .properties(
+            (tblProperties == null) ? new JSONObject() : parseObject(getString(tblProperties)))
+        .build();
   }
 }
 

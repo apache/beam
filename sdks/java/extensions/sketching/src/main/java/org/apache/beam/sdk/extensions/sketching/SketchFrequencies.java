@@ -148,7 +148,7 @@ import org.apache.beam.sdk.values.PCollection;
  * {@literal PCollection<KV<MyObject, Long>>} pairs = pc.apply(ParDo.of(
  *        {@literal new DoFn<Long, KV<MyObject, Long>>()} {
  *          {@literal @ProcessElement}
- *           public void procesElement(ProcessContext c) {
+ *           public void processElement(ProcessContext c) {
  *             Long elem = c.element();
  *             CountMinSketch sketch = c.sideInput(sketchView);
  *             c.output(sketch.estimateCount(elem, coder));
@@ -195,7 +195,7 @@ public final class SketchFrequencies {
 
   /**
    * Like {@link #globally()} but per key, i.e a Count-min sketch per key
-   * in {@code  PCollection<KV<K, V>>} and returns a
+   * in {@code PCollection<KV<K, V>>} and returns a
    * {@code PCollection<KV<K, {@link CountMinSketch}>>}.
    *
    * @param <K> type of the keys mapping the elements
@@ -260,10 +260,11 @@ public final class SketchFrequencies {
 
     @Override
     public PCollection<Sketch<InputT>> expand(PCollection<InputT> input) {
-      return input.apply("Compute Count-Min Sketch",
-                      Combine.<InputT, Sketch<InputT>>globally(CountMinSketchFn
-                              .<InputT>create(input.getCoder())
-                              .withAccuracy(relativeError(), confidence())));
+      return input.apply(
+          "Compute Count-Min Sketch",
+          Combine.globally(
+              CountMinSketchFn.create(input.getCoder())
+                  .withAccuracy(relativeError(), confidence())));
     }
   }
 
@@ -324,10 +325,11 @@ public final class SketchFrequencies {
     @Override
     public PCollection<KV<K, Sketch<V>>> expand(PCollection<KV<K, V>> input) {
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
-      return input.apply("Compute Count-Min Sketch perKey",
-              Combine.<K, V, Sketch<V>>perKey(CountMinSketchFn
-                      .<V>create(inputCoder.getValueCoder())
-                      .withAccuracy(relativeError(), confidence())));
+      return input.apply(
+          "Compute Count-Min Sketch perKey",
+          Combine.perKey(
+              CountMinSketchFn.create(inputCoder.getValueCoder())
+                  .withAccuracy(relativeError(), confidence())));
     }
   }
 
@@ -391,7 +393,7 @@ public final class SketchFrequencies {
     }
 
     @Override public Sketch<InputT> createAccumulator() {
-      return Sketch.<InputT>create(epsilon, confidence);
+      return Sketch.create(epsilon, confidence);
     }
 
     @Override public Sketch<InputT> addInput(Sketch<InputT> accumulator, InputT element) {
@@ -413,7 +415,7 @@ public final class SketchFrequencies {
         throw new IllegalStateException("The accumulators cannot be merged:" + e.getMessage());
       }
 
-      return Sketch.<InputT>create(mergedSketches);
+      return Sketch.create(mergedSketches);
     }
 
     /** Output the whole structure so it can be queried, reused or stored easily. */
@@ -520,7 +522,7 @@ public final class SketchFrequencies {
     public Sketch<T> decode(InputStream inStream) throws IOException {
       byte[] sketchBytes = BYTE_ARRAY_CODER.decode(inStream);
       CountMinSketch sketch = CountMinSketch.deserialize(sketchBytes);
-      return Sketch.<T>create(sketch);
+      return Sketch.create(sketch);
     }
 
     @Override

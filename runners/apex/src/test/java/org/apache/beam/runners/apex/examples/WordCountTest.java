@@ -66,6 +66,7 @@ public class WordCountTest {
     private static final long serialVersionUID = 1L;
     private final Counter emptyLines = Metrics.counter("main", "emptyLines");
 
+    @SuppressWarnings("StringSplitter")
     @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {

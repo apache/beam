@@ -18,20 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Implements array element access expression.
- */
+/** Implements array element access expression. */
 public class BeamSqlArrayItemExpression extends BeamSqlExpression {
 
-  public BeamSqlArrayItemExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  public BeamSqlArrayItemExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
 
     super(operands, sqlTypeName);
   }
@@ -42,9 +39,10 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    List<Object> array = opValueEvaluated(0, inputRow, window);
-    Integer index = opValueEvaluated(1, inputRow, window);
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    List<Object> array = opValueEvaluated(0, inputRow, window, env);
+    Integer index = opValueEvaluated(1, inputRow, window, env);
 
     return BeamSqlPrimitive.of(outputType, array.get(index));
   }

@@ -533,13 +533,15 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   @SafeVarargs
   public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
+    injectElements(Arrays.asList(values));
+  }
+
+  public final void injectElements(List<TimestampedValue<InputT>> values) throws Exception {
     for (TimestampedValue<InputT> value : values) {
       WindowTracing.trace("TriggerTester.injectElements: {}", value);
     }
 
-    Iterable<WindowedValue<InputT>> inputs =
-        Arrays.asList(values)
-            .stream()
+    Iterable<WindowedValue<InputT>> inputs = values.stream()
             .map(
                 input -> {
                   try {

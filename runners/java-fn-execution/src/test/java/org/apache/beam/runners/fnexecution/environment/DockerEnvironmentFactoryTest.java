@@ -23,8 +23,6 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -33,6 +31,8 @@ import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,9 +53,7 @@ public class DockerEnvironmentFactoryTest {
   private static final String CONTAINER_ID =
       "e4485f0f2b813b63470feacba5fe9cb89699878c095df4124abd320fd5401385";
 
-  private static final AtomicLong nextId = new AtomicLong(0);
-  private static final Supplier<String> ID_GENERATOR =
-      () -> Long.toString(nextId.getAndIncrement());
+  private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
 
   @Mock private DockerCommand docker;
 
@@ -65,6 +63,7 @@ public class DockerEnvironmentFactoryTest {
   @Mock private GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
   @Mock private InstructionRequestHandler client;
+  private DockerEnvironmentFactory factory;
 
   @Before
   public void initMocks() {
@@ -74,12 +73,21 @@ public class DockerEnvironmentFactoryTest {
     when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(retrievalServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(provisioningServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
+    factory =
+        DockerEnvironmentFactory.forServicesWithDocker(
+            docker,
+            controlServiceServer,
+            loggingServiceServer,
+            retrievalServiceServer,
+            provisioningServiceServer,
+            (workerId, timeout) -> client,
+            ID_GENERATOR);
   }
 
   @Test
   public void createsCorrectEnvironment() throws Exception {
-    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any())).thenReturn(CONTAINER_ID);
-    DockerEnvironmentFactory factory = getFactory();
+    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+        .thenReturn(CONTAINER_ID);
 
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     assertThat(handle.getInstructionRequestHandler(), is(client));
@@ -88,8 +96,8 @@ public class DockerEnvironmentFactoryTest {
 
   @Test
   public void destroysCorrectContainer() throws Exception {
-    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any())).thenReturn(CONTAINER_ID);
-    DockerEnvironmentFactory factory = getFactory();
+    when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
+        .thenReturn(CONTAINER_ID);
 
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     handle.close();
@@ -98,8 +106,6 @@ public class DockerEnvironmentFactoryTest {
 
   @Test
   public void createsMultipleEnvironments() throws Exception {
-    DockerEnvironmentFactory factory = getFactory();
-
     Environment fooEnv = Environment.newBuilder().setUrl("foo").build();
     RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
     assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
@@ -107,16 +113,5 @@ public class DockerEnvironmentFactoryTest {
     Environment barEnv = Environment.newBuilder().setUrl("bar").build();
     RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
     assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
-  }
-
-  private DockerEnvironmentFactory getFactory() {
-    return DockerEnvironmentFactory.forServices(
-        docker,
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        (workerId, timeout) -> client,
-        ID_GENERATOR);
   }
 }

@@ -16,12 +16,9 @@
  * limitations under the License.
  */
 
-/**
- * Support for fields of type ROW.
- */
+/** Support for fields of type ROW. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.NonNull;
-

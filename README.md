@@ -23,6 +23,8 @@
 
 ## Status
 
+[![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
+[![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
 [![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_GradleBuild)](https://builds.apache.org/job/beam_PostCommit_Java_GradleBuild)
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
 
@@ -51,7 +53,7 @@ The key concepts in the Beam programming model are:
 
 Beam supports multiple language specific SDKs for writing pipelines against the Beam Model.
 
-Currently, this repository contains SDKs for both Java and Python.
+Currently, this repository contains SDKs for Java, Python and Go.
 
 Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
 
@@ -69,7 +71,7 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse
 
 ## Getting Started
 
-Please refer to the Quickstart[[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py)] available on our website.
+Please refer to the Quickstart[[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
 
 If you'd like to build and install the whole project from the source distribution, you may need some additional tools installed
 in your system. In a Debian-based distribution:
@@ -78,7 +80,8 @@ in your system. In a Debian-based distribution:
 sudo apt-get install \
     openjdk-8-jdk \
     python-setuptools \
-    python-pip
+    python-pip \
+    virtualenv
 ```
 
 Then please use the standard `./gradlew build` command.
@@ -101,4 +104,4 @@ We also have a [contributor's guide](https://beam.apache.org/contribute/contribu
 
 * [Apache Beam](http://beam.apache.org)
 * [Overview](http://beam.apache.org/use/beam-overview/)
-* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py)
+* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)

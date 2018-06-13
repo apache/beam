@@ -22,130 +22,118 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
-/**
- * Accumulates current covariance of a sample, means of two elements, and number of elements.
- */
+/** Accumulates current covariance of a sample, means of two elements, and number of elements. */
 @AutoValue
 abstract class CovarianceAccumulator implements Serializable {
-    static final CovarianceAccumulator EMPTY =
-            newCovarianceAccumulator(BigDecimal.ZERO, BigDecimal.ZERO,
-                    BigDecimal.ZERO, BigDecimal.ZERO);
+  static final CovarianceAccumulator EMPTY =
+      newCovarianceAccumulator(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
-    abstract BigDecimal covariance();
-    abstract BigDecimal count();
-    abstract BigDecimal xavg();
-    abstract BigDecimal yavg();
+  abstract BigDecimal covariance();
 
-    static CovarianceAccumulator newCovarianceAccumulator(
-            BigDecimal covariance,
-            BigDecimal count,
-            BigDecimal xavg,
-            BigDecimal yavg) {
+  abstract BigDecimal count();
 
-        return new AutoValue_CovarianceAccumulator(covariance, count, xavg, yavg);
+  abstract BigDecimal xavg();
+
+  abstract BigDecimal yavg();
+
+  static CovarianceAccumulator newCovarianceAccumulator(
+      BigDecimal covariance, BigDecimal count, BigDecimal xavg, BigDecimal yavg) {
+
+    return new AutoValue_CovarianceAccumulator(covariance, count, xavg, yavg);
+  }
+
+  static CovarianceAccumulator ofZeroElements() {
+    return EMPTY;
+  }
+
+  static CovarianceAccumulator ofSingleElement(BigDecimal inputElementX, BigDecimal inputElementY) {
+    return newCovarianceAccumulator(BigDecimal.ZERO, BigDecimal.ONE, inputElementX, inputElementY);
+  }
+
+  /** See {@link CovarianceFn} doc above for explanation. */
+  CovarianceAccumulator combineWith(CovarianceAccumulator otherCovariance) {
+    if (EMPTY.equals(this)) {
+      return otherCovariance;
     }
 
-    static CovarianceAccumulator ofZeroElements() {
-        return EMPTY;
+    if (EMPTY.equals(otherCovariance)) {
+      return this;
     }
 
-    static CovarianceAccumulator ofSingleElement(
-            BigDecimal inputElementX, BigDecimal inputElementY) {
-        return newCovarianceAccumulator(BigDecimal.ZERO,
-                                        BigDecimal.ONE,
-                                        inputElementX,
-                                        inputElementY);
-    }
+    BigDecimal increment = calculateIncrement(this, otherCovariance);
+    BigDecimal combinedCovariance =
+        this.covariance().add(otherCovariance.covariance()).add(increment);
 
-    /**
-     * See {@link CovarianceFn} doc above for explanation.
-     */
-    CovarianceAccumulator combineWith(CovarianceAccumulator otherCovariance) {
-        if (EMPTY.equals(this)) {
-            return otherCovariance;
-        }
+    return newCovarianceAccumulator(
+        combinedCovariance,
+        this.count().add(otherCovariance.count()),
+        calculateXavg(this, otherCovariance),
+        calculateYavg(this, otherCovariance));
+  }
 
-        if (EMPTY.equals(otherCovariance)) {
-            return this;
-        }
+  /** Implements this part: {@code increment = (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/n_X }. */
+  private BigDecimal calculateIncrement(
+      CovarianceAccumulator covarA, CovarianceAccumulator covarB) {
 
-        BigDecimal increment = calculateIncrement(this, otherCovariance);
-        BigDecimal combinedCovariance =
-                this.covariance()
-                        .add(otherCovariance.covariance())
-                        .add(increment);
+    BigDecimal countA = covarA.count();
+    BigDecimal countB = covarB.count();
 
-        return newCovarianceAccumulator(
-                combinedCovariance,
-                this.count().add(otherCovariance.count()),
-                calculateXavg(this, otherCovariance),
-                calculateYavg(this, otherCovariance)
-                );
-    }
+    BigDecimal totalCount = countA.add(countB);
 
-    /**
-     * Implements this part: {@code increment = (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/n_X }.
-     */
-    private BigDecimal calculateIncrement(
-            CovarianceAccumulator covarA, CovarianceAccumulator covarB) {
+    BigDecimal avgXA = covarA.xavg();
+    BigDecimal avgYA = covarA.yavg();
 
-        BigDecimal countA = covarA.count();
-        BigDecimal countB = covarB.count();
+    BigDecimal avgXB = covarB.xavg();
+    BigDecimal avgYB = covarB.yavg();
 
-        BigDecimal totalCount = countA.add(countB);
+    BigDecimal inc =
+        avgXA
+            .subtract(avgXB)
+            .multiply(avgYA.subtract(avgYB))
+            .multiply(countA)
+            .multiply(countB)
+            .divide(totalCount, CovarianceFn.MATH_CTX);
 
-        BigDecimal avgXA = covarA.xavg();
-        BigDecimal avgYA = covarA.yavg();
+    return inc;
+  }
 
-        BigDecimal avgXB = covarB.xavg();
-        BigDecimal avgYB = covarB.yavg();
+  /** Implements this part: {@code avg_x = (avgx_A * n_A) + (avgx_B * n_B) / n_X }. */
+  private BigDecimal calculateXavg(CovarianceAccumulator covarA, CovarianceAccumulator covarB) {
 
-        BigDecimal inc =
-                avgXA.subtract(avgXB)
-                        .multiply(avgYA.subtract(avgYB))
-                        .multiply(countA).multiply(countB)
-                .divide(totalCount, CovarianceFn.MATH_CTX);
+    BigDecimal countA = covarA.count();
+    BigDecimal countB = covarB.count();
 
-        return inc;
-    }
+    BigDecimal totalCount = countA.add(countB);
 
-    /**
-     * Implements this part: {@code avg_x = (avgx_A * n_A) + (avgx_B * n_B) / n_X }.
-     */
-    private BigDecimal calculateXavg(
-            CovarianceAccumulator covarA, CovarianceAccumulator covarB) {
+    BigDecimal avgXA = covarA.xavg();
+    BigDecimal avgXB = covarB.xavg();
 
-        BigDecimal countA = covarA.count();
-        BigDecimal countB = covarB.count();
+    BigDecimal newXavg =
+        avgXA
+            .multiply(countA)
+            .add(avgXB.multiply(countB))
+            .divide(totalCount, CovarianceFn.MATH_CTX);
 
-        BigDecimal totalCount = countA.add(countB);
+    return newXavg;
+  }
 
-        BigDecimal avgXA = covarA.xavg();
-        BigDecimal avgXB = covarB.xavg();
+  /** Implements this part: {@code avg_y = (avgy_A * n_A) + (avgy_B * n_B) / n_Y }. */
+  private BigDecimal calculateYavg(CovarianceAccumulator covarA, CovarianceAccumulator covarB) {
 
-        BigDecimal newXavg = avgXA.multiply(countA).add(avgXB.multiply(countB))
-                .divide(totalCount, CovarianceFn.MATH_CTX);
+    BigDecimal countA = covarA.count();
+    BigDecimal countB = covarB.count();
 
-        return newXavg;
-    }
+    BigDecimal totalCount = countA.add(countB);
 
-    /**
-     * Implements this part: {@code avg_y = (avgy_A * n_A) + (avgy_B * n_B) / n_Y }.
-     */
-    private BigDecimal calculateYavg(
-            CovarianceAccumulator covarA, CovarianceAccumulator covarB) {
+    BigDecimal avgYA = covarA.yavg();
+    BigDecimal avgYB = covarB.yavg();
 
-        BigDecimal countA = covarA.count();
-        BigDecimal countB = covarB.count();
+    BigDecimal newYavg =
+        avgYA
+            .multiply(countA)
+            .add(avgYB.multiply(countB))
+            .divide(totalCount, CovarianceFn.MATH_CTX);
 
-        BigDecimal totalCount = countA.add(countB);
-
-        BigDecimal avgYA = covarA.yavg();
-        BigDecimal avgYB = covarB.yavg();
-
-        BigDecimal newYavg = avgYA.multiply(countA).add(avgYB.multiply(countB))
-                .divide(totalCount, CovarianceFn.MATH_CTX);
-
-        return newYavg;
-    }
+    return newYavg;
+  }
 }

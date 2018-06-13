@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -39,15 +40,17 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
     super(operands, SqlTypeName.TIMESTAMP);
   }
 
-  @Override public boolean accept() {
-    return operands.size() == 2
-        && opType(1) == SqlTypeName.SYMBOL;
+  @Override
+  public boolean accept() {
+    return operands.size() == 2 && opType(1) == SqlTypeName.SYMBOL;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    ReadableInstant date = opValueEvaluated(0, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    ReadableInstant date = opValueEvaluated(0, inputRow, window, env);
     long time = date.getMillis();
-    TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();
+    TimeUnitRange unit = opValueEvaluated(1, inputRow, window, env);
 
     long newTime = DateTimeUtils.unixTimestampCeil(unit, time);
     DateTime newDate = new DateTime(newTime, date.getZone());

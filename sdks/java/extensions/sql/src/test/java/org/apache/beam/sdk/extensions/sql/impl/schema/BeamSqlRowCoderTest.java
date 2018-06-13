@@ -31,33 +31,31 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-/**
- * Tests for BeamSqlRowCoder.
- */
+/** Tests for BeamSqlRowCoder. */
 public class BeamSqlRowCoderTest {
 
   @Test
   public void encodeAndDecode() throws Exception {
-    RelDataType relDataType = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
-        .builder()
-        .add("col_tinyint", SqlTypeName.TINYINT)
-        .add("col_smallint", SqlTypeName.SMALLINT)
-        .add("col_integer", SqlTypeName.INTEGER)
-        .add("col_bigint", SqlTypeName.BIGINT)
-        .add("col_float", SqlTypeName.FLOAT)
-        .add("col_double", SqlTypeName.DOUBLE)
-        .add("col_decimal", SqlTypeName.DECIMAL)
-        .add("col_string_varchar", SqlTypeName.VARCHAR)
-        .add("col_time", SqlTypeName.TIME)
-        .add("col_timestamp", SqlTypeName.TIMESTAMP)
-        .add("col_boolean", SqlTypeName.BOOLEAN)
-        .build();
+    RelDataType relDataType =
+        new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
+            .builder()
+            .add("col_tinyint", SqlTypeName.TINYINT)
+            .add("col_smallint", SqlTypeName.SMALLINT)
+            .add("col_integer", SqlTypeName.INTEGER)
+            .add("col_bigint", SqlTypeName.BIGINT)
+            .add("col_float", SqlTypeName.FLOAT)
+            .add("col_double", SqlTypeName.DOUBLE)
+            .add("col_decimal", SqlTypeName.DECIMAL)
+            .add("col_string_varchar", SqlTypeName.VARCHAR)
+            .add("col_time", SqlTypeName.TIME)
+            .add("col_timestamp", SqlTypeName.TIMESTAMP)
+            .add("col_boolean", SqlTypeName.BOOLEAN)
+            .build();
 
     Schema beamSchema = CalciteUtils.toBeamSchema(relDataType);
 
     Row row =
-        Row
-            .withSchema(beamSchema)
+        Row.withSchema(beamSchema)
             .addValues(
                 Byte.valueOf("1"),
                 Short.valueOf("1"),

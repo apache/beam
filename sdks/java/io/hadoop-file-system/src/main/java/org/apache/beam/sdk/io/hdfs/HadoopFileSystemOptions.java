@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration}
  * for the {@link HadoopFileSystem}.
  */
+@SuppressWarnings("WeakerAccess")
 @Experimental(Kind.FILESYSTEM)
 public interface HadoopFileSystemOptions extends PipelineOptions {
   @Description("A list of Hadoop configurations used to configure zero or more Hadoop filesystems. "
