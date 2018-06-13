@@ -51,7 +51,6 @@ job(jobName) {
             kubeconfig              : kubeconfig,
             beam_it_timeout         : '1800',
             benchmarks              : 'beam_integration_benchmark',
-            beam_it_profile         : 'io-it',
             beam_prebuilt           : 'false',
             beam_sdk                : 'java',
             beam_it_module          : 'sdks/java/io/mongodb',
