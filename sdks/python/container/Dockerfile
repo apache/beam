@@ -46,10 +46,12 @@ RUN \
     pip install "crcmod == 1.7" && \
     pip install "dill == 0.2.6" && \
     pip install "grpcio == 1.3.0" && \
+    pip install "hdfs == 2.1.0" && \
     pip install "httplib2 == 0.9.2" && \
     pip install "mock == 2.0.0" && \
     pip install "oauth2client == 3.0.0" && \
     pip install "protobuf == 3.3.0" && \
+    pip install "pytz == 2018.4" && \
     pip install "pyyaml == 3.12" && \
     pip install "pyvcf == 0.6.8" && \
     pip install "six == 1.10.0" && \
@@ -63,6 +65,7 @@ RUN \
     pip install "proto-google-cloud-datastore-v1 == 0.90.4" && \
     pip install "googledatastore == 7.0.1" && \
     pip install "google-cloud-pubsub == 0.26.0" && \
+    pip install "proto-google-cloud-pubsub-v1 == 0.15.4" && \
     pip install "google-cloud-bigquery == 0.25.0" && \
     # Optional packages
     pip install "cython == 0.28.1" && \
