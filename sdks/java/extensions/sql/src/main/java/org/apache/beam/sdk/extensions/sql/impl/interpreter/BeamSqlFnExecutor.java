@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -106,6 +105,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -171,36 +171,38 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         //     node.getSqlTypeName() = DECIMAL (the actual internal storage format)
         // So we need to do a convert here.
         // check RexBuilder#makeLiteral for more information.
+
         SqlTypeName realType = node.getType().getSqlTypeName();
         Object realValue = value;
-        if (type == SqlTypeName.DECIMAL) {
-          BigDecimal rawValue = (BigDecimal) value;
+        if (SqlTypeName.NUMERIC_TYPES.contains(type)) {
           switch (realType) {
             case TINYINT:
-              realValue = (byte) rawValue.intValue();
+              realValue = SqlFunctions.toByte(value);
               break;
             case SMALLINT:
-              realValue = (short) rawValue.intValue();
+              realValue = SqlFunctions.toShort(value);
               break;
             case INTEGER:
-              realValue = rawValue.intValue();
+              realValue = SqlFunctions.toInt(value);
               break;
             case BIGINT:
-              realValue = rawValue.longValue();
+              realValue = SqlFunctions.toLong(value);
+              break;
+            case FLOAT:
+              realValue = SqlFunctions.toFloat(value);
+              break;
+            case DOUBLE:
+              realValue = SqlFunctions.toDouble(value);
               break;
             case DECIMAL:
-              realValue = rawValue;
+              realValue = SqlFunctions.toBigDecimal(value);
               break;
             default:
               throw new IllegalStateException(
-                  "type/realType mismatch: " + type + " VS " + realType);
-          }
-        } else if (type == SqlTypeName.DOUBLE) {
-          Double rawValue = (Double) value;
-          if (realType == SqlTypeName.FLOAT) {
-            realValue = rawValue.floatValue();
+                  "type / realType mismatch: " + type + " <-> " + realType);
           }
         }
+
         return BeamSqlPrimitive.of(realType, realValue);
       }
     } else if (rexNode instanceof RexInputRef) {
@@ -443,7 +445,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "DOT":
           return new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
 
-          //DEFAULT keyword for UDF with optional parameter
+          // DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
           return new BeamSqlDefaultExpression();
 
@@ -477,7 +479,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlWindowEndExpression();
           break;
         default:
-          //handle UDF
+          // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
             SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
             ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
