@@ -36,6 +36,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -200,6 +202,12 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
 
       return new ValueByWindowByBuilder<>(paramsCasted);
+    }
+
+    @Override
+    public <K> ValueByWindowByBuilder<InputT, K> keyBy(
+        UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
+      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 

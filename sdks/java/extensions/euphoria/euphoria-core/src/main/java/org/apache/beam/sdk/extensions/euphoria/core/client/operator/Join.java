@@ -46,6 +46,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -307,6 +310,13 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
       return new UsingBuilder<>(paramsCasted);
     }
+
+    public <K> UsingBuilder<LeftT, RightT, K> by(
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        TypeHint<K> keyTypeHint) {
+      return by(TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeHint),
+          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeHint));
+    }
   }
 
   /**
@@ -333,6 +343,10 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       return new Join.WindowingBuilder<>(paramsCasted);
     }
 
+    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+        BinaryFunctor<LeftT, RightT, OutputT> joinFunc, TypeHint<OutputT> outputTypeHint) {
+      return using(TypeAwareBinaryFunctor.of(joinFunc, outputTypeHint));
+    }
   }
 
   /**

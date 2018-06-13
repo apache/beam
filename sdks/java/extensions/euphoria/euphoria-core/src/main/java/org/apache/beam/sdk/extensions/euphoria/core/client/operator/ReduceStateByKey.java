@@ -252,13 +252,7 @@ public class ReduceStateByKey<
     public <K> ValueByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
 
-      TypeAwareUnaryFunction<InputT, K> typeAwareKeyExtractor =
-          TypeAwareUnaryFunction.of(Objects.requireNonNull(keyExtractor), typeHint);
-
-      BuilderParams<InputT, K, ?, ?, ?, ?> params = new BuilderParams<>(
-          name, input, typeAwareKeyExtractor);
-
-      return new ValueByBuilder<>(params);
+      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 
