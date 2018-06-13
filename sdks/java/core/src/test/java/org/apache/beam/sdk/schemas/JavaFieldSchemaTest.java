@@ -22,18 +22,25 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 public class JavaFieldSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
+  static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
 
   @DefaultSchema(JavaFieldSchema.class)
   public static class SimplePojo {
@@ -44,12 +51,17 @@ public class JavaFieldSchemaTest {
     public long aLong;
     public boolean aBoolean;
     public DateTime dateTime;
+    public Instant instant;
     public byte[] bytes;
+    public ByteBuffer byteBuffer;
+    public BigDecimal bigDecimal;
+    public StringBuilder stringBuilder;
 
     public SimplePojo() { }
 
     public SimplePojo(String str, byte aByte, short aShort, int anInt, long aLong, boolean aBoolean,
-                      DateTime dateTime, byte[] bytes) {
+                      DateTime dateTime, Instant instant, byte[] bytes, BigDecimal bigDecimal,
+                      StringBuilder stringBuilder) {
       this.str = str;
       this.aByte = aByte;
       this.aShort = aShort;
@@ -57,7 +69,11 @@ public class JavaFieldSchemaTest {
       this.aLong = aLong;
       this.aBoolean = aBoolean;
       this.dateTime = dateTime;
+      this.instant = instant;
       this.bytes = bytes;
+      this.byteBuffer = ByteBuffer.wrap(bytes);
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
     }
   }
 
@@ -69,19 +85,23 @@ public class JavaFieldSchemaTest {
       .addInt64Field("aLong")
       .addBooleanField("aBoolean")
       .addDateTimeField("dateTime")
+      .addDateTimeField("instant")
       .addByteArrayField("bytes")
+      .addByteArrayField("byteBuffer")
+      .addDecimalField("bigDecimal")
+      .addStringField("stringBuilder")
       .build();
 
   private SimplePojo createSimple(String name) {
     return new SimplePojo(name, (byte) 1, (short) 2, 3, 4L,true,
-        DATE, "bytearray".getBytes(Charset.defaultCharset()));
+        DATE, DATE.toInstant(), BYTE_ARRAY, BigDecimal.ONE,
+        new StringBuilder(name).append("builder"));
   }
 
   private Row createSimpleRow(String name) {
     return Row.withSchema(SIMPLE_SCHEMA)
-        .addValues(name, (byte) 1, (short) 2, 3, 4L, true,
-            DATE, "bytearray".getBytes(Charset.defaultCharset()))
-        .build();
+        .addValues(name, (byte) 1, (short) 2, 3, 4L, true, DATE, DATE, BYTE_ARRAY, BYTE_ARRAY,
+            BigDecimal.ONE, new StringBuilder(name).append("builder").toString()).build();
   }
 
   @Test
@@ -97,7 +117,7 @@ public class JavaFieldSchemaTest {
     SimplePojo pojo = createSimple("string");
     Row row = registry.getToRowFunction(SimplePojo.class).apply(pojo);
 
-    assertEquals(8, row.getFieldCount());
+    assertEquals(12, row.getFieldCount());
     assertEquals("string", row.getString(0));
     assertEquals((byte) 1, row.getByte(1).byteValue());
     assertEquals((short) 2, row.getInt16(2).shortValue());
@@ -105,6 +125,11 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, row.getInt64(4).longValue());
     assertEquals(true, row.getBoolean(5));
     assertEquals(DATE, row.getDateTime(6));
+    assertEquals(DATE, row.getDateTime(7));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes(8));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes(9));
+    assertEquals(BigDecimal.ONE, row.getDecimal(10));
+    assertEquals("stringbuilder", row.getString(11));
   }
 
   @Test
@@ -120,6 +145,11 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, pojo.aLong);
     assertEquals(true, pojo.aBoolean);
     assertEquals(DATE, pojo.dateTime);
+    assertEquals(DATE.toInstant(), pojo.instant);
+    assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes);
+    assertArrayEquals("not equal", BYTE_ARRAY, pojo.byteBuffer.array());
+    assertEquals(BigDecimal.ONE, pojo.bigDecimal);
+    assertEquals("stringbuilder", pojo.stringBuilder.toString());
   }
 
   @Test
@@ -168,6 +198,11 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, nestedRow.getInt64(4).longValue());
     assertEquals(true, nestedRow.getBoolean(5));
     assertEquals(DATE, nestedRow.getDateTime(6));
+    assertEquals(DATE, nestedRow.getDateTime(7));
+    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes(8));
+    assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes(9));
+    assertEquals(BigDecimal.ONE, nestedRow.getDecimal(10));
+    assertEquals("stringbuilder", nestedRow.getString(11));
   }
 
   @Test
@@ -189,16 +224,24 @@ public class JavaFieldSchemaTest {
     assertEquals((long) 4, pojo.nested.aLong);
     assertEquals(true, pojo.nested.aBoolean);
     assertEquals(DATE, pojo.nested.dateTime);
-    assertArrayEquals("not equal", "bytearray".getBytes(Charset.defaultCharset()), pojo.nested
-        .bytes);
+    assertEquals(DATE.toInstant(), pojo.nested.instant);
+    assertArrayEquals("not equal", BYTE_ARRAY, pojo.nested.bytes);
+    assertArrayEquals("not equal", BYTE_ARRAY, pojo.nested.byteBuffer.array());
+    assertEquals(BigDecimal.ONE, pojo.nested.bigDecimal);
+    assertEquals("stringbuilder", pojo.nested.stringBuilder.toString());
   }
 
   @DefaultSchema(JavaFieldSchema.class)
   public static class PrimitiveArrayPojo {
+    // Test every type of array parameter supported.
     public List<String> strings;
+    public int[] integers;
+    public Long[] longs;
 
-    public PrimitiveArrayPojo(List<String> strings) {
+    public PrimitiveArrayPojo(List<String> strings, int[] integers, Long[] longs) {
       this.strings = strings;
+      this.integers = integers;
+      this.longs = longs;
     }
 
     public PrimitiveArrayPojo() {
@@ -206,6 +249,8 @@ public class JavaFieldSchemaTest {
   }
   static final Schema PRIMITIVE_ARRAY_SCHEMA = Schema.builder()
       .addArrayField("strings", FieldType.STRING)
+      .addArrayField("integers", FieldType.INT32)
+      .addArrayField("longs", FieldType.INT64)
       .build();
 
   @Test
@@ -213,11 +258,19 @@ public class JavaFieldSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     assertEquals(PRIMITIVE_ARRAY_SCHEMA, registry.getSchema(PrimitiveArrayPojo.class));
 
-    PrimitiveArrayPojo pojo = new PrimitiveArrayPojo(Lists.newArrayList("a", "b", "c"));
+    List<String> strList = ImmutableList.of("a", "b", "c");
+    int[] intArray = {1, 2, 3, 4};
+    Long[] longArray = {42L, 43L, 44L};
+    PrimitiveArrayPojo pojo = new PrimitiveArrayPojo(strList, intArray, longArray);
     Row row = registry.getToRowFunction(PrimitiveArrayPojo.class).apply(pojo);
-    assertEquals(Lists.newArrayList("a", "b", "c"), row.getArray("strings"));
+    assertEquals(strList, row.getArray("strings"));
+    assertEquals(Ints.asList(intArray), row.getArray("integers"));
+    assertEquals(Arrays.asList(longArray), row.getArray("longs"));
+
     // Ensure that list caching works.
     assertSame(row.getArray("strings"), row.getArray("strings"));
+    assertSame(row.getArray("integers"), row.getArray("integers"));
+    assertSame(row.getArray("longs"), row.getArray("longs"));
   }
 
   @Test
@@ -225,9 +278,13 @@ public class JavaFieldSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Row row = Row.withSchema(PRIMITIVE_ARRAY_SCHEMA)
         .addArray("a", "b", "c", "d")
+        .addArray(1, 2, 3, 4)
+        .addArray(42L, 43L, 44L, 45L)
         .build();
     PrimitiveArrayPojo pojo = registry.getFromRowFunction(PrimitiveArrayPojo.class).apply(row);
     assertEquals(row.getArray(0), pojo.strings);
+    assertEquals(row.getArray(1), Ints.asList(pojo.integers));
+    assertEquals(row.getArray(2), Arrays.asList(pojo.longs));
   }
 
   @DefaultSchema(JavaFieldSchema.class)
