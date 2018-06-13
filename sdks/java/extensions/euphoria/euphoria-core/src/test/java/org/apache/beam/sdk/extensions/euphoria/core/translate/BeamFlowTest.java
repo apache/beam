@@ -53,14 +53,14 @@ import org.junit.Test;
  */
 public class BeamFlowTest implements Serializable {
 
-  private PipelineOptions options() {
+  private PipelineOptions defaultOptions() {
     String[] args = {"--runner=DirectRunner"};
     return PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
   }
 
   @Test
   public void testPipelineExec() {
-    Pipeline pipeline = Pipeline.create(options());
+    Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
     ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
     ListDataSink<Integer> sink = ListDataSink.get();
@@ -74,7 +74,7 @@ public class BeamFlowTest implements Serializable {
   @Test
   public void testEuphoriaLoadBeamProcess() {
     {
-      Pipeline pipeline = Pipeline.create(options());
+      Pipeline pipeline = Pipeline.create(defaultOptions());
       BeamFlow flow = BeamFlow.of(pipeline);
       ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
       Dataset<Integer> input = flow.createInput(source);
@@ -98,7 +98,7 @@ public class BeamFlowTest implements Serializable {
 
   @Test
   public void testEuphoriaLoadBeamProcessWithEventTime() {
-    Pipeline pipeline = Pipeline.create(options());
+    Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
     ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
     Dataset<Integer> input = flow.createInput(source, e -> System.currentTimeMillis());
@@ -122,7 +122,7 @@ public class BeamFlowTest implements Serializable {
   @Test
   public void testPipelineFromBeam() {
     List<Integer> inputs = Arrays.asList(1, 2, 3, 4, 5);
-    Pipeline pipeline = Pipeline.create(options());
+    Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
     PCollection<Integer> input =
         pipeline.apply(Create.of(inputs)).setTypeDescriptor(TypeDescriptor.of(Integer.class));
@@ -136,7 +136,7 @@ public class BeamFlowTest implements Serializable {
   @Test
   public void testPipelineToAndFromBeam() {
     List<Integer> inputs = Arrays.asList(1, 2, 3, 4, 5);
-    Pipeline pipeline = Pipeline.create(options());
+    Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
     PCollection<Integer> input =
         pipeline.apply(Create.of(inputs)).setTypeDescriptor(TypeDescriptor.of(Integer.class));
@@ -153,7 +153,7 @@ public class BeamFlowTest implements Serializable {
   public void testPipelineWithRBK() {
     String raw = "hi there hi hi sue bob hi sue ZOW bob";
     List<String> words = Arrays.asList(raw.split(" "));
-    Pipeline pipeline = Pipeline.create(options());
+    Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
     PCollection<String> input =
         pipeline.apply(Create.of(words)).setTypeDescriptor(TypeDescriptor.of(String.class));
@@ -179,7 +179,7 @@ public class BeamFlowTest implements Serializable {
             Pair.of(3, 1800L), // first window
             Pair.of(4, 2000L),
             Pair.of(5, 2500L)); // second window
-    Pipeline pipeline = Pipeline.create(options());
+    Pipeline pipeline = Pipeline.create(defaultOptions());
     BeamFlow flow = BeamFlow.of(pipeline);
     PCollection<Pair<Integer, Long>> input = pipeline.apply(Create.of(raw));
     Dataset<Pair<Integer, Long>> dataset = flow.wrapped(input);

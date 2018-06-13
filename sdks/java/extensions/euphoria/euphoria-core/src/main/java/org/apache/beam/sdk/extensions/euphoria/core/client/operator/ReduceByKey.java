@@ -260,6 +260,12 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
       return reduceBy((Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)));
     }
 
+    default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
+        ReduceFunction<V, OutputT> reducer, TypeHint<OutputT> outputTypeHint) {
+      return reduceBy(
+          (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)), outputTypeHint);
+    }
+
     /**
      * Define a function that reduces all values related to one key into one or more result objects.
      * The function is not combinable - i.e. partial results cannot be made up before shuffle. To
@@ -271,6 +277,11 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      */
     <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
         ReduceFunctor<V, OutputT> reducer);
+
+    default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
+        ReduceFunctor<V, OutputT> reducer, TypeHint<OutputT> outputTypeHint) {
+      return reduceBy(TypeAwareReduceFunctor.of(reducer, outputTypeHint));
+    }
 
     /**
      * Define a function that reduces all values related to one key into one result object. The
@@ -350,14 +361,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
     @Override
     public <K> ValueByReduceByBuilder<InputT, K> keyBy(
         UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, ?, ?, ?> paramsCasted =
-          (BuilderParams<InputT, K, ?, ?, ?>) params;
-
-      paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
-
-      return new ValueByReduceByBuilder<>(paramsCasted);
+      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 
