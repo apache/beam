@@ -85,7 +85,7 @@ public class BeamDDLNestedTypesTest {
   }
 
   private Schema newSimpleSchemaWith(FieldType fieldType) {
-    return Schema.builder().addNullableField("fieldname", fieldType).build();
+    return Schema.builder().addNullableField("fieldName", fieldType).build();
   }
 
   private String unparse(FieldType fieldType) {
