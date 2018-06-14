@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -36,13 +36,9 @@ import org.apache.calcite.rel.core.SetOp;
  * statement that are identical to a row in the second SELECT statement.
  */
 public class BeamIntersectRel extends Intersect implements BeamRelNode {
-  private BeamSetOperatorRelBase delegate;
-
   public BeamIntersectRel(
       RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
     super(cluster, traits, inputs, all);
-    delegate =
-        new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.INTERSECT, inputs, all);
   }
 
   @Override
@@ -51,15 +47,7 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
-    return new Transform();
-  }
-
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-
-    @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      return delegate.buildBeamPipeline(inputPCollections);
-    }
+  public PTransform<PInput, PCollection<Row>> buildPTransform() {
+    return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.INTERSECT, all);
   }
 }

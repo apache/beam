@@ -34,7 +34,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -92,7 +91,7 @@ public class PubsubToBigqueryIT implements Serializable {
             + "  pubsub_topic.payload.name \n"
             + "FROM pubsub_topic";
 
-    PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(insertStatement));
+    sqlEnv.parseQuery(pipeline, insertStatement);
 
     pipeline.run();
 

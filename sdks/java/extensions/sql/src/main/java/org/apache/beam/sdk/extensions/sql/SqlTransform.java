@@ -92,7 +92,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     registerFunctions(sqlEnv);
 
-    return PCollectionTuple.empty(input.getPipeline()).apply(sqlEnv.parseQuery(queryString()));
+    return sqlEnv.parseQuery(input.getPipeline(), queryString());
   }
 
   private Map<String, BeamSqlTable> toTableMap(PInput inputs) {

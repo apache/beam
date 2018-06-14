@@ -24,7 +24,6 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.values.PCollectionTuple;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
 @Experimental
@@ -59,7 +58,7 @@ public class BeamSqlCli {
           BeamEnumerableConverter.createPipelineOptions(env.getPipelineOptions());
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
-      PCollectionTuple.empty(pipeline).apply(env.parseQuery(sqlString));
+      env.parseQuery(pipeline, sqlString);
       pipeline.run();
     }
   }
