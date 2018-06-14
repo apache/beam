@@ -17,6 +17,8 @@
 
 """Unit tests for our libraries of combine PTransforms."""
 
+import itertools
+import random
 import unittest
 
 import hamcrest as hc
@@ -310,6 +312,29 @@ class CombineTest(unittest.TestCase):
       result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> SideInputCombine()
       assert_that(result1, equal_to([0]), label='r1')
       assert_that(result2, equal_to([10]), label='r2')
+
+  def test_hot_key_fanout(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(itertools.product(['hot', 'cold'], range(10)))
+          | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
+              lambda key: (key == 'hot') * 5))
+      assert_that(result, equal_to([('hot', 4.5), ('cold', 4.5)]))
+
+  def test_hot_key_fanout_sharded(self):
+    # Lots of elements with the same key with varying/no fanout.
+    with TestPipeline() as p:
+      elements = [(None, e) for e in range(1000)]
+      random.shuffle(elements)
+      shards = [p | "Shard%s" % shard >> beam.Create(elements[shard::20])
+                for shard in range(20)]
+      result = (
+          shards
+          | beam.Flatten()
+          | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
+              lambda key: random.randrange(0, 5)))
+      assert_that(result, equal_to([(None, 499.5)]))
 
 
 if __name__ == '__main__':
