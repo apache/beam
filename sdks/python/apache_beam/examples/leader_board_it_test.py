@@ -102,9 +102,6 @@ class LeaderBoardIT(unittest.TestCase):
     test_utils.cleanup_subscriptions([self.input_sub])
     test_utils.cleanup_topics([self.input_topic])
 
-  def tearDown(self):
-    self._cleanup_pubsub()
-
   @attr('IT')
   def test_leader_board_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
@@ -139,6 +136,7 @@ class LeaderBoardIT(unittest.TestCase):
                                                bq_teams_verifier)}
 
     # Register cleanup before pipeline execution.
+    self.addCleanup(self._cleanup_pubsub)
     self.addCleanup(utils.delete_bq_table, self.project,
                     self.dataset.name, self.OUTPUT_TABLE_USERS)
     self.addCleanup(utils.delete_bq_table, self.project,
