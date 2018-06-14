@@ -52,6 +52,12 @@ public class JdbcDriverTest {
           .addNullableField("name", Schema.FieldType.STRING)
           .build();
 
+  private static final Schema COMPLEX_SCHEMA =
+      Schema.builder()
+          .addNullableField("description", Schema.FieldType.STRING)
+          .addNullableField("nestedRow", Schema.FieldType.row(BASIC_SCHEMA))
+          .build();
+
   @Before
   public void before() throws Exception {
     Class.forName("org.apache.beam.sdk.extensions.sql.impl.JdbcDriver");
@@ -106,7 +112,7 @@ public class JdbcDriverTest {
   }
 
   @Test
-  public void testCreateTable() throws Exception {
+  public void testSelectsFromExistingTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     Connection connection = JdbcDriver.connect(tableProvider);
 
@@ -118,6 +124,41 @@ public class JdbcDriverTest {
 
     ResultSet selectResult =
         connection.createStatement().executeQuery("SELECT id, name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  public void testSelectsFromExistingComplexTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate(
+            "CREATE TABLE person ( \n"
+                + "description VARCHAR, \n"
+                + "nestedRow ROW< \n"
+                + "              id BIGINT, \n"
+                + "              name VARCHAR> \n"
+                + ") \n"
+                + "TYPE 'test'");
+
+    tableProvider.addRows(
+        "person",
+        row(COMPLEX_SCHEMA, "description1", row(1L, "aaa")),
+        row(COMPLEX_SCHEMA, "description2", row(2L, "bbb")));
+
+    ResultSet selectResult =
+        connection
+            .createStatement()
+            .executeQuery("SELECT person.nestedrow.id, person.nestedrow.name FROM person");
 
     List<Row> resultRows =
         readResultSet(selectResult)
@@ -192,6 +233,10 @@ public class JdbcDriverTest {
   }
 
   private Row row(Object... values) {
-    return Row.withSchema(BASIC_SCHEMA).addValues(values).build();
+    return row(BASIC_SCHEMA, values);
+  }
+
+  private Row row(Schema schema, Object... values) {
+    return Row.withSchema(schema).addValues(values).build();
   }
 }
