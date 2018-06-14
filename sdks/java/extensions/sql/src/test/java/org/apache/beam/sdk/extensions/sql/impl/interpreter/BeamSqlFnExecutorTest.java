@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -25,6 +26,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlModExpression;
@@ -44,11 +46,16 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.Beam
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 /** Unit test cases for {@link BeamSqlFnExecutor}. */
@@ -92,6 +99,25 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     RexNode rexNode =
         rexBuilder.makeCall(
             SqlStdOperatorTable.NOT, Arrays.asList(rexBuilder.makeLiteral("hello")));
+    BeamSqlFnExecutor.buildExpression(rexNode);
+  }
+
+  @Test
+  public void testBuildExpression_literal() {
+    RelDataType realType = new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.INTEGER);
+
+    RexLiteral rexNode = RexLiteral.fromJdbcString(realType, SqlTypeName.DOUBLE, "1.0");
+    BeamSqlExpression exp = BeamSqlFnExecutor.buildExpression(rexNode);
+
+    assertTrue(exp instanceof BeamSqlPrimitive);
+    assertEquals(SqlTypeName.INTEGER, exp.getOutputType());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testBuildExpression_literal_mismatch_type() {
+    RelDataType realType = new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.VARCHAR);
+
+    RexLiteral rexNode = RexLiteral.fromJdbcString(realType, SqlTypeName.DOUBLE, "1.0");
     BeamSqlFnExecutor.buildExpression(rexNode);
   }
 
