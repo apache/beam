@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,6 +49,7 @@ import org.junit.runners.JUnit4;
 /** Tests for the {@link ReferenceRunner}. */
 @RunWith(JUnit4.class)
 public class ReferenceRunnerTest implements Serializable {
+  @Ignore
   @Test
   public void pipelineExecution() throws Exception {
     Pipeline p = Pipeline.create();
