@@ -31,14 +31,14 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -47,15 +47,9 @@ import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
-import net.bytebuddy.implementation.bytecode.TypeCreation;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -63,109 +57,52 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
-import org.apache.commons.lang3.ArrayUtils;
 import org.joda.time.ReadableInstant;
 
 @Experimental(Kind.SCHEMAS)
 public class POJOUtils {
-  public static Schema schemaFromClass(Class<?> clazz) {
-    Schema.Builder builder = Schema.builder();
-    for (java.lang.reflect.Field field : getFields(clazz)) {
-      // TODO: look for nullable annotation.
-      builder.addField(field.getName(), fieldFromType(field.getGenericType()));
-    }
-    return builder.build();
+  public static Schema schemaFromPojoClass(Class<?> clazz) {
+    // TODO: Add memoization here.
+    Function<Class, List<TypeInformation>> getTypesForClass =
+        c -> getFields(c)
+            .stream()
+            .map(f -> {
+              return new TypeInformation(
+                  f.getName(), f.getGenericType(), f.getAnnotation(Nullable.class) != null);
+            })
+            .collect(Collectors.toList());
+    return StaticSchemaInference.schemaFromClass(clazz, getTypesForClass);
   }
 
+
   // Get all public, non-static, non-transient fields.
-  private static List<java.lang.reflect.Field> getFields(Class<?> clazz) {
-    Map<String, java.lang.reflect.Field> fields = new LinkedHashMap<>();
+  private static List<Field> getFields(Class<?> clazz) {
+    Map<String, Field> types = new LinkedHashMap<>();
     do {
       if (clazz.getPackage() != null && clazz.getPackage().getName().startsWith("java."))
         break;                                   // skip java built-in classes
       for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
         if ((field.getModifiers() & (Modifier.TRANSIENT | Modifier.STATIC)) == 0) {
           if ((field.getModifiers() & Modifier.PUBLIC) != 0) {
-            checkArgument(fields.put(field.getName(), field) == null,
+            boolean nullable = field.getAnnotation(Nullable.class) != null;
+            checkArgument(types.put(field.getName(), field) == null,
                 clazz.getSimpleName() + " contains two fields named: " + field);
           }
         }
       }
       clazz = clazz.getSuperclass();
     } while (clazz != null);
-    return Lists.newArrayList(fields.values());
-  }
-
-  // Map a Java field type to a Beam Schema FieldType.
-  private static Schema.FieldType fieldFromType(java.lang.reflect.Type type) {
-    if (type.equals(Byte.class) || type.equals(byte.class)) {
-      return FieldType.BYTE;
-    }  else if (type.equals(Short.class) || type.equals(short.class)) {
-      return FieldType.INT16;
-    } else if (type.equals(Integer.class) || type.equals(int.class)) {
-      return FieldType.INT32;
-    } else if (type.equals(Long.class) || type.equals(long.class)) {
-      return FieldType.INT64;
-    } else if (type.equals(BigDecimal.class)) {
-      return FieldType.DECIMAL;
-    } else if (type.equals(Float.class) || type.equals(float.class)) {
-      return FieldType.FLOAT;
-    } else if (type.equals(Double.class) || type.equals(double.class)) {
-      return FieldType.DOUBLE;
-    } else if (type.equals(Boolean.class) || type.equals(boolean.class)) {
-      return FieldType.BOOLEAN;
-    } else if (type instanceof GenericArrayType) {
-      Type component = ((GenericArrayType)type).getGenericComponentType();
-      if (component.equals(Byte.class) || component.equals(byte.class)) {
-        return FieldType.BYTES;
-      }
-      return FieldType.array(fieldFromType(component));
-    } else if (type instanceof ParameterizedType) {
-      ParameterizedType ptype = (ParameterizedType) type;
-      Class raw = (Class) ptype.getRawType();
-      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-      if (Collection.class.isAssignableFrom(raw)) {
-        checkArgument(params.length == 1);
-        if (params[0].equals(Byte.class) || params[0].equals(byte.class)) {
-          return FieldType.BYTES;
-        } else {
-          return FieldType.array(fieldFromType(params[0]));
-        }
-      } else if (Map.class.isAssignableFrom(raw)) {
-        FieldType keyType = fieldFromType(params[0]);
-        FieldType valueType = fieldFromType(params[1]);
-        checkArgument(keyType.getTypeName().isPrimitiveType(),
-            "Only primitive types can be map keys");
-        return FieldType.map(keyType, valueType);
-      }
-    } else if (type instanceof Class) {
-      // TODO: memoize schemas for classes.
-      Class clazz = (Class)type;
-      if (clazz.isArray()) {
-        Class componentType = clazz.getComponentType();
-        if (componentType == Byte.TYPE) {
-          return FieldType.BYTES;
-        }
-        return FieldType.array(fieldFromType(componentType));
-      }
-      if (CharSequence.class.isAssignableFrom(clazz)) {
-        return FieldType.STRING;
-      } else if (ReadableInstant.class.isAssignableFrom(clazz)) {
-        return FieldType.DATETIME;
-      } else if (ByteBuffer.class.isAssignableFrom(clazz)) {
-        return FieldType.BYTES;
-      }
-      return FieldType.row(schemaFromClass(clazz));
-    }
-    return null;
+    return Lists.newArrayList(types.values());
   }
 
   // Static ByteBuddy instance used by all helpers.
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  // We memoize the list of getters for a class.
+  // The list of getters for a class is cached, so we only create the classes the first time
+  // getSetters is called.
   public static Map<Class, List<FieldValueGetter>> CACHED_GETTERS =
       Maps.newConcurrentMap();
   public static List<FieldValueGetter> getGetters(Class<?> clazz) {
@@ -233,6 +170,7 @@ public class POJOUtils {
 
         // Type of the object containing the field.
         ForLoadedType objectType = new ForLoadedType(field.getDeclaringClass());
+        // StackManipulation that will read the value from the class field.
         StackManipulation readValue = new StackManipulation.Compound(
             // Method param is offset 1 (offset 0 is the this parameter).
             MethodVariableAccess.REFERENCE.loadFrom(1),
@@ -296,6 +234,8 @@ public class POJOUtils {
     }
   }
 
+  // The list of setters for a class is cached, so we only create the classes the first time
+  // getSetters is called.
   public static Map<Class, List<FieldValueSetter>> CACHED_SETTERS =
       Maps.newConcurrentMap();
   public static List<FieldValueSetter> getSetters(Class<?> clazz) {

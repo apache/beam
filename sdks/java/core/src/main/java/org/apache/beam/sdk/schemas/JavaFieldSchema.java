@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.reflect.PojoValueSetterFactory;
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return POJOUtils.schemaFromClass(typeDescriptor.getRawType());
+    return POJOUtils.schemaFromPojoClass(typeDescriptor.getRawType());
   }
 
   @Override
