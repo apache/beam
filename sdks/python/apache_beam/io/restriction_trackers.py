@@ -29,7 +29,7 @@ class OffsetRange(object):
     if start > stop:
       raise ValueError(
           'Start offset must be not be larger than the stop offset. '
-          'Received %d and %d respectively.', start, stop)
+          'Received %d and %d respectively.' % (start, stop))
     self.start = start
     self.stop = stop
 
@@ -78,10 +78,10 @@ class OffsetRestrictionTracker(RestrictionTracker):
       if self._last_claim_attempt < self._range.stop - 1:
         raise ValueError(
             'OffsetRestrictionTracker is not done since work in range [%s, %s) '
-            'has not been claimed.',
-            self._last_claim_attempt if self._last_claim_attempt is not None
-            else self._range.start,
-            self._range.stop)
+            'has not been claimed.'
+            % (self._last_claim_attempt if self._last_claim_attempt is not None
+               else self._range.start,
+               self._range.stop))
 
   def current_restriction(self):
     with self._lock:
@@ -100,15 +100,15 @@ class OffsetRestrictionTracker(RestrictionTracker):
       if self._last_claim_attempt and position <= self._last_claim_attempt:
         raise ValueError(
             'Positions claimed should strictly increase. Trying to claim '
-            'position %d while last claim attempt was %d.',
-            position, self._last_claim_attempt)
+            'position %d while last claim attempt was %d.'
+            % (position, self._last_claim_attempt))
 
       self._last_claim_attempt = position
       if position < self._range.start:
         raise ValueError(
             'Position to be claimed cannot be smaller than the start position '
-            'of the range. Tried to claim position %r for the range [%r, %r)',
-            position, self._range.start, self._range.stop)
+            'of the range. Tried to claim position %r for the range [%r, %r)'
+            % (position, self._range.start, self._range.stop))
 
       if position >= self._range.start and position < self._range.stop:
         self._current_position = position

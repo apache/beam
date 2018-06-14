@@ -121,7 +121,8 @@ class FakeHdfs(object):
     fs = self.status(path, strict=False)
     if (fs is not None and
         fs[hdfs._FILE_STATUS_TYPE] == hdfs._FILE_STATUS_TYPE_FILE):
-      raise ValueError('list must be called on a directory, got file: %s', path)
+      raise ValueError(
+          'list must be called on a directory, got file: %s' % path)
 
     result = []
     for file in self.files.itervalues():

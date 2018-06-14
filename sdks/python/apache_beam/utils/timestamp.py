@@ -92,7 +92,7 @@ class Timestamp(object):
       dt: A ``datetime.datetime`` object in UTC (offset-aware).
     """
     if dt.tzinfo != pytz.utc:
-      raise ValueError('dt not in UTC: %s', dt)
+      raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
     return Timestamp(duration.total_seconds())
 
@@ -106,7 +106,7 @@ class Timestamp(object):
     dt_args = []
     match = cls.RFC_3339_RE.match(rfc3339)
     if match is None:
-      raise ValueError('Could not parse RFC 3339 string: %s', rfc3339)
+      raise ValueError('Could not parse RFC 3339 string: %s' % rfc3339)
     for s in match.groups():
       if s is not None:
         dt_args.append(int(s))

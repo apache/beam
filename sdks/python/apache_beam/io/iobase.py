@@ -930,7 +930,7 @@ class Write(ptransform.PTransform):
       return pcoll | self.sink
     else:
       raise ValueError('A sink must inherit iobase.Sink, iobase.NativeSink, '
-                       'or be a PTransform. Received : %r', self.sink)
+                       'or be a PTransform. Received : %r' % self.sink)
 
 
 class WriteImpl(ptransform.PTransform):

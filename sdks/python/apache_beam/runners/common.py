@@ -148,8 +148,8 @@ class MethodWrapper(object):
 
     if not isinstance(obj_to_invoke, (DoFn, RestrictionProvider)):
       raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
-                       'a \'RestrictionProvider\'. Received %r instead.',
-                       obj_to_invoke)
+                       'a \'RestrictionProvider\'. Received %r instead.'
+                       % obj_to_invoke)
 
     args, _, _, defaults = core.get_function_arguments(
         obj_to_invoke, method_name)
@@ -321,7 +321,7 @@ def _find_param_with_default(
       not (default_as_value or default_as_type)):
     raise ValueError(
         'Exactly one of \'default_as_value\' and \'default_as_type\' should be '
-        'provided. Received %r and %r.', default_as_value, default_as_type)
+        'provided. Received %r and %r.' % (default_as_value, default_as_type))
 
   defaults = method.defaults
   default_as_value = default_as_value
@@ -450,7 +450,7 @@ class PerWindowInvoker(DoFnInvoker):
       if not restriction_tracker_param:
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
-            'RestrictionTrackerParam defined', restriction_tracker)
+            'RestrictionTrackerParam defined' % restriction_tracker)
       additional_kwargs[restriction_tracker_param] = restriction_tracker
     if self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:

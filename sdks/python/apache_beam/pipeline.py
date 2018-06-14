@@ -121,13 +121,14 @@ class Pipeline(object):
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
-            'Received : %r', options)
+            'Received : %r' % options)
     elif argv is not None:
       if isinstance(argv, list):
         self._options = PipelineOptions(argv)
       else:
         raise ValueError(
-            'Parameter argv, if specified, must be a list. Received : %r', argv)
+            'Parameter argv, if specified, must be a list. Received : %r'
+            % argv)
     else:
       self._options = PipelineOptions([])
 
@@ -233,8 +234,8 @@ class Pipeline(object):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single input. Tried to replace input of '
-                'AppliedPTransform %r that has %d inputs',
-                original_transform_node, len(inputs))
+                'AppliedPTransform %r that has %d inputs'
+                % original_transform_node, len(inputs))
           elif len(inputs) == 1:
             input_node = inputs[0]
           elif len(inputs) == 0:
@@ -272,7 +273,7 @@ class Pipeline(object):
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single output. Tried to replace output of '
                 'AppliedPTransform %r with %r.'
-                , original_transform_node, new_output)
+                % (original_transform_node, new_output))
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
@@ -356,8 +357,8 @@ class Pipeline(object):
     class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
         if override.matches(transform_node):
-          raise RuntimeError('Transform node %r was not replaced as expected.',
-                             transform_node)
+          raise RuntimeError('Transform node %r was not replaced as expected.'
+                             % transform_node)
 
     self.visit(ReplacementValidator())
 
