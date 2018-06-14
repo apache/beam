@@ -51,7 +51,7 @@ class GCSFileSystem(FileSystem):
     Returns: full path after combining all the passed components
     """
     if not basepath.startswith(GCSFileSystem.GCS_PREFIX):
-      raise ValueError('Basepath %r must be GCS path.', basepath)
+      raise ValueError('Basepath %r must be GCS path.' % basepath)
     path = basepath
     for p in paths:
       path = path.rstrip('/') + '/' + p.lstrip('/')
@@ -72,7 +72,7 @@ class GCSFileSystem(FileSystem):
     """
     path = path.strip()
     if not path.startswith(GCSFileSystem.GCS_PREFIX):
-      raise ValueError('Path %r must be GCS path.', path)
+      raise ValueError('Path %r must be GCS path.' % path)
 
     prefix_len = len(GCSFileSystem.GCS_PREFIX)
     last_sep = path[prefix_len:].rfind('/')
@@ -84,7 +84,7 @@ class GCSFileSystem(FileSystem):
     elif last_sep < 0:
       return (path, '')
     else:
-      raise ValueError('Invalid path: %s', path)
+      raise ValueError('Invalid path: %s' % path)
 
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
@@ -177,7 +177,7 @@ class GCSFileSystem(FileSystem):
       """Recursively copy the file tree from the source to the destination
       """
       if not destination.startswith(GCSFileSystem.GCS_PREFIX):
-        raise ValueError('Destination %r must be GCS path.', destination)
+        raise ValueError('Destination %r must be GCS path.' % destination)
       # Use copy_tree if the path ends with / as it is a directory
       if source.endswith('/'):
         gcsio.GcsIO().copytree(source, destination)

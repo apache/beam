@@ -809,8 +809,7 @@ class DataflowRunner(PipelineRunner):
                           transform.source.flatten_results)
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
-                         ' a query',
-                         transform.source)
+                         ' a query' % transform.source)
     elif transform.source.format == 'pubsub':
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))

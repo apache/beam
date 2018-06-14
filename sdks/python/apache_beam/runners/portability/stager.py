@@ -240,8 +240,8 @@ class Stager(object):
           resources.append(sdk_staged_filename)
         else:
           if setup_options.sdk_location == 'default':
-            raise RuntimeError('Cannot find default Beam SDK tar file "%s"',
-                               sdk_path)
+            raise RuntimeError('Cannot find default Beam SDK tar file "%s"'
+                               % sdk_path)
           elif not setup_options.sdk_location:
             logging.info('Beam SDK will not be staged since --sdk_location '
                          'is empty.')
