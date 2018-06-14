@@ -17,6 +17,7 @@
 
 """Unit tests for our libraries of combine PTransforms."""
 
+import random
 import unittest
 
 import hamcrest as hc
@@ -107,6 +108,17 @@ class CombineTest(unittest.TestCase):
                 label='key:bot')
     assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
                 label='key:cmp')
+    pipeline.run()
+
+  def test_sharded_top(self):
+    elements = list(range(100))
+    random.shuffle(elements)
+
+    pipeline = TestPipeline()
+    shards = [pipeline | 'Shard%s' % shard >> beam.Create(elements[shard::7])
+              for shard in range(7)]
+    assert_that(shards | beam.Flatten() | combine.Top.Largest(10),
+                equal_to([[99, 98, 97, 96, 95, 94, 93, 92, 91, 90]]))
     pipeline.run()
 
   def test_top_key(self):
