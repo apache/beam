@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct.portable.artifact;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -91,7 +92,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
   @Test
   public void retrieveManifest() throws Exception {
     Map<String, byte[]> artifacts = new HashMap<>();
-    artifacts.put("foo", "bar, baz, quux".getBytes());
+    artifacts.put("foo", "bar, baz, quux".getBytes(UTF_8));
     artifacts.put("spam", new byte[] {127, -22, 5});
     stageAndCreateRetrievalService(artifacts);
 
@@ -129,7 +130,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
   @Test
   public void retrieveArtifact() throws Exception {
     Map<String, byte[]> artifacts = new HashMap<>();
-    byte[] fooContents = "bar, baz, quux".getBytes();
+    byte[] fooContents = "bar, baz, quux".getBytes(UTF_8);
     artifacts.put("foo", fooContents);
     byte[] spamContents = {127, -22, 5};
     artifacts.put("spam", spamContents);
@@ -152,7 +153,8 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
 
   @Test
   public void retrieveArtifactNotPresent() throws Exception {
-    stageAndCreateRetrievalService(Collections.singletonMap("foo", "bar, baz, quux".getBytes()));
+    stageAndCreateRetrievalService(Collections.singletonMap(
+        "foo", "bar, baz, quux".getBytes(UTF_8)));
 
     final CountDownLatch completed = new CountDownLatch(1);
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
