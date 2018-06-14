@@ -112,7 +112,7 @@ Schema.Field Field() :
     name = Identifier()
     type = FieldType()
     {
-        field = Schema.Field.of(name.toLowerCase(), type);
+        field = Schema.Field.of(name, type);
     }
     (
         <NULL> { field = field.withNullable(true); }

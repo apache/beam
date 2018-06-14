@@ -117,7 +117,7 @@ public class BeamSqlCliTest {
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
                 Field.of("tags", Schema.FieldType.map(VARCHAR, VARCHAR)).withNullable(true),
                 Field.of(
-                        "nestedmap",
+                        "nestedMap",
                         Schema.FieldType.map(INTEGER, Schema.FieldType.map(VARCHAR, INTEGER)))
                     .withNullable(true))
             .collect(toSchema()),
@@ -163,14 +163,14 @@ public class BeamSqlCliTest {
                                 .build()))
                     .withNullable(true),
                 Field.of(
-                        "addressangular",
+                        "addressAngular",
                         Schema.FieldType.row(
                             Schema.builder()
                                 .addNullableField("street", Schema.FieldType.STRING)
                                 .addNullableField("country", Schema.FieldType.STRING)
                                 .build()))
                     .withNullable(true),
-                Field.of("isrobot", BOOLEAN).withNullable(true))
+                Field.of("isRobot", BOOLEAN).withNullable(true))
             .collect(toSchema()),
         table.getSchema());
   }
