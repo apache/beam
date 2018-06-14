@@ -17,6 +17,7 @@
 
 """
 Example illustrating the use of Apache Beam for distributing optimization tasks.
+Running this example requires NumPy and SciPy
 """
 import argparse
 import logging
@@ -196,6 +197,17 @@ def add_transport_costs(element, transport, quantities):
     return element[:3] + (cost + transport_cost,)
 
 
+def format_output(element):
+    """
+    Transforms the datastructure (unpack lists) before writing the result to file.
+    """
+    result = element[1]
+    result['cost'] = result['cost'][0]
+    result['production'] = dict(result['production'])
+    result['mapping'] = result['mapping'][0]
+    return result
+
+
 def run(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--input',
@@ -239,7 +251,8 @@ def run(argv=None):
             'mapping': mappings
         }
         best = (join_operands | 'join' >> beam.CoGroupByKey()
-                              | 'select best' >> beam.CombineGlobally(min, key=lambda x: x[1]['cost']).without_defaults())
+                              | 'select best' >> beam.CombineGlobally(min, key=lambda x: x[1]['cost']).without_defaults()
+                              | 'reformat' >> beam.Map(format_output))
         best | 'write optimum' >> beam.io.WriteToText(known_args.output)
 
 
