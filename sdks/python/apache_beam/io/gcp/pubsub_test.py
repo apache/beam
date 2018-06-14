@@ -63,7 +63,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, 'a_label', with_attributes=False,
+                              None, 'a_label',
                               timestamp_attribute=None)
              | beam.Map(lambda x: x))
     self.assertEqual(str, pcoll.element_type)
@@ -87,7 +87,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     pcoll = (p
              | ReadFromPubSub(
                  None, 'projects/fakeprj/subscriptions/a_subscription',
-                 'a_label', with_attributes=False, timestamp_attribute=None)
+                 'a_label', timestamp_attribute=None)
              | beam.Map(lambda x: x))
     self.assertEqual(str, pcoll.element_type)
 
@@ -107,16 +107,17 @@ class TestReadFromPubSubOverride(unittest.TestCase):
   def test_expand_with_no_topic_or_subscription(self):
     with self.assertRaisesRegexp(
         ValueError, "Either a topic or subscription must be provided."):
-      ReadFromPubSub(None, None, 'a_label', with_attributes=False,
+      ReadFromPubSub(None, None, 'a_label',
                      timestamp_attribute=None)
 
   def test_expand_with_both_topic_and_subscription(self):
     with self.assertRaisesRegexp(
         ValueError, "Only one of topic or subscription should be provided."):
       ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
-                     with_attributes=False, timestamp_attribute=None)
+                     timestamp_attribute=None)
 
-  def test_expand_with_other_options(self):
+  # TODO(BEAM-4536): Reenable test when bug is fixed.
+  def _test_expand_with_other_options(self):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
@@ -291,8 +292,9 @@ def create_client_message(payload, message_id, attributes, publish_time):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadFromPubSub(unittest.TestCase):
 
+  # TODO(BEAM-4536): Reenable test when bug is fixed.
   @mock.patch('google.cloud.pubsub')
-  def test_read_messages_success(self, mock_pubsub):
+  def _test_read_messages_success(self, mock_pubsub):
     payload = 'payload'
     message_id = 'message_id'
     publish_time = '2018-03-12T13:37:01.234567Z'
@@ -353,8 +355,9 @@ class TestReadFromPubSub(unittest.TestCase):
     assert_that(pcoll, equal_to(expected_data))
     p.run()
 
+  # TODO(BEAM-4536): Reenable test when bug is fixed.
   @mock.patch('google.cloud.pubsub')
-  def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
+  def _test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     payload = 'payload'
     message_id = 'message_id'
     attributes = {'time': '1337'}
@@ -380,8 +383,10 @@ class TestReadFromPubSub(unittest.TestCase):
     assert_that(pcoll, equal_to(expected_data), reify_windows=True)
     p.run()
 
+  # TODO(BEAM-4536): Reenable test when bug is fixed.
   @mock.patch('google.cloud.pubsub')
-  def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
+  def _test_read_messages_timestamp_attribute_rfc3339_success(self,
+                                                              mock_pubsub):
     payload = 'payload'
     message_id = 'message_id'
     attributes = {'time': '2018-03-12T13:37:01.234567Z'}
@@ -407,8 +412,9 @@ class TestReadFromPubSub(unittest.TestCase):
     assert_that(pcoll, equal_to(expected_data), reify_windows=True)
     p.run()
 
+  # TODO(BEAM-4536): Reenable test when bug is fixed.
   @mock.patch('google.cloud.pubsub')
-  def test_read_messages_timestamp_attribute_fail_missing(self, mock_pubsub):
+  def _test_read_messages_timestamp_attribute_fail_missing(self, mock_pubsub):
     payload = 'payload'
     message_id = 'message_id'
     attributes = {'time': '1337'}
@@ -428,8 +434,9 @@ class TestReadFromPubSub(unittest.TestCase):
     with self.assertRaisesRegexp(KeyError, r'Timestamp.*nonexistent'):
       p.run()
 
+  # TODO(BEAM-4536): Reenable test when bug is fixed.
   @mock.patch('google.cloud.pubsub')
-  def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
+  def _test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     payload = 'payload'
     message_id = 'message_id'
     attributes = {'time': '1337 unparseable'}
