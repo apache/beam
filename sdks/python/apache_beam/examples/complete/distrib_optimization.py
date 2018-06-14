@@ -138,7 +138,6 @@ class OptimizeProductParameters(beam.DoFn):
     """
 
     def _optimize_production_parameters(self, sim):
-        print('Alpha')
         # setup initial starting point & bounds
         x0 = 0.5 * np.ones(3)
         bounds = zip(np.zeros(3), np.ones(3))
