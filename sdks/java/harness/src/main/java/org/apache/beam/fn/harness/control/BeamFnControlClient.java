@@ -20,8 +20,8 @@ package org.apache.beam.fn.harness.control;
 
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.EnumMap;
@@ -31,11 +31,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
-import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.slf4j.Logger;
@@ -69,21 +72,23 @@ public class BeamFnControlClient {
   private final CompletableFuture<Object> onFinish;
 
   public BeamFnControlClient(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
+      String id,
+      ApiServiceDescriptor apiServiceDescriptor,
+      ManagedChannelFactory channelFactory,
       BiFunction<
-              StreamObserverClientFactory<InstructionRequest, BeamFnApi.InstructionResponse>,
-              StreamObserver<BeamFnApi.InstructionRequest>,
-              StreamObserver<BeamFnApi.InstructionResponse>>
+              StreamObserverClientFactory<InstructionRequest, InstructionResponse>,
+              StreamObserver<InstructionRequest>,
+              StreamObserver<InstructionResponse>>
           streamObserverFactory,
-      EnumMap<
-              BeamFnApi.InstructionRequest.RequestCase,
-              ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
-          handlers) {
+      EnumMap<RequestCase, ThrowingFunction<InstructionRequest, Builder>> handlers) {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
     this.outboundObserver =
         streamObserverFactory.apply(
-            BeamFnControlGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::control,
+            BeamFnControlGrpc.newStub(
+                    channelFactory
+                        .withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)))
+                        .forDescriptor(apiServiceDescriptor))
+                ::control,
             new InboundObserver());
     this.handlers = handlers;
     this.onFinish = new CompletableFuture<>();
