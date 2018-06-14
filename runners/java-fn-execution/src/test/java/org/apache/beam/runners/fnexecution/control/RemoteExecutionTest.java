@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
@@ -103,6 +104,7 @@ public class RemoteExecutionTest implements Serializable {
 
   private transient ExecutorService serverExecutor;
   private transient ExecutorService sdkHarnessExecutor;
+  private transient Future<?> sdkHarnessExecutorFuture;
 
   @Before
   public void setup() throws Exception {
@@ -129,14 +131,19 @@ public class RemoteExecutionTest implements Serializable {
 
     // Create the SDK harness, and wait until it connects
     sdkHarnessExecutor = Executors.newSingleThreadExecutor(threadFactory);
-    sdkHarnessExecutor.submit(
-        () ->
+    sdkHarnessExecutorFuture = sdkHarnessExecutor.submit(
+        () -> {
+          try {
             FnHarness.main(
                 PipelineOptionsFactory.create(),
                 loggingServer.getApiServiceDescriptor(),
                 controlServer.getApiServiceDescriptor(),
                 InProcessManagedChannelFactory.create(),
                 OutboundObserverFactory.clientDirect()));
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
         clientPool.getSource().take("", Duration.ofSeconds(2));
@@ -152,6 +159,7 @@ public class RemoteExecutionTest implements Serializable {
     controlClient.close();
     sdkHarnessExecutor.shutdownNow();
     serverExecutor.shutdownNow();
+    sdkHarnessExecutorFuture.get();
   }
 
   @Test
