@@ -43,7 +43,7 @@ public class POJOUtilsTest {
 
   @Test
   public void testSimplePOJO() {
-    Schema schema = POJOUtils.schemaFromClass(SimplePojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(SimplePojo.class);
     assertEquals(SIMPLE_SCHEMA, schema);
   }
 
@@ -58,7 +58,7 @@ public class POJOUtilsTest {
         .addInt32Field("anInt")
         .addRowField("nested", SIMPLE_SCHEMA)
         .build();
-    Schema schema = POJOUtils.schemaFromClass(NestedPojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedPojo.class);
     assertEquals(expected, schema);
   }
 
@@ -73,7 +73,7 @@ public class POJOUtilsTest {
         .addInt32Field("anInt")
         .addArrayField("strings", FieldType.STRING)
         .build();
-    Schema schema = POJOUtils.schemaFromClass(PrimitiveArrayPojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(PrimitiveArrayPojo.class);
     assertEquals(expected, schema);
   }
 
@@ -88,7 +88,7 @@ public class POJOUtilsTest {
         .addInt32Field("anInt")
         .addArrayField("simples", FieldType.row(SIMPLE_SCHEMA))
         .build();
-    Schema schema = POJOUtils.schemaFromClass(NestedArrayPojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedArrayPojo.class);
     assertEquals(expected, schema);
   }
 
@@ -103,7 +103,7 @@ public class POJOUtilsTest {
         .addInt32Field("anInt")
         .addArrayField("simples", FieldType.row(SIMPLE_SCHEMA))
         .build();
-    Schema schema = POJOUtils.schemaFromClass(NestedCollectionPojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedCollectionPojo.class);
     assertEquals(expected, schema);
   }
 
@@ -118,7 +118,7 @@ public class POJOUtilsTest {
         .addInt32Field("anInt")
         .addMapField("map", FieldType.STRING, FieldType.INT32)
         .build();
-    Schema schema = POJOUtils.schemaFromClass(PrimitiveMapPojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(PrimitiveMapPojo.class);
     assertEquals(expected, schema);
   }
 
@@ -133,7 +133,7 @@ public class POJOUtilsTest {
         .addInt32Field("anInt")
         .addMapField("map", FieldType.STRING, FieldType.row(SIMPLE_SCHEMA))
         .build();
-    Schema schema = POJOUtils.schemaFromClass(NestedMapPojo.class);
+    Schema schema = POJOUtils.schemaFromPojoClass(NestedMapPojo.class);
     assertEquals(expected, schema);
   }
 
