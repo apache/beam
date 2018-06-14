@@ -115,6 +115,13 @@ class BeamExecutorContext {
     }
   }
 
+  <T> void setFinishedPCollection(Dataset<T> dataset, PCollection<T> coll) {
+    final PCollection<?> prev = datasetToPCollection.put(dataset, coll);
+    if (prev != null && prev != coll) {
+      throw new IllegalStateException("Dataset(" + dataset + ") already materialized.");
+    }
+  }
+
   Pipeline getPipeline() {
     return pipeline;
   }
