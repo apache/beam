@@ -38,13 +38,7 @@ job('beam_PreCommit_Java_GradleBuild') {
   }
 
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit', [
-      '^model/.*$',
-      '^sdks/java/.*$',
-      '^runners/.*$',
-      '^examples/java/.*$',
-      '^release/.*$',
-    ])
+  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
