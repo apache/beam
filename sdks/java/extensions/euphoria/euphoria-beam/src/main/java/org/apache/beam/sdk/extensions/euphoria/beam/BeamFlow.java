@@ -68,6 +68,20 @@ public class BeamFlow extends Flow {
             org.joda.time.Duration.millis(allowedLateness.toMillis()));
   }
 
+  private <T> BeamFlow(String name, PCollection<T> inputPCollection) {
+    super(name, new Settings());
+    this.pipeline = inputPCollection.getPipeline();
+    this.context = new BeamExecutorContext(
+        DAG.empty(),
+        accumulatorFactory,
+        pipeline,
+        getSettings(),
+        org.joda.time.Duration.millis(allowedLateness.toMillis())
+    );
+
+    wrapFinishedInputPCollection(inputPCollection);
+  }
+
   /**
    * Create flow from pipeline.
    *
@@ -87,6 +101,30 @@ public class BeamFlow extends Flow {
    */
   public static BeamFlow create(String name, Pipeline pipeline) {
     return new BeamFlow(name, pipeline);
+  }
+
+  /**
+   * Create flow from input {@link PCollection} which is
+   * {@linkplain PCollection#isFinishedSpecifying() finished specifying}.
+   *
+   *
+   * @param pCollection the input {@link PCollection} to wrap into new flow
+   * @return constructed flow
+   */
+  public static <T> BeamFlow create(PCollection<T> pCollection) {
+    return new BeamFlow(null, pCollection);
+  }
+
+  /**
+   * Create flow from input {@link PCollection} which is
+   * {@linkplain PCollection#isFinishedSpecifying() finished specifying}.
+   *
+   * @param name name of the flow
+   * @param pCollection the input {@link PCollection} to wrap into new flow
+   * @return constructed flow
+   */
+  public static <T> BeamFlow create(String name, PCollection<T> pCollection) {
+    return new BeamFlow(name, pCollection);
   }
 
   @Override
@@ -124,21 +162,29 @@ public class BeamFlow extends Flow {
         org.joda.time.Duration.millis(allowedLateness.toMillis()));
   }
 
+  @SuppressWarnings("unchecked")
+  private <T> void wrapFinishedInputPCollection(PCollection<T> inputPCollection) {
+    WrappedPCollectionOperator<T> wrap = new WrappedPCollectionOperator<>(this, inputPCollection);
+    wrapped.put(inputPCollection, wrap.output);
+    context.setFinishedPCollection(wrap.output, inputPCollection);
+    super.add(wrap);
+  }
+
   /**
    * Wrap given {@link PCollection} as {@link Dataset} into this flow.
    *
    * @param <T> type parameter
-   * @param coll the collection
+   * @param pcollection the collection
    * @return wrapped {@link Dataset}
    */
   @SuppressWarnings("unchecked")
-  public <T> Dataset<T> wrapped(PCollection<T> coll) {
+  public <T> Dataset<T> wrapped(PCollection<T> pcollection) {
     return (Dataset<T>)
         wrapped.compute(
-            coll,
+            pcollection,
             (key, current) -> {
               if (current == null) {
-                return newDataset(coll);
+                return newDataset(pcollection);
               }
               return current;
             });
