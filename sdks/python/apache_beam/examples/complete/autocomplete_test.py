@@ -17,6 +17,8 @@
 
 """Test for the autocomplete example."""
 
+from __future__ import absolute_import
+
 import unittest
 
 import apache_beam as beam

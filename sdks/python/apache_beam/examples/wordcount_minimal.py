@@ -50,13 +50,16 @@ import argparse
 import logging
 import re
 
-import six
-
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 
 def run(argv=None):
@@ -103,7 +106,7 @@ def run(argv=None):
     counts = (
         lines
         | 'Split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                      .with_output_types(six.text_type))
+                      .with_output_types(unicode))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 

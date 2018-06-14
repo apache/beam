@@ -17,6 +17,8 @@
 #
 
 """Tests for all code snippets used in public docs."""
+from __future__ import absolute_import
+from __future__ import division
 
 import glob
 import gzip
@@ -25,6 +27,10 @@ import os
 import tempfile
 import unittest
 import uuid
+from builtins import map
+from builtins import object
+from builtins import range
+from builtins import zip
 
 import mock
 
