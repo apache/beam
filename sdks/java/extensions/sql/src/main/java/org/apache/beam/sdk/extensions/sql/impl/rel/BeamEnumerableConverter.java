@@ -37,7 +37,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
@@ -119,7 +118,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static PipelineResult run(
       PipelineOptions options, BeamRelNode node, DoFn<Row, Void> doFn) {
     Pipeline pipeline = Pipeline.create(options);
-    PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
+    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
     return result;

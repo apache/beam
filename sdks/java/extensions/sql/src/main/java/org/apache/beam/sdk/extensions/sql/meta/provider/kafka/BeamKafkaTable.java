@@ -107,6 +107,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
   public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     checkArgument(
         topics != null && topics.size() == 1, "Only one topic can be acceptable as output.");
+    assert topics != null;
 
     return new PTransform<PCollection<Row>, POutput>() {
       @Override
