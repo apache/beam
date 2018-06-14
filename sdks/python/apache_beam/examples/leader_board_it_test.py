@@ -30,10 +30,13 @@ Usage:
 
 """
 
+from __future__ import absolute_import
+
 import logging
 import time
 import unittest
 import uuid
+from builtins import range
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
@@ -95,7 +98,7 @@ class LeaderBoardIT(unittest.TestCase):
     logging.debug('Injecting %d game events to topic %s',
                   message_count, topic.full_name)
 
-    for _ in xrange(message_count):
+    for _ in range(message_count):
       topic.publish(self.INPUT_EVENT % self._test_timestamp)
 
   def _cleanup_pubsub(self):
