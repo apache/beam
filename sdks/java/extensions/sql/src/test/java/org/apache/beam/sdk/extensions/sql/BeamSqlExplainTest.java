@@ -19,16 +19,15 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.Ignore;
 
-/** UnitTest for {@link BeamSqlParserImpl}. */
+/** UnitTest for Explain Plan. */
 public class BeamSqlExplainTest {
   private InMemoryMetaStore metaStore;
   private BeamSqlCli cli;
@@ -62,7 +61,8 @@ public class BeamSqlExplainTest {
             + "COMMENT '' ");
   }
 
-  @Test
+  // TODO: (BEAM-4561) 5/30/2017 The test here is too fragile.
+  @Ignore
   public void testExplainCommaJoin() {
     String plan = cli.explainQuery("SELECT A.c1, B.c2 FROM A, B WHERE A.c1 = B.c2 AND A.c1 > 0");
 
