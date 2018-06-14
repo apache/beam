@@ -80,9 +80,9 @@ import org.joda.time.Instant;
  * <p>The input file defaults to a public data set containing the text of of King Lear,
  * by William Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  *
- * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
- * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=10}
- * for 10-minute windows.
+ * <p>By default, the pipeline will do fixed windowing, on 10-minute windows.  You can
+ * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=15}
+ * for 15-minute windows.
  *
  * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
