@@ -163,8 +163,7 @@ class FileBasedSink(iobase.Sink):
       if base_path == new_base_path:
         raise ValueError('Cannot create a temporary directory for root path '
                          'prefix %s. Please specify a file path prefix with '
-                         'at least two components.',
-                         file_path_prefix)
+                         'at least two components.' % file_path_prefix)
     path_components = [base_path,
                        'beam-temp-' + last_component + '-' + uuid.uuid1().hex]
     return FileSystems.join(*path_components)

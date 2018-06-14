@@ -334,7 +334,7 @@ class PipelineTest(unittest.TestCase):
       def get_replacement_transform(self, ptransform):
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
-        raise ValueError('Unsupported type of transform: %r', ptransform)
+        raise ValueError('Unsupported type of transform: %r' % ptransform)
 
     def get_overrides(unused_pipeline_options):
       return [MyParDoOverride()]

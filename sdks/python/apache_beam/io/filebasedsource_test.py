@@ -99,7 +99,7 @@ def write_data(
       elif eol == EOL.LF_WITH_NOTHING_AT_LAST_LINE:
         sep = '' if i == (num_lines - 1) else sep_values[0]
       else:
-        raise ValueError('Received unknown value %s for eol.', eol)
+        raise ValueError('Received unknown value %s for eol.' % eol)
 
       f.write(data + sep)
 
