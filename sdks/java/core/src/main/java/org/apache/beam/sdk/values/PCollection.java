@@ -277,7 +277,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Like {@link IsBounded#apply(String, PTransform)} but defaulting to the name
+   * Like {@link #apply(String, PTransform)} but defaulting to the name
    * of the {@link PTransform}.
    *
    * @return the output of the applied {@link PTransform}

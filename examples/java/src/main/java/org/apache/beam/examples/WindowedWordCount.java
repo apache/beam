@@ -80,9 +80,9 @@ import org.joda.time.Instant;
  * <p>The input file defaults to a public data set containing the text of of King Lear,
  * by William Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  *
- * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
- * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=10}
- * for 10-minute windows.
+ * <p>By default, the pipeline will do fixed windowing, on 10-minute windows.  You can
+ * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=15}
+ * for 15-minute windows.
  *
  * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
@@ -112,7 +112,7 @@ public class WindowedWordCount {
               ThreadLocalRandom.current()
                   .nextLong(minTimestamp.getMillis(), maxTimestamp.getMillis()));
 
-      /**
+      /*
        * Concept #2: Set the data element with that timestamp.
        */
       receiver.outputWithTimestamp(element, new Instant(randomTimestamp));
@@ -172,18 +172,18 @@ public class WindowedWordCount {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    /**
+    /*
      * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
      */
     PCollection<String> input = pipeline
-      /** Read from the GCS file. */
+      /* Read from the GCS file. */
       .apply(TextIO.read().from(options.getInputFile()))
       // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
       // See AddTimestampFn for more detail on this.
       .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 
-    /**
+    /*
      * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
      * minute (you can change this with a command-line option). See the documentation for more
      * information on how fixed windows work, and for information on the other types of windowing
@@ -193,13 +193,13 @@ public class WindowedWordCount {
         input.apply(
             Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
-    /**
+    /*
      * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
      * windows over a PCollection containing windowed values.
      */
     PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 
-    /**
+    /*
      * Concept #5: Format the results and write to a sharded file partitioned by window, using a
      * simple ParDo operation. Because there may be failures followed by retries, the
      * writes must be idempotent, but the details of writing to files is elided here.
