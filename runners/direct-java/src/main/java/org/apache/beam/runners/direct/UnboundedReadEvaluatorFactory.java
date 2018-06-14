@@ -119,6 +119,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    @SuppressWarnings("Finally") // Cannot use try-with-resources in order to ensure we don't
+                                 // double-close the reader.
     public void processElement(
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
       UncommittedBundle<OutputT> output =

@@ -18,8 +18,6 @@
 
 package org.apache.beam.runners.direct.portable.artifact;
 
-import static org.junit.Assert.fail;
-
 import io.grpc.stub.StreamObserver;
 import java.util.Optional;
 import java.util.concurrent.SynchronousQueue;
@@ -69,7 +67,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -78,7 +76,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.of(t));
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -87,7 +85,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
         });
@@ -113,7 +111,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -122,7 +120,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.of(t));
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -131,7 +129,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
         });

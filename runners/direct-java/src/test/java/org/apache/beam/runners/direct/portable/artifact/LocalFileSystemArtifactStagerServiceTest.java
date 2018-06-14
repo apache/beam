@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct.portable.artifact;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -79,7 +80,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
   @Test
   public void singleDataPutArtifactSucceeds() throws Exception {
-    byte[] data = "foo-bar-baz".getBytes();
+    byte[] data = "foo-bar-baz".getBytes(UTF_8);
     RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
         new RecordingStreamObserver<>();
     StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
@@ -112,9 +113,9 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
   @Test
   public void multiPartPutArtifactSucceeds() throws Exception {
-    byte[] partOne = "foo-".getBytes();
-    byte[] partTwo = "bar-".getBytes();
-    byte[] partThree = "baz".getBytes();
+    byte[] partOne = "foo-".getBytes(UTF_8);
+    byte[] partTwo = "bar-".getBytes(UTF_8);
+    byte[] partThree = "baz".getBytes(UTF_8);
     RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
         new RecordingStreamObserver<>();
     StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
@@ -158,12 +159,12 @@ public class LocalFileSystemArtifactStagerServiceTest {
     assertThat(staged.exists(), is(true));
     ByteBuffer buf = ByteBuffer.allocate("foo-bar-baz".length());
     new FileInputStream(staged).getChannel().read(buf);
-    Assert.assertArrayEquals("foo-bar-baz".getBytes(), buf.array());
+    Assert.assertArrayEquals("foo-bar-baz".getBytes(UTF_8), buf.array());
   }
 
   @Test
   public void putArtifactBeforeNameFails() {
-    byte[] data = "foo-".getBytes();
+    byte[] data = "foo-".getBytes(UTF_8);
     RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
         new RecordingStreamObserver<>();
     StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
@@ -200,9 +201,9 @@ public class LocalFileSystemArtifactStagerServiceTest {
   @Test
   public void commitManifestWithAllArtifactsSucceeds() {
     ArtifactApi.ArtifactMetadata firstArtifact =
-        stageBytes("first-artifact", "foo, bar, baz, quux".getBytes());
+        stageBytes("first-artifact", "foo, bar, baz, quux".getBytes(UTF_8));
     ArtifactApi.ArtifactMetadata secondArtifact =
-        stageBytes("second-artifact", "spam, ham, eggs".getBytes());
+        stageBytes("second-artifact", "spam, ham, eggs".getBytes(UTF_8));
 
     ArtifactApi.Manifest manifest =
         ArtifactApi.Manifest.newBuilder()
@@ -227,7 +228,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
   @Test
   public void commitManifestWithMissingArtifactFails() {
     ArtifactApi.ArtifactMetadata firstArtifact =
-        stageBytes("first-artifact", "foo, bar, baz, quux".getBytes());
+        stageBytes("first-artifact", "foo, bar, baz, quux".getBytes(UTF_8));
     ArtifactApi.ArtifactMetadata absentArtifact =
         ArtifactApi.ArtifactMetadata.newBuilder().setName("absent").build();
 

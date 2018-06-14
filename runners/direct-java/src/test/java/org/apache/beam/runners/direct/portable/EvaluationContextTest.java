@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct.portable;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -149,7 +150,7 @@ public class EvaluationContextTest {
 
   @Test
   public void handleResultStoresState() {
-    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
+    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(UTF_8), ByteArrayCoder.of());
     StepStateAndTimers fooContext = context.getStateAndTimers(downstreamProducer, myKey);
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());

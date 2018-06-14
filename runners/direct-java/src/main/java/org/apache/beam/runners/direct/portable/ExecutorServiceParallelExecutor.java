@@ -142,6 +142,8 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
+  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     int numTargetSplits = Math.max(3, targetParallelism);
     ImmutableMap.Builder<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>

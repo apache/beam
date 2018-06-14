@@ -39,12 +39,14 @@ interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
    * Returns the PCollection that the elements of this bundle belong to.
    */
   @Nullable
+  @Override
   PCollectionNode getPCollection();
 
   /**
    * Returns the key that was output in the most recent {@code GroupByKey} in the
    * execution of this bundle.
    */
+  @Override
   StructuralKey<?> getKey();
 
   /**
@@ -59,6 +61,7 @@ interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
    * <p>This should be equivalent to iterating over all of the elements within a bundle and
    * selecting the minimum timestamp from among them.
    */
+  @Override
   Instant getMinimumTimestamp();
 
   /**
@@ -70,6 +73,7 @@ interface CommittedBundle<T> extends Bundle<T, PCollectionNode> {
    * processing time {@link TimerData timer} at the time this bundle was committed, including any
    * timers that fired to produce this bundle.
    */
+  @Override
   Instant getSynchronizedProcessingOutputWatermark();
   /**
    * Return a new {@link CommittedBundle} that is like this one, except calls to
