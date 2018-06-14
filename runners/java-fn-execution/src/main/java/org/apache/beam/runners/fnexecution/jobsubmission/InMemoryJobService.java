@@ -60,17 +60,36 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   public static InMemoryJobService create(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
-    return new InMemoryJobService(stagingServiceDescriptor, invoker);
+    return new InMemoryJobService(stagingServiceDescriptor, (String session) -> "token", invoker);
+  }
+
+  /**
+   * Creates an InMemoryJobService.
+   *
+   * @param stagingServiceDescriptor Endpoint for the staging service.
+   * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
+   * @param invoker A JobInvoker that will actually create the jobs.
+   * @return A new InMemoryJobService.
+   */
+  public static InMemoryJobService create(
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      Function<String, String> stagingServiceTokenProvider,
+      JobInvoker invoker) {
+    return new InMemoryJobService(stagingServiceDescriptor, stagingServiceTokenProvider, invoker);
   }
 
   private final ConcurrentMap<String, JobPreparation> preparations;
   private final ConcurrentMap<String, JobInvocation> invocations;
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
+  private final Function<String, String> stagingServiceTokenProvider;
   private final JobInvoker invoker;
 
   private InMemoryJobService(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      Function<String, String> stagingServiceTokenProvider,
+      JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
+    this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.invoker = invoker;
 
     this.preparations = new ConcurrentHashMap<>();
@@ -114,9 +133,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               .newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
-              // TODO: Pass the correct token for staging. The token depends on the
-              // ArtifactStagingService implementation.
-              .setStagingSessionToken("token")
+              .setStagingSessionToken(stagingServiceTokenProvider.apply(preparationId))
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
