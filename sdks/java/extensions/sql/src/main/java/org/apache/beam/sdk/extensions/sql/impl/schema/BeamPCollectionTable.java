@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
@@ -37,12 +36,13 @@ public class BeamPCollectionTable extends BaseBeamTable {
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    assert begin.getPipeline() == upstream.getPipeline();
     return upstream;
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+  public POutput buildIOWriter(PCollection<Row> input) {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
 }

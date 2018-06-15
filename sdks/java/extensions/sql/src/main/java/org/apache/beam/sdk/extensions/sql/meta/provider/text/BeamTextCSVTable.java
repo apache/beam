@@ -18,10 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -50,15 +48,15 @@ public class BeamTextCSVTable extends BeamTextTable {
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline)
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    return begin
         .apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine", new BeamTextCSVTableIOReader(schema, filePattern, csvFormat));
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(schema, filePattern, csvFormat);
+  public POutput buildIOWriter(PCollection<Row> input) {
+    return input.apply(new BeamTextCSVTableIOWriter(schema, filePattern, csvFormat));
   }
 
   public CSVFormat getCsvFormat() {

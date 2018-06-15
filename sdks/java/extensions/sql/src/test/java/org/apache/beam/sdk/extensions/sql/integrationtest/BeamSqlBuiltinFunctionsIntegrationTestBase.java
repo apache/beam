@@ -91,7 +91,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               (short) 32767,
               2147483647,
               9223372036854775807L)
-          .buildIOReader(pipeline)
+          .buildIOReader(pipeline.begin())
           .setCoder(ROW_TYPE.getRowCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
