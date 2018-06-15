@@ -1931,7 +1931,7 @@ The following table shows the standard mapping:
 #### 6.2.1. Looking up a default coder {#default-coder-lookup}
 
 {:.language-java}
-You can use the method `CoderRegistry.getDefaultCoder` to determine the default
+You can use the method `CoderRegistry.getCoder` to determine the default
 Coder for a Java type. You can access the `CoderRegistry` for a given pipeline
 by using the method `Pipeline.getCoderRegistry`. This allows you to determine
 (or set) the default Coder for a Java type on a per-pipeline basis: i.e. "for
