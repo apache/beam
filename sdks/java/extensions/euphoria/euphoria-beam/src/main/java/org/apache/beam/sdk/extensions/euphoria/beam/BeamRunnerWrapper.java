@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper around Beam's runner. Allows for {@link #executeSync(Flow) synchronous} and {@link
- * #submitAsync(Flow) asycnhronous} executions of {@link Flow}.
+ * #executeAsync(Flow) asycnhronous} executions of {@link Flow}.
  */
 public class BeamRunnerWrapper {
 
@@ -87,6 +87,10 @@ public class BeamRunnerWrapper {
     return new Result(result);
   }
 
+  public CompletableFuture<Result> executeAsync(Flow flow) {
+    return CompletableFuture.supplyAsync(() -> executeSync(flow), submitExecutor);
+  }
+
   /**
    * Result of pipeline's run.
    */
@@ -116,10 +120,6 @@ public class BeamRunnerWrapper {
   public BeamRunnerWrapper withAllowedLateness(java.time.Duration duration) {
     this.allowedLateness = Duration.millis(duration.toMillis());
     return this;
-  }
-
-  public CompletableFuture<Result> submitAsync(Flow flow) {
-    return CompletableFuture.supplyAsync(() -> executeSync(flow), submitExecutor);
   }
 
   public void shutdown() {

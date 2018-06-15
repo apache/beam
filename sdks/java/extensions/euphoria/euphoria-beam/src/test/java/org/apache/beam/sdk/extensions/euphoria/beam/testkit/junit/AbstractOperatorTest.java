@@ -104,7 +104,7 @@ public abstract class AbstractOperatorTest implements Serializable {
         // skip if output is not supported for the processing type
         output.persist(tc.modifySink(sink));
         try {
-          runner.submitAsync(flow).get();
+          runner.executeAsync(flow).get();
         } catch (InterruptedException | ExecutionException e) {
           throw new RuntimeException("Test failure at run #" + i, e);
         }
