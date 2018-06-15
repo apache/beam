@@ -113,7 +113,7 @@ public class BeamPTransformTest implements Serializable {
 
     PAssert.that(pCollection).containsInAnyOrder(upperCaseWords);
 
-    BeamFlow flow = BeamFlow.create(pipeline);
+    BeamFlow flow = BeamFlow.of(pipeline);
     BeamExecutor executor = TestUtils.createExecutor();
     executor.execute(flow);
   }
@@ -121,7 +121,7 @@ public class BeamPTransformTest implements Serializable {
   @Test
   public void testFlowToPCollection() {
 
-    BeamFlow flow = BeamFlow.create(pipeline);
+    BeamFlow flow = BeamFlow.of(pipeline);
 
     final ListDataSource<Integer> input =
         ListDataSource.unbounded(Arrays.asList(1, 2, 3), Arrays.asList(4, 5, 6));

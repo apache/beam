@@ -54,7 +54,7 @@ import org.joda.time.Duration;
 /**
  * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
  */
-class BeamExecutorContext {
+class TranslationContext {
 
   private final Map<Dataset<?>, PCollection<?>> datasetToPCollection = new HashMap<>();
   private final Pipeline pipeline;
@@ -63,7 +63,7 @@ class BeamExecutorContext {
   private final AccumulatorProvider.Factory accumulatorFactory;
   private DAG<Operator<?, ?>> dag;
 
-  BeamExecutorContext(
+  TranslationContext(
       DAG<Operator<?, ?>> dag,
       AccumulatorProvider.Factory accumulatorFactory,
       Pipeline pipeline,

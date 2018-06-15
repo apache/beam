@@ -108,8 +108,8 @@ class FlowTranslator {
     final Pipeline pipeline = Pipeline.create(options);
     DAG<Operator<?, ?>> dag = toDAG(flow);
 
-    final BeamExecutorContext executorContext =
-        new BeamExecutorContext(dag, accumulatorFactory, pipeline, settings, allowedLateness);
+    final TranslationContext executorContext =
+        new TranslationContext(dag, accumulatorFactory, pipeline, settings, allowedLateness);
 
     updateContextBy(dag, executorContext);
     return executorContext.getPipeline();
@@ -126,7 +126,7 @@ class FlowTranslator {
   }
 
   @SuppressWarnings("unchecked")
-  static void updateContextBy(DAG<Operator<?, ?>> dag, BeamExecutorContext context) {
+  static void updateContextBy(DAG<Operator<?, ?>> dag, TranslationContext context) {
 
     // translate each operator to a beam transformation
     dag.traverse()

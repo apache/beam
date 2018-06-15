@@ -30,7 +30,7 @@ import org.joda.time.Instant;
 class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 
   private static <InputT, OutputT> PCollection<OutputT> doTranslate(
-      FlatMap<InputT, OutputT> operator, BeamExecutorContext context) {
+      FlatMap<InputT, OutputT> operator, TranslationContext context) {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
     final Mapper<InputT, OutputT> mapper =
@@ -44,7 +44,7 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public PCollection<?> translate(FlatMap operator, BeamExecutorContext context) {
+  public PCollection<?> translate(FlatMap operator, TranslationContext context) {
     return doTranslate(operator, context);
   }
 
