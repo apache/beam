@@ -201,13 +201,7 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       try {
         if (bulkMutation != null) {
-          try {
-            bulkMutation.flush();
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // We fail since flush() operation was interrupted.
-            throw new IOException(e);
-          }
+          flush();
           bulkMutation = null;
         }
       } finally {
@@ -220,16 +214,16 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public CompletionStage<MutateRowResponse> writeRecord(
-        KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
-      MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
-          .setRowKey(record.getKey())
-          .addAllMutations(record.getValue())
-          .build();
+        KV<ByteString, Iterable<Mutation>> record) {
+      MutateRowsRequest.Entry.Builder request = MutateRowsRequest.Entry.newBuilder()
+          .setRowKey(record.getKey());
+      for (Mutation mutation : record.getValue()) {
+        request.addMutations(mutation);
+      }
 
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
       Futures.addCallback(
-          bulkMutation.add(request),
+          bulkMutation.add(request.build()),
           new FutureCallback<MutateRowResponse>() {
             @Override
             public void onSuccess(MutateRowResponse mutateRowResponse) {

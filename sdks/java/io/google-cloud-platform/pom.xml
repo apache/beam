@@ -271,10 +271,13 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-protos</artifactId>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-bigtable-v2</artifactId>
     </dependency>
-
+    <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-bigtable-admin-v2</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.google.cloud.bigtable</groupId>
       <artifactId>bigtable-client-core</artifactId>
