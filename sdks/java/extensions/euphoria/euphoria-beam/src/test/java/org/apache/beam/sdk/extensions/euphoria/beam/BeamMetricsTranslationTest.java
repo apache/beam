@@ -25,7 +25,6 @@ import static org.junit.Assert.assertThat;
 import java.util.Arrays;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.extensions.euphoria.beam.BeamExecutor.ExecutorResult;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
@@ -104,8 +103,8 @@ public class BeamMetricsTranslationTest {
         .output()
         .persist(sink);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    PipelineResult result = ((ExecutorResult) executor.execute(flow)).getResult();
+    BeamRunnerWrapper beamRunnerWrapper = BeamRunnerWrapper.ofDirect();
+    PipelineResult result = beamRunnerWrapper.executeSync(flow).getResult();
 
     final MetricQueryResults metricQueryResults =
         result
