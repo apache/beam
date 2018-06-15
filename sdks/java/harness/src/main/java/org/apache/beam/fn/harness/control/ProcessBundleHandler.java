@@ -296,7 +296,8 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    @SuppressWarnings("FutureReturnValueIgnored")
+    @SuppressWarnings("FutureReturnValueIgnored") // async arriveAndDeregister task doesn't need
+                                                  // monitoring.
     public void handle(StateRequest.Builder requestBuilder,
         CompletableFuture<StateResponse> response) {
       // Register each request with the phaser and arrive and deregister each time a request
