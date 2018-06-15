@@ -317,6 +317,21 @@ and testing, etc.
  - JIRA: [dsl-sql](https://issues.apache.org/jira/issues/?filter=12343977)
  - Contact: [Kenneth Knowles](mailto:kenn@apache.org)
 
+### Add benchmarks to continuous integration
+
+Run Nexmark benchmark queries after each commit for Spark, Flink and Direct Runner and export response times to performance dashboards
+
+- JIRA: [nexmark-perfkit](https://issues.apache.org/jira/browse/BEAM-4225)
+- Contact: [Etienne Chauchot](mailto:echauchot@apache.org)
+
+### Extract metrics in a runner agnostic way
+
+Metrics are pushed by the runners to configurable sinks (HTTP REST sink available).
+It is already enabled in Filnk and Spark runner. Work is in progress for Dataflow
+
+- JIRA: [runner-agnostic-metrics](https://issues.apache.org/jira/browse/BEAM-3310)
+- Contact: [Etienne Chauchot](mailto:echauchot@apache.org)
+
 ## Stale pull requests
 
 The community will close stale pull requests in order to keep the project
