@@ -29,9 +29,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,11 +60,13 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
 
   public BeamFnDataGrpcMultiplexer(
       @Nullable Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements> outboundObserverFactory) {
+      OutboundObserverFactory outboundObserverFactory,
+      OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.consumers = new ConcurrentHashMap<>();
     this.inboundObserver = new InboundObserver();
-    this.outboundObserver = outboundObserverFactory.outboundObserverFor(inboundObserver);
+    this.outboundObserver =
+        outboundObserverFactory.outboundObserverFor(baseOutboundObserverFactory, inboundObserver);
   }
 
   @Override

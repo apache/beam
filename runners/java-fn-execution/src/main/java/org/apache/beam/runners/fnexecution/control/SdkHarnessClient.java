@@ -28,11 +28,14 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
+import org.apache.beam.runners.fnexecution.state.StateDelegator.Registration;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -93,12 +96,13 @@ public class SdkHarnessClient implements AutoCloseable {
      * }</pre>
      */
     public ActiveBundle<T> newBundle(
-        Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers) {
+        Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers,
+        BundleProgressHandler progressHandler) {
       return newBundle(outputReceivers, request -> {
         throw new UnsupportedOperationException(String.format(
             "The %s does not have a registered state handler.",
             ActiveBundle.class.getSimpleName()));
-      });
+      }, progressHandler);
     }
 
     /**
@@ -108,6 +112,7 @@ public class SdkHarnessClient implements AutoCloseable {
      * in the {@link BeamFnApi.ProcessBundleDescriptor}.
      *
      * <p>NOTE: It is important to {@link #close()} each bundle after all elements are emitted.
+     *
      * <pre>{@code
      * try (ActiveBundle<InputT> bundle = SdkHarnessClient.newBundle(...)) {
      *   FnDataReceiver<InputT> inputReceiver = bundle.getInputReceiver();
@@ -117,7 +122,8 @@ public class SdkHarnessClient implements AutoCloseable {
      */
     public ActiveBundle<T> newBundle(
         Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers,
-        StateRequestHandler stateRequestHandler) {
+        StateRequestHandler stateRequestHandler,
+        BundleProgressHandler progressHandler) {
       String bundleId = idGenerator.getId();
 
       final CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
@@ -157,7 +163,8 @@ public class SdkHarnessClient implements AutoCloseable {
           specificResponse,
           dataReceiver,
           outputClients,
-          stateDelegator.registerForProcessBundleInstructionId(bundleId, stateRequestHandler));
+          stateDelegator.registerForProcessBundleInstructionId(bundleId, stateRequestHandler),
+          progressHandler);
     }
 
     private <OutputT> InboundDataClient attachReceiver(
@@ -176,18 +183,21 @@ public class SdkHarnessClient implements AutoCloseable {
     private final CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver;
     private final Map<BeamFnApi.Target, InboundDataClient> outputClients;
     private final StateDelegator.Registration stateRegistration;
+    private final BundleProgressHandler progressHandler;
 
     private ActiveBundle(
         String bundleId,
-        CompletionStage<BeamFnApi.ProcessBundleResponse> response,
+        CompletionStage<ProcessBundleResponse> response,
         CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver,
-        Map<BeamFnApi.Target, InboundDataClient> outputClients,
-        StateDelegator.Registration stateRegistration) {
+        Map<Target, InboundDataClient> outputClients,
+        Registration stateRegistration,
+        BundleProgressHandler progressHandler) {
       this.bundleId = bundleId;
       this.response = response;
       this.inputReceiver = inputReceiver;
       this.outputClients = outputClients;
       this.stateRegistration = stateRegistration;
+      this.progressHandler = progressHandler;
     }
 
     /** Returns an id used to represent this bundle. */
@@ -228,7 +238,7 @@ public class SdkHarnessClient implements AutoCloseable {
       try {
         // We don't have to worry about the completion stage.
         if (exception == null) {
-          MoreFutures.get(response);
+          progressHandler.onCompleted(MoreFutures.get(response));
         } else {
           // TODO: [BEAM-3962] Handle aborting the bundle being processed.
           throw new IllegalStateException("Processing bundle failed, "
@@ -273,7 +283,6 @@ public class SdkHarnessClient implements AutoCloseable {
       if (exception != null) {
         throw exception;
       }
-
     }
   }
 

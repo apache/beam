@@ -128,7 +128,7 @@ public class WatermarkManagerTest implements Serializable {
     DirectGraphs.performDirectOverrides(p);
     graph = DirectGraphs.getGraph(p);
 
-    manager = WatermarkManager.create(clock, graph);
+    manager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     bundleFactory = ImmutableListBundleFactory.create();
   }
 
@@ -306,7 +306,7 @@ public class WatermarkManagerTest implements Serializable {
     AppliedPTransform<?, ?, ?> theFlatten = graph.getProducer(multiConsumer);
 
     WatermarkManager<AppliedPTransform<?, ?, ?>, ? super PCollection<?>> tstMgr =
-        WatermarkManager.create(clock, graph);
+        WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     CommittedBundle<Void> root =
         bundleFactory
             .<Void>createRootBundle()
@@ -1504,7 +1504,7 @@ public class WatermarkManagerTest implements Serializable {
     Watermark mockWatermark = Mockito.mock(Watermark.class);
 
     AppliedPTransformInputWatermark underTest =
-        new AppliedPTransformInputWatermark(ImmutableList.of(mockWatermark));
+        new AppliedPTransformInputWatermark("underTest", ImmutableList.of(mockWatermark));
 
     // Refresh
     when(mockWatermark.get()).thenReturn(new Instant(0));

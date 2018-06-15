@@ -79,10 +79,10 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -114,6 +114,11 @@ import org.joda.time.Instant;
  * concepts differently.
  */
 public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+
+  private final ProcessBundleContext processContext;
+  private final FinishBundleContext finishBundleContext;
+  private StartBundleContext startBundleContext;
+
   /**
    * A registrar which provides a factory to handle Java {@link DoFn}s.
    */
@@ -334,9 +339,6 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final DoFnSignature doFnSignature;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StateBinder stateBinder;
-  private final StartBundleContext startBundleContext;
-  private final ProcessBundleContext processBundleContext;
-  private final FinishBundleContext finishBundleContext;
   private final Collection<ThrowingRunnable> stateFinalizers;
 
   /**
@@ -389,10 +391,37 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.doFnInvoker = DoFnInvokers.invokerFor(doFn);
     this.doFnInvoker.invokeSetup();
     this.stateBinder = new BeamFnStateBinder();
-    this.startBundleContext = new StartBundleContext();
-    this.processBundleContext = new ProcessBundleContext();
-    this.finishBundleContext = new FinishBundleContext();
     this.stateFinalizers = new ArrayList<>();
+
+    this.startBundleContext = doFn.new StartBundleContext() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+    };
+    this.processContext = new ProcessBundleContext();
+    finishBundleContext = doFn.new FinishBundleContext() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+        outputTo(mainOutputConsumers,
+            WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumers,
+            WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      }
+    };
   }
 
   @Override
@@ -408,7 +437,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeProcessElement(processBundleContext);
+        doFnInvoker.invokeProcessElement(processContext);
       }
     } finally {
       currentElement = null;
@@ -458,119 +487,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private <T> void outputTo(
       Collection<FnDataReceiver<WindowedValue<T>>> consumers,
       WindowedValue<T> output) {
-    Iterator<FnDataReceiver<WindowedValue<T>>> consumerIterator;
     try {
       for (FnDataReceiver<WindowedValue<T>> consumer : consumers) {
         consumer.accept(output);
       }
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
-    }
-  }
-
-  /**
-   * Provides arguments for a {@link DoFnInvoker} for {@link DoFn.StartBundle @StartBundle}.
-   */
-  private class StartBundleContext
-      extends DoFn<InputT, OutputT>.StartBundleContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
-
-    private StartBundleContext() {
-      doFn.super();
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return pipelineOptions;
-    }
-
-    @Override
-    public PipelineOptions pipelineOptions() {
-      return pipelineOptions;
-    }
-
-    @Override
-    public BoundedWindow window() {
-      throw new UnsupportedOperationException(
-          "Cannot access window outside of @ProcessElement and @OnTimer methods.");
-    }
-
-    @Override
-    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access paneInfo outside of @ProcessElement methods.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
-        DoFn<InputT, OutputT> doFn) {
-      return this;
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
-        DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access FinishBundleContext outside of @FinishBundle method.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access ProcessContext outside of @ProcessElement method.");
-    }
-
-    @Override
-    public InputT element(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access element outside of @ProcessElement method.");
-    }
-
-    @Override
-    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access timestamp outside of @ProcessElement method.");
-    }
-
-    @Override
-    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access time domain outside of @ProcessTimer method.");
-    }
-
-    @Override
-    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access output receiver outside of @ProcessElement method.");    }
-
-    @Override
-    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access output reveiver outside of @ProcessElement method.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access OnTimerContext outside of @OnTimer methods.");
-    }
-
-    @Override
-    public RestrictionTracker<?, ?> restrictionTracker() {
-      throw new UnsupportedOperationException(
-          "Cannot access RestrictionTracker outside of @ProcessElement method.");
-    }
-
-    @Override
-    public State state(String stateId) {
-      throw new UnsupportedOperationException(
-          "Cannot access state outside of @ProcessElement and @OnTimer methods.");
-    }
-
-    @Override
-    public Timer timer(String timerId) {
-      throw new UnsupportedOperationException(
-          "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
     }
   }
 
@@ -596,19 +518,20 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public DoFn.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access StartBundleContext outside of @StartBundle method.");
     }
 
     @Override
-    public DoFn.FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access FinishBundleContext outside of @FinishBundle method.");
     }
 
     @Override
-    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       return this;
     }
 
@@ -639,7 +562,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("TODO: Add support for timers");
     }
 
@@ -751,128 +674,6 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   }
 
   /**
-   * Provides arguments for a {@link DoFnInvoker} for {@link DoFn.FinishBundle @FinishBundle}.
-   */
-  private class FinishBundleContext
-      extends DoFn<InputT, OutputT>.FinishBundleContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
-
-    private FinishBundleContext() {
-      doFn.super();
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return pipelineOptions;
-    }
-
-    @Override
-    public PipelineOptions pipelineOptions() {
-      return pipelineOptions;
-    }
-
-    @Override
-    public BoundedWindow window() {
-      throw new UnsupportedOperationException(
-          "Cannot access window outside of @ProcessElement and @OnTimer methods.");
-    }
-
-    @Override
-    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access paneInfo outside of @ProcessElement methods.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
-        DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access StartBundleContext outside of @StartBundle method.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
-        DoFn<InputT, OutputT> doFn) {
-      return this;
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access ProcessContext outside of @ProcessElement method.");
-    }
-
-    @Override
-    public InputT element(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access element outside of @ProcessElement method.");
-    }
-
-    @Override
-    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access timestamp outside of @ProcessElement method.");
-    }
-
-    @Override
-    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access time domain outside of @ProcessTimer method.");
-    }
-
-    @Override
-    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access output receiver outside of @ProcessElement method.");    }
-
-    @Override
-    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access output reveiver outside of @ProcessElement method.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access OnTimerContext outside of @OnTimer methods.");
-    }
-
-    @Override
-    public RestrictionTracker<?, ?> restrictionTracker() {
-      throw new UnsupportedOperationException(
-          "Cannot access RestrictionTracker outside of @ProcessElement method.");
-    }
-
-    @Override
-    public State state(String stateId) {
-      throw new UnsupportedOperationException(
-          "Cannot access state outside of @ProcessElement and @OnTimer methods.");
-    }
-
-    @Override
-    public Timer timer(String timerId) {
-      throw new UnsupportedOperationException(
-          "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
-    }
-
-    @Override
-    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-      outputTo(mainOutputConsumers,
-          WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      Collection<FnDataReceiver<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
-      if (consumers == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(consumers,
-          WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
-    }
-  }
-
-  /**
    * A {@link StateBinder} that uses the Beam Fn State API to read and write user state.
    *
    * <p>TODO: Add support for {@link #bindMap} and {@link #bindSet}. Note that
@@ -973,18 +774,18 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+    public <ElementT, AccumT, ResultT> CombiningState<ElementT, AccumT, ResultT> bindCombining(
         String id,
-        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec, Coder<AccumT> accumCoder,
-        CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
+        StateSpec<CombiningState<ElementT, AccumT, ResultT>> spec, Coder<AccumT> accumCoder,
+        CombineFn<ElementT, AccumT, ResultT> combineFn) {
+      return (CombiningState<ElementT, AccumT, ResultT>) stateKeyObjectCache.computeIfAbsent(
           createBagUserStateKey(id),
           new Function<StateKey, Object>() {
             @Override
             public Object apply(StateKey key) {
               // TODO: Support squashing accumulators depending on whether we know of all
               // remote accumulators and local accumulators or just local accumulators.
-              return new CombiningState<InputT, AccumT, OutputT>() {
+              return new CombiningState<ElementT, AccumT, ResultT>() {
                 private final BagUserState<AccumT> impl = createBagUserState(id, accumCoder);
 
                 @Override
@@ -1016,12 +817,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
                 }
 
                 @Override
-                public CombiningState<InputT, AccumT, OutputT> readLater() {
+                public CombiningState<ElementT, AccumT, ResultT> readLater() {
                   return this;
                 }
 
                 @Override
-                public OutputT read() {
+                public ResultT read() {
                   Iterator<AccumT> iterator = impl.get().iterator();
                   if (iterator.hasNext()) {
                     return combineFn.extractOutput(iterator.next());
@@ -1030,7 +831,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
                 }
 
                 @Override
-                public void add(InputT value) {
+                public void add(ElementT value) {
                   AccumT newAccumulator = combineFn.addInput(getAccum(), value);
                   impl.clear();
                   impl.append(newAccumulator);
@@ -1051,13 +852,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
+    public <ElementT, AccumT, ResultT> CombiningState<ElementT, AccumT, ResultT>
     bindCombiningWithContext(
         String id,
-        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+        StateSpec<CombiningState<ElementT, AccumT, ResultT>> spec,
         Coder<AccumT> accumCoder,
-        CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
+        CombineFnWithContext<ElementT, AccumT, ResultT> combineFn) {
+      return (CombiningState<ElementT, AccumT, ResultT>) stateKeyObjectCache.computeIfAbsent(
           createBagUserStateKey(id),
           key -> bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
               new StateContext<BoundedWindow>() {
@@ -1068,7 +869,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
                 @Override
                 public <T> T sideInput(PCollectionView<T> view) {
-                  return processBundleContext.sideInput(view);
+                  return bindSideInputView(view.getTagInternal());
                 }
 
                 @Override
@@ -1091,7 +892,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     private <T> BagUserState<T> createBagUserState(
         String stateId, Coder<T> valueCoder) {
-      BagUserState rval = new BagUserState<T>(
+      BagUserState<T> rval = new BagUserState<>(
           beamFnStateClient,
           processBundleInstructionId.get(),
           ptransformId,

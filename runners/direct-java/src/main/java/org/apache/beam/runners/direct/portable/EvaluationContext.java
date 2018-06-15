@@ -106,7 +106,7 @@ class EvaluationContext {
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
 
-    this.watermarkManager = WatermarkManager.create(clock, graph);
+    this.watermarkManager = WatermarkManager.create(clock, graph, PTransformNode::getId);
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.metrics = new DirectMetrics();

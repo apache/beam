@@ -67,7 +67,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -112,7 +112,8 @@ public class RemoteExecutionTest implements Serializable {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(serverExecutor), serverFactory);
+            GrpcDataService.create(serverExecutor, OutboundObserverFactory.serverDirect()),
+            serverFactory);
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
@@ -135,7 +136,7 @@ public class RemoteExecutionTest implements Serializable {
                 loggingServer.getApiServiceDescriptor(),
                 controlServer.getApiServiceDescriptor(),
                 InProcessManagedChannelFactory.create(),
-                StreamObserverFactory.direct()));
+                OutboundObserverFactory.clientDirect()));
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
         clientPool.getSource().take("", Duration.ofSeconds(2));
@@ -212,9 +213,12 @@ public class RemoteExecutionTest implements Serializable {
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
     // The impulse example
-    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers)) {
+
+    try (ActiveBundle<byte[]> bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
       bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
+
     for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
@@ -318,8 +322,10 @@ public class RemoteExecutionTest implements Serializable {
                 };
               }
             });
+    BundleProgressHandler progressHandler = BundleProgressHandler.unsupported();
 
-    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers, stateRequestHandler)) {
+    try (ActiveBundle<byte[]> bundle =
+        processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       bundle
           .getInputReceiver()
           .accept(

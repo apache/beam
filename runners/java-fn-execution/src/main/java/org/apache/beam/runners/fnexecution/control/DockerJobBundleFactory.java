@@ -55,6 +55,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -251,7 +252,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
     @Override
     public RemoteBundle<InputT> getBundle(
-        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler)
+        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler,
+        BundleProgressHandler progressHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
@@ -272,7 +274,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
-      return processor.newBundle(outputReceivers.build(), stateRequestHandler);
+      return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
     }
 
     @Override
@@ -300,7 +302,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         RemoteEnvironment environment, ServerFactory serverFactory) throws Exception {
       ExecutorService executor = Executors.newCachedThreadPool();
       GrpcFnServer<GrpcDataService> dataServer =
-          GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+          GrpcFnServer.allocatePortAndCreateFor(
+              GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+              serverFactory);
       GrpcFnServer<GrpcStateService> stateServer =
           GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
       SdkHarnessClient client =
