@@ -36,7 +36,7 @@ import org.junit.Test;
 public class DistinctTest extends AbstractOperatorTest {
 
   /** Test simple duplicates. */
-  //"Distinct operator with unbounded dataset without windowing do not work,
+  // Distinct operator with unbounded dataset without windowing do not work,
   // since it is translated into GroupByKey."
   @Processing(Processing.Type.BOUNDED)
   @Test
