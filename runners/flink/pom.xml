@@ -319,6 +319,11 @@
       <artifactId>joda-time</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>args4j</groupId>
+      <artifactId>args4j</artifactId>
+    </dependency>
+
     <!--
     Force an upgrade on the version of Apache Commons from Flink to support DEFLATE compression.
     -->
