@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import copy
 import inspect
 import random
+import re
 import types
 
 from six import string_types
@@ -891,8 +892,9 @@ class ParDo(PTransformWithSideInputs):
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-        (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, context))
-        for ix, si in pardo_payload.side_inputs.items()]
+        (int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+         pvalue.AsSideInput.from_runner_api(si, context))
+        for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
