@@ -27,7 +27,7 @@ public class ReduceStateByKeyTranslator implements OperatorTranslator<ReduceStat
 
   @Override
   @SuppressWarnings("unchecked")
-  public PCollection<?> translate(ReduceStateByKey operator, BeamExecutorContext context) {
+  public PCollection<?> translate(ReduceStateByKey operator, TranslationContext context) {
     /*
     PCollection<Object> input = context.getInput(operator);
     final UnaryFunction<Object, Object> keyExtractor = operator.getKeyExtractor();

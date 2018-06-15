@@ -46,7 +46,7 @@ public class BeamFlow extends Flow {
 
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
-  private final transient BeamExecutorContext context;
+  private final transient TranslationContext context;
   private final transient Pipeline pipeline;
   private Duration allowedLateness = Duration.ZERO;
   private AccumulatorProvider.Factory accumulatorFactory = BeamAccumulatorProvider.getFactory();
@@ -60,7 +60,7 @@ public class BeamFlow extends Flow {
     super(name, new Settings());
     this.pipeline = pipeline;
     this.context =
-        new BeamExecutorContext(
+        new TranslationContext(
             DAG.empty(),
             accumulatorFactory,
             pipeline,
@@ -71,7 +71,7 @@ public class BeamFlow extends Flow {
   private <T> BeamFlow(String name, PCollection<T> inputPCollection) {
     super(name, new Settings());
     this.pipeline = inputPCollection.getPipeline();
-    this.context = new BeamExecutorContext(
+    this.context = new TranslationContext(
         DAG.empty(),
         accumulatorFactory,
         pipeline,
@@ -88,7 +88,7 @@ public class BeamFlow extends Flow {
    * @param pipeline the pipeline to wrap into new flow
    * @return constructed flow
    */
-  public static BeamFlow create(Pipeline pipeline) {
+  public static BeamFlow of(Pipeline pipeline) {
     return new BeamFlow(null, pipeline);
   }
 
@@ -99,7 +99,7 @@ public class BeamFlow extends Flow {
    * @param pipeline the pipeline to wrap into new flow
    * @return constructed flow
    */
-  public static BeamFlow create(String name, Pipeline pipeline) {
+  public static BeamFlow of(String name, Pipeline pipeline) {
     return new BeamFlow(name, pipeline);
   }
 
@@ -111,7 +111,7 @@ public class BeamFlow extends Flow {
    * @param pCollection the input {@link PCollection} to wrap into new flow
    * @return constructed flow
    */
-  public static <T> BeamFlow create(PCollection<T> pCollection) {
+  public static <T> BeamFlow of(PCollection<T> pCollection) {
     return new BeamFlow(null, pCollection);
   }
 
@@ -123,7 +123,7 @@ public class BeamFlow extends Flow {
    * @param pCollection the input {@link PCollection} to wrap into new flow
    * @return constructed flow
    */
-  public static <T> BeamFlow create(String name, PCollection<T> pCollection) {
+  public static <T> BeamFlow of(String name, PCollection<T> pCollection) {
     return new BeamFlow(name, pCollection);
   }
 
@@ -277,7 +277,7 @@ public class BeamFlow extends Flow {
    *
    * @return associated pipeline
    * @throws NullPointerException when the flow has no associated pipeline. Note that the flow has
-   * associated pipeline if and only if it was created by {@link #create(Pipeline)}.
+   * associated pipeline if and only if it was created by {@link #of(Pipeline)}.
    */
   public Pipeline getPipeline() {
     return Objects.requireNonNull(pipeline);
