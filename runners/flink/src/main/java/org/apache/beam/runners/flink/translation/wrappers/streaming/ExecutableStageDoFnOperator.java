@@ -28,9 +28,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -76,7 +74,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
-  private transient AutoCloseable distributedCacheCloser;
 
   public ExecutableStageDoFnOperator(String stepName,
                                      Coder<WindowedValue<InputT>> inputCoder,
@@ -118,14 +115,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     ExecutableStage executableStage = ExecutableStage.fromPayload(payload);
     // TODO: Wire this into the distributed cache and make it pluggable.
-    ArtifactSource artifactSource = null;
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
     FlinkExecutableStageContext stageContext = contextFactory.get(jobInfo);
-    ArtifactSourcePool cachePool = stageContext.getArtifactSourcePool();
-    distributedCacheCloser = cachePool.addToPool(artifactSource);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
@@ -152,8 +146,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable cacheCloser = distributedCacheCloser;
-         AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
+    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
     super.close();
   }
 

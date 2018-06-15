@@ -22,7 +22,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -37,18 +36,14 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
   private static final Logger LOG = LoggerFactory.getLogger(BatchFlinkExecutableStageContext.class);
 
   private final JobBundleFactory jobBundleFactory;
-  private final ArtifactSourcePool artifactSourcePool;
 
   private static BatchFlinkExecutableStageContext create(JobInfo jobInfo) throws Exception {
-    ArtifactSourcePool artifactSourcePool = ArtifactSourcePool.create();
-    JobBundleFactory jobBundleFactory = DockerJobBundleFactory.create(jobInfo, artifactSourcePool);
-    return new BatchFlinkExecutableStageContext(jobBundleFactory, artifactSourcePool);
+    JobBundleFactory jobBundleFactory = DockerJobBundleFactory.create(jobInfo);
+    return new BatchFlinkExecutableStageContext(jobBundleFactory);
   }
 
-  private BatchFlinkExecutableStageContext(
-      JobBundleFactory jobBundleFactory, ArtifactSourcePool artifactSourcePool) {
+  private BatchFlinkExecutableStageContext(JobBundleFactory jobBundleFactory) {
     this.jobBundleFactory = jobBundleFactory;
-    this.artifactSourcePool = artifactSourcePool;
   }
 
   @Override
@@ -60,11 +55,6 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
   public StateRequestHandler getStateRequestHandler(
       ExecutableStage executableStage, RuntimeContext runtimeContext) {
     return FlinkBatchStateRequestHandler.forStage(executableStage, runtimeContext);
-  }
-
-  @Override
-  public ArtifactSourcePool getArtifactSourcePool() {
-    return artifactSourcePool;
   }
 
   private void cleanUp() throws Exception {

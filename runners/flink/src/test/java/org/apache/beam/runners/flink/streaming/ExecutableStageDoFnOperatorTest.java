@@ -36,7 +36,6 @@ import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -80,7 +79,6 @@ public class ExecutableStageDoFnOperatorTest {
   @Mock private DistributedCache distributedCache;
   @Mock private FlinkExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
-  @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
@@ -99,7 +97,6 @@ public class ExecutableStageDoFnOperatorTest {
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getArtifactSourcePool()).thenReturn(artifactSourcePool);
     when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }

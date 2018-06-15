@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
@@ -44,6 +43,4 @@ public interface FlinkExecutableStageContext {
 
   StateRequestHandler getStateRequestHandler(
       ExecutableStage executableStage, RuntimeContext runtimeContext);
-
-  ArtifactSourcePool getArtifactSourcePool();
 }

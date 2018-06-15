@@ -32,7 +32,6 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -67,7 +66,6 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private Collector<RawUnionValue> collector;
   @Mock private FlinkExecutableStageContext stageContext;
   @Mock private StageBundleFactory<Integer> stageBundleFactory;
-  @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
@@ -86,7 +84,6 @@ public class FlinkExecutableStageFunctionTest {
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getArtifactSourcePool()).thenReturn(artifactSourcePool);
     when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.<Integer>getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }
