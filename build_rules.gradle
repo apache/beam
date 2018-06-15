@@ -53,7 +53,7 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"                                        // Enable shading Java dependencies
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
   }
 }
 
