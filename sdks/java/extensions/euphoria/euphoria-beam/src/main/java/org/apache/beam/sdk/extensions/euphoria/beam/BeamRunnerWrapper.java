@@ -84,14 +84,17 @@ public class BeamRunnerWrapper {
     // TODO handle result
     State state = result.waitUntilFinish();
     LOG.info("Pipeline result state: {}.", state);
-    return new ExecutorResult(result);
+    return new Result(result);
   }
 
-  static class ExecutorResult extends Result{
+  /**
+   * Result of pipeline's run.
+   */
+  public static class Result{
 
     private final PipelineResult result;
 
-    public ExecutorResult(PipelineResult result) {
+    public Result(PipelineResult result) {
       this.result = result;
     }
 
@@ -124,10 +127,4 @@ public class BeamRunnerWrapper {
     submitExecutor.shutdownNow();
   }
 
-  /**
-   * Result of pipeline's run.
-   */
-  private static class Result {
-
-  }
 }
