@@ -38,7 +38,7 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -81,7 +81,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
-  public static DockerJobBundleFactory create(JobInfo jobInfo, ArtifactSource artifactSource)
+  public static DockerJobBundleFactory create(JobInfo jobInfo)
       throws Exception {
     ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
@@ -95,10 +95,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<GrpcLoggingService> loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    // TODO: Wire in artifact retrieval service once implemented.
     GrpcFnServer<ArtifactRetrievalService> retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            new UnimplementedArtifactRetrievalService(), serverFactory);
+            BeamFileSystemArtifactRetrievalService.create(), serverFactory);
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
