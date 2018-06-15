@@ -28,7 +28,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders.Output;
 
-/** TODO: complete javadoc. */
+/**
+ * TODO: complete javadoc.
+ */
 public class Dataset<T> {
 
   private final org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T> wrap;
@@ -68,8 +70,4 @@ public class Dataset<T> {
     this.wrap.persist(dst);
     return this;
   }
-
-//  public void execute(BeamRunnerWrapper runner) throws Exception {
-//    runner.executeSync(this.wrap.getFlow());
-//  }
 }
