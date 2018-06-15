@@ -48,7 +48,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @SuppressWarnings("unchecked")
   private static <InputT, K, V, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>>
-  doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, BeamExecutorContext context) {
+  doTranslate(ReduceByKey<InputT, K, V, OutputT, W> operator, TranslationContext context) {
 
     //TODO Could we even do values sorting ?
     checkState(operator.getValueComparator() == null, "Values sorting is not supported.");
@@ -129,7 +129,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public PCollection<?> translate(ReduceByKey operator, BeamExecutorContext context) {
+  public PCollection<?> translate(ReduceByKey operator, TranslationContext context) {
     return doTranslate(operator, context);
   }
 

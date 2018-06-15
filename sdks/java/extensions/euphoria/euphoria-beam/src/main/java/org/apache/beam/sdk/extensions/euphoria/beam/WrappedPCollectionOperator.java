@@ -45,7 +45,7 @@ class WrappedPCollectionOperator<T> extends Operator<T, T> {
     this.output = output;
   }
 
-  static PCollection<?> translate(Operator operator, BeamExecutorContext context) {
+  static PCollection<?> translate(Operator operator, TranslationContext context) {
     return ((WrappedPCollectionOperator) operator).input;
   }
 

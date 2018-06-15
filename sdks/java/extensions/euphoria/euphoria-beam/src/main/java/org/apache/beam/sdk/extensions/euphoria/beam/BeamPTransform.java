@@ -49,7 +49,7 @@ public class BeamPTransform<InputT, OutputT> extends
   @Override
   public PCollection<OutputT> expand(PCollection<InputT> input) {
 
-    BeamFlow flow = BeamFlow.create(input);
+    BeamFlow flow = BeamFlow.of(input);
     Dataset<InputT> wrappedInput = flow.wrapped(input);
     Dataset<OutputT> output = euphoriaTransform.apply(wrappedInput);
 
