@@ -69,7 +69,6 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     @Override
     public PCollection<Row> expand(PInput pinput) {
 
-      String stageName = BeamSqlRelUtils.getStageName(BeamValuesRel.this);
       if (tuples.isEmpty()) {
         throw new IllegalStateException("Values with empty tuples!");
       }
@@ -78,7 +77,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
 
-      return ((PBegin) pinput).apply(stageName, Create.of(rows)).setCoder(schema.getRowCoder());
+      return ((PBegin) pinput).apply(Create.of(rows)).setCoder(schema.getRowCoder());
     }
   }
 

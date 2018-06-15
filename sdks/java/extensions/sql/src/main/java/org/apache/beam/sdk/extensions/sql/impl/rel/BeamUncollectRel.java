@@ -51,8 +51,6 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
   private class Transform extends PTransform<PInput, PCollection<Row>> {
     @Override
     public PCollection<Row> expand(PInput pinput) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamUncollectRel.this);
-
       PCollection<Row> upstream = (PCollection<Row>) pinput;
 
       // Each row of the input contains a single array of things to be emitted; Calcite knows
@@ -61,7 +59,7 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
       PCollection<Row> uncollected =
           upstream
-              .apply(stageName, ParDo.of(new UncollectDoFn(outputSchema)))
+              .apply(ParDo.of(new UncollectDoFn(outputSchema)))
               .setCoder(outputSchema.getRowCoder());
 
       return uncollected;
