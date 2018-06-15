@@ -89,7 +89,7 @@ class GenerateMappings(beam.DoFn):
 
     def process(self, element):
         # Discard key
-        _, records = element
+        records = list(element[1])
 
         # Generate available greenhouses and grid coordinates for each crop.
         grid_coordinates = []
@@ -102,8 +102,7 @@ class GenerateMappings(beam.DoFn):
         grid = np.vstack(map(np.ravel, np.meshgrid(*grid_coordinates))).T
         crops = [rec['crop'] for rec in records]
         greenhouses = [rec[0] for rec in records[0]['transport_costs']]
-        for point in grid:
-            yield (uuid.uuid4().hex, self._coordinates_to_greenhouse(point, greenhouses, crops))
+        return [(uuid.uuid4().hex, self._coordinates_to_greenhouse(p, greenhouses, crops)) for p in grid]
 
 
 class CreateOptimizationTasks(beam.DoFn):
@@ -230,7 +229,9 @@ def run(argv=None):
         # Generate all mappings and two side inputs
         mappings = (records | 'pair one' >> beam.Map(lambda x: (1, x))
                             | 'group all records' >> beam.GroupByKey()
-                            | 'create mappings' >> beam.ParDo(GenerateMappings()))
+                            | 'create mappings' >> beam.ParDo(GenerateMappings())
+                            | 'prevent fusion' >> beam.GroupByKey()
+                            | 'ungroup' >> beam.Map(lambda x: (x[0], list(x[1])[0])))
         transport = records | 'create transport' >> beam.ParDo(CreateTransportData())
         quantities = records | 'create quantities' >> beam.Map(lambda r: (r['crop'], r['quantity']))
 
