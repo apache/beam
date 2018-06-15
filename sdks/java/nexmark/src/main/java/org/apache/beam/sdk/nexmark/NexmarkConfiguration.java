@@ -48,6 +48,13 @@ public class NexmarkConfiguration implements Serializable {
   public NexmarkUtils.SinkType sinkType = NexmarkUtils.SinkType.DEVNULL;
 
   /**
+   * If false, the summary is only output to the console. If true the summary is output to the
+   * console and it's content is written to bigquery tables according to {@link
+   * NexmarkOptions#getResourceNameMode()}.
+   */
+  @JsonProperty public boolean exportSummaryToBigQuery = false;
+
+  /**
    * Control whether pub/sub publishing is done in a stand-alone pipeline or is integrated
    * into the overall query pipeline.
    */
@@ -253,6 +260,9 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getSinkType() != null) {
       sinkType = options.getSinkType();
     }
+    if (options.getExportSummaryToBigQuery() != null) {
+      exportSummaryToBigQuery = options.getExportSummaryToBigQuery();
+    }
     if (options.getPubSubMode() != null) {
       pubSubMode = options.getPubSubMode();
     }
@@ -367,6 +377,7 @@ public class NexmarkConfiguration implements Serializable {
     result.query = query;
     result.sourceType = sourceType;
     result.sinkType = sinkType;
+    result.exportSummaryToBigQuery = exportSummaryToBigQuery;
     result.pubSubMode = pubSubMode;
     result.numEvents = numEvents;
     result.numEventGenerators = numEventGenerators;
@@ -419,6 +430,9 @@ public class NexmarkConfiguration implements Serializable {
     }
     if (sinkType != DEFAULT.sinkType) {
       sb.append(String.format("; sinkType:%s", sinkType));
+    }
+    if (exportSummaryToBigQuery != DEFAULT.exportSummaryToBigQuery) {
+      sb.append(String.format("; exportSummaryToBigQuery:%s", exportSummaryToBigQuery));
     }
     if (pubSubMode != DEFAULT.pubSubMode) {
       sb.append(String.format("; pubSubMode:%s", pubSubMode));
@@ -553,6 +567,7 @@ public class NexmarkConfiguration implements Serializable {
         query,
         sourceType,
         sinkType,
+        exportSummaryToBigQuery,
         pubSubMode,
         numEvents,
         numEventGenerators,
@@ -693,6 +708,9 @@ public class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (sinkType != other.sinkType) {
+      return false;
+    }
+    if (exportSummaryToBigQuery != other.exportSummaryToBigQuery) {
       return false;
     }
     if (sourceType != other.sourceType) {

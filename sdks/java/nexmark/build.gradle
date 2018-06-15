@@ -63,8 +63,11 @@ dependencies {
   shadow library.java.slf4j_jdk14
   provided library.java.junit
   provided library.java.hamcrest_core
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+
   testCompileOnly library.java.findbugs_annotations
 
   gradleRun project(path: project.path, configuration: "shadow")
