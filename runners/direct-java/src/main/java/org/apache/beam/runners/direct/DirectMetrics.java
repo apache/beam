@@ -239,9 +239,13 @@ class DirectMetrics extends MetricResults {
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
+    @Override
     public abstract MetricName getName();
+    @Override
     public abstract String getStep();
+    @Override
     public abstract T getCommitted();
+    @Override
     public abstract T getAttempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,

@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,11 +28,13 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Splitter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.Reader;
 import java.io.Serializable;
 import java.nio.CharBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -108,12 +111,12 @@ public class WriteWithShardingFactoryTest implements Serializable {
       String filename = match.resourceId().toString();
       files.add(filename);
       CharBuffer buf = CharBuffer.allocate((int) new File(filename).length());
-      try (Reader reader = new FileReader(filename)) {
+      try (Reader reader = Files.newBufferedReader(Paths.get(filename), UTF_8)) {
         reader.read(buf);
         buf.flip();
       }
 
-      String[] readStrs = buf.toString().split("\n");
+      Iterable<String> readStrs = Splitter.on("\n").split(buf.toString());
       for (String read : readStrs) {
         if (read.length() > 0) {
           actuals.add(read);

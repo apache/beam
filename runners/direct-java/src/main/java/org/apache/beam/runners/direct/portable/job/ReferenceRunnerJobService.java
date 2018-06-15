@@ -130,6 +130,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored") // Run API does not block on execution
   public void run(
       JobApi.RunJobRequest request, StreamObserver<JobApi.RunJobResponse> responseObserver) {
     try {
