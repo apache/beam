@@ -21,10 +21,10 @@ package org.apache.beam.sdk.extensions.sql.mock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -87,7 +87,7 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(PBegin begin) {
     TestStream.Builder<Row> values = TestStream.create(schema.getRowCoder());
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
@@ -101,10 +101,7 @@ public class MockedUnboundedTable extends MockedTable {
       }
     }
 
-    return pipeline
-        .begin()
-        .apply(
-            "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
-            values.advanceWatermarkToInfinity());
+    return begin.apply(
+        "MockedUnboundedTable_" + COUNTER.incrementAndGet(), values.advanceWatermarkToInfinity());
   }
 }

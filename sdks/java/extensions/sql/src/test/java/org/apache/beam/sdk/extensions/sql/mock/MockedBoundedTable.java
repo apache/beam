@@ -24,11 +24,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -89,35 +87,25 @@ public class MockedBoundedTable extends MockedTable {
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline)
-        .apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows));
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    return begin.apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows));
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-    return new OutputStore();
-  }
+  public POutput buildIOWriter(PCollection<Row> input) {
+    input.apply(
+        ParDo.of(
+            new DoFn<Row, Void>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                CONTENT.add(c.element());
+              }
 
-  /** Keep output in {@code CONTENT} for validation. */
-  public static class OutputStore extends PTransform<PCollection<Row>, POutput> {
-
-    @Override
-    public PDone expand(PCollection<Row> input) {
-      input.apply(
-          ParDo.of(
-              new DoFn<Row, Void>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  CONTENT.add(c.element());
-                }
-
-                @Teardown
-                public void close() {
-                  CONTENT.clear();
-                }
-              }));
-      return PDone.in(input.getPipeline());
-    }
+              @Teardown
+              public void close() {
+                CONTENT.clear();
+              }
+            }));
+    return PDone.in(input.getPipeline());
   }
 }

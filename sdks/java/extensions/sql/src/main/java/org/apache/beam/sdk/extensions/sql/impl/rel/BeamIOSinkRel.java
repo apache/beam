@@ -104,19 +104,13 @@ public class BeamIOSinkRel extends TableModify
 
   private class Transform extends PTransform<PInput, PCollection<Row>> {
 
-    /**
-     * Note that {@code BeamIOSinkRel} returns the input PCollection, which is the persisted
-     * PCollection.
-     */
     @Override
     public PCollection<Row> expand(PInput pinput) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamIOSinkRel.this);
+      PCollection<Row> input = (PCollection<Row>) pinput;
 
-      PCollection<Row> upstream = (PCollection<Row>) pinput;
+      sqlTable.buildIOWriter(input);
 
-      upstream.apply(stageName, sqlTable.buildIOWriter());
-
-      return upstream;
+      return input;
     }
   }
 }
