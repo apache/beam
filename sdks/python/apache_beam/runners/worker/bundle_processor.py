@@ -25,6 +25,7 @@ import base64
 import collections
 import json
 import logging
+import re
 
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
@@ -499,7 +500,9 @@ def _create_pardo_operation(
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
         for tag, si in side_inputs_proto.items()]
-    tagged_side_inputs.sort(key=lambda tag_si: int(tag_si[0][4:]))
+    tagged_side_inputs.sort(
+        key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
+                                        tag_si[0]).group(1)))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,
