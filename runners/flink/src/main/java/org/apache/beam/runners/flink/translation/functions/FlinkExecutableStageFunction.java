@@ -24,8 +24,6 @@ import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -66,7 +64,6 @@ public class FlinkExecutableStageFunction<InputT>
   private transient RuntimeContext runtimeContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient StageBundleFactory<InputT> stageBundleFactory;
-  private transient AutoCloseable distributedCacheCloser;
   private transient BundleProgressHandler progressHandler;
 
   public FlinkExecutableStageFunction(
@@ -85,10 +82,7 @@ public class FlinkExecutableStageFunction<InputT>
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
     // TODO: Wire this into the distributed cache and make it pluggable.
-    ArtifactSource artifactSource = null;
     FlinkExecutableStageContext stageContext = contextFactory.get(jobInfo);
-    ArtifactSourcePool cachePool = stageContext.getArtifactSourcePool();
-    distributedCacheCloser = cachePool.addToPool(artifactSource);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
@@ -123,8 +117,7 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable cacheCloser = distributedCacheCloser;
-        AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
+    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
   }
 
   /**
