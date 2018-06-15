@@ -55,12 +55,12 @@ public class BrodcastHashJoinTranslator implements OperatorTranslator<Join> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public PCollection<?> translate(Join operator, BeamExecutorContext context) {
+  public PCollection<?> translate(Join operator, TranslationContext context) {
     return doTranslate(operator, context);
   }
 
   <K, LeftT, RightT, OutputT, W extends BoundedWindow> PCollection<Pair<K, OutputT>> doTranslate(
-      Join<LeftT, RightT, K, OutputT, W> operator, BeamExecutorContext context) {
+      Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
     Coder<K> keyCoder = context.getCoder(operator.getLeftKeyExtractor());
 
     @SuppressWarnings("unchecked") final PCollection<LeftT> left = (PCollection<LeftT>) context

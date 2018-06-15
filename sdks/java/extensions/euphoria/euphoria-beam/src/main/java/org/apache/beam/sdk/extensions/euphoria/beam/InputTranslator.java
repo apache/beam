@@ -28,12 +28,12 @@ import org.apache.beam.sdk.values.PCollection;
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
 
   private static <T> PCollection<T> doTranslate(
-      FlowUnfolder.InputOperator<T> operator, BeamExecutorContext context) {
+      FlowUnfolder.InputOperator<T> operator, TranslationContext context) {
     final DataSource<T> source = Objects.requireNonNull(operator.output().getSource());
     return doTranslate(source, context);
   }
 
-  static <T> PCollection<T> doTranslate(DataSource<T> source, BeamExecutorContext context) {
+  static <T> PCollection<T> doTranslate(DataSource<T> source, TranslationContext context) {
     if (source.isBounded()) {
       return context
           .getPipeline()
@@ -51,7 +51,7 @@ class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> 
   @Override
   @SuppressWarnings("unchecked")
   public PCollection<?> translate(
-      FlowUnfolder.InputOperator operator, BeamExecutorContext context) {
+      FlowUnfolder.InputOperator operator, TranslationContext context) {
     return doTranslate(operator, context);
   }
 }
