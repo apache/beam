@@ -76,8 +76,8 @@ public class JoinTest {
         .output()
         .persist(output);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
@@ -105,8 +105,8 @@ public class JoinTest {
         .output()
         .persist(output);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
@@ -138,8 +138,8 @@ public class JoinTest {
         .output()
         .persist(output);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
@@ -193,8 +193,8 @@ public class JoinTest {
         .output()
         .persist(output);
 
-    BeamExecutor executor = TestUtils.createExecutor();
-    executor.execute(flow);
+    BeamRunnerWrapper executor = BeamRunnerWrapper.ofDirect();
+    executor.executeSync(flow);
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
