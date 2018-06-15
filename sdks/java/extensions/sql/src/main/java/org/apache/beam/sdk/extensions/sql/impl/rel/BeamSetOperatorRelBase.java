@@ -78,17 +78,16 @@ public class BeamSetOperatorRelBase extends PTransform<PInput, PCollection<Row>>
     final TupleTag<Row> rightTag = new TupleTag<>();
 
     // co-group
-    String stageName = BeamSqlRelUtils.getStageName(beamRelNode);
     PCollection<KV<Row, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(
                 leftTag,
                 leftRows.apply(
-                    stageName + "_CreateLeftIndex",
+                    "CreateLeftIndex",
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
             .and(
                 rightTag,
                 rightRows.apply(
-                    stageName + "_CreateRightIndex",
+                    "CreateRightIndex",
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
             .apply(CoGroupByKey.create());
     PCollection<Row> ret =

@@ -153,7 +153,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
 
-      String stageName = BeamSqlRelUtils.getStageName(BeamJoinRel.this);
       WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
       WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
 
@@ -172,14 +171,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<Row, Row>> extractedLeftRows =
           leftRows
               .apply(
-                  stageName + "_left_ExtractJoinFields",
+                  "left_ExtractJoinFields",
                   MapElements.via(new BeamJoinTransforms.ExtractJoinFields(true, pairs)))
               .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
 
       PCollection<KV<Row, Row>> extractedRightRows =
           rightRows
               .apply(
-                  stageName + "_right_ExtractJoinFields",
+                  "right_ExtractJoinFields",
                   MapElements.via(new BeamJoinTransforms.ExtractJoinFields(false, pairs)))
               .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
@@ -198,8 +197,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
               "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
         }
 
-        return standardJoin(
-            extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow, stageName);
+        return standardJoin(extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
       } else if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
               && rightRows.isBounded() == UNBOUNDED)
           || (leftRows.isBounded() == UNBOUNDED
@@ -256,8 +254,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<Row, Row>> extractedLeftRows,
       PCollection<KV<Row, Row>> extractedRightRows,
       Row leftNullRow,
-      Row rightNullRow,
-      String stageName) {
+      Row rightNullRow) {
     PCollection<KV<Row, KV<Row, Row>>> joinedRows = null;
     switch (joinType) {
       case LEFT:
@@ -286,8 +283,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<Row> ret =
         joinedRows
             .apply(
-                stageName + "_JoinParts2WholeRow",
-                MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
+                "JoinParts2WholeRow", MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
             .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
     return ret;
   }

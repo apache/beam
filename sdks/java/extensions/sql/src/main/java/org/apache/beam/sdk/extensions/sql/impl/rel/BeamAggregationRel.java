@@ -81,14 +81,12 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     @Override
     public PCollection<Row> expand(PInput pinput) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
-
       PCollection<Row> upstream = (PCollection<Row>) pinput;
       if (windowField.isPresent()) {
         upstream =
             upstream
                 .apply(
-                    stageName + "assignEventTimestamp",
+                    "assignEventTimestamp",
                     WithTimestamps.of(
                             new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
                         .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
@@ -97,7 +95,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       PCollection<Row> windowedStream =
           windowField.isPresent()
-              ? upstream.apply(stageName + "window", Window.into(windowField.get().windowFn()))
+              ? upstream.apply(Window.into(windowField.get().windowFn()))
               : upstream;
 
       validateWindowIsSupported(windowedStream);
@@ -107,7 +105,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<KV<Row, Row>> exCombineByStream =
           windowedStream
               .apply(
-                  stageName + "exCombineBy",
+                  "exCombineBy",
                   WithKeys.of(
                       new BeamAggregationTransforms.AggregationGroupByKeyFn(
                           keySchema, windowFieldIndex, groupSet)))
@@ -118,7 +116,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<KV<Row, Row>> aggregatedStream =
           exCombineByStream
               .apply(
-                  stageName + "combineBy",
+                  "combineBy",
                   Combine.perKey(
                       new BeamAggregationTransforms.AggregationAdaptor(
                           getNamedAggCalls(), CalciteUtils.toBeamSchema(input.getRowType()))))
@@ -126,7 +124,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       PCollection<Row> mergedStream =
           aggregatedStream.apply(
-              stageName + "mergeRecord",
+              "mergeRecord",
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
                       CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));

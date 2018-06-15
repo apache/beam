@@ -90,8 +90,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   private class Transform extends PTransform<PInput, PCollection<Row>> {
     @Override
     public PCollection<Row> expand(PInput pinput) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamUnnestRel.this);
-
       // The set of rows where we run the correlated unnest for each row
       PCollection<Row> outer = (PCollection<Row>) pinput;
 
@@ -109,7 +107,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
 
       return outer
           .apply(
-              stageName,
               ParDo.of(
                   new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
           .setCoder(joinedSchema.getRowCoder());

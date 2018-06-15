@@ -30,20 +30,13 @@ import org.apache.calcite.rel.RelNode;
 public class BeamSqlRelUtils {
   private static final AtomicInteger sequence = new AtomicInteger(0);
 
-  public static String getStageName(BeamRelNode relNode) {
-    return relNode.getClass().getSimpleName()
-        + "_"
-        + relNode.getId()
-        + "_"
-        + sequence.getAndIncrement();
-  }
-
   /**
    * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
    * DFS(Depth-First-Search) algorithm.
    */
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
-    String name = BeamSqlRelUtils.getStageName(node);
+    String name =
+        node.getClass().getSimpleName() + "_" + node.getId() + "_" + sequence.getAndIncrement();
     PInput input = node.buildPInput(pipeline);
     PTransform<PInput, PCollection<Row>> transform = node.buildPTransform();
 
