@@ -128,6 +128,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             "-v",
             // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
             String.format("%s:%s", workerPersistentDirectory, semiPersistentDirectory),
+            // Debug ports
+            "-p",
+            "5006",
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             "--network=host");
 

@@ -118,7 +118,7 @@ public class FnHarnessTest {
             .setUrl("localhost:" + controlServer.getPort())
             .build();
 
-        FnHarness.main(options, loggingDescriptor, controlDescriptor);
+        FnHarness.main(options, loggingDescriptor, controlDescriptor, "workerId");
         assertThat(instructionResponses, contains(INSTRUCTION_RESPONSE));
       } finally {
         controlServer.shutdownNow();

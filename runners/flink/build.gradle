@@ -57,6 +57,7 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
+  shadow library.java.slf4j_simple
   shadow library.java.joda_time
   shadow library.java.commons_compress
   shadow library.java.args4j
@@ -136,3 +137,10 @@ task validatesRunner {
 
 // Generates :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+
+task runJobServer(type: JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  main = 'org.apache.beam.runners.flink.FlinkJobServerDriver'
+  args = ['--job-host=localhost:8099', '--artifacts-dir=/tmp/flink']
+  jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
+}
