@@ -21,7 +21,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.util.Base64;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
@@ -187,6 +190,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     private PutArtifactMetadata metadata;
     private ResourceId artifactId;
     private WritableByteChannel artifactWritableByteChannel;
+    private Hasher hasher;
 
     PutArtifactStreamObserver(StreamObserver<PutArtifactResponse> outboundObserver) {
       this.outboundObserver = outboundObserver;
@@ -208,6 +212,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           LOG.info("Going to stage artifact {} to {}.", metadata.getMetadata().getName(),
               artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
+          hasher = Hashing.md5().newHasher();
         } catch (Exception e) {
           LOG.error("Staging failed for artifact {} for staging token {}",
               encodedFileName(metadata.getMetadata()), metadata.getStagingSessionToken());
@@ -215,8 +220,9 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         }
       } else {
         try {
-          artifactWritableByteChannel
-              .write(putArtifactRequest.getData().getData().asReadOnlyByteBuffer());
+          ByteString data = putArtifactRequest.getData().getData();
+          artifactWritableByteChannel.write(data.asReadOnlyByteBuffer());
+          hasher.putBytes(data.toByteArray());
         } catch (IOException e) {
           LOG.error("Staging failed for artifact {} to file {}.", metadata.getMetadata().getName(),
               artifactId);
@@ -255,6 +261,18 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           artifactWritableByteChannel.close();
         } catch (IOException e) {
           onError(e);
+          return;
+        }
+      }
+      String expectedMd5 = metadata.getMetadata().getMd5();
+      if (expectedMd5 != null && !expectedMd5.isEmpty()) {
+        String actualMd5 = Base64.encodeBase64String(hasher.hash().asBytes());
+        if (!actualMd5.equals(expectedMd5)) {
+          outboundObserver.onError(
+              new IllegalArgumentException(
+                  String.format(
+                      "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
+                      metadata.getMetadata().getName(), expectedMd5, actualMd5)));
           return;
         }
       }
