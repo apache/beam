@@ -17,7 +17,14 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -27,10 +34,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -74,20 +95,91 @@ public class Main<OptionT extends NexmarkOptions> {
           appendPerf(options.getPerfFilename(), configuration, perf);
           actual.put(configuration, perf);
           // Summarize what we've run so far.
-          saveSummary(null, configurations, actual, baseline, start);
+          saveSummary(null, configurations, actual, baseline, start, options);
         }
+      }
+      if (options.getExportSummaryToBigQuery()){
+        savePerfsToBigQuery(options, actual, null);
       }
     } finally {
       if (options.getMonitorJobs()) {
         // Report overall performance.
-        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
     }
-
     if (!successful) {
       throw new RuntimeException("Execution was not successful");
     }
+  }
+
+  @VisibleForTesting
+  static void savePerfsToBigQuery(
+      NexmarkOptions options,
+      Map<NexmarkConfiguration, NexmarkPerf> perfs,
+      @Nullable BigQueryServices testBigQueryServices) {
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
+        pipeline.apply(
+            Create.of(perfs)
+                .withCoder(
+                    KvCoder.of(
+                        SerializableCoder.of(NexmarkConfiguration.class),
+                        new CustomCoder<NexmarkPerf>() {
+
+                          @Override
+                          public void encode(NexmarkPerf value, OutputStream outStream)
+                              throws CoderException, IOException {
+                            StringUtf8Coder.of().encode(value.toString(), outStream);
+                          }
+
+                          @Override
+                          public NexmarkPerf decode(InputStream inStream)
+                              throws CoderException, IOException {
+                            String perf = StringUtf8Coder.of().decode(inStream);
+                            return NexmarkPerf.fromString(perf);
+                          }
+                        })));
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT"),
+                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT"),
+                    new TableFieldSchema()
+                        .setName("Size of the result collection")
+                        .setType("INTEGER")));
+
+    String tableSpec =
+        NexmarkUtils.tableSpec(options, "{query}", 0L, null);
+    SerializableFunction<
+            ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
+        tableFunction =
+            input -> new TableDestination(
+                tableSpec.replace("{query}", String.valueOf(input.getValue().getKey().query)),
+                "perfkit queries");
+    SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
+        input -> {
+          NexmarkPerf nexmarkPerf = input.getValue();
+          TableRow row = new TableRow()
+              .set("Runtime(sec)", nexmarkPerf.runtimeSec)
+              .set("Events(/sec)", nexmarkPerf.eventsPerSec)
+              .set("Size of the result collection", nexmarkPerf.numResults);
+          return row;
+        };
+    BigQueryIO.Write io =
+        BigQueryIO.<KV<NexmarkConfiguration, NexmarkPerf>>write()
+            .to(tableFunction)
+            .withSchema(tableSchema)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withFormatFunction(rowFunction);
+    if (testBigQueryServices != null){
+      io = io.withTestServices(testBigQueryServices);
+    }
+    perfsPCollection.apply("savePerfsToBigQuery", io);
+    pipeline.run();
   }
 
   /**
@@ -146,13 +238,15 @@ public class Main<OptionT extends NexmarkOptions> {
   private static final String LINE =
       "==========================================================================================";
 
-  /**
-   * Print summary  of {@code actual} vs (if non-null) {@code baseline}.
-   */
+  /** Print summary of {@code actual} vs (if non-null) {@code baseline}. */
   private static void saveSummary(
       @Nullable String summaryFilename,
-      Iterable<NexmarkConfiguration> configurations, Map<NexmarkConfiguration, NexmarkPerf> actual,
-      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) {
+      Iterable<NexmarkConfiguration> configurations,
+      Map<NexmarkConfiguration, NexmarkPerf> actual,
+      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
+      Instant start,
+      NexmarkOptions options) {
+
     List<String> lines = new ArrayList<>();
 
     lines.add("");
