@@ -50,7 +50,7 @@ public class HarnessStreamObserverFactoriesTest {
   public void testDefaultInstantiation() {
     StreamObserver<String> observer =
         HarnessStreamObserverFactories.fromOptions(PipelineOptionsFactory.create())
-            .from(this::fakeFactory, mockRequestObserver);
+            .outboundObserverFor(this::fakeFactory, mockRequestObserver);
     assertThat(observer, instanceOf(DirectStreamObserver.class));
   }
 
@@ -61,7 +61,7 @@ public class HarnessStreamObserverFactoriesTest {
                 PipelineOptionsFactory.fromArgs(
                         new String[] {"--experiments=beam_fn_api_buffered_stream"})
                     .create())
-            .from(this::fakeFactory, mockRequestObserver);
+            .outboundObserverFor(this::fakeFactory, mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
   }
 
@@ -75,7 +75,7 @@ public class HarnessStreamObserverFactoriesTest {
                               + "beam_fn_api_buffered_stream_buffer_size=1"
                         })
                     .create())
-            .from(this::fakeFactory, mockRequestObserver);
+            .outboundObserverFor(this::fakeFactory, mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
     assertEquals(1, ((BufferingStreamObserver<String>) observer).getBufferSize());
   }

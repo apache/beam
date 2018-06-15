@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -97,7 +98,7 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -126,7 +127,7 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -159,7 +160,8 @@ public class FlinkExecutableStageFunctionTest {
         new StageBundleFactory<Integer>() {
           @Override
           public RemoteBundle<Integer> getBundle(
-              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler) {
+              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler,
+              BundleProgressHandler progressHandler) {
             return new RemoteBundle<Integer>() {
               @Override
               public String getId() {

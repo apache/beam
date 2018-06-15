@@ -50,7 +50,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -152,7 +152,7 @@ public class BeamFnDataGrpcClientTest {
     BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
         PipelineOptionsFactory.create(),
         (Endpoints.ApiServiceDescriptor descriptor) -> channel,
-        this::createStreamForTest);
+        OutboundObserverFactory.trivial());
 
       InboundDataClient readFutureA =
           clientFactory.receive(
@@ -214,10 +214,11 @@ public class BeamFnDataGrpcClientTest {
       ManagedChannel channel =
           InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
 
-      BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
-          PipelineOptionsFactory.create(),
-          (Endpoints.ApiServiceDescriptor descriptor) -> channel,
-          this::createStreamForTest);
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
 
       InboundDataClient readFuture = clientFactory.receive(
           apiServiceDescriptor,
@@ -278,11 +279,13 @@ public class BeamFnDataGrpcClientTest {
       ManagedChannel channel =
           InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
 
-      BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
-          PipelineOptionsFactory.fromArgs(
-              new String[]{ "--experiments=beam_fn_api_data_buffer_limit=20" }).create(),
-          (Endpoints.ApiServiceDescriptor descriptor) -> channel,
-          this::createStreamForTest);
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.fromArgs(
+                      new String[] {"--experiments=beam_fn_api_data_buffer_limit=20"})
+                  .create(),
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
 
       try (CloseableFnDataReceiver<WindowedValue<String>> consumer =
           clientFactory.send(apiServiceDescriptor, ENDPOINT_A, CODER)) {
@@ -297,11 +300,5 @@ public class BeamFnDataGrpcClientTest {
     } finally {
       server.shutdownNow();
     }
-  }
-
-  private <ReqT, RespT> StreamObserver<RespT> createStreamForTest(
-      StreamObserverClientFactory<ReqT, RespT> clientFactory,
-      StreamObserver<ReqT> handler) {
-    return clientFactory.outboundObserverFor(handler);
   }
 }
