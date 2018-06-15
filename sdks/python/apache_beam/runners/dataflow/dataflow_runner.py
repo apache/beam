@@ -49,6 +49,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
+from apache_beam.utils import proto_utils
 from apache_beam.utils.plugin import BeamPlugin
 
 __all__ = ['DataflowRunner']
@@ -312,15 +313,16 @@ class DataflowRunner(PipelineRunner):
       pipeline.visit(self.side_input_visitor())
 
     # Snapshot the pipeline in a portable proto before mutating it
-    proto_pipeline, self.proto_context = pipeline.to_runner_api(
+    self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
     # TODO(BEAM-2717): Remove once Coders are already in proto.
-    for pcoll in proto_pipeline.components.pcollections.values():
+    for pcoll in self.proto_pipeline.components.pcollections.values():
       if pcoll.coder_id not in self.proto_context.coders:
         coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
         pcoll.coder_id = self.proto_context.coders.get_id(coder)
-    self.proto_context.coders.populate_map(proto_pipeline.components.coders)
+    self.proto_context.coders.populate_map(
+        self.proto_pipeline.components.coders)
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
@@ -332,7 +334,7 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    self.job = apiclient.Job(pipeline._options, proto_pipeline)
+    self.job = apiclient.Job(pipeline._options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -587,10 +589,15 @@ class DataflowRunner(PipelineRunner):
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
+    named_inputs = transform_node.named_inputs()
+    label_renames = {}
     for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = 'side%d' % ix
+      si_label = 'side%d-%s' % (ix, transform_node.full_label)
+      old_label = 'side%d' % ix
+      label_renames[old_label] = si_label
+      assert old_label in named_inputs
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
           side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
@@ -626,9 +633,30 @@ class DataflowRunner(PipelineRunner):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
+    transform_id = self.proto_context.transforms.get_id(transform_node)
     if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
         and transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
-      serialized_data = self.proto_context.transforms.get_id(transform_node)
+      # Patch side input ids to be unique across a given pipeline.
+      if (label_renames and
+          transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+        # Patch PTransform proto.
+        for old, new in label_renames.iteritems():
+          transform_proto.inputs[new] = transform_proto.inputs[old]
+          del transform_proto.inputs[old]
+
+        # Patch ParDo proto.
+        proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
+        proto = proto_utils.parse_Bytes(transform_proto.spec.payload,
+                                        proto_type)
+        for old, new in label_renames.iteritems():
+          proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
+          del proto.side_inputs[old]
+        transform_proto.spec.payload = proto.SerializeToString()
+        # We need to update the pipeline proto.
+        del self.proto_pipeline.components.transforms[transform_id]
+        (self.proto_pipeline.components.transforms[transform_id]
+         .CopyFrom(transform_proto))
+      serialized_data = transform_id
     else:
       serialized_data = pickler.dumps(
           self._pardo_fn_data(transform_node, lookup_label))
