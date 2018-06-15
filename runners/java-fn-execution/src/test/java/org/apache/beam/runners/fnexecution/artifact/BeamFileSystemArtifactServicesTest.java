@@ -298,7 +298,7 @@ public class BeamFileSystemArtifactServicesTest {
         BeamFileSystemArtifactStagingService.generateStagingSessionToken(
             stagingSession, stagingDir.toUri().getPath());
 
-    List<ArtifactMetadata> metadata = new ArrayList<>();
+    List<ArtifactMetadata> metadata = Collections.synchronizedList(new ArrayList<>());
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try {
       for (String fileName : files.keySet()) {
@@ -369,8 +369,8 @@ public class BeamFileSystemArtifactServicesTest {
         BeamFileSystemArtifactStagingService.generateStagingSessionToken(
             stagingSession2, stagingDir.toUri().getPath());
 
-    List<ArtifactMetadata> metadata1 = new ArrayList<>();
-    List<ArtifactMetadata> metadata2 = new ArrayList<>();
+    List<ArtifactMetadata> metadata1 = Collections.synchronizedList(new ArrayList<>());
+    List<ArtifactMetadata> metadata2 = Collections.synchronizedList(new ArrayList<>());
     ExecutorService executorService = Executors.newFixedThreadPool(8);
     try {
       Iterator<String> iterator1 = files1.keySet().iterator();
