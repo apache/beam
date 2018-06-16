@@ -23,14 +23,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.lang.reflect.Field;
-import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,11 +50,9 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.FieldValueSetter;
-import org.joda.time.ReadableInstant;
 
 @Experimental(Kind.SCHEMAS)
 public class POJOUtils {
