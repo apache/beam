@@ -376,6 +376,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.codehaus.janino</groupId>
+      <artifactId>commons-compiler</artifactId>
+      <version>2.7.6</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
       <optional>true</optional>
@@ -385,6 +391,12 @@
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <!-- this is a hack to make it available at compile time but not bundled.-->
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.http-client</groupId>
+      <artifactId>google-http-client</artifactId>
       <scope>provided</scope>
     </dependency>
 
