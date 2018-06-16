@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Builder;
+import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
+import com.google.api.services.pubsub.Pubsub.Projects.Topics;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
 import com.google.api.services.pubsub.model.ListSubscriptionsResponse;
 import com.google.api.services.pubsub.model.ListTopicsResponse;
@@ -251,16 +253,21 @@ public class PubsubJsonClient extends PubsubClient {
 
   @Override
   public List<TopicPath> listTopics(ProjectPath project) throws IOException {
-    ListTopicsResponse response = pubsub.projects()
-                                        .topics()
-                                        .list(project.getPath())
-                                        .execute();
+    Topics.List request = pubsub.projects().topics().list(project.getPath());
+    ListTopicsResponse response = request.execute();
     if (response.getTopics() == null || response.getTopics().isEmpty()) {
       return ImmutableList.of();
     }
     List<TopicPath> topics = new ArrayList<>(response.getTopics().size());
-    for (Topic topic : response.getTopics()) {
-      topics.add(topicPathFromPath(topic.getName()));
+    while (true) {
+      for (Topic topic : response.getTopics()) {
+        topics.add(topicPathFromPath(topic.getName()));
+      }
+      if (Strings.isNullOrEmpty(response.getNextPageToken())) {
+        break;
+      }
+      request.setPageToken(response.getNextPageToken());
+      response = request.execute();
     }
     return topics;
   }
@@ -289,18 +296,23 @@ public class PubsubJsonClient extends PubsubClient {
   @Override
   public List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException {
-    ListSubscriptionsResponse response = pubsub.projects()
-                                               .subscriptions()
-                                               .list(project.getPath())
-                                               .execute();
+    Subscriptions.List request = pubsub.projects().subscriptions().list(project.getPath());
+    ListSubscriptionsResponse response = request.execute();
     if (response.getSubscriptions() == null || response.getSubscriptions().isEmpty()) {
       return ImmutableList.of();
     }
     List<SubscriptionPath> subscriptions = new ArrayList<>(response.getSubscriptions().size());
-    for (Subscription subscription : response.getSubscriptions()) {
-      if (subscription.getTopic().equals(topic.getPath())) {
-        subscriptions.add(subscriptionPathFromPath(subscription.getName()));
+    while (true) {
+      for (Subscription subscription : response.getSubscriptions()) {
+        if (subscription.getTopic().equals(topic.getPath())) {
+          subscriptions.add(subscriptionPathFromPath(subscription.getName()));
+        }
       }
+      if (Strings.isNullOrEmpty(response.getNextPageToken())) {
+        break;
+      }
+      request.setPageToken(response.getNextPageToken());
+      response = request.execute();
     }
     return subscriptions;
   }
