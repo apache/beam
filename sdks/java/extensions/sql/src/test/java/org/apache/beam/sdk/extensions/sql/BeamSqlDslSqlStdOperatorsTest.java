@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
-/** Integration test for string functions. */
-public class BeamSqlDslStringOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+/**
+ * DSL compliance tests for the operators of {@link org.apache.calcite.sql.fun.SqlStdOperatorTable}.
+ */
+public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Test
   public void testStringFunctions() throws Exception {
     ExpressionChecker checker =
@@ -49,6 +52,27 @@ public class BeamSqlDslStringOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("SUBSTRING('hello' FROM 2 FOR 100)", "ello")
             .addExpr("SUBSTRING('hello' FROM -3 for 2)", "ll")
             .addExpr("UPPER('hello')", "HELLO");
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  @SqlOperatorTest({
+      "ARRAY",
+      "CARDINALITY",
+      "ELEMENT",
+  })
+  public void testArrayFunctions() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr(
+                "ARRAY []", ImmutableList.of(), Schema.FieldType.array(Schema.FieldType.BOOLEAN))
+            .addExpr(
+                "ARRAY ['a', 'b']",
+                ImmutableList.of('a', 'b'),
+                Schema.FieldType.array(Schema.FieldType.STRING))
+            .addExpr("CARDINALITY(ARRAY ['a', 'b', 'c'])", 3)
+            .addExpr("ELEMENT(ARRAY [1])", 1);
 
     checker.buildRunAndCheck();
   }
