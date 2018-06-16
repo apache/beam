@@ -1,9 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.beam.sdk.schemas.utils;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -38,7 +55,6 @@ public class POJOUtilsTest {
       .addDateTimeField("dateTime")
       .addByteArrayField("bytes1")
       .addByteArrayField("bytes2")
-      .addByteArrayField("bytes3")
       .build();
 
   @Test
@@ -48,8 +64,8 @@ public class POJOUtilsTest {
   }
 
   static class NestedPojo {
-    int anInt;
-    SimplePojo nested;
+    public int anInt;
+    public SimplePojo nested;
   }
 
   @Test
@@ -63,8 +79,8 @@ public class POJOUtilsTest {
   }
 
   static class PrimitiveArrayPojo {
-    int anInt;
-    String[] strings;
+    public int anInt;
+    public String[] strings;
   }
 
   @Test
@@ -78,8 +94,8 @@ public class POJOUtilsTest {
   }
 
   static class NestedArrayPojo {
-    int anInt;
-    SimplePojo[] simples;
+    public int anInt;
+    public SimplePojo[] simples;
   }
 
   @Test
@@ -93,8 +109,8 @@ public class POJOUtilsTest {
   }
 
   static class NestedCollectionPojo {
-    int anInt;
-    List<SimplePojo> simples;
+    public int anInt;
+    public List<SimplePojo> simples;
   }
 
   @Test
@@ -108,8 +124,8 @@ public class POJOUtilsTest {
   }
 
   static class PrimitiveMapPojo {
-    int anInt;
-    Map<String, Integer> map;
+    public int anInt;
+    public Map<String, Integer> map;
   }
 
   @Test
@@ -123,8 +139,8 @@ public class POJOUtilsTest {
   }
 
   static class NestedMapPojo {
-    int anInt;
-    Map<String, SimplePojo> map;
+    public int anInt;
+    public Map<String, SimplePojo> map;
   }
 
   @Test
@@ -149,10 +165,9 @@ public class POJOUtilsTest {
     simplePojo.dateTime = DateTime.parse("1979-03-14");
     simplePojo.bytes1 = "bytes1".getBytes(Charset.defaultCharset());
     simplePojo.bytes2 = ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset()));
-    // simplePojo.bytes3 = Lists.<Byte>newArrayList().addAll("bytes3".getBytes()));
 
     List<FieldValueGetter> getters = POJOUtils.getGetters(SimplePojo.class);
-    assertEquals(10, getters.size());
+    assertEquals(9, getters.size());
     assertEquals("str", getters.get(0).name());
 
     assertEquals("field1", getters.get(0).get(simplePojo));
@@ -165,8 +180,9 @@ public class POJOUtilsTest {
     assertArrayEquals("Unexpected bytes",
         "bytes1".getBytes(Charset.defaultCharset()),
         (byte[]) getters.get(7).get(simplePojo));
-    assertEquals(ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset())),
-        getters.get(8).get(simplePojo));
+    assertArrayEquals("Unexpected bytes",
+        "bytes2".getBytes(Charset.defaultCharset()),
+        (byte[]) getters.get(8).get(simplePojo));
 
   }
 
@@ -174,7 +190,7 @@ public class POJOUtilsTest {
   public void testGeneratedSimpleSetters() {
     SimplePojo simplePojo = new SimplePojo();
     List<FieldValueSetter> setters = POJOUtils.getSetters(SimplePojo.class);
-    assertEquals(10, setters.size());
+    assertEquals(9, setters.size());
 
     setters.get(0).set(simplePojo, "field1");
     setters.get(1).set(simplePojo, (byte) 41);
