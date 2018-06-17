@@ -55,6 +55,7 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
