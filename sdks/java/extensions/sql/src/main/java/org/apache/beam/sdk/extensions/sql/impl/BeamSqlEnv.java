@@ -107,7 +107,7 @@ public class BeamSqlEnv {
     try {
       return planner.convertToBeamRel(query).toPTransform();
     } catch (ValidationException | RelConversionException | SqlParseException e) {
-      throw new ParseException("Unable to parse query", e);
+      throw new ParseException(String.format("Unable to parse query %s", query), e);
     }
   }
 
