@@ -40,7 +40,8 @@ import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, TypeName> JAVA_CLASS_TO_FIELDTYPE =
+
+  private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
       ImmutableMap.<Class, TypeName>builder()
           .put(Byte.class, TypeName.BYTE)
           .put(Short.class, TypeName.INT16)
@@ -133,7 +134,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
         Schema schema =
             Schema.builder()
                 .addField(
-                    expression, FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(expectedValue.getClass())))
+                    expression, FieldType.of(JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass())))
                 .build();
 
         PCollection<Row> output =
