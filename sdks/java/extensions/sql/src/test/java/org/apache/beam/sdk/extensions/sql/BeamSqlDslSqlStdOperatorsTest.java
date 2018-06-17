@@ -17,16 +17,193 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+
+import com.google.auto.value.AutoValue;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
- * DSL compliance tests for the operators of {@link org.apache.calcite.sql.fun.SqlStdOperatorTable}.
+ * DSL compliance tests for the row-level operators of {@link
+ * org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+
+  /** Calcite operators are identified by name and kind. */
+  @AutoValue
+  abstract static class SqlOperatorId {
+    abstract String name();
+
+    abstract SqlKind kind();
+  }
+
+  private static SqlOperatorId sqlOperatorId(String nameAndKind) {
+    return sqlOperatorId(nameAndKind, SqlKind.valueOf(nameAndKind));
+  }
+
+  private static SqlOperatorId sqlOperatorId(String name, SqlKind kind) {
+    return new AutoValue_BeamSqlDslSqlStdOperatorsTest_SqlOperatorId(name, kind);
+  }
+
+  private static SqlOperatorId sqlOperatorId(SqlOperatorTest annotation) {
+    return sqlOperatorId(annotation.name(), SqlKind.valueOf(annotation.kind()));
+  }
+
+  private static final List<SqlOperatorId> NON_ROW_OPERATORS =
+      ImmutableList.of(
+          sqlOperatorId("UNION"),
+          sqlOperatorId("UNION ALL", SqlKind.UNION),
+          sqlOperatorId("EXCEPT"),
+          sqlOperatorId("EXCEPT ALL", SqlKind.EXCEPT),
+          sqlOperatorId("INTERSECT"),
+          sqlOperatorId("INTERSECT ALL", SqlKind.INTERSECT));
+
+  /**
+   * LEGACY ADAPTER - DO NOT USE DIRECTLY. Use {@code getAnnotationsByType(SqlOperatorTest.class)},
+   * a more reliable method for retrieving repeated annotations.
+   *
+   * <p>This is a virtual annotation that is only present when there are more than one {@link
+   * SqlOperatorTest} annotations. When there is just one {@link SqlOperatorTest} annotation the
+   * proxying is not in place.
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  private @interface SqlOperatorTests {
+    SqlOperatorTest[] value();
+  }
+
+  /**
+   * Annotation that declares a test method has the tests for the {@link SqlOperatorId}.
+   *
+   * <p>It is almost identical to {@link SqlOperatorId} but complex types cannot be part of
+   * annotations and there are minor benefits to having a non-annotation class for passing around
+   * the ids.
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  @Repeatable(SqlOperatorTests.class)
+  private @interface SqlOperatorTest {
+    String name();
+
+    String kind();
+  }
+
+  private Set<SqlOperatorId> getTestedOperators() {
+    Set<SqlOperatorId> testedOperators = new HashSet<>();
+
+    for (Method method : getClass().getMethods()) {
+      testedOperators.addAll(
+          Arrays.stream(method.getAnnotationsByType(SqlOperatorTest.class))
+              .map(annotation -> sqlOperatorId(annotation))
+              .collect(Collectors.toList()));
+    }
+
+    return testedOperators;
+  }
+
+  private Set<SqlOperatorId> getDeclaredOperators() {
+    Set<SqlOperatorId> declaredOperators = new HashSet<>();
+
+    declaredOperators.addAll(
+        SqlStdOperatorTable.instance()
+            .getOperatorList()
+            .stream()
+            .map(operator -> sqlOperatorId(operator.getName(), operator.getKind()))
+            .collect(Collectors.toList()));
+
+    return declaredOperators;
+  }
+
+  private final Comparator<SqlOperatorId> orderByNameThenKind =
+      Ordering.compound(
+          ImmutableList.of(
+              Comparator.comparing((SqlOperatorId operator) -> operator.name()),
+              Comparator.comparing((SqlOperatorId operator) -> operator.kind())));
+
+  /** Smoke test that the whitelists and utility functions actually work. */
   @Test
-  public void testStringFunctions() throws Exception {
+  @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION")
+  public void testAnnotationEquality() throws Exception {
+    Method thisMethod = getClass().getMethod("testAnnotationEquality");
+    SqlOperatorTest sqlOperatorTest = thisMethod.getAnnotationsByType(SqlOperatorTest.class)[0];
+    assertThat(
+        sqlOperatorId(sqlOperatorTest),
+        equalTo(sqlOperatorId("CARDINALITY", SqlKind.OTHER_FUNCTION)));
+  }
+
+  /**
+   * Tests that all operators in {@link SqlStdOperatorTable} have DSL-level tests. Operators in the
+   * table are uniquely identified by (kind, name).
+   */
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4573")
+  @Test
+  public void testThatAllOperatorsAreTested() {
+    Set<SqlOperatorId> untestedOperators = new HashSet<>();
+    untestedOperators.addAll(getDeclaredOperators());
+
+    // Query-level operators need their own larger test suites
+    untestedOperators.removeAll(NON_ROW_OPERATORS);
+    untestedOperators.removeAll(getTestedOperators());
+
+    if (!untestedOperators.isEmpty()) {
+      // Sorting is just to make failures more readable until we have 100% coverage
+      List<SqlOperatorId> untestedList = Lists.newArrayList(untestedOperators);
+      untestedList.sort(orderByNameThenKind);
+      fail("No tests declared for operators:\n\t" + Joiner.on("\n\t").join(untestedList));
+    }
+  }
+
+  /**
+   * Tests that we didn't typo an annotation, that all things we claim to test are real operators.
+   */
+  @Test
+  public void testThatOperatorsExist() {
+    Set<SqlOperatorId> undeclaredOperators = new HashSet<>();
+    undeclaredOperators.addAll(getTestedOperators());
+    undeclaredOperators.removeAll(getDeclaredOperators());
+
+    if (!undeclaredOperators.isEmpty()) {
+      // Sorting is just to make failures more readable
+      List<SqlOperatorId> undeclaredList = Lists.newArrayList(undeclaredOperators);
+      undeclaredList.sort(orderByNameThenKind);
+      fail(
+          "Tests declared for nonexistent operators:\n\t" + Joiner.on("\n\t").join(undeclaredList));
+    }
+  }
+
+  @Test
+  @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "POSITION", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "TRIM", kind = "TRIM")
+  @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION")
+  public void testStringFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("'hello' || ' world'", "hello world")
@@ -57,19 +234,19 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest({
-      "ARRAY",
-      "CARDINALITY",
-      "ELEMENT",
-  })
+  @SqlOperatorTest(name = "ARRAY", kind = "ARRAY_VALUE_CONSTRUCTOR")
+  @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION")
+  @SqlOperatorTest(name = "ELEMENT", kind = "OTHER_FUNCTION")
   public void testArrayFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()
-            .addExpr(
-                "ARRAY []", ImmutableList.of(), Schema.FieldType.array(Schema.FieldType.BOOLEAN))
+            //            Calcite throws a parse error on this syntax for an empty array
+            //            .addExpr(
+            //                "ARRAY []", ImmutableList.of(),
+            // Schema.FieldType.array(Schema.FieldType.BOOLEAN))
             .addExpr(
                 "ARRAY ['a', 'b']",
-                ImmutableList.of('a', 'b'),
+                ImmutableList.of("a", "b"),
                 Schema.FieldType.array(Schema.FieldType.STRING))
             .addExpr("CARDINALITY(ARRAY ['a', 'b', 'c'])", 3)
             .addExpr("ELEMENT(ARRAY [1])", 1);
