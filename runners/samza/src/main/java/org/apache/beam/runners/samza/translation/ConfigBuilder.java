@@ -18,39 +18,56 @@
 
 package org.apache.beam.runners.samza.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-
+import java.io.File;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
 import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
 import org.apache.beam.runners.samza.util.Base64Serializer;
+import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
+import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
+import org.apache.samza.config.TaskConfig;
+import org.apache.samza.config.factories.PropertiesConfigFactory;
+import org.apache.samza.container.grouper.task.SingleContainerGrouperFactory;
+import org.apache.samza.runtime.LocalApplicationRunner;
+import org.apache.samza.serializers.ByteSerdeFactory;
+import org.apache.samza.standalone.PassthroughCoordinationUtilsFactory;
+import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
 
 /**
  * Builder class to generate configs for BEAM samza runner during runtime.
  */
 public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
+  private static final String APP_RUNNER_CLASS = "app.runner.class";
+
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Map<PValue, String> idMap;
   private final Map<String, String> config = new HashMap<>();
@@ -61,7 +78,16 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
                                    SamzaPipelineOptions options,
                                    Map<PValue, String> idMap) {
     try {
-      final Map<String, String> config = new HashMap<>(options.getSamzaConfig());
+      final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
+      pipeline.traverseTopologically(builder);
+      builder.checkFoundSource();
+      final Map<String, String> config = new HashMap<>(builder.getConfig());
+
+      createConfigForSystemStore(config);
+
+      // apply user configs
+      config.putAll(createUserConfig(options));
+
       config.put(JobConfig.JOB_NAME(), options.getJobName());
       config.put("beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
@@ -70,14 +96,58 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
           // use the most significant bits in UUID (8 digits) to avoid collision
           + UUID.randomUUID().toString().substring(0, 8));
 
-      final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
-      pipeline.traverseTopologically(builder);
-      builder.checkFoundSource();
-      config.putAll(builder.getConfig());
       return new MapConfig(config);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
+    final String configFilePath = options.getConfigFilePath();
+    final Map<String, String> config = new HashMap<>();
+
+    // If user provides a config file, use it as base configs.
+    if (StringUtils.isNoneEmpty(configFilePath)) {
+      final File configFile = new File(configFilePath);
+      checkArgument(configFile.exists(),
+          "Config file %s does not exist", configFilePath);
+      final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
+      final URI configUri = configFile.toURI();
+      config.putAll(configFactory.getConfig(configUri));
+    }
+
+    // Apply override on top
+    if (options.getConfigOverride() != null) {
+      config.putAll(options.getConfigOverride());
+    }
+
+    // If the config is empty, use the default local running mode
+    if (config.isEmpty()) {
+      config.putAll(localRunConfig());
+    }
+
+    return config;
+  }
+
+  @VisibleForTesting
+  public static Map<String, String> localRunConfig() {
+    // Default Samza config using local deployment of a single JVM
+    return ImmutableMap.<String, String>builder()
+        .put(APP_RUNNER_CLASS, LocalApplicationRunner.class.getName())
+        .put(JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
+            PassthroughJobCoordinatorFactory.class.getName())
+        .put(JobCoordinatorConfig.JOB_COORDINATION_UTILS_FACTORY,
+            PassthroughCoordinationUtilsFactory.class.getName())
+        .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
+        .put(TaskConfig.COMMIT_MS(), "-1").put("processor.id", "1").build();
+  }
+
+  private static void createConfigForSystemStore(Map<String, String> config) {
+    config.put("stores.beamStore.factory",
+        "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+    config.put("stores.beamStore.key.serde", "byteSerde");
+    config.put("stores.beamStore.msg.serde", "byteSerde");
+    config.put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
   }
 
   private ConfigBuilder(Map<PValue, String> idMap,
@@ -94,6 +164,8 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     } else if (node.getTransform() instanceof Read.Unbounded) {
       foundSource = true;
       processReadUnbounded(node, (Read.Unbounded<?>) node.getTransform());
+    } else if (node.getTransform() instanceof ParDo.MultiOutput) {
+      processParDo((ParDo.MultiOutput<?, ?>) node.getTransform());
     }
   }
 
@@ -105,15 +177,7 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     final PCollection<T> output =
         (PCollection<T>) Iterables.getOnlyElement(
             node.toAppliedPTransform(pipeline).getOutputs().values());
-
-    @SuppressWarnings("unchecked")
-    final WindowingStrategy<T, ? extends BoundedWindow> windowingStrategy =
-        (WindowingStrategy<T, ? extends BoundedWindow>) output.getWindowingStrategy();
-
-    final Coder<WindowedValue<T>> coder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
-            windowingStrategy.getWindowFn().windowCoder());
+    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(BoundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
   }
@@ -126,17 +190,23 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     final PCollection<T> output =
         (PCollection<T>) Iterables.getOnlyElement(
             node.toAppliedPTransform(pipeline).getOutputs().values());
-
-    @SuppressWarnings("unchecked")
-    final WindowingStrategy<T, ? extends BoundedWindow> windowingStrategy =
-        (WindowingStrategy<T, ? extends BoundedWindow>) output.getWindowingStrategy();
-
-    final Coder<WindowedValue<T>> coder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
-            windowingStrategy.getWindowFn().windowCoder());
+    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(UnboundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
+  }
+
+  private void processParDo(ParDo.MultiOutput<?, ?> parDo) {
+    final DoFnSignature signature = DoFnSignatures.getSignature(parDo.getFn().getClass());
+    if (signature.usesState()) {
+      // set up user state configs
+      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
+        String storeId = state.id();
+        config.put("stores." + storeId + ".factory",
+            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+        config.put("stores." + storeId + ".key.serde", "byteSerde");
+        config.put("stores." + storeId + ".msg.serde", "byteSerde");
+      }
+    }
   }
 
   private String getId(PValue pvalue) {

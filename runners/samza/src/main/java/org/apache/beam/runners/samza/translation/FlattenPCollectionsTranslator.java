@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -64,7 +63,7 @@ class FlattenPCollectionsTranslator<T>
     if (inputStreams.size() == 0) {
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream().flatMap(
-              OpAdapter.adapt((Op<String, T>) (inputElement, emitter) -> {}));
+              OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }

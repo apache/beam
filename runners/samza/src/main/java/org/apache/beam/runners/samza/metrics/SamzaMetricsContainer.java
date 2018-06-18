@@ -22,7 +22,6 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -68,10 +67,10 @@ public class SamzaMetricsContainer {
         metricResults.queryMetrics(MetricsFilter.builder().build());
 
     final CounterUpdater updateCounter = new CounterUpdater();
-    results.counters().forEach(updateCounter);
+    results.getCounters().forEach(updateCounter);
 
     final GaugeUpdater updateGauge = new GaugeUpdater();
-    results.gauges().forEach(updateGauge);
+    results.getGauges().forEach(updateGauge);
 
     //TODO: add distribution metrics to Samza
   }
@@ -85,7 +84,7 @@ public class SamzaMetricsContainer {
         counter = metricsRegistry.newCounter(BEAM_METRICS_GROUP, metricName);
       }
       counter.dec(counter.getCount());
-      counter.inc(metricResult.attempted());
+      counter.inc(metricResult.getAttempted());
     }
   }
 
@@ -98,7 +97,7 @@ public class SamzaMetricsContainer {
       if (gauge == null) {
         gauge = metricsRegistry.newGauge(BEAM_METRICS_GROUP, metricName, 0L);
       }
-      gauge.set(metricResult.attempted().value());
+      gauge.set(metricResult.getAttempted().getValue());
     }
   }
 
@@ -107,8 +106,8 @@ public class SamzaMetricsContainer {
   }
 
   private static String getMetricName(MetricResult<?> metricResult) {
-    return metricResult.step()
-        + DELIMITER + metricResult.name().namespace()
-        + DELIMITER + metricResult.name().name();
+    return metricResult.getStep()
+        + DELIMITER + metricResult.getName().getNamespace()
+        + DELIMITER + metricResult.getName().getName();
   }
 }
