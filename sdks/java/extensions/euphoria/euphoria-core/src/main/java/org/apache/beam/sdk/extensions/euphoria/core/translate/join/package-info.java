@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
-
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    testCompile library.java.junit
-}
+/**
+ * {@link org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join} translation centered
+ * classes.
+ */
+package org.apache.beam.sdk.extensions.euphoria.core.translate.join;

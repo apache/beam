@@ -83,8 +83,6 @@ include "beam-sdks-java-extensions-euphoria-core"
 project(":beam-sdks-java-extensions-euphoria-core").dir = file("sdks/java/extensions/euphoria/euphoria-core")
 include "beam-sdks-java-extensions-euphoria-testing"
 project(":beam-sdks-java-extensions-euphoria-testing").dir = file("sdks/java/extensions/euphoria/euphoria-testing")
-include "beam-sdks-java-extensions-euphoria-beam"
-project(":beam-sdks-java-extensions-euphoria-beam").dir = file("sdks/java/extensions/euphoria/euphoria-beam")
 include "beam-sdks-java-extensions-euphoria-fluent"
 project(":beam-sdks-java-extensions-euphoria-fluent").dir = file("sdks/java/extensions/euphoria/euphoria-fluent")
 

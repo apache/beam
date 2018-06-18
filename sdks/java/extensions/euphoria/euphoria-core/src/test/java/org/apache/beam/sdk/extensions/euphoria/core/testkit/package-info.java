@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
-
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    testCompile library.java.junit
-}
+/**
+ * Euphoria operators test suite, see
+ * {@link org.apache.beam.sdk.extensions.euphoria.beam.OperatorsTestSuite}.
+ */
+package org.apache.beam.sdk.extensions.euphoria.core.testkit;
