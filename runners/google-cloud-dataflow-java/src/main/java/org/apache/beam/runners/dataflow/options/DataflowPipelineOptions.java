@@ -131,6 +131,14 @@ public interface DataflowPipelineOptions
   void setPipelineUrl(String urlString);
 
   /**
+   * The mode used for shuffle: appliance (e.g. shuffling in-between the workers)
+   * or "service" (e.g. workers shuffle their data into a shuffle service).
+   */
+  @Description("The shuffle mode to use for this pipeline [appliance/service/auto]")
+  String getShuffleMode();
+  void setShuffleMode(String shuffleModeString);
+
+  /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
    */
   class StagingLocationFactory implements DefaultValueFactory<String> {
