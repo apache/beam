@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -28,12 +27,6 @@ import org.apache.beam.sdk.values.Row;
 
 /** This interface defines a Beam Sql Table. */
 public interface BeamSqlTable {
-  /**
-   * In Beam SQL, there's no difference between a batch query and a streaming query. {@link
-   * BeamIOType} is used to validate the sources.
-   */
-  BeamIOType getSourceType();
-
   /** create a {@code PCollection<BeamSqlRow>} from source. */
   PCollection<Row> buildIOReader(Pipeline pipeline);
 

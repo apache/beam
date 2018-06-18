@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -121,11 +120,6 @@ public class TestTableProvider implements TableProvider {
 
     public Coder<Row> rowCoder() {
       return tableWithRows.table.getSchema().getRowCoder();
-    }
-
-    @Override
-    public BeamIOType getSourceType() {
-      return BeamIOType.BOUNDED;
     }
 
     @Override
