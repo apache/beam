@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.values.Row.toRow;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
@@ -28,15 +31,32 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.junit.Before;
 import org.junit.Test;
 
 /** Test for {@link JdbcDriver}. */
 public class JdbcDriverTest {
+
+  private static final Schema BASIC_SCHEMA =
+      Schema.builder()
+          .addNullableField("id", Schema.FieldType.INT64)
+          .addNullableField("name", Schema.FieldType.STRING)
+          .build();
+
+  private static final Schema COMPLEX_SCHEMA =
+      Schema.builder()
+          .addNullableField("description", Schema.FieldType.STRING)
+          .addNullableField("nestedRow", Schema.FieldType.row(BASIC_SCHEMA))
+          .build();
 
   @Before
   public void before() throws Exception {
@@ -92,6 +112,92 @@ public class JdbcDriverTest {
   }
 
   @Test
+  public void testSelectsFromExistingTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+
+    tableProvider.addRows("person", row(1L, "aaa"), row(2L, "bbb"));
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery("SELECT id, name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  public void testSelectsFromExistingComplexTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate(
+            "CREATE TABLE person ( \n"
+                + "description VARCHAR, \n"
+                + "nestedRow ROW< \n"
+                + "              id BIGINT, \n"
+                + "              name VARCHAR> \n"
+                + ") \n"
+                + "TYPE 'test'");
+
+    tableProvider.addRows(
+        "person",
+        row(COMPLEX_SCHEMA, "description1", row(1L, "aaa")),
+        row(COMPLEX_SCHEMA, "description2", row(2L, "bbb")));
+
+    ResultSet selectResult =
+        connection
+            .createStatement()
+            .executeQuery("SELECT person.nestedrow.id, person.nestedrow.name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  public void testInsertIntoCreatedTable() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    connection
+        .createStatement()
+        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+
+    connection
+        .createStatement()
+        .executeUpdate("CREATE TABLE person_src (id BIGINT, name VARCHAR) TYPE 'test'");
+    tableProvider.addRows("person_src", row(1L, "aaa"), row(2L, "bbb"));
+
+    connection.createStatement().execute("INSERT INTO person SELECT id, name FROM person_src");
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery("SELECT id, name FROM person");
+
+    List<Row> resultRows =
+        readResultSet(selectResult)
+            .stream()
+            .map(resultValues -> resultValues.stream().collect(toRow(BASIC_SCHEMA)))
+            .collect(Collectors.toList());
+
+    assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
   public void testInternalConnect_boundedTable() throws Exception {
     ReadOnlyTableProvider tableProvider =
         new ReadOnlyTableProvider(
@@ -109,5 +215,28 @@ public class JdbcDriverTest {
     assertEquals(1, resultSet.getInt("id"));
     assertEquals("first", resultSet.getString("name"));
     assertFalse(resultSet.next());
+  }
+
+  private List<List<Object>> readResultSet(ResultSet result) throws Exception {
+    List<List<Object>> results = new ArrayList<>();
+
+    while (result.next()) {
+      List<Object> rowValues = new ArrayList<>();
+      for (int i = 0; i < result.getMetaData().getColumnCount(); i++) {
+        rowValues.add(result.getObject(i + 1));
+      }
+
+      results.add(rowValues);
+    }
+
+    return results;
+  }
+
+  private Row row(Object... values) {
+    return row(BASIC_SCHEMA, values);
+  }
+
+  private Row row(Schema schema, Object... values) {
+    return Row.withSchema(schema).addValues(values).build();
   }
 }
