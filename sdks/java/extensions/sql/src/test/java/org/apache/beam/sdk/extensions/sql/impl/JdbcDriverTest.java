@@ -158,7 +158,7 @@ public class JdbcDriverTest {
     ResultSet selectResult =
         connection
             .createStatement()
-            .executeQuery("SELECT person.nestedrow.id, person.nestedrow.name FROM person");
+            .executeQuery("SELECT person.nestedRow.id, person.nestedRow.name FROM person");
 
     List<Row> resultRows =
         readResultSet(selectResult)
