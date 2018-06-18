@@ -58,11 +58,6 @@ import org.slf4j.LoggerFactory;
 public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);
 
-  public static InMemoryJobService create(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
-    return new InMemoryJobService(stagingServiceDescriptor, (String session) -> "token", invoker);
-  }
-
   /**
    * Creates an InMemoryJobService.
    *
