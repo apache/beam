@@ -88,6 +88,8 @@ dependencies {
   shadowTest library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner library.java.hamcrest_core
+  validatesRunner library.java.hamcrest_library
   examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
   examplesJavaIntegrationTest project(path: ":beam-examples-java", configuration: "shadowTest")
   googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
