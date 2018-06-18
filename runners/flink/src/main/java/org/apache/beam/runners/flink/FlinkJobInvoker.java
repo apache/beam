@@ -47,7 +47,7 @@ public class FlinkJobInvoker implements JobInvoker {
 
   @Override
   public JobInvocation invoke(
-      RunnerApi.Pipeline pipeline, Struct options, @Nullable String artifactToken)
+      RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
       throws IOException {
     // TODO: How to make Java/Python agree on names of keys and their values?
     LOG.trace("Parsing pipeline options");
@@ -67,6 +67,7 @@ public class FlinkJobInvoker implements JobInvoker {
 
     return FlinkJobInvocation.create(
         invocationId,
+        retrievalToken,
         executorService,
         pipeline,
         flinkOptions);

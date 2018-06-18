@@ -55,7 +55,7 @@ func (x MonitoringInfo_MonitoringInfoLabels) String() string {
 	return proto.EnumName(MonitoringInfo_MonitoringInfoLabels_name, int32(x))
 }
 func (MonitoringInfo_MonitoringInfoLabels) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{11, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{11, 0}
 }
 
 type LogEntry_Severity_Enum int32
@@ -106,17 +106,17 @@ func (x LogEntry_Severity_Enum) String() string {
 	return proto.EnumName(LogEntry_Severity_Enum_name, int32(x))
 }
 func (LogEntry_Severity_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{35, 1, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{35, 1, 0}
 }
 
 // A representation of an input or output definition on a primitive transform.
 // Stable
 type Target struct {
 	// (Required) The id of the PrimitiveTransform which is the target.
-	PrimitiveTransformReference string `protobuf:"bytes,1,opt,name=primitive_transform_reference,json=primitiveTransformReference" json:"primitive_transform_reference,omitempty"`
+	PrimitiveTransformReference string `protobuf:"bytes,1,opt,name=primitive_transform_reference,json=primitiveTransformReference,proto3" json:"primitive_transform_reference,omitempty"`
 	// (Required) The local name of an input or output defined on the primitive
 	// transform.
-	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -126,7 +126,7 @@ func (m *Target) Reset()         { *m = Target{} }
 func (m *Target) String() string { return proto.CompactTextString(m) }
 func (*Target) ProtoMessage()    {}
 func (*Target) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{0}
 }
 func (m *Target) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Target.Unmarshal(m, b)
@@ -162,7 +162,7 @@ func (m *Target) GetName() string {
 
 // A repeated list of target definitions.
 type Target_List struct {
-	Target               []*Target `protobuf:"bytes,1,rep,name=target" json:"target,omitempty"`
+	Target               []*Target `protobuf:"bytes,1,rep,name=target,proto3" json:"target,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -172,7 +172,7 @@ func (m *Target_List) Reset()         { *m = Target_List{} }
 func (m *Target_List) String() string { return proto.CompactTextString(m) }
 func (*Target_List) ProtoMessage()    {}
 func (*Target_List) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{0, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{0, 0}
 }
 func (m *Target_List) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Target_List.Unmarshal(m, b)
@@ -206,9 +206,9 @@ func (m *Target_List) GetTarget() []*Target {
 type RemoteGrpcPort struct {
 	// (Required) An API descriptor which describes where to
 	// connect to including any authentication that is required.
-	ApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,1,opt,name=api_service_descriptor,json=apiServiceDescriptor" json:"api_service_descriptor,omitempty"`
+	ApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,1,opt,name=api_service_descriptor,json=apiServiceDescriptor,proto3" json:"api_service_descriptor,omitempty"`
 	// (Required) The ID of the Coder that will be used to encode and decode data sent over this port.
-	CoderId              string   `protobuf:"bytes,2,opt,name=coder_id,json=coderId" json:"coder_id,omitempty"`
+	CoderId              string   `protobuf:"bytes,2,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -218,7 +218,7 @@ func (m *RemoteGrpcPort) Reset()         { *m = RemoteGrpcPort{} }
 func (m *RemoteGrpcPort) String() string { return proto.CompactTextString(m) }
 func (*RemoteGrpcPort) ProtoMessage()    {}
 func (*RemoteGrpcPort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{1}
 }
 func (m *RemoteGrpcPort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoteGrpcPort.Unmarshal(m, b)
@@ -259,7 +259,7 @@ func (m *RemoteGrpcPort) GetCoderId() string {
 type InstructionRequest struct {
 	// (Required) An unique identifier provided by the runner which represents
 	// this requests execution. The InstructionResponse MUST have the matching id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId" json:"instruction_id,omitempty"`
+	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// (Required) A request that the SDK Harness needs to interpret.
 	//
 	// Types that are valid to be assigned to Request:
@@ -277,7 +277,7 @@ func (m *InstructionRequest) Reset()         { *m = InstructionRequest{} }
 func (m *InstructionRequest) String() string { return proto.CompactTextString(m) }
 func (*InstructionRequest) ProtoMessage()    {}
 func (*InstructionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{2}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{2}
 }
 func (m *InstructionRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InstructionRequest.Unmarshal(m, b)
@@ -302,16 +302,16 @@ type isInstructionRequest_Request interface {
 }
 
 type InstructionRequest_Register struct {
-	Register *RegisterRequest `protobuf:"bytes,1000,opt,name=register,oneof"`
+	Register *RegisterRequest `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
 }
 type InstructionRequest_ProcessBundle struct {
-	ProcessBundle *ProcessBundleRequest `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,oneof"`
+	ProcessBundle *ProcessBundleRequest `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
 }
 type InstructionRequest_ProcessBundleProgress struct {
-	ProcessBundleProgress *ProcessBundleProgressRequest `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,oneof"`
+	ProcessBundleProgress *ProcessBundleProgressRequest `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
 }
 type InstructionRequest_ProcessBundleSplit struct {
-	ProcessBundleSplit *ProcessBundleSplitRequest `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,oneof"`
+	ProcessBundleSplit *ProcessBundleSplitRequest `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
 }
 
 func (*InstructionRequest_Register) isInstructionRequest_Request()              {}
@@ -479,11 +479,11 @@ type InstructionResponse struct {
 	// (Required) A reference provided by the runner which represents a requests
 	// execution. The InstructionResponse MUST have the matching id when
 	// responding to the runner.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId" json:"instruction_id,omitempty"`
+	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// If this is specified, then this instruction has failed.
 	// A human readable string representing the reason as to why processing has
 	// failed.
-	Error string `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	// If the instruction did not fail, it is required to return an equivalent
 	// response type depending on the request this matches.
 	//
@@ -502,7 +502,7 @@ func (m *InstructionResponse) Reset()         { *m = InstructionResponse{} }
 func (m *InstructionResponse) String() string { return proto.CompactTextString(m) }
 func (*InstructionResponse) ProtoMessage()    {}
 func (*InstructionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{3}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{3}
 }
 func (m *InstructionResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InstructionResponse.Unmarshal(m, b)
@@ -527,16 +527,16 @@ type isInstructionResponse_Response interface {
 }
 
 type InstructionResponse_Register struct {
-	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,oneof"`
+	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
 }
 type InstructionResponse_ProcessBundle struct {
-	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,oneof"`
+	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
 }
 type InstructionResponse_ProcessBundleProgress struct {
-	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,oneof"`
+	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
 }
 type InstructionResponse_ProcessBundleSplit struct {
-	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,oneof"`
+	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
 }
 
 func (*InstructionResponse_Register) isInstructionResponse_Response()              {}
@@ -710,7 +710,7 @@ func _InstructionResponse_OneofSizer(msg proto.Message) (n int) {
 // Stable
 type RegisterRequest struct {
 	// (Optional) The set of descriptors used to process bundles.
-	ProcessBundleDescriptor []*ProcessBundleDescriptor `protobuf:"bytes,1,rep,name=process_bundle_descriptor,json=processBundleDescriptor" json:"process_bundle_descriptor,omitempty"`
+	ProcessBundleDescriptor []*ProcessBundleDescriptor `protobuf:"bytes,1,rep,name=process_bundle_descriptor,json=processBundleDescriptor,proto3" json:"process_bundle_descriptor,omitempty"`
 	XXX_NoUnkeyedLiteral    struct{}                   `json:"-"`
 	XXX_unrecognized        []byte                     `json:"-"`
 	XXX_sizecache           int32                      `json:"-"`
@@ -720,7 +720,7 @@ func (m *RegisterRequest) Reset()         { *m = RegisterRequest{} }
 func (m *RegisterRequest) String() string { return proto.CompactTextString(m) }
 func (*RegisterRequest) ProtoMessage()    {}
 func (*RegisterRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{4}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{4}
 }
 func (m *RegisterRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterRequest.Unmarshal(m, b)
@@ -758,7 +758,7 @@ func (m *RegisterResponse) Reset()         { *m = RegisterResponse{} }
 func (m *RegisterResponse) String() string { return proto.CompactTextString(m) }
 func (*RegisterResponse) ProtoMessage()    {}
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{5}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{5}
 }
 func (m *RegisterResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterResponse.Unmarshal(m, b)
@@ -782,21 +782,21 @@ var xxx_messageInfo_RegisterResponse proto.InternalMessageInfo
 type ProcessBundleDescriptor struct {
 	// (Required) A pipeline level unique id which can be used as a reference to
 	// refer to this.
-	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// (Required) A map from pipeline-scoped id to PTransform.
-	Transforms map[string]*pipeline_v1.PTransform `protobuf:"bytes,2,rep,name=transforms" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Transforms map[string]*pipeline_v1.PTransform `protobuf:"bytes,2,rep,name=transforms,proto3" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// (Required) A map from pipeline-scoped id to PCollection.
-	Pcollections map[string]*pipeline_v1.PCollection `protobuf:"bytes,3,rep,name=pcollections" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Pcollections map[string]*pipeline_v1.PCollection `protobuf:"bytes,3,rep,name=pcollections,proto3" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// (Required) A map from pipeline-scoped id to WindowingStrategy.
-	WindowingStrategies map[string]*pipeline_v1.WindowingStrategy `protobuf:"bytes,4,rep,name=windowing_strategies,json=windowingStrategies" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	WindowingStrategies map[string]*pipeline_v1.WindowingStrategy `protobuf:"bytes,4,rep,name=windowing_strategies,json=windowingStrategies,proto3" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// (Required) A map from pipeline-scoped id to Coder.
-	Coders map[string]*pipeline_v1.Coder `protobuf:"bytes,5,rep,name=coders" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Coders map[string]*pipeline_v1.Coder `protobuf:"bytes,5,rep,name=coders,proto3" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// (Required) A map from pipeline-scoped id to Environment.
-	Environments map[string]*pipeline_v1.Environment `protobuf:"bytes,6,rep,name=environments" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Environments map[string]*pipeline_v1.Environment `protobuf:"bytes,6,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// A descriptor describing the end point to use for State API
 	// calls. Required if the Runner intends to send remote references over the
 	// data plane or if any of the transforms rely on user state or side inputs.
-	StateApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,7,opt,name=state_api_service_descriptor,json=stateApiServiceDescriptor" json:"state_api_service_descriptor,omitempty"`
+	StateApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,7,opt,name=state_api_service_descriptor,json=stateApiServiceDescriptor,proto3" json:"state_api_service_descriptor,omitempty"`
 	XXX_NoUnkeyedLiteral      struct{}                          `json:"-"`
 	XXX_unrecognized          []byte                            `json:"-"`
 	XXX_sizecache             int32                             `json:"-"`
@@ -806,7 +806,7 @@ func (m *ProcessBundleDescriptor) Reset()         { *m = ProcessBundleDescriptor
 func (m *ProcessBundleDescriptor) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleDescriptor) ProtoMessage()    {}
 func (*ProcessBundleDescriptor) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{6}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{6}
 }
 func (m *ProcessBundleDescriptor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleDescriptor.Unmarshal(m, b)
@@ -886,11 +886,11 @@ func (m *ProcessBundleDescriptor) GetStateApiServiceDescriptor() *pipeline_v1.Ap
 // For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
 type BundleSplit struct {
 	// Root applications that should replace the current bundle.
-	PrimaryRoots []*BundleSplit_Application `protobuf:"bytes,1,rep,name=primary_roots,json=primaryRoots" json:"primary_roots,omitempty"`
+	PrimaryRoots []*BundleSplit_Application `protobuf:"bytes,1,rep,name=primary_roots,json=primaryRoots,proto3" json:"primary_roots,omitempty"`
 	// Root applications that have been removed from the current bundle and
 	// have to be executed in a separate bundle (e.g. in parallel on a different
 	// worker, or after the current bundle completes, etc.)
-	ResidualRoots        []*BundleSplit_Application `protobuf:"bytes,2,rep,name=residual_roots,json=residualRoots" json:"residual_roots,omitempty"`
+	ResidualRoots        []*BundleSplit_Application `protobuf:"bytes,2,rep,name=residual_roots,json=residualRoots,proto3" json:"residual_roots,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                   `json:"-"`
 	XXX_unrecognized     []byte                     `json:"-"`
 	XXX_sizecache        int32                      `json:"-"`
@@ -900,7 +900,7 @@ func (m *BundleSplit) Reset()         { *m = BundleSplit{} }
 func (m *BundleSplit) String() string { return proto.CompactTextString(m) }
 func (*BundleSplit) ProtoMessage()    {}
 func (*BundleSplit) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{7}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{7}
 }
 func (m *BundleSplit) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BundleSplit.Unmarshal(m, b)
@@ -937,20 +937,20 @@ func (m *BundleSplit) GetResidualRoots() []*BundleSplit_Application {
 // One of the root applications specifying the scope of work for a bundle.
 type BundleSplit_Application struct {
 	// (Required) The primitive transform to which to pass the element
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId" json:"ptransform_id,omitempty"`
+	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
 	// (Required) Name of the transform's input to which to pass the element.
-	InputId string `protobuf:"bytes,2,opt,name=input_id,json=inputId" json:"input_id,omitempty"`
+	InputId string `protobuf:"bytes,2,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
 	// (Required) The encoded element to pass to the transform.
 	Element []byte `protobuf:"bytes,3,opt,name=element,proto3" json:"element,omitempty"`
 	// Approximate lower bounds on timestamps of elements that this PTransform
 	// will produce into each of its output PCollections, when invoked on this
 	// element. Keyed by the transform's local output name.
-	OutputWatermarks map[string]int64 `protobuf:"bytes,4,rep,name=output_watermarks,json=outputWatermarks" json:"output_watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	OutputWatermarks map[string]int64 `protobuf:"bytes,4,rep,name=output_watermarks,json=outputWatermarks,proto3" json:"output_watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	// Approximate fraction of all work of the current bundle (before split)
 	// represented by invoking this Application and its downstream applications.
 	// The sum of fraction_of_work between all primary_roots and residual_roots
 	// must add up to approximately 1.0.
-	FractionOfWork       *wrappers.DoubleValue `protobuf:"bytes,5,opt,name=fraction_of_work,json=fractionOfWork" json:"fraction_of_work,omitempty"`
+	FractionOfWork       *wrappers.DoubleValue `protobuf:"bytes,5,opt,name=fraction_of_work,json=fractionOfWork,proto3" json:"fraction_of_work,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -960,7 +960,7 @@ func (m *BundleSplit_Application) Reset()         { *m = BundleSplit_Application
 func (m *BundleSplit_Application) String() string { return proto.CompactTextString(m) }
 func (*BundleSplit_Application) ProtoMessage()    {}
 func (*BundleSplit_Application) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{7, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{7, 0}
 }
 func (m *BundleSplit_Application) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BundleSplit_Application.Unmarshal(m, b)
@@ -1020,7 +1020,7 @@ func (m *BundleSplit_Application) GetFractionOfWork() *wrappers.DoubleValue {
 type ProcessBundleRequest struct {
 	// (Required) A reference to the process bundle descriptor that must be
 	// instantiated and executed by the SDK harness.
-	ProcessBundleDescriptorReference string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_reference,json=processBundleDescriptorReference" json:"process_bundle_descriptor_reference,omitempty"`
+	ProcessBundleDescriptorReference string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_reference,json=processBundleDescriptorReference,proto3" json:"process_bundle_descriptor_reference,omitempty"`
 	// (Optional) A list of cache tokens that can be used by an SDK to reuse
 	// cached data returned by the State API across multiple bundles.
 	CacheTokens          [][]byte `protobuf:"bytes,2,rep,name=cache_tokens,json=cacheTokens,proto3" json:"cache_tokens,omitempty"`
@@ -1033,7 +1033,7 @@ func (m *ProcessBundleRequest) Reset()         { *m = ProcessBundleRequest{} }
 func (m *ProcessBundleRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest) ProtoMessage()    {}
 func (*ProcessBundleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{8}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{8}
 }
 func (m *ProcessBundleRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleRequest.Unmarshal(m, b)
@@ -1071,10 +1071,10 @@ func (m *ProcessBundleRequest) GetCacheTokens() [][]byte {
 type ProcessBundleResponse struct {
 	// (Optional) If metrics reporting is supported by the SDK, this represents
 	// the final metrics to record for this bundle.
-	Metrics *Metrics `protobuf:"bytes,1,opt,name=metrics" json:"metrics,omitempty"`
+	Metrics *Metrics `protobuf:"bytes,1,opt,name=metrics,proto3" json:"metrics,omitempty"`
 	// (Optional) Specifies that the bundle has been split since the last
 	// ProcessBundleProgressResponse was sent.
-	Split                *BundleSplit `protobuf:"bytes,2,opt,name=split" json:"split,omitempty"`
+	Split                *BundleSplit `protobuf:"bytes,2,opt,name=split,proto3" json:"split,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -1084,7 +1084,7 @@ func (m *ProcessBundleResponse) Reset()         { *m = ProcessBundleResponse{} }
 func (m *ProcessBundleResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleResponse) ProtoMessage()    {}
 func (*ProcessBundleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{9}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{9}
 }
 func (m *ProcessBundleResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleResponse.Unmarshal(m, b)
@@ -1124,7 +1124,7 @@ func (m *ProcessBundleResponse) GetSplit() *BundleSplit {
 type ProcessBundleProgressRequest struct {
 	// (Required) A reference to an active process bundle request with the given
 	// instruction id.
-	InstructionReference string   `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
+	InstructionReference string   `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1134,7 +1134,7 @@ func (m *ProcessBundleProgressRequest) Reset()         { *m = ProcessBundleProgr
 func (m *ProcessBundleProgressRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressRequest) ProtoMessage()    {}
 func (*ProcessBundleProgressRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{10}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{10}
 }
 func (m *ProcessBundleProgressRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleProgressRequest.Unmarshal(m, b)
@@ -1163,7 +1163,7 @@ func (m *ProcessBundleProgressRequest) GetInstructionReference() string {
 
 type MonitoringInfo struct {
 	// The name defining the metric or monitored state.
-	Urn string `protobuf:"bytes,1,opt,name=urn" json:"urn,omitempty"`
+	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
 	// This is specified as a URN that implies:
 	// A message class: (Distribution, Counter, Extrema, MonitoringDataTable).
 	// Sub types like field formats - int64, double, string.
@@ -1172,7 +1172,7 @@ type MonitoringInfo struct {
 	// beam:metrics:[SumInt64|LatestInt64|Top-NInt64|Bottom-NInt64|
 	//     SumDouble|LatestDouble|Top-NDouble|Bottom-NDouble|DistributionInt64|
 	//     DistributionDouble|MonitoringDataTable]
-	Type string `protobuf:"bytes,2,opt,name=type" json:"type,omitempty"`
+	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	// The Metric or monitored state.
 	//
 	// Types that are valid to be assigned to Data:
@@ -1187,7 +1187,7 @@ type MonitoringInfo struct {
 	// for all updates having the same URN and labels.
 	// Some systems such as Stackdriver will be able to aggregate the metrics
 	// using a subset of the provided labels
-	Labels               map[string]string `protobuf:"bytes,5,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Labels               map[string]string `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -1197,7 +1197,7 @@ func (m *MonitoringInfo) Reset()         { *m = MonitoringInfo{} }
 func (m *MonitoringInfo) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfo) ProtoMessage()    {}
 func (*MonitoringInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{11}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{11}
 }
 func (m *MonitoringInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfo.Unmarshal(m, b)
@@ -1222,10 +1222,10 @@ type isMonitoringInfo_Data interface {
 }
 
 type MonitoringInfo_MonitoringTableData struct {
-	MonitoringTableData *MonitoringTableData `protobuf:"bytes,3,opt,name=monitoring_table_data,json=monitoringTableData,oneof"`
+	MonitoringTableData *MonitoringTableData `protobuf:"bytes,3,opt,name=monitoring_table_data,json=monitoringTableData,proto3,oneof"`
 }
 type MonitoringInfo_Metric struct {
-	Metric *Metric `protobuf:"bytes,4,opt,name=metric,oneof"`
+	Metric *Metric `protobuf:"bytes,4,opt,name=metric,proto3,oneof"`
 }
 
 func (*MonitoringInfo_MonitoringTableData) isMonitoringInfo_Data() {}
@@ -1364,7 +1364,7 @@ func (m *Metric) Reset()         { *m = Metric{} }
 func (m *Metric) String() string { return proto.CompactTextString(m) }
 func (*Metric) ProtoMessage()    {}
 func (*Metric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{12}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{12}
 }
 func (m *Metric) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metric.Unmarshal(m, b)
@@ -1389,13 +1389,13 @@ type isMetric_Data interface {
 }
 
 type Metric_CounterData struct {
-	CounterData *CounterData `protobuf:"bytes,1,opt,name=counter_data,json=counterData,oneof"`
+	CounterData *CounterData `protobuf:"bytes,1,opt,name=counter_data,json=counterData,proto3,oneof"`
 }
 type Metric_DistributionData struct {
-	DistributionData *DistributionData `protobuf:"bytes,2,opt,name=distribution_data,json=distributionData,oneof"`
+	DistributionData *DistributionData `protobuf:"bytes,2,opt,name=distribution_data,json=distributionData,proto3,oneof"`
 }
 type Metric_ExtremaData struct {
-	ExtremaData *ExtremaData `protobuf:"bytes,3,opt,name=extrema_data,json=extremaData,oneof"`
+	ExtremaData *ExtremaData `protobuf:"bytes,3,opt,name=extrema_data,json=extremaData,proto3,oneof"`
 }
 
 func (*Metric_CounterData) isMetric_Data()      {}
@@ -1541,7 +1541,7 @@ func (m *CounterData) Reset()         { *m = CounterData{} }
 func (m *CounterData) String() string { return proto.CompactTextString(m) }
 func (*CounterData) ProtoMessage()    {}
 func (*CounterData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{13}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{13}
 }
 func (m *CounterData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CounterData.Unmarshal(m, b)
@@ -1566,13 +1566,13 @@ type isCounterData_Value interface {
 }
 
 type CounterData_Int64Value struct {
-	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,oneof"`
+	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,proto3,oneof"`
 }
 type CounterData_DoubleValue struct {
-	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,oneof"`
+	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
 type CounterData_StringValue struct {
-	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,oneof"`
+	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 
 func (*CounterData_Int64Value) isCounterData_Value()  {}
@@ -1702,7 +1702,7 @@ func (m *ExtremaData) Reset()         { *m = ExtremaData{} }
 func (m *ExtremaData) String() string { return proto.CompactTextString(m) }
 func (*ExtremaData) ProtoMessage()    {}
 func (*ExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{14}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{14}
 }
 func (m *ExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExtremaData.Unmarshal(m, b)
@@ -1727,10 +1727,10 @@ type isExtremaData_Extrema interface {
 }
 
 type ExtremaData_IntExtremaData struct {
-	IntExtremaData *IntExtremaData `protobuf:"bytes,1,opt,name=int_extrema_data,json=intExtremaData,oneof"`
+	IntExtremaData *IntExtremaData `protobuf:"bytes,1,opt,name=int_extrema_data,json=intExtremaData,proto3,oneof"`
 }
 type ExtremaData_DoubleExtremaData struct {
-	DoubleExtremaData *DoubleExtremaData `protobuf:"bytes,2,opt,name=double_extrema_data,json=doubleExtremaData,oneof"`
+	DoubleExtremaData *DoubleExtremaData `protobuf:"bytes,2,opt,name=double_extrema_data,json=doubleExtremaData,proto3,oneof"`
 }
 
 func (*ExtremaData_IntExtremaData) isExtremaData_Extrema()    {}
@@ -1832,7 +1832,7 @@ func _ExtremaData_OneofSizer(msg proto.Message) (n int) {
 }
 
 type IntExtremaData struct {
-	IntValues            []int64  `protobuf:"varint,1,rep,packed,name=int_values,json=intValues" json:"int_values,omitempty"`
+	IntValues            []int64  `protobuf:"varint,1,rep,packed,name=int_values,json=intValues,proto3" json:"int_values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1842,7 +1842,7 @@ func (m *IntExtremaData) Reset()         { *m = IntExtremaData{} }
 func (m *IntExtremaData) String() string { return proto.CompactTextString(m) }
 func (*IntExtremaData) ProtoMessage()    {}
 func (*IntExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{15}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{15}
 }
 func (m *IntExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntExtremaData.Unmarshal(m, b)
@@ -1870,7 +1870,7 @@ func (m *IntExtremaData) GetIntValues() []int64 {
 }
 
 type DoubleExtremaData struct {
-	DoubleValues         []float64 `protobuf:"fixed64,2,rep,packed,name=double_values,json=doubleValues" json:"double_values,omitempty"`
+	DoubleValues         []float64 `protobuf:"fixed64,2,rep,packed,name=double_values,json=doubleValues,proto3" json:"double_values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1880,7 +1880,7 @@ func (m *DoubleExtremaData) Reset()         { *m = DoubleExtremaData{} }
 func (m *DoubleExtremaData) String() string { return proto.CompactTextString(m) }
 func (*DoubleExtremaData) ProtoMessage()    {}
 func (*DoubleExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{16}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{16}
 }
 func (m *DoubleExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleExtremaData.Unmarshal(m, b)
@@ -1925,7 +1925,7 @@ func (m *DistributionData) Reset()         { *m = DistributionData{} }
 func (m *DistributionData) String() string { return proto.CompactTextString(m) }
 func (*DistributionData) ProtoMessage()    {}
 func (*DistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{17}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{17}
 }
 func (m *DistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistributionData.Unmarshal(m, b)
@@ -1950,10 +1950,10 @@ type isDistributionData_Distribution interface {
 }
 
 type DistributionData_IntDistributionData struct {
-	IntDistributionData *IntDistributionData `protobuf:"bytes,1,opt,name=int_distribution_data,json=intDistributionData,oneof"`
+	IntDistributionData *IntDistributionData `protobuf:"bytes,1,opt,name=int_distribution_data,json=intDistributionData,proto3,oneof"`
 }
 type DistributionData_DoubleDistributionData struct {
-	DoubleDistributionData *DoubleDistributionData `protobuf:"bytes,2,opt,name=double_distribution_data,json=doubleDistributionData,oneof"`
+	DoubleDistributionData *DoubleDistributionData `protobuf:"bytes,2,opt,name=double_distribution_data,json=doubleDistributionData,proto3,oneof"`
 }
 
 func (*DistributionData_IntDistributionData) isDistributionData_Distribution()    {}
@@ -2055,10 +2055,10 @@ func _DistributionData_OneofSizer(msg proto.Message) (n int) {
 }
 
 type IntDistributionData struct {
-	Count                int64    `protobuf:"varint,1,opt,name=count" json:"count,omitempty"`
-	Sum                  int64    `protobuf:"varint,2,opt,name=sum" json:"sum,omitempty"`
-	Min                  int64    `protobuf:"varint,3,opt,name=min" json:"min,omitempty"`
-	Max                  int64    `protobuf:"varint,4,opt,name=max" json:"max,omitempty"`
+	Count                int64    `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum                  int64    `protobuf:"varint,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	Min                  int64    `protobuf:"varint,3,opt,name=min,proto3" json:"min,omitempty"`
+	Max                  int64    `protobuf:"varint,4,opt,name=max,proto3" json:"max,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2068,7 +2068,7 @@ func (m *IntDistributionData) Reset()         { *m = IntDistributionData{} }
 func (m *IntDistributionData) String() string { return proto.CompactTextString(m) }
 func (*IntDistributionData) ProtoMessage()    {}
 func (*IntDistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{18}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{18}
 }
 func (m *IntDistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntDistributionData.Unmarshal(m, b)
@@ -2117,10 +2117,10 @@ func (m *IntDistributionData) GetMax() int64 {
 }
 
 type DoubleDistributionData struct {
-	Count                int64    `protobuf:"varint,1,opt,name=count" json:"count,omitempty"`
-	Sum                  float64  `protobuf:"fixed64,2,opt,name=sum" json:"sum,omitempty"`
-	Min                  float64  `protobuf:"fixed64,3,opt,name=min" json:"min,omitempty"`
-	Max                  float64  `protobuf:"fixed64,4,opt,name=max" json:"max,omitempty"`
+	Count                int64    `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum                  float64  `protobuf:"fixed64,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	Min                  float64  `protobuf:"fixed64,3,opt,name=min,proto3" json:"min,omitempty"`
+	Max                  float64  `protobuf:"fixed64,4,opt,name=max,proto3" json:"max,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2130,7 +2130,7 @@ func (m *DoubleDistributionData) Reset()         { *m = DoubleDistributionData{}
 func (m *DoubleDistributionData) String() string { return proto.CompactTextString(m) }
 func (*DoubleDistributionData) ProtoMessage()    {}
 func (*DoubleDistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{19}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{19}
 }
 func (m *DoubleDistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleDistributionData.Unmarshal(m, b)
@@ -2201,8 +2201,8 @@ func (m *DoubleDistributionData) GetMax() float64 {
 type MonitoringTableData struct {
 	// The number of column names must match the
 	// number of values in each MonitoringRow.
-	ColumnNames          []string                             `protobuf:"bytes,1,rep,name=column_names,json=columnNames" json:"column_names,omitempty"`
-	RowData              []*MonitoringTableData_MonitoringRow `protobuf:"bytes,2,rep,name=row_data,json=rowData" json:"row_data,omitempty"`
+	ColumnNames          []string                             `protobuf:"bytes,1,rep,name=column_names,json=columnNames,proto3" json:"column_names,omitempty"`
+	RowData              []*MonitoringTableData_MonitoringRow `protobuf:"bytes,2,rep,name=row_data,json=rowData,proto3" json:"row_data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                             `json:"-"`
 	XXX_unrecognized     []byte                               `json:"-"`
 	XXX_sizecache        int32                                `json:"-"`
@@ -2212,7 +2212,7 @@ func (m *MonitoringTableData) Reset()         { *m = MonitoringTableData{} }
 func (m *MonitoringTableData) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData) ProtoMessage()    {}
 func (*MonitoringTableData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{20}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{20}
 }
 func (m *MonitoringTableData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData.Unmarshal(m, b)
@@ -2264,7 +2264,7 @@ func (m *MonitoringTableData_MonitoringColumnValue) Reset() {
 func (m *MonitoringTableData_MonitoringColumnValue) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData_MonitoringColumnValue) ProtoMessage()    {}
 func (*MonitoringTableData_MonitoringColumnValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{20, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{20, 0}
 }
 func (m *MonitoringTableData_MonitoringColumnValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Unmarshal(m, b)
@@ -2289,16 +2289,16 @@ type isMonitoringTableData_MonitoringColumnValue_Value interface {
 }
 
 type MonitoringTableData_MonitoringColumnValue_Int64Value struct {
-	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,oneof"`
+	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,proto3,oneof"`
 }
 type MonitoringTableData_MonitoringColumnValue_DoubleValue struct {
-	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,oneof"`
+	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
 type MonitoringTableData_MonitoringColumnValue_StringValue struct {
-	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,oneof"`
+	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 type MonitoringTableData_MonitoringColumnValue_Timestamp struct {
-	Timestamp *timestamp.Timestamp `protobuf:"bytes,4,opt,name=timestamp,oneof"`
+	Timestamp *timestamp.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3,oneof"`
 }
 
 func (*MonitoringTableData_MonitoringColumnValue_Int64Value) isMonitoringTableData_MonitoringColumnValue_Value() {
@@ -2444,7 +2444,7 @@ func _MonitoringTableData_MonitoringColumnValue_OneofSizer(msg proto.Message) (n
 }
 
 type MonitoringTableData_MonitoringRow struct {
-	Values               []*MonitoringTableData_MonitoringColumnValue `protobuf:"bytes,1,rep,name=values" json:"values,omitempty"`
+	Values               []*MonitoringTableData_MonitoringColumnValue `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                                     `json:"-"`
 	XXX_unrecognized     []byte                                       `json:"-"`
 	XXX_sizecache        int32                                        `json:"-"`
@@ -2454,7 +2454,7 @@ func (m *MonitoringTableData_MonitoringRow) Reset()         { *m = MonitoringTab
 func (m *MonitoringTableData_MonitoringRow) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData_MonitoringRow) ProtoMessage()    {}
 func (*MonitoringTableData_MonitoringRow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{20, 1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{20, 1}
 }
 func (m *MonitoringTableData_MonitoringRow) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData_MonitoringRow.Unmarshal(m, b)
@@ -2483,7 +2483,7 @@ func (m *MonitoringTableData_MonitoringRow) GetValues() []*MonitoringTableData_M
 
 // DEPRECATED
 type Metrics struct {
-	Ptransforms          map[string]*Metrics_PTransform `protobuf:"bytes,1,rep,name=ptransforms" json:"ptransforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Ptransforms          map[string]*Metrics_PTransform `protobuf:"bytes,1,rep,name=ptransforms,proto3" json:"ptransforms,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
 	XXX_unrecognized     []byte                         `json:"-"`
 	XXX_sizecache        int32                          `json:"-"`
@@ -2493,7 +2493,7 @@ func (m *Metrics) Reset()         { *m = Metrics{} }
 func (m *Metrics) String() string { return proto.CompactTextString(m) }
 func (*Metrics) ProtoMessage()    {}
 func (*Metrics) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21}
 }
 func (m *Metrics) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics.Unmarshal(m, b)
@@ -2527,16 +2527,16 @@ func (m *Metrics) GetPtransforms() map[string]*Metrics_PTransform {
 // estimate the backlog of remaining work.
 type Metrics_PTransform struct {
 	// (Required): Metrics for processed elements.
-	ProcessedElements *Metrics_PTransform_ProcessedElements `protobuf:"bytes,1,opt,name=processed_elements,json=processedElements" json:"processed_elements,omitempty"`
+	ProcessedElements *Metrics_PTransform_ProcessedElements `protobuf:"bytes,1,opt,name=processed_elements,json=processedElements,proto3" json:"processed_elements,omitempty"`
 	// (Required): Metrics for active elements.
-	ActiveElements *Metrics_PTransform_ActiveElements `protobuf:"bytes,2,opt,name=active_elements,json=activeElements" json:"active_elements,omitempty"`
+	ActiveElements *Metrics_PTransform_ActiveElements `protobuf:"bytes,2,opt,name=active_elements,json=activeElements,proto3" json:"active_elements,omitempty"`
 	// (Optional): Map from local output name to its watermark.
 	// The watermarks reported are tentative, to get a better sense of progress
 	// while processing a bundle but before it is committed. At bundle commit
 	// time, a Runner needs to also take into account the timers set to compute
 	// the actual watermarks.
-	Watermarks           map[string]int64 `protobuf:"bytes,3,rep,name=watermarks" json:"watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	User                 []*Metrics_User  `protobuf:"bytes,4,rep,name=user" json:"user,omitempty"`
+	Watermarks           map[string]int64 `protobuf:"bytes,3,rep,name=watermarks,proto3" json:"watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	User                 []*Metrics_User  `protobuf:"bytes,4,rep,name=user,proto3" json:"user,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
 	XXX_sizecache        int32            `json:"-"`
@@ -2546,7 +2546,7 @@ func (m *Metrics_PTransform) Reset()         { *m = Metrics_PTransform{} }
 func (m *Metrics_PTransform) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform) ProtoMessage()    {}
 func (*Metrics_PTransform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 0}
 }
 func (m *Metrics_PTransform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform.Unmarshal(m, b)
@@ -2600,13 +2600,13 @@ type Metrics_PTransform_Measured struct {
 	// from this input.
 	// If unset, assumed to be the sum of the outputs of all producers to
 	// this transform (for ProcessedElements) and 0 (for ActiveElements).
-	InputElementCounts map[string]int64 `protobuf:"bytes,1,rep,name=input_element_counts,json=inputElementCounts" json:"input_element_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	InputElementCounts map[string]int64 `protobuf:"bytes,1,rep,name=input_element_counts,json=inputElementCounts,proto3" json:"input_element_counts,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	// (Required) Map from local output name to number of elements produced
 	// for this output.
-	OutputElementCounts map[string]int64 `protobuf:"bytes,2,rep,name=output_element_counts,json=outputElementCounts" json:"output_element_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	OutputElementCounts map[string]int64 `protobuf:"bytes,2,rep,name=output_element_counts,json=outputElementCounts,proto3" json:"output_element_counts,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	// (Optional) The total time spent so far in processing the elements in
 	// this group, in seconds.
-	TotalTimeSpent       float64  `protobuf:"fixed64,3,opt,name=total_time_spent,json=totalTimeSpent" json:"total_time_spent,omitempty"`
+	TotalTimeSpent       float64  `protobuf:"fixed64,3,opt,name=total_time_spent,json=totalTimeSpent,proto3" json:"total_time_spent,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2616,7 +2616,7 @@ func (m *Metrics_PTransform_Measured) Reset()         { *m = Metrics_PTransform_
 func (m *Metrics_PTransform_Measured) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_Measured) ProtoMessage()    {}
 func (*Metrics_PTransform_Measured) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 0, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 0, 0}
 }
 func (m *Metrics_PTransform_Measured) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_Measured.Unmarshal(m, b)
@@ -2660,7 +2660,7 @@ func (m *Metrics_PTransform_Measured) GetTotalTimeSpent() float64 {
 // Metrics for fully processed elements.
 type Metrics_PTransform_ProcessedElements struct {
 	// (Required)
-	Measured             *Metrics_PTransform_Measured `protobuf:"bytes,1,opt,name=measured" json:"measured,omitempty"`
+	Measured             *Metrics_PTransform_Measured `protobuf:"bytes,1,opt,name=measured,proto3" json:"measured,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                     `json:"-"`
 	XXX_unrecognized     []byte                       `json:"-"`
 	XXX_sizecache        int32                        `json:"-"`
@@ -2670,7 +2670,7 @@ func (m *Metrics_PTransform_ProcessedElements) Reset()         { *m = Metrics_PT
 func (m *Metrics_PTransform_ProcessedElements) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_ProcessedElements) ProtoMessage()    {}
 func (*Metrics_PTransform_ProcessedElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 0, 1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 0, 1}
 }
 func (m *Metrics_PTransform_ProcessedElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_ProcessedElements.Unmarshal(m, b)
@@ -2702,19 +2702,19 @@ func (m *Metrics_PTransform_ProcessedElements) GetMeasured() *Metrics_PTransform
 // processing it yet.
 type Metrics_PTransform_ActiveElements struct {
 	// (Required)
-	Measured *Metrics_PTransform_Measured `protobuf:"bytes,1,opt,name=measured" json:"measured,omitempty"`
+	Measured *Metrics_PTransform_Measured `protobuf:"bytes,1,opt,name=measured,proto3" json:"measured,omitempty"`
 	// (Optional) Sum of estimated fraction of known work remaining for all
 	// active elements, as reported by this transform.
 	// If not reported, a Runner could extrapolate this from the processed
 	// elements.
 	// TODO: Handle the case when known work is infinite.
-	FractionRemaining float64 `protobuf:"fixed64,2,opt,name=fraction_remaining,json=fractionRemaining" json:"fraction_remaining,omitempty"`
+	FractionRemaining float64 `protobuf:"fixed64,2,opt,name=fraction_remaining,json=fractionRemaining,proto3" json:"fraction_remaining,omitempty"`
 	// (Optional) Map from local output name to sum of estimated number
 	// of elements remaining for this output from all active elements,
 	// as reported by this transform.
 	// If not reported, a Runner could extrapolate this from the processed
 	// elements.
-	OutputElementsRemaining map[string]int64 `protobuf:"bytes,3,rep,name=output_elements_remaining,json=outputElementsRemaining" json:"output_elements_remaining,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	OutputElementsRemaining map[string]int64 `protobuf:"bytes,3,rep,name=output_elements_remaining,json=outputElementsRemaining,proto3" json:"output_elements_remaining,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral    struct{}         `json:"-"`
 	XXX_unrecognized        []byte           `json:"-"`
 	XXX_sizecache           int32            `json:"-"`
@@ -2724,7 +2724,7 @@ func (m *Metrics_PTransform_ActiveElements) Reset()         { *m = Metrics_PTran
 func (m *Metrics_PTransform_ActiveElements) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_ActiveElements) ProtoMessage()    {}
 func (*Metrics_PTransform_ActiveElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 0, 2}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 0, 2}
 }
 func (m *Metrics_PTransform_ActiveElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_ActiveElements.Unmarshal(m, b)
@@ -2768,7 +2768,7 @@ func (m *Metrics_PTransform_ActiveElements) GetOutputElementsRemaining() map[str
 // User defined metrics
 type Metrics_User struct {
 	// (Required) The identifier for this metric.
-	MetricName *Metrics_User_MetricName `protobuf:"bytes,1,opt,name=metric_name,json=metricName" json:"metric_name,omitempty"`
+	MetricName *Metrics_User_MetricName `protobuf:"bytes,1,opt,name=metric_name,json=metricName,proto3" json:"metric_name,omitempty"`
 	// (Required) The data for this metric.
 	//
 	// Types that are valid to be assigned to Data:
@@ -2785,7 +2785,7 @@ func (m *Metrics_User) Reset()         { *m = Metrics_User{} }
 func (m *Metrics_User) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User) ProtoMessage()    {}
 func (*Metrics_User) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 1}
 }
 func (m *Metrics_User) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User.Unmarshal(m, b)
@@ -2810,13 +2810,13 @@ type isMetrics_User_Data interface {
 }
 
 type Metrics_User_CounterData_ struct {
-	CounterData *Metrics_User_CounterData `protobuf:"bytes,1001,opt,name=counter_data,json=counterData,oneof"`
+	CounterData *Metrics_User_CounterData `protobuf:"bytes,1001,opt,name=counter_data,json=counterData,proto3,oneof"`
 }
 type Metrics_User_DistributionData_ struct {
-	DistributionData *Metrics_User_DistributionData `protobuf:"bytes,1002,opt,name=distribution_data,json=distributionData,oneof"`
+	DistributionData *Metrics_User_DistributionData `protobuf:"bytes,1002,opt,name=distribution_data,json=distributionData,proto3,oneof"`
 }
 type Metrics_User_GaugeData_ struct {
-	GaugeData *Metrics_User_GaugeData `protobuf:"bytes,1003,opt,name=gauge_data,json=gaugeData,oneof"`
+	GaugeData *Metrics_User_GaugeData `protobuf:"bytes,1003,opt,name=gauge_data,json=gaugeData,proto3,oneof"`
 }
 
 func (*Metrics_User_CounterData_) isMetrics_User_Data()      {}
@@ -2954,9 +2954,9 @@ func _Metrics_User_OneofSizer(msg proto.Message) (n int) {
 // A key for identifying a metric at the most granular level.
 type Metrics_User_MetricName struct {
 	// (Required): The namespace of this metric.
-	Namespace string `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
+	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	// (Required): The name of this metric.
-	Name                 string   `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
+	Name                 string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2966,7 +2966,7 @@ func (m *Metrics_User_MetricName) Reset()         { *m = Metrics_User_MetricName
 func (m *Metrics_User_MetricName) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_MetricName) ProtoMessage()    {}
 func (*Metrics_User_MetricName) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 1, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 1, 0}
 }
 func (m *Metrics_User_MetricName) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_MetricName.Unmarshal(m, b)
@@ -3002,7 +3002,7 @@ func (m *Metrics_User_MetricName) GetName() string {
 
 // Data associated with a counter metric.
 type Metrics_User_CounterData struct {
-	Value                int64    `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+	Value                int64    `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -3012,7 +3012,7 @@ func (m *Metrics_User_CounterData) Reset()         { *m = Metrics_User_CounterDa
 func (m *Metrics_User_CounterData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_CounterData) ProtoMessage()    {}
 func (*Metrics_User_CounterData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 1, 1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 1, 1}
 }
 func (m *Metrics_User_CounterData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_CounterData.Unmarshal(m, b)
@@ -3041,10 +3041,10 @@ func (m *Metrics_User_CounterData) GetValue() int64 {
 
 // Data associated with a distribution metric.
 type Metrics_User_DistributionData struct {
-	Count                int64    `protobuf:"varint,1,opt,name=count" json:"count,omitempty"`
-	Sum                  int64    `protobuf:"varint,2,opt,name=sum" json:"sum,omitempty"`
-	Min                  int64    `protobuf:"varint,3,opt,name=min" json:"min,omitempty"`
-	Max                  int64    `protobuf:"varint,4,opt,name=max" json:"max,omitempty"`
+	Count                int64    `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Sum                  int64    `protobuf:"varint,2,opt,name=sum,proto3" json:"sum,omitempty"`
+	Min                  int64    `protobuf:"varint,3,opt,name=min,proto3" json:"min,omitempty"`
+	Max                  int64    `protobuf:"varint,4,opt,name=max,proto3" json:"max,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -3054,7 +3054,7 @@ func (m *Metrics_User_DistributionData) Reset()         { *m = Metrics_User_Dist
 func (m *Metrics_User_DistributionData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_DistributionData) ProtoMessage()    {}
 func (*Metrics_User_DistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 1, 2}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 1, 2}
 }
 func (m *Metrics_User_DistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_DistributionData.Unmarshal(m, b)
@@ -3104,8 +3104,8 @@ func (m *Metrics_User_DistributionData) GetMax() int64 {
 
 // Data associated with a Gauge metric.
 type Metrics_User_GaugeData struct {
-	Value                int64                `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
-	Timestamp            *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
+	Value                int64                `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+	Timestamp            *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`
 	XXX_sizecache        int32                `json:"-"`
@@ -3115,7 +3115,7 @@ func (m *Metrics_User_GaugeData) Reset()         { *m = Metrics_User_GaugeData{}
 func (m *Metrics_User_GaugeData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_GaugeData) ProtoMessage()    {}
 func (*Metrics_User_GaugeData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{21, 1, 3}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{21, 1, 3}
 }
 func (m *Metrics_User_GaugeData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_GaugeData.Unmarshal(m, b)
@@ -3151,10 +3151,10 @@ func (m *Metrics_User_GaugeData) GetTimestamp() *timestamp.Timestamp {
 
 type ProcessBundleProgressResponse struct {
 	// (Required)
-	Metrics *Metrics `protobuf:"bytes,1,opt,name=metrics" json:"metrics,omitempty"`
+	Metrics *Metrics `protobuf:"bytes,1,opt,name=metrics,proto3" json:"metrics,omitempty"`
 	// (Optional) Specifies that the bundle has been split since the last
 	// ProcessBundleProgressResponse was sent.
-	Split                *BundleSplit `protobuf:"bytes,2,opt,name=split" json:"split,omitempty"`
+	Split                *BundleSplit `protobuf:"bytes,2,opt,name=split,proto3" json:"split,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -3164,7 +3164,7 @@ func (m *ProcessBundleProgressResponse) Reset()         { *m = ProcessBundleProg
 func (m *ProcessBundleProgressResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressResponse) ProtoMessage()    {}
 func (*ProcessBundleProgressResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{22}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{22}
 }
 func (m *ProcessBundleProgressResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleProgressResponse.Unmarshal(m, b)
@@ -3201,7 +3201,7 @@ func (m *ProcessBundleProgressResponse) GetSplit() *BundleSplit {
 type ProcessBundleSplitRequest struct {
 	// (Required) A reference to an active process bundle request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
 	// Specifies that the runner would like the bundle to split itself using
 	// BundleSplit, and give up some of the work that the bundle hasn't started
 	// doing yet, so that it can be done in a separate bundle (perhaps in
@@ -3213,7 +3213,7 @@ type ProcessBundleSplitRequest struct {
 	// This is a hint and the value is approximate.
 	//
 	// The value is relative to the current scope of work of the bundle.
-	FractionOfRemainder  *wrappers.DoubleValue `protobuf:"bytes,2,opt,name=fraction_of_remainder,json=fractionOfRemainder" json:"fraction_of_remainder,omitempty"`
+	FractionOfRemainder  *wrappers.DoubleValue `protobuf:"bytes,2,opt,name=fraction_of_remainder,json=fractionOfRemainder,proto3" json:"fraction_of_remainder,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -3223,7 +3223,7 @@ func (m *ProcessBundleSplitRequest) Reset()         { *m = ProcessBundleSplitReq
 func (m *ProcessBundleSplitRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitRequest) ProtoMessage()    {}
 func (*ProcessBundleSplitRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{23}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{23}
 }
 func (m *ProcessBundleSplitRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitRequest.Unmarshal(m, b)
@@ -3267,7 +3267,7 @@ func (m *ProcessBundleSplitResponse) Reset()         { *m = ProcessBundleSplitRe
 func (m *ProcessBundleSplitResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitResponse) ProtoMessage()    {}
 func (*ProcessBundleSplitResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{24}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{24}
 }
 func (m *ProcessBundleSplitResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitResponse.Unmarshal(m, b)
@@ -3291,7 +3291,7 @@ var xxx_messageInfo_ProcessBundleSplitResponse proto.InternalMessageInfo
 // Stable
 type Elements struct {
 	// (Required) A list containing parts of logical byte streams.
-	Data                 []*Elements_Data `protobuf:"bytes,1,rep,name=data" json:"data,omitempty"`
+	Data                 []*Elements_Data `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
 	XXX_sizecache        int32            `json:"-"`
@@ -3301,7 +3301,7 @@ func (m *Elements) Reset()         { *m = Elements{} }
 func (m *Elements) String() string { return proto.CompactTextString(m) }
 func (*Elements) ProtoMessage()    {}
 func (*Elements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{25}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{25}
 }
 func (m *Elements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Elements.Unmarshal(m, b)
@@ -3333,7 +3333,7 @@ func (m *Elements) GetData() []*Elements_Data {
 type Elements_Data struct {
 	// (Required) A reference to an active instruction request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
 	// (Required) A definition representing a consumer or producer of this data.
 	// If received by a harness, this represents the consumer within that
 	// harness that should consume these bytes. If sent by a harness, this
@@ -3343,7 +3343,7 @@ type Elements_Data struct {
 	//
 	// Note that a sending/receiving pair should share the same target
 	// identifier.
-	Target *Target `protobuf:"bytes,2,opt,name=target" json:"target,omitempty"`
+	Target *Target `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	// (Optional) Represents a part of a logical byte stream. Elements within
 	// the logical byte stream are encoded in the nested context and
 	// concatenated together.
@@ -3360,7 +3360,7 @@ func (m *Elements_Data) Reset()         { *m = Elements_Data{} }
 func (m *Elements_Data) String() string { return proto.CompactTextString(m) }
 func (*Elements_Data) ProtoMessage()    {}
 func (*Elements_Data) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{25, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{25, 0}
 }
 func (m *Elements_Data) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Elements_Data.Unmarshal(m, b)
@@ -3405,13 +3405,13 @@ type StateRequest struct {
 	// (Required) An unique identifier provided by the SDK which represents this
 	// requests execution. The StateResponse corresponding with this request
 	// will have the matching id.
-	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// (Required) The associated instruction id of the work that is currently
 	// being processed. This allows for the runner to associate any modifications
 	// to state to be committed with the appropriate work execution.
-	InstructionReference string `protobuf:"bytes,2,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,2,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
 	// (Required) The state key this request is for.
-	StateKey *StateKey `protobuf:"bytes,3,opt,name=state_key,json=stateKey" json:"state_key,omitempty"`
+	StateKey *StateKey `protobuf:"bytes,3,opt,name=state_key,json=stateKey,proto3" json:"state_key,omitempty"`
 	// (Required) The action to take on this request.
 	//
 	// Types that are valid to be assigned to Request:
@@ -3428,7 +3428,7 @@ func (m *StateRequest) Reset()         { *m = StateRequest{} }
 func (m *StateRequest) String() string { return proto.CompactTextString(m) }
 func (*StateRequest) ProtoMessage()    {}
 func (*StateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{26}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{26}
 }
 func (m *StateRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateRequest.Unmarshal(m, b)
@@ -3453,13 +3453,13 @@ type isStateRequest_Request interface {
 }
 
 type StateRequest_Get struct {
-	Get *StateGetRequest `protobuf:"bytes,1000,opt,name=get,oneof"`
+	Get *StateGetRequest `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
 }
 type StateRequest_Append struct {
-	Append *StateAppendRequest `protobuf:"bytes,1001,opt,name=append,oneof"`
+	Append *StateAppendRequest `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
 }
 type StateRequest_Clear struct {
-	Clear *StateClearRequest `protobuf:"bytes,1002,opt,name=clear,oneof"`
+	Clear *StateClearRequest `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
 }
 
 func (*StateRequest_Get) isStateRequest_Request()    {}
@@ -3612,11 +3612,11 @@ type StateResponse struct {
 	// (Required) A reference provided by the SDK which represents a requests
 	// execution. The StateResponse must have the matching id when responding
 	// to the SDK.
-	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// (Optional) If this is specified, then the state request has failed.
 	// A human readable string representing the reason as to why the request
 	// failed.
-	Error string `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	// (Optional) If this is specified, then the result of this state request
 	// can be cached using the supplied token.
 	CacheToken []byte `protobuf:"bytes,3,opt,name=cache_token,json=cacheToken,proto3" json:"cache_token,omitempty"`
@@ -3636,7 +3636,7 @@ func (m *StateResponse) Reset()         { *m = StateResponse{} }
 func (m *StateResponse) String() string { return proto.CompactTextString(m) }
 func (*StateResponse) ProtoMessage()    {}
 func (*StateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{27}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{27}
 }
 func (m *StateResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateResponse.Unmarshal(m, b)
@@ -3661,13 +3661,13 @@ type isStateResponse_Response interface {
 }
 
 type StateResponse_Get struct {
-	Get *StateGetResponse `protobuf:"bytes,1000,opt,name=get,oneof"`
+	Get *StateGetResponse `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
 }
 type StateResponse_Append struct {
-	Append *StateAppendResponse `protobuf:"bytes,1001,opt,name=append,oneof"`
+	Append *StateAppendResponse `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
 }
 type StateResponse_Clear struct {
-	Clear *StateClearResponse `protobuf:"bytes,1002,opt,name=clear,oneof"`
+	Clear *StateClearResponse `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
 }
 
 func (*StateResponse_Get) isStateResponse_Response()    {}
@@ -3833,7 +3833,7 @@ func (m *StateKey) Reset()         { *m = StateKey{} }
 func (m *StateKey) String() string { return proto.CompactTextString(m) }
 func (*StateKey) ProtoMessage()    {}
 func (*StateKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{28}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{28}
 }
 func (m *StateKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey.Unmarshal(m, b)
@@ -3858,13 +3858,13 @@ type isStateKey_Type interface {
 }
 
 type StateKey_Runner_ struct {
-	Runner *StateKey_Runner `protobuf:"bytes,1,opt,name=runner,oneof"`
+	Runner *StateKey_Runner `protobuf:"bytes,1,opt,name=runner,proto3,oneof"`
 }
 type StateKey_MultimapSideInput_ struct {
-	MultimapSideInput *StateKey_MultimapSideInput `protobuf:"bytes,2,opt,name=multimap_side_input,json=multimapSideInput,oneof"`
+	MultimapSideInput *StateKey_MultimapSideInput `protobuf:"bytes,2,opt,name=multimap_side_input,json=multimapSideInput,proto3,oneof"`
 }
 type StateKey_BagUserState_ struct {
-	BagUserState *StateKey_BagUserState `protobuf:"bytes,3,opt,name=bag_user_state,json=bagUserState,oneof"`
+	BagUserState *StateKey_BagUserState `protobuf:"bytes,3,opt,name=bag_user_state,json=bagUserState,proto3,oneof"`
 }
 
 func (*StateKey_Runner_) isStateKey_Type()            {}
@@ -4005,7 +4005,7 @@ func (m *StateKey_Runner) Reset()         { *m = StateKey_Runner{} }
 func (m *StateKey_Runner) String() string { return proto.CompactTextString(m) }
 func (*StateKey_Runner) ProtoMessage()    {}
 func (*StateKey_Runner) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{28, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{28, 0}
 }
 func (m *StateKey_Runner) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_Runner.Unmarshal(m, b)
@@ -4034,9 +4034,9 @@ func (m *StateKey_Runner) GetKey() []byte {
 
 type StateKey_MultimapSideInput struct {
 	// (Required) The id of the PTransform containing a side input.
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId" json:"ptransform_id,omitempty"`
+	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
 	// (Required) The id of the side input.
-	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId" json:"side_input_id,omitempty"`
+	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
 	// (Required) The window (after mapping the currently executing elements
 	// window into the side input windows domain) encoded in a nested context.
 	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
@@ -4051,7 +4051,7 @@ func (m *StateKey_MultimapSideInput) Reset()         { *m = StateKey_MultimapSid
 func (m *StateKey_MultimapSideInput) String() string { return proto.CompactTextString(m) }
 func (*StateKey_MultimapSideInput) ProtoMessage()    {}
 func (*StateKey_MultimapSideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{28, 1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{28, 1}
 }
 func (m *StateKey_MultimapSideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_MultimapSideInput.Unmarshal(m, b)
@@ -4101,9 +4101,9 @@ func (m *StateKey_MultimapSideInput) GetKey() []byte {
 
 type StateKey_BagUserState struct {
 	// (Required) The id of the PTransform containing user state.
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId" json:"ptransform_id,omitempty"`
+	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
 	// (Required) The id of the user state.
-	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId" json:"user_state_id,omitempty"`
+	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
 	// (Required) The window encoded in a nested context.
 	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
 	// (Required) The key of the currently executing element encoded in a
@@ -4118,7 +4118,7 @@ func (m *StateKey_BagUserState) Reset()         { *m = StateKey_BagUserState{} }
 func (m *StateKey_BagUserState) String() string { return proto.CompactTextString(m) }
 func (*StateKey_BagUserState) ProtoMessage()    {}
 func (*StateKey_BagUserState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{28, 2}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{28, 2}
 }
 func (m *StateKey_BagUserState) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_BagUserState.Unmarshal(m, b)
@@ -4183,7 +4183,7 @@ func (m *StateGetRequest) Reset()         { *m = StateGetRequest{} }
 func (m *StateGetRequest) String() string { return proto.CompactTextString(m) }
 func (*StateGetRequest) ProtoMessage()    {}
 func (*StateGetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{29}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{29}
 }
 func (m *StateGetRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateGetRequest.Unmarshal(m, b)
@@ -4230,7 +4230,7 @@ func (m *StateGetResponse) Reset()         { *m = StateGetResponse{} }
 func (m *StateGetResponse) String() string { return proto.CompactTextString(m) }
 func (*StateGetResponse) ProtoMessage()    {}
 func (*StateGetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{30}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{30}
 }
 func (m *StateGetResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateGetResponse.Unmarshal(m, b)
@@ -4279,7 +4279,7 @@ func (m *StateAppendRequest) Reset()         { *m = StateAppendRequest{} }
 func (m *StateAppendRequest) String() string { return proto.CompactTextString(m) }
 func (*StateAppendRequest) ProtoMessage()    {}
 func (*StateAppendRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{31}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{31}
 }
 func (m *StateAppendRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateAppendRequest.Unmarshal(m, b)
@@ -4317,7 +4317,7 @@ func (m *StateAppendResponse) Reset()         { *m = StateAppendResponse{} }
 func (m *StateAppendResponse) String() string { return proto.CompactTextString(m) }
 func (*StateAppendResponse) ProtoMessage()    {}
 func (*StateAppendResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{32}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{32}
 }
 func (m *StateAppendResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateAppendResponse.Unmarshal(m, b)
@@ -4348,7 +4348,7 @@ func (m *StateClearRequest) Reset()         { *m = StateClearRequest{} }
 func (m *StateClearRequest) String() string { return proto.CompactTextString(m) }
 func (*StateClearRequest) ProtoMessage()    {}
 func (*StateClearRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{33}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{33}
 }
 func (m *StateClearRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateClearRequest.Unmarshal(m, b)
@@ -4379,7 +4379,7 @@ func (m *StateClearResponse) Reset()         { *m = StateClearResponse{} }
 func (m *StateClearResponse) String() string { return proto.CompactTextString(m) }
 func (*StateClearResponse) ProtoMessage()    {}
 func (*StateClearResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{34}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{34}
 }
 func (m *StateClearResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateClearResponse.Unmarshal(m, b)
@@ -4402,20 +4402,20 @@ var xxx_messageInfo_StateClearResponse proto.InternalMessageInfo
 // A log entry
 type LogEntry struct {
 	// (Required) The severity of the log statement.
-	Severity LogEntry_Severity_Enum `protobuf:"varint,1,opt,name=severity,enum=org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum" json:"severity,omitempty"`
+	Severity LogEntry_Severity_Enum `protobuf:"varint,1,opt,name=severity,proto3,enum=org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum" json:"severity,omitempty"`
 	// (Required) The time at which this log statement occurred.
-	Timestamp *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
+	Timestamp *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// (Required) A human readable message.
-	Message string `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	// (Optional) An optional trace of the functions involved. For example, in
 	// Java this can include multiple causes and multiple suppressed exceptions.
-	Trace string `protobuf:"bytes,4,opt,name=trace" json:"trace,omitempty"`
+	Trace string `protobuf:"bytes,4,opt,name=trace,proto3" json:"trace,omitempty"`
 	// (Optional) A reference to the instruction this log statement is associated
 	// with.
-	InstructionReference string `protobuf:"bytes,5,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,5,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
 	// (Optional) A reference to the primitive transform this log statement is
 	// associated with.
-	PrimitiveTransformReference string `protobuf:"bytes,6,opt,name=primitive_transform_reference,json=primitiveTransformReference" json:"primitive_transform_reference,omitempty"`
+	PrimitiveTransformReference string `protobuf:"bytes,6,opt,name=primitive_transform_reference,json=primitiveTransformReference,proto3" json:"primitive_transform_reference,omitempty"`
 	// (Optional) Human-readable name of the function or method being invoked,
 	// with optional context such as the class or package name. The format can
 	// vary by language. For example:
@@ -4423,9 +4423,9 @@ type LogEntry struct {
 	//   dir/package.func (Go)
 	//   module.function (Python)
 	//   file.cc:382 (C++)
-	LogLocation string `protobuf:"bytes,7,opt,name=log_location,json=logLocation" json:"log_location,omitempty"`
+	LogLocation string `protobuf:"bytes,7,opt,name=log_location,json=logLocation,proto3" json:"log_location,omitempty"`
 	// (Optional) The name of the thread this log statement is associated with.
-	Thread               string   `protobuf:"bytes,8,opt,name=thread" json:"thread,omitempty"`
+	Thread               string   `protobuf:"bytes,8,opt,name=thread,proto3" json:"thread,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -4435,7 +4435,7 @@ func (m *LogEntry) Reset()         { *m = LogEntry{} }
 func (m *LogEntry) String() string { return proto.CompactTextString(m) }
 func (*LogEntry) ProtoMessage()    {}
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{35}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{35}
 }
 func (m *LogEntry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry.Unmarshal(m, b)
@@ -4515,7 +4515,7 @@ func (m *LogEntry) GetThread() string {
 // log messages using the logging API.
 type LogEntry_List struct {
 	// (Required) One or or more log messages.
-	LogEntries           []*LogEntry `protobuf:"bytes,1,rep,name=log_entries,json=logEntries" json:"log_entries,omitempty"`
+	LogEntries           []*LogEntry `protobuf:"bytes,1,rep,name=log_entries,json=logEntries,proto3" json:"log_entries,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -4525,7 +4525,7 @@ func (m *LogEntry_List) Reset()         { *m = LogEntry_List{} }
 func (m *LogEntry_List) String() string { return proto.CompactTextString(m) }
 func (*LogEntry_List) ProtoMessage()    {}
 func (*LogEntry_List) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{35, 0}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{35, 0}
 }
 func (m *LogEntry_List) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry_List.Unmarshal(m, b)
@@ -4575,7 +4575,7 @@ func (m *LogEntry_Severity) Reset()         { *m = LogEntry_Severity{} }
 func (m *LogEntry_Severity) String() string { return proto.CompactTextString(m) }
 func (*LogEntry_Severity) ProtoMessage()    {}
 func (*LogEntry_Severity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{35, 1}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{35, 1}
 }
 func (m *LogEntry_Severity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry_Severity.Unmarshal(m, b)
@@ -4605,7 +4605,7 @@ func (m *LogControl) Reset()         { *m = LogControl{} }
 func (m *LogControl) String() string { return proto.CompactTextString(m) }
 func (*LogControl) ProtoMessage()    {}
 func (*LogControl) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_14a35ae7fb29ccc4, []int{36}
+	return fileDescriptor_beam_fn_api_6ff4efbe085bd72e, []int{36}
 }
 func (m *LogControl) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogControl.Unmarshal(m, b)
@@ -5102,9 +5102,9 @@ var _BeamFnLogging_serviceDesc = grpc.ServiceDesc{
 	Metadata: "beam_fn_api.proto",
 }
 
-func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_beam_fn_api_14a35ae7fb29ccc4) }
+func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_beam_fn_api_6ff4efbe085bd72e) }
 
-var fileDescriptor_beam_fn_api_14a35ae7fb29ccc4 = []byte{
+var fileDescriptor_beam_fn_api_6ff4efbe085bd72e = []byte{
 	// 3170 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x5a, 0xcb, 0x6f, 0x23, 0xc7,
 	0xd1, 0xd7, 0x90, 0x14, 0x25, 0x16, 0x29, 0x8a, 0x6a, 0x49, 0xbb, 0xdc, 0xf9, 0xd6, 0x9f, 0xd7,

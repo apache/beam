@@ -36,7 +36,8 @@ func TestRetrieve(t *testing.T) {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
 	keys := []string{"foo", "bar", "baz/baz/baz"}
-	artifacts := populate(ctx, cc, t, keys, 300)
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
 
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
@@ -44,7 +45,7 @@ func TestRetrieve(t *testing.T) {
 	client := pb.NewArtifactRetrievalServiceClient(cc)
 	for _, a := range artifacts {
 		filename := makeFilename(dst, a.Name)
-		if err := Retrieve(ctx, client, a, dst); err != nil {
+		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
 			t.Errorf("failed to retrieve %v: %v", a.Name, err)
 			continue
 		}
@@ -60,13 +61,14 @@ func TestMultiRetrieve(t *testing.T) {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), "idB")
 	keys := []string{"1", "2", "3", "4", "a/5", "a/6", "a/7", "a/8", "a/a/9", "a/a/10", "a/b/11", "a/b/12"}
-	artifacts := populate(ctx, cc, t, keys, 300)
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
 
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
 	client := pb.NewArtifactRetrievalServiceClient(cc)
-	if err := MultiRetrieve(ctx, client, 10, artifacts, dst); err != nil {
+	if err := MultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
 		t.Errorf("failed to retrieve: %v", err)
 	}
 
@@ -75,64 +77,27 @@ func TestMultiRetrieve(t *testing.T) {
 	}
 }
 
-// TestDirtyRetrieve tests that we can successfully retrieve files in a
-// dirty setup with correct and incorrect pre-existing files.
-func TestDirtyRetrieve(t *testing.T) {
-	cc := startServer(t)
-	defer cc.Close()
-
-	ctx := grpcx.WriteWorkerID(context.Background(), "idC")
-	scl := pb.NewArtifactStagingServiceClient(cc)
-
-	list := []*pb.ArtifactMetadata{
-		stage(ctx, scl, t, "good", 500, 100),
-		stage(ctx, scl, t, "bad", 500, 100),
-	}
-	if _, err := Commit(ctx, scl, list); err != nil {
-		t.Fatalf("failed to commit: %v", err)
-	}
-
-	// Kill good file in server by re-staging conflicting content. That ensures
-	// we don't retrieve it.
-	stage(ctx, scl, t, "good", 100, 100)
-
-	dst := makeTempDir(t)
-	defer os.RemoveAll(dst)
-
-	good := filepath.Join(dst, "good")
-	bad := filepath.Join(dst, "bad")
-
-	makeTempFile(t, good, 500) // correct content. Do nothing.
-	makeTempFile(t, bad, 367)  // invalid content. Delete and retrieve.
-
-	rcl := pb.NewArtifactRetrievalServiceClient(cc)
-	if err := MultiRetrieve(ctx, rcl, 2, list, dst); err != nil {
-		t.Fatalf("failed to get retrieve: %v", err)
-	}
-
-	verifyMD5(t, good, list[0].Md5)
-	verifyMD5(t, bad, list[1].Md5)
-}
-
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
-func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int) []*pb.ArtifactMetadata {
+func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*pb.ArtifactMetadata) {
 	scl := pb.NewArtifactStagingServiceClient(cc)
 
 	var artifacts []*pb.ArtifactMetadata
 	for i, key := range keys {
-		a := stage(ctx, scl, t, key, size+7*i, 97+i)
+		a := stage(ctx, scl, t, key, size+7*i, 97+i, st)
 		artifacts = append(artifacts, a)
 	}
-	if _, err := Commit(ctx, scl, artifacts); err != nil {
+	if token, err := Commit(ctx, scl, artifacts, st); err != nil {
 		t.Fatalf("failed to commit manifest: %v", err)
+		return "", nil
+	} else {
+		return token, artifacts
 	}
-	return artifacts
 }
 
 // stage stages an artifact with the given key, size and chuck size. The content is
 // always 'z's.
-func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int) *pb.ArtifactMetadata {
+func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *pb.ArtifactMetadata {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
 		data[i] = 'z'
@@ -144,7 +109,7 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	md := makeArtifact(key, hash)
 	pmd := &pb.PutArtifactMetadata{
 	  Metadata           : md,
-	  StagingSessionToken: "token",
+	  StagingSessionToken: st,
 	}
 
 	stream, err := scl.PutArtifact(ctx)
