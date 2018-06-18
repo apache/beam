@@ -312,7 +312,12 @@ class DataflowRunner(PipelineRunner):
     if apiclient._use_fnapi(pipeline._options):
       pipeline.visit(self.side_input_visitor())
 
-    # Snapshot the pipeline in a portable proto before mutating it
+    # Performing configured PTransform overrides.  Note that this is currently
+    # done before Runner API serialization, since the new proto needs to contain
+    # any added PTransforms.
+    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
+    # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
@@ -323,9 +328,6 @@ class DataflowRunner(PipelineRunner):
         pcoll.coder_id = self.proto_context.coders.get_id(coder)
     self.proto_context.coders.populate_map(
         self.proto_pipeline.components.coders)
-
-    # Performing configured PTransform overrides.
-    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
