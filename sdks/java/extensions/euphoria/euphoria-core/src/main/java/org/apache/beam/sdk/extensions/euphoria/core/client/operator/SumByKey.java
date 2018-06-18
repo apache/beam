@@ -226,7 +226,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     public WindowByBuilder<InputT, K> valueBy(UnaryFunction<InputT, Long> valueExtractor) {
-      params.valueExtractor = Objects.requireNonNull(valueExtractor);
+      params.valueExtractor = TypeAwareUnaryFunction.of(valueExtractor, TypeHint.ofLong());
       return new WindowByBuilder<>(params);
     }
 
