@@ -82,6 +82,7 @@ public class ArtifactServiceStagerTest {
 
   @Test
   public void testStage() throws Exception {
+    String stagingSessionToken = "token";
     File file = temp.newFile();
     byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     byte[] contentMd5 = MessageDigest.getInstance("MD5").digest(content);
@@ -89,7 +90,7 @@ public class ArtifactServiceStagerTest {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
-    stager.stage(Collections.singleton(StagedFile.of(file, file.getName())));
+    stager.stage(stagingSessionToken, Collections.singleton(StagedFile.of(file, file.getName())));
 
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(1));
     byte[] stagedContent = Iterables.getOnlyElement(service.getStagedArtifacts().values());
@@ -106,6 +107,8 @@ public class ArtifactServiceStagerTest {
 
   @Test
   public void testStagingMultipleFiles() throws Exception {
+    String stagingSessionToken = "token";
+
     File file = temp.newFile();
     byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
@@ -125,6 +128,7 @@ public class ArtifactServiceStagerTest {
     }
 
     stager.stage(
+        stagingSessionToken,
         ImmutableList.of(
             StagedFile.of(file, file.getName()),
             StagedFile.of(otherFile, otherFile.getName()),
