@@ -311,7 +311,6 @@ class SetupTest(unittest.TestCase):
       else:
         self.assertFalse(errors)
 
-
   def test_validate_dataflow_job_file(self):
     runner = MockRunners.OtherRunner()
     options = PipelineOptions([

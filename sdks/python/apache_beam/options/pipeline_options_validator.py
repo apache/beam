@@ -79,7 +79,6 @@ class PipelineOptionsValidator(object):
       'Invalid shuffle mode: %s. Please provide a valid shuffle mode ('
       'AUTO, APPLIANCE, SERVICE), or none at all for default.')
 
-
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
   GCS_BUCKET = '^[a-z0-9][-_a-z0-9.]+[a-z0-9]$'
