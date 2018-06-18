@@ -623,7 +623,7 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 Inside your `DoFn` subclass, you'll write a method annotated with
 `@ProcessElement` where you provide the actual processing logic. You don't need
 to manually extract the elements from the input collection; the Beam SDKs handle
-that for you. Your `@ProcessElement` method should accept parameter tagged with
+that for you. Your `@ProcessElement` method should accept a parameter tagged with
 `@Element`, which will be populated with the input element. In order to output
 elements, the method can also take a parameter of type `OutputReceiver` which
 provides a method for emitting elements. The parameter types must match the input
@@ -697,7 +697,7 @@ PCollection<Integer> wordLengths = words.apply(
   "ComputeWordLengths",                     // the transform name
   ParDo.of(new DoFn<String, Integer>() {    // a DoFn as an anonymous inner class instance
       @ProcessElement
-      public void processElement(@Element String word, OutputReceiver out) {
+      public void processElement(@Element String word, OutputReceiver<Integer> out) {
         out.output(word.length());
       }
     }));
@@ -1043,7 +1043,7 @@ you need the combining strategy to change based on the key (for example, MIN for
 some users and MAX for other users), you can define a `KeyedCombineFn` to access
 the key within the combining strategy.
 
-##### 4.2. Combining a PCollection into a single value {#combining-pcollection}
+##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
 
 Use the global combine to transform all of the elements in a given `PCollection`
 into a single value, represented in your pipeline as a new `PCollection`
@@ -1264,8 +1264,8 @@ In general, your user code must fulfill at least these requirements:
   Beam SDKs are not thread-safe*.
 
 In addition, it's recommended that you make your function object **idempotent**.
-Non-idempotent functions are supported by Beam, but xN require additional
-thought.
+Non-idempotent functions are supported by Beam, but require additional
+thought to ensure correctness when there are external side effects.
 
 > **Note:** These requirements apply to subclasses of `DoFn` (a function object
 > used with the [ParDo](#pardo) transform), `CombineFn` (a function object used
@@ -1307,7 +1307,7 @@ function may be accessed from different threads.
 
 It's recommended that you make your function object idempotent--that is, that it
 can be repeated or retried as often as necessary without causing unintended side
-effects. Non-idempotent functions are supported, however the beam model provides
+effects. Non-idempotent functions are supported, however the Beam model provides
 no guarantees as to the number of times your user code might be invoked or retried;
 as such, keeping your function object idempotent keeps your pipeline's output
 deterministic, and your transforms' behavior more predictable and easier to debug.
@@ -1517,7 +1517,7 @@ together.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
-#### 4.5.3. Accessing othe parameters in your DoFn {#other-dofn-parameters}
+#### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
 {:.language-java}
 In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn's `@ProcessElement` method.
 Any combination of these parameters can be added to your process method in any order.
@@ -1560,7 +1560,7 @@ you can determine whether this is an early or a late firing, and how many times 
 
 {:.language-java}
 **PipelineOptions:**
-The `PipelineOptions` for the current pipeline can always be accessed in a process method by adding it as a paramet:
+The `PipelineOptions` for the current pipeline can always be accessed in a process method by adding it as a parameter:
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, PipelineOptions options) {
