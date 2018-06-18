@@ -21,11 +21,31 @@ applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL :: Core"
 
+ext {
+    kryoVersion = '2.24.0'
+}
+
 dependencies {
-    compile project(':beam-sdks-java-core')
+    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+    compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
     shadow library.java.guava
-    shadow library.java.slf4j_api
     compileOnly library.java.findbugs_jsr305
     testCompile library.java.mockito_core
     testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
+    shadow 'com.google.code.findbugs:annotations:3.0.+'
+    testCompile library.java.slf4j_api
+    testCompile library.java.hamcrest_core
+    testCompile library.java.slf4j_simple
+    testCompile library.java.mockito_core
+    testCompile project(path: ":beam-sdks-java-core", configuration: "testArtifact")
+    testCompile project(':beam-runners-direct-java')
 }
+
+test {
+    // Tests in testkit are not designed to run as standalone test. They need a context to run
+    // which is provided by org.apache.beam.sdk.extensions.euphoria.beam.OperatorsTestSuite.
+    exclude 'org/apache/beam/sdk/extensions/euphoria/core/testkit/**'
+    include "**/*TestSuite.class"
+}
+
+test.testLogging.showStandardStreams = true
