@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -28,19 +29,30 @@ import org.apache.calcite.rel.RelNode;
 
 /** Utilities for {@code BeamRelNode}. */
 public class BeamSqlRelUtils {
-  private static final AtomicInteger sequence = new AtomicInteger(0);
+
+  public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
+    return toPCollection(pipeline, node, new HashMap());
+  }
 
   /**
    * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
    * DFS(Depth-First-Search) algorithm.
    */
-  public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
-    String name =
-        node.getClass().getSimpleName() + "_" + node.getId() + "_" + sequence.getAndIncrement();
-    PInput input = node.buildPInput(pipeline);
+  static PCollection<Row> toPCollection(
+      Pipeline pipeline, BeamRelNode node, Map<Integer, PCollection<Row>> cache) {
+    PCollection<Row> output = cache.get(node.getId());
+    if (output != null) {
+      return output;
+    }
+
+    String name = node.getClass().getSimpleName() + "_" + node.getId();
+    PInput input = node.buildPInput(pipeline, cache);
     PTransform<PInput, PCollection<Row>> transform = node.buildPTransform();
 
-    return Pipeline.applyTransform(name, input, transform);
+    output = Pipeline.applyTransform(name, input, transform);
+
+    cache.put(node.getId(), output);
+    return output;
   }
 
   public static BeamRelNode getBeamRelInput(RelNode input) {

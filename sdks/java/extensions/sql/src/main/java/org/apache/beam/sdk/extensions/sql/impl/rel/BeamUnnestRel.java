@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
@@ -77,9 +78,9 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   }
 
   @Override
-  public PInput buildPInput(Pipeline pipeline) {
+  public PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
     BeamRelNode input = BeamSqlRelUtils.getBeamRelInput(left);
-    return BeamSqlRelUtils.toPCollection(pipeline, input);
+    return BeamSqlRelUtils.toPCollection(pipeline, input, cache);
   }
 
   @Override

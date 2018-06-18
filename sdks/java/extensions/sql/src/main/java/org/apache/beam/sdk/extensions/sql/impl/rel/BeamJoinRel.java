@@ -118,13 +118,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public PInput buildPInput(Pipeline pipeline) {
+  public PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
     BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
     if (!seekable(leftRelNode) && seekable(rightRelNode)) {
-      return BeamSqlRelUtils.toPCollection(pipeline, leftRelNode);
+      return BeamSqlRelUtils.toPCollection(pipeline, leftRelNode, cache);
     }
-    return BeamRelNode.super.buildPInput(pipeline);
+    return BeamRelNode.super.buildPInput(pipeline, cache);
   }
 
   @Override
