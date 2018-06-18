@@ -24,7 +24,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
@@ -110,11 +109,6 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     public SiteLookupTable(Schema schema) {
       super(schema);
-    }
-
-    @Override
-    public BeamIOType getSourceType() {
-      return BeamIOType.BOUNDED;
     }
 
     @Override

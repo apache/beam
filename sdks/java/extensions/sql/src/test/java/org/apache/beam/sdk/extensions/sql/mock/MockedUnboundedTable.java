@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PCollection;
@@ -85,11 +84,6 @@ public class MockedUnboundedTable extends MockedTable {
     // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;
-  }
-
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.UNBOUNDED;
   }
 
   @Override

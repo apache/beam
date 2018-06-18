@@ -21,7 +21,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
@@ -30,19 +29,11 @@ import org.apache.beam.sdk.values.Row;
  * downstream query can query directly.
  */
 public class BeamPCollectionTable extends BaseBeamTable {
-  private BeamIOType ioType;
   private transient PCollection<Row> upstream;
 
   public BeamPCollectionTable(PCollection<Row> upstream) {
     super(((RowCoder) upstream.getCoder()).getSchema());
-    ioType =
-        upstream.isBounded().equals(IsBounded.BOUNDED) ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
     this.upstream = upstream;
-  }
-
-  @Override
-  public BeamIOType getSourceType() {
-    return ioType;
   }
 
   @Override

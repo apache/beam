@@ -24,7 +24,6 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -68,11 +67,6 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
   public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
     this.configUpdates = configUpdates;
     return this;
-  }
-
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.UNBOUNDED;
   }
 
   public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
