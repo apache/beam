@@ -178,12 +178,12 @@ public class DataflowPipelineOptionsTest {
   public void testShuffleModeOption() {
     DataflowPipelineOptions serviceOptions = PipelineOptionsFactory.as(
         DataflowPipelineOptions.class);
-    options.setShuffleMode("SERVICE");
+    serviceOptions.setShuffleMode(DataflowPipelineOptions.ShuffleMode.SERVICE);
     assertEquals("SERVICE", serviceOptions.getShuffleMode().toString());
 
     DataflowPipelineOptions applianceOptions = PipelineOptionsFactory.as(
         DataflowPipelineOptions.class);
-    applianceOptions.setShuffleMode("APPLIANCE");
+    applianceOptions.setShuffleMode(DataflowPipelineOptions.ShuffleMode.APPLIANCE);
     assertEquals("APPLIANCE", applianceOptions.getShuffleMode().toString());
   }
 
