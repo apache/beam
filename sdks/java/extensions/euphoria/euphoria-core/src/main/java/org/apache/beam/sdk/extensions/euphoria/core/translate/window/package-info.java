@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
-
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    testCompile library.java.junit
-}
+/**
+ * Windowing centered classes.
+ */
+package org.apache.beam.sdk.extensions.euphoria.core.translate.window;

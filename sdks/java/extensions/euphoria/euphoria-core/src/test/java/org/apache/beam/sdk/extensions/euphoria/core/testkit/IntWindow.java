@@ -15,11 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    testCompile library.java.junit
+/**
+ * Test-purpose {@link Window} identified by integer.
+ */
+public class IntWindow extends Window<IntWindow> {
+
+  private int val;
+
+  IntWindow(int val) {
+    this.val = val;
+  }
+
+  int getValue() {
+    return val;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof IntWindow) {
+      IntWindow that = (IntWindow) o;
+      return this.val == that.val;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return val;
+  }
+
+  @Override
+  public int compareTo(IntWindow o) {
+    return Integer.compare(val, o.val);
+  }
 }
