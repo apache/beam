@@ -169,6 +169,26 @@ public class DataflowPipelineOptionsTest {
   }
 
   @Test
+  public void testShuffleModeDefault() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    assertEquals("AUTO", options.getShuffleMode().toString());
+  }
+
+  @Test
+  public void testShuffleModeOption() {
+    DataflowPipelineOptions serviceOptions = PipelineOptionsFactory.as(
+        DataflowPipelineOptions.class);
+    serviceOptions.setShuffleMode(DataflowPipelineOptions.ShuffleMode.SERVICE);
+    assertEquals("SERVICE", serviceOptions.getShuffleMode().toString());
+
+    DataflowPipelineOptions applianceOptions = PipelineOptionsFactory.as(
+        DataflowPipelineOptions.class);
+    applianceOptions.setShuffleMode(DataflowPipelineOptions.ShuffleMode.APPLIANCE);
+    assertEquals("APPLIANCE", applianceOptions.getShuffleMode().toString());
+  }
+
+
+  @Test
   public void testDefaultInvalidGcpTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setGcpTempLocation("file://temp_location");

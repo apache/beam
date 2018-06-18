@@ -379,6 +379,13 @@ class GoogleCloudOptions(PipelineOptions):
         help='Labels that will be applied to this Dataflow job. Labels are key '
         'value pairs separated by = (e.g. --label key=value).')
 
+    # The mode used for shuffle: appliance (e.g. shuffling in-between the
+    # workers) or "service" (e.g. workers shuffle their data into a shuffle
+    # service).
+    parser.add_argument(
+        '--shuffle_mode', default=None,
+        help='The shuffle mode for this pipeline ["APPLIANCE"/"SERVICE"]')
+
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
@@ -392,6 +399,9 @@ class GoogleCloudOptions(PipelineOptions):
       if self.view_as(GoogleCloudOptions).template_location:
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
+    if self.view_as(GoogleCloudOptions).shuffle_mode is not None:
+      errors.extend(
+          validator.validate_shuffle_mode(self.view_as(GoogleCloudOptions)))
 
     return errors
 
