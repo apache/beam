@@ -384,7 +384,7 @@ class GoogleCloudOptions(PipelineOptions):
     # service).
     parser.add_argument(
         '--shuffle_mode', default=None,
-        help='The shuffle mode for this pipeline ["appliance"/"service"')
+        help='The shuffle mode for this pipeline ["APPLIANCE"/"SERVICE"]')
 
   def validate(self, validator):
     errors = []
@@ -399,6 +399,9 @@ class GoogleCloudOptions(PipelineOptions):
       if self.view_as(GoogleCloudOptions).template_location:
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
+    if self.view_as(GoogleCloudOptions).shuffle_mode is not None:
+      errors.extend(
+          validator.validate_shuffle_mode(self.view_as(GoogleCloudOptions)))
 
     return errors
 

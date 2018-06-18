@@ -295,6 +295,23 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertFalse(errors)
 
+  def test_validate_shuffle_mode(self):
+    for value, errors in [('SERVICE', False),
+                          ('APPLIANCE', False),
+                          ('AUTO', False),
+                          ('OTHER', True)]:
+      runner = MockRunners.OtherRunner()
+      options = PipelineOptions([
+          '--shuffle_mode', value
+      ])
+      validator = PipelineOptionsValidator(options, runner)
+      errors = validator.validate()
+      if errors:
+        self.assertNotEqual([], errors)
+      else:
+        self.assertFalse(errors)
+
+
   def test_validate_dataflow_job_file(self):
     runner = MockRunners.OtherRunner()
     options = PipelineOptions([

@@ -75,6 +75,10 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
       'Invalid value (%s) for option: %s. Please make sure the test matcher '
       'is unpicklable.')
+  ERR_INVALID_SHUFFLE_MODE = (
+      'Invalid shuffle mode: %s. Please provide a valid shuffle mode ('
+      'AUTO, APPLIANCE, SERVICE), or none at all for default.')
+
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -86,6 +90,9 @@ class PipelineOptionsValidator(object):
   PROJECT_ID_PATTERN = '[a-z][-a-z0-9:.]+[a-z0-9]'
   PROJECT_NUMBER_PATTERN = '[0-9]*'
   ENDPOINT_PATTERN = r'https://[\S]*googleapis\.com[/]?'
+
+  # Shuffle Mode valid input
+  SHUFFLE_MODE_OPTIONS = set(["SERVICE", "APPLIANCE", "AUTO"])
 
   def __init__(self, options, runner):
     self.options = options
@@ -152,6 +159,13 @@ class PipelineOptionsValidator(object):
       return self._validate_error(self.ERR_INVALID_GCS_OBJECT, arg, arg_name)
 
     return []
+
+  def validate_shuffle_mode(self, view):
+    errors = []
+    if view.shuffle_mode not in self.SHUFFLE_MODE_OPTIONS:
+      errors.extend(self._validate_error(self.ERR_INVALID_SHUFFLE_MODE,
+                                         view.shuffle_mode))
+    return errors
 
   def validate_cloud_options(self, view):
     """Validates job_name and project arguments."""

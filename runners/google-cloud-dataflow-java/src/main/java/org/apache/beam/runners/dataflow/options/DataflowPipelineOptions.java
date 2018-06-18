@@ -131,12 +131,23 @@ public interface DataflowPipelineOptions
   void setPipelineUrl(String urlString);
 
   /**
+   * Enumeration of the possible shuffle modes.
+   */
+  enum ShuffleMode {
+    AUTO,
+    SERVICE,
+    APPLIANCE
+  }
+
+  /**
    * The mode used for shuffle: appliance (e.g. shuffling in-between the workers)
    * or "service" (e.g. workers shuffle their data into a shuffle service).
    */
-  @Description("The shuffle mode to use for this pipeline [appliance/service/auto]")
-  String getShuffleMode();
-  void setShuffleMode(String shuffleModeString);
+  @Validation.Required
+  @Description("The shuffle mode to use for this pipeline [APPLIANCE/SERVICE]")
+  @Default.Enum("AUTO")
+  ShuffleMode getShuffleMode();
+  void setShuffleMode(ShuffleMode shuffleMode);
 
   /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
