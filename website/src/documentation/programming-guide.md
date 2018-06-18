@@ -627,7 +627,9 @@ that for you. Your `@ProcessElement` method should accept a parameter tagged wit
 `@Element`, which will be populated with the input element. In order to output
 elements, the method can also take a parameter of type `OutputReceiver` which
 provides a method for emitting elements. The parameter types must match the input
-and output types of your `DoFn` or the framework will raise an error.
+and output types of your `DoFn` or the framework will raise an error. Note: @Element and
+OutputReceiver were introduced in Beam 2.5.0; if using an earlier release of Beam, a
+ProcessContext parameter should be used instead.
 
 {:.language-py}
 Inside your `DoFn` subclass, you'll write a method `process` where you provide
