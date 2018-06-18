@@ -28,9 +28,12 @@ import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
+import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -41,7 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
-import org.apache.samza.storage.kv.KeyValueStore;
+import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -50,24 +53,28 @@ import org.slf4j.LoggerFactory;
 /**
  * Samza operator for {@link org.apache.beam.sdk.transforms.GroupByKey}.
  */
-public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
+public class GroupByKeyOp<K, InputT, OutputT>
+    implements Op<KeyedWorkItem<K, InputT>, KV<K, OutputT>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);
 
-  private final TupleTag<KV<K, Iterable<V>>> mainOutputTag;
-  private final KeyedWorkItemCoder<K, V> inputCoder;
+  private final TupleTag<KV<K, OutputT>> mainOutputTag;
+  private final KeyedWorkItemCoder<K, InputT> inputCoder;
   private final WindowingStrategy<?, BoundedWindow> windowingStrategy;
-  private final OutputManagerFactory<KV<K, Iterable<V>>> outputManagerFactory;
+  private final OutputManagerFactory<KV<K, OutputT>> outputManagerFactory;
   private final Coder<K> keyCoder;
+  private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
 
   private transient StateInternalsFactory<Void> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
-  private transient DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> fnRunner;
+  private transient DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> fnRunner;
+  private transient SamzaPipelineOptions pipelineOptions;
 
-  public GroupByKeyOp(TupleTag<KV<K, Iterable<V>>> mainOutputTag,
-                      Coder<KeyedWorkItem<K, V>> inputCoder,
+  public GroupByKeyOp(TupleTag<KV<K, OutputT>> mainOutputTag,
+                      Coder<KeyedWorkItem<K, InputT>> inputCoder,
+                      SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
                       WindowingStrategy<?, BoundedWindow> windowingStrategy,
-                      OutputManagerFactory<KV<K, Iterable<V>>> outputManagerFactory,
+                      OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
                       String stepName) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
@@ -80,69 +87,73 @@ public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterabl
               "GroupByKeyOp requires input to use KeyedWorkItemCoder. Got: %s",
               inputCoder.getClass()));
     }
-    this.inputCoder = (KeyedWorkItemCoder<K, V>) inputCoder;
+    this.inputCoder = (KeyedWorkItemCoder<K, InputT>) inputCoder;
     this.keyCoder = this.inputCoder.getKeyCoder();
+    this.reduceFn = reduceFn;
   }
 
   @Override
   public void open(Config config,
-                   TaskContext taskContext,
-                   SamzaExecutionContext executionContext,
-                   OpEmitter<KV<K, Iterable<V>>> emitter) {
-    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
+                   TaskContext context,
+                   TimerRegistry<KeyedTimerData<K>> timerRegistry,
+                   OpEmitter<KV<K, OutputT>> emitter) {
+    this.pipelineOptions = Base64Serializer
+        .deserializeUnchecked(config.get("beamPipelineOptions"),
+            SerializablePipelineOptions.class).get().as(SamzaPipelineOptions.class);
 
-    @SuppressWarnings("unchecked")
-    final KeyValueStore<byte[], byte[]> store =
-        (KeyValueStore<byte[], byte[]>) taskContext.getStore("beamStore");
+    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
             mainOutputTag.getId(),
-            store,
-            VoidCoder.of());
+            SamzaStoreStateInternals.getBeamStore(context),
+            VoidCoder.of(),
+            pipelineOptions.getStoreBatchGetSize());
 
-    this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(inputCoder.getKeyCoder());
+    this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(
+        inputCoder.getKeyCoder(), timerRegistry);
 
-    final SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn =
-        SystemReduceFn.buffering(inputCoder.getElementCoder());
-
-    final DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFn =
+    final DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
             windowingStrategy,
             new SamzaStoreStateInternals.Factory<>(
                 mainOutputTag.getId(),
-                store,
-                keyCoder),
+                SamzaStoreStateInternals.getBeamStore(context),
+                keyCoder,
+                pipelineOptions.getStoreBatchGetSize()),
             timerInternalsFactory,
             NullSideInputReader.of(Collections.emptyList()),
             reduceFn,
             outputManager,
             mainOutputTag);
 
-    final DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner = DoFnRunners.simpleRunner(
-        PipelineOptionsFactory.create(),
-        doFn,
-        NullSideInputReader.of(Collections.emptyList()),
-        outputManager,
-        mainOutputTag,
-        Collections.emptyList(),
-        DoFnOp.createStepContext(stateInternalsFactory, timerInternalsFactory),
-        windowingStrategy);
+    final DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnRunner =
+        DoFnRunners.simpleRunner(
+            PipelineOptionsFactory.create(),
+            doFn,
+            NullSideInputReader.of(Collections.emptyList()),
+            outputManager,
+            mainOutputTag,
+            Collections.emptyList(),
+            null,
+            windowingStrategy);
 
+    final SamzaExecutionContext executionContext =
+        (SamzaExecutionContext) context.getUserContext();
     this.fnRunner = DoFnRunnerWithMetrics.wrap(
         doFnRunner, executionContext.getMetricsContainer(), stepName);
   }
 
   @Override
-  public void processElement(WindowedValue<KeyedWorkItem<K, V>> inputElement,
-                             OpEmitter<KV<K, Iterable<V>>> emitter) {
+  public void processElement(WindowedValue<KeyedWorkItem<K, InputT>> inputElement,
+                             OpEmitter<KV<K, OutputT>> emitter) {
     fnRunner.startBundle();
     fnRunner.processElement(inputElement);
     fnRunner.finishBundle();
   }
 
   @Override
-  public void processWatermark(Instant watermark, OpEmitter<KV<K, Iterable<V>>> ctx) {
+  public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> ctx) {
     timerInternalsFactory.setInputWatermark(watermark);
 
     fnRunner.startBundle();
@@ -158,7 +169,14 @@ public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterabl
     }
   }
 
-  private void fireTimer(K key, TimerInternals.TimerData timer) {
+  @Override
+  public void processTimer(KeyedTimerData<K> keyedTimerData) {
+    fnRunner.startBundle();
+    fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+    fnRunner.finishBundle();
+  }
+
+  private void fireTimer(K key, TimerData timer) {
     LOG.debug("Firing timer {} for key {}", timer, key);
     fnRunner.processElement(
         WindowedValue.valueInGlobalWindow(

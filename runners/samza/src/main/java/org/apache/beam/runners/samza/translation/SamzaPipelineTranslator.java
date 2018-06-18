@@ -18,19 +18,19 @@
 
 package org.apache.beam.runners.samza.translation;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.Map;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.operators.StreamGraph;
 import org.slf4j.Logger;
@@ -42,19 +42,16 @@ import org.slf4j.LoggerFactory;
 public class SamzaPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineTranslator.class);
 
-  private static final Map<Class<? extends PTransform>, TransformTranslator<?>> TRANSLATORS;
-
-  static {
-    Map<Class<? extends PTransform>, TransformTranslator<?>> translators = new HashMap<>();
-    translators.put(Read.Bounded.class, new ReadBoundedTranslator<>());
-    translators.put(Read.Unbounded.class, new ReadUnboundedTranslator<>());
-    translators.put(ParDo.MultiOutput.class, new ParDoBoundMultiTranslator<>());
-    translators.put(GroupByKey.class, new GroupByKeyTranslator<>());
-    translators.put(Window.Assign.class, new WindowAssignTranslator<>());
-    translators.put(Flatten.PCollections.class, new FlattenPCollectionsTranslator<>());
-    translators.put(SamzaPublishView.class, new SamzaPublishViewTranslator<>());
-    TRANSLATORS = Collections.unmodifiableMap(translators);
-  }
+  private static final Map<String, TransformTranslator<?>> TRANSLATORS =
+      ImmutableMap.<String, TransformTranslator<?>>builder()
+          .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
+          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator())
+          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
+          .put(PTransformTranslation.COMBINE_TRANSFORM_URN, new GroupByKeyTranslator())
+          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
+          .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
+          .build();
 
   private SamzaPipelineTranslator() {}
 
@@ -79,28 +76,71 @@ public class SamzaPipelineTranslator {
     }
 
     @Override
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      final PTransform<?, ?> transform = node.getTransform();
+      final String urn = getUrnForTransform(transform);
+      if (canTranslate(urn, transform)) {
+        applyTransform(transform, node, TRANSLATORS.get(urn));
+        return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       final PTransform<?, ?> transform = node.getTransform();
+      final String urn = getUrnForTransform(transform);
+      checkArgument(canTranslate(urn, transform),
+          String.format("Unsupported transform class: %s. Node: %s", transform, node));
 
-      final TransformTranslator<?> translator = TRANSLATORS.get(transform.getClass());
-      if (translator == null) {
-        throw new UnsupportedOperationException(
-            String.format("Unsupported transform class: %s. Node: %s", transform, node));
-      }
-
-      ctx.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-      ctx.setCurrentTopologicalId(topologicalId++);
-      applyTransform(transform, node, translator);
-      ctx.clearCurrentTransform();
+      applyTransform(transform, node, TRANSLATORS.get(urn));
     }
 
     private <T extends PTransform<?, ?>> void applyTransform(
         T transform,
         TransformHierarchy.Node node,
         TransformTranslator<?> translator) {
+
+      ctx.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
+      ctx.setCurrentTopologicalId(topologicalId++);
+
       @SuppressWarnings("unchecked")
       final TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
       typedTranslator.translate(transform, node, ctx);
+
+      ctx.clearCurrentTransform();
+    }
+
+    private static boolean canTranslate(String urn, PTransform<?, ?> transform) {
+      if (!TRANSLATORS.containsKey(urn)) {
+        return false;
+      } else if (urn.equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
+        // According to BEAM, Combines with side inputs are translated as generic composites
+        return ((Combine.PerKey) transform).getSideInputs().isEmpty();
+      } else {
+        return true;
+      }
+    }
+
+    private static String getUrnForTransform(PTransform<?, ?> transform) {
+      return transform == null ? null : PTransformTranslation.urnForTransformOrNull(transform);
+    }
+  }
+
+  /** Registers classes specialized to the Samza runner. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class SamzaTransformsRegistrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>,
+               ? extends PTransformTranslation.TransformPayloadTranslator>
+    getTransformPayloadTranslators() {
+      return ImmutableMap.of(SamzaPublishView.class,
+          new SamzaPublishView.SamzaPublishViewPayloadTranslator());
+    }
+
+    @Override
+    public Map<String, PTransformTranslation.TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 }

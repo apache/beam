@@ -19,7 +19,6 @@
 package org.apache.beam.runners.samza.metrics;
 
 import java.io.Closeable;
-
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
 /**

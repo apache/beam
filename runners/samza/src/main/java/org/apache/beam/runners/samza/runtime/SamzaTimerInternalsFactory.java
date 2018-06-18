@@ -33,6 +33,7 @@ import org.apache.beam.runners.samza.SamzaRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.samza.operators.TimerRegistry;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,13 +50,16 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private final NavigableSet<KeyedTimerData<K>> eventTimeTimers = new TreeSet<>();
 
   private final Coder<K> keyCoder;
+  private final TimerRegistry<KeyedTimerData<K>> timerRegistry;
 
   // TODO: use BoundedWindow.TIMESTAMP_MIN_VALUE when KafkaIO emits watermarks in bounds.
   private Instant inputWatermark = new Instant(Long.MIN_VALUE);
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  public SamzaTimerInternalsFactory(Coder<K> keyCoder) {
+  public SamzaTimerInternalsFactory(Coder<K> keyCoder,
+      TimerRegistry<KeyedTimerData<K>> timerRegistry) {
     this.keyCoder = keyCoder;
+    this.timerRegistry = timerRegistry;
   }
 
   @Override
@@ -151,32 +155,39 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void setTimer(TimerData timerData) {
-      if (!timerData.getDomain().equals(TimeDomain.EVENT_TIME)) {
-        throw new UnsupportedOperationException(
-            String.format("%s currently only supports even time", SamzaRunner.class));
-      }
-
-      final TimerKey<K> timerKey = new TimerKey<>(
-          key,
-          timerData.getNamespace(),
-          timerData.getTimerId());
-
-      final KeyedTimerData<K> oldTimer = timerMap.get(timerKey);
-      if (oldTimer != null) {
-        if (!oldTimer.getTimerData().getDomain().equals(timerData.getDomain())) {
-          throw new IllegalArgumentException(
-              String.format("Attempt to set %s for time domain %s, "
-                  + "but it is already set for time domain %s",
-                  timerData.getTimerId(),
-                  timerData.getDomain(),
-                  oldTimer.getTimerData().getDomain()));
-        }
-        deleteTimer(oldTimer.getTimerData());
-      }
-
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
-      eventTimeTimers.add(keyedTimerData);
-      timerMap.put(timerKey, keyedTimerData);
+      switch (timerData.getDomain()) {
+        case EVENT_TIME:
+          final TimerKey<K> timerKey = new TimerKey<>(
+              key,
+              timerData.getNamespace(),
+              timerData.getTimerId());
+          final KeyedTimerData<K> oldTimer = timerMap.get(timerKey);
+
+          if (oldTimer != null) {
+            if (!oldTimer.getTimerData().getDomain().equals(timerData.getDomain())) {
+              throw new IllegalArgumentException(
+                  String.format("Attempt to set %s for time domain %s, "
+                          + "but it is already set for time domain %s",
+                      timerData.getTimerId(),
+                      timerData.getDomain(),
+                      oldTimer.getTimerData().getDomain()));
+            }
+            deleteTimer(oldTimer.getTimerData());
+          }
+          eventTimeTimers.add(keyedTimerData);
+          timerMap.put(timerKey, keyedTimerData);
+          break;
+
+        case PROCESSING_TIME:
+          timerRegistry.register(keyedTimerData, timerData.getTimestamp().getMillis());
+          break;
+
+        default:
+          throw new UnsupportedOperationException(
+              String.format("%s currently only supports even time or processing time",
+                  SamzaRunner.class));
+      }
     }
 
     @Override
@@ -187,31 +198,37 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId) {
       deleteTimer(TimerData.of(timerId, namespace, null, TimeDomain.EVENT_TIME));
-      // TODO: add support for removing other time domains.
     }
 
     @Override
     public void deleteTimer(TimerData timerData) {
-      if (!timerData.getDomain().equals(TimeDomain.EVENT_TIME)) {
-        throw new UnsupportedOperationException(
-            String.format("%s currently only supports event time", SamzaRunner.class));
-      }
+      switch (timerData.getDomain()) {
+        case EVENT_TIME:
+          final TimerKey<K> timerKey = new TimerKey<>(
+              key,
+              timerData.getNamespace(),
+              timerData.getTimerId());
 
-      final TimerKey<K> timerKey = new TimerKey<>(
-          key,
-          timerData.getNamespace(),
-          timerData.getTimerId());
+          final KeyedTimerData<K> keyedTimerData = timerMap.remove(timerKey);
+          if (keyedTimerData != null) {
+            eventTimeTimers.remove(keyedTimerData);
+          }
+          break;
 
-      final KeyedTimerData<K> keyedTimerData = timerMap.remove(timerKey);
-      if (keyedTimerData != null) {
-        eventTimeTimers.remove(keyedTimerData);
+        case PROCESSING_TIME:
+          final KeyedTimerData<K> timer = new KeyedTimerData<>(keyBytes, key, timerData);
+          timerRegistry.delete(timer);
+          break;
+
+        default:
+          throw new UnsupportedOperationException(
+              String.format("%s currently only supports event time", SamzaRunner.class));
       }
     }
 
     @Override
     public Instant currentProcessingTime() {
-      throw new UnsupportedOperationException(
-          String.format("%s does not currently support processing time", SamzaRunner.class));
+      return new Instant();
     }
 
     @Override

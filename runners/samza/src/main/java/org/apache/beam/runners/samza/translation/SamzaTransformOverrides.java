@@ -21,8 +21,8 @@ package org.apache.beam.runners.samza.translation;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.transforms.View;
 
 /**
  * {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner.
@@ -32,7 +32,7 @@ public class SamzaTransformOverrides {
     return ImmutableList.<PTransformOverride>builder()
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+                PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
                 new SamzaPublishViewTransformOverride()))
         .build();
   }

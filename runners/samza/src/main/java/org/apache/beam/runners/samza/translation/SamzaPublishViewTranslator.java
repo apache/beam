@@ -20,7 +20,10 @@ package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.util.SamzaCoders;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.samza.operators.MessageStream;
 
@@ -34,15 +37,24 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
                         TransformHierarchy.Node node,
                         TranslationContext ctx) {
     final PCollection<List<ElemT>> input = ctx.getInput(transform);
-
     final MessageStream<OpMessage<Iterable<ElemT>>> inputStream = ctx.getMessageStream(input);
+    @SuppressWarnings("unchecked")
+    final Coder<WindowedValue<Iterable<ElemT>>> elementCoder = (Coder) SamzaCoders.of(input);
+
+    final MessageStream<WindowedValue<Iterable<ElemT>>> elementStream = inputStream
+        .filter(msg -> msg.getType() == OpMessage.Type.ELEMENT)
+        .map(OpMessage::getElement);
+
+    // TODO: once SAMZA-1580 is resolved, this optimization will go directly inside Samza
+    final MessageStream<WindowedValue<Iterable<ElemT>>> broadcastStream =
+        ctx.getPipelineOptions().getMaxSourceParallelism() == 1
+          ? elementStream
+          : elementStream
+            .broadcast(SamzaCoders.toSerde(elementCoder), "view-" + ctx.getCurrentTopologicalId());
 
     final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =
-        inputStream
-            .filter(msg -> msg.getType() == OpMessage.Type.ELEMENT)
-            .map(msg->OpMessage.ofSideInput(
-                          ctx.getViewId(transform.getView()),
-                          msg.getElement()));
+        broadcastStream
+            .map(element -> OpMessage.ofSideInput(ctx.getViewId(transform.getView()), element));
 
     ctx.registerViewStream(transform.getView(), outputStream);
   }

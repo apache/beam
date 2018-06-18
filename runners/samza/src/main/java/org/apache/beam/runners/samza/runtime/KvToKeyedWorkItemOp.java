@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.KV;
 /**
  * Samza operator to map input stream of {@link KV} to {@link KeyedWorkItem}.
  */
-public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, V>> {
+public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, V>, K> {
 
   @Override
   public void processElement(WindowedValue<KV<K, V>> inputElement,

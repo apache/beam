@@ -19,7 +19,6 @@
 package org.apache.beam.runners.samza;
 
 import java.util.Map;
-
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,22 +28,33 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public interface SamzaPipelineOptions extends PipelineOptions {
 
-  @Description("The config for Samza runner.")
-  Map<String, String> getSamzaConfig();
-  void setSamzaConfig(Map<String, String> configs);
+  @Description("The config for Samza using a properties file. It is *optional*. "
+      + "Without a config file, Samza uses a default config for local execution.")
+  String getConfigFilePath();
+  void setConfigFilePath(String filePath);
 
-  @Description("The interval to check for watermarks in milliseconds")
+  @Description("The config override to set programmatically. It will be applied on "
+      + "top of config file if it exits, otherwise used directly as the config.")
+  Map<String, String> getConfigOverride();
+  void setConfigOverride(Map<String, String> configs);
+
+  @Description("The interval to check for watermarks in milliseconds.")
   @Default.Long(1000)
   long getWatermarkInterval();
   void setWatermarkInterval(long interval);
 
-  @Description("The maximum number of messages to buffer for a given system")
+  @Description("The maximum number of messages to buffer for a given system.")
   @Default.Integer(5000)
   int getSystemBufferSize();
   void setSystemBufferSize(int consumerBufferSize);
 
-  @Description("The maximum parallelism allowed for a given data source")
+  @Description("The maximum parallelism allowed for any data source.")
   @Default.Integer(1)
   int getMaxSourceParallelism();
   void setMaxSourceParallelism(int maxSourceParallelism);
+
+  @Description("The batch get size limit for the state store.")
+  @Default.Integer(10000)
+  int getStoreBatchGetSize();
+  void setStoreBatchGetSize(int storeBatchGetSize);
 }

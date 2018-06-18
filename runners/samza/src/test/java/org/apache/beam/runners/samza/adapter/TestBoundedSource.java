@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.ElementEvent;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.Event;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.ExceptionEvent;
