@@ -29,19 +29,21 @@ import org.apache.beam.model.fnexecution.v1.ProvisionApi;
  */
 @AutoValue
 public abstract class JobInfo implements Serializable {
-  public static JobInfo create(String jobId, String jobName, Struct pipelineOptions) {
-    return new AutoValue_JobInfo(jobId, jobName, pipelineOptions);
+  public static JobInfo create(
+      String jobId, String jobName, String retrievalToken, Struct pipelineOptions) {
+    return new AutoValue_JobInfo(jobId, jobName, retrievalToken, pipelineOptions);
   }
 
   public abstract String jobId();
   public abstract String jobName();
+  public abstract String retrievalToken();
   public abstract Struct pipelineOptions();
 
   public ProvisionApi.ProvisionInfo toProvisionInfo() {
-    return ProvisionApi.ProvisionInfo
-        .newBuilder()
+    return ProvisionApi.ProvisionInfo.newBuilder()
         .setJobId(jobId())
         .setJobName(jobName())
+        .setRetrievalToken(retrievalToken())
         .setPipelineOptions(pipelineOptions())
         .build();
   }
