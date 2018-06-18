@@ -311,6 +311,11 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       paramsCasted.valueFn = requireNonNull(valueFn);
       return new ScoreByBuilder<>(paramsCasted);
     }
+
+    public <V> ScoreByBuilder<InputT, K, V> valueBy(
+        UnaryFunction<InputT, V> valueFn, TypeHint<V> valueTypeHint) {
+      return valueBy(TypeAwareUnaryFunction.of(valueFn, valueTypeHint));
+    }
   }
 
   /**
