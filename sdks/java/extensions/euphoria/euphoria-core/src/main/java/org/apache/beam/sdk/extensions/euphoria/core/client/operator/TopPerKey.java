@@ -44,7 +44,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.Storag
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -92,25 +93,37 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>> {
+    InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>>
+    implements TypeAware.Value<V> {
 
   private final UnaryFunction<InputT, V> valueFn;
+  private final TypeDescriptor<V> valueType;
+
   private final UnaryFunction<InputT, ScoreT> scoreFn;
+  private final TypeDescriptor<ScoreT> scoreType;
+
 
   TopPerKey(
       Flow flow,
       String name,
       Dataset<InputT> input,
-      UnaryFunction<InputT, K> keyFn,
+      UnaryFunction<InputT, K> keyExtractor,
+      @Nullable TypeDescriptor<K> keyType,
       UnaryFunction<InputT, V> valueFn,
-      UnaryFunction<InputT, ScoreT> scoreFn,
+      TypeDescriptor<V> valueType,
+      @Nullable UnaryFunction<InputT, ScoreT> scoreFn,
+      TypeDescriptor<ScoreT> scoreType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
+      @Nullable TypeDescriptor<Triple<K, V, ScoreT>> outputType,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, keyFn, windowing, euphoriaWindowing, outputHints);
+    super(name, flow, input, outputType, keyExtractor, keyType, windowing, euphoriaWindowing,
+        outputHints);
 
     this.valueFn = valueFn;
+    this.valueType = valueType;
     this.scoreFn = scoreFn;
+    this.scoreType = scoreType;
   }
 
   /**
@@ -150,12 +163,14 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
     StateSupport.MergeFromStateMerger<Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>>
         stateCombiner = new StateSupport.MergeFromStateMerger<>();
+
     ReduceStateByKey<InputT, K, Pair<V, ScoreT>, Pair<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
         new ReduceStateByKey<>(
             getName() + "::ReduceStateByKey",
             flow,
             input,
             keyExtractor,
+            keyType,
             e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
             windowing,
             euphoriaWindowing,
@@ -163,6 +178,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
               return new MaxScored<>(context.getStorageProvider());
             },
             stateCombiner,
+            TypeUtils.pairs(keyType, TypeUtils.pairs(valueType, scoreType)),
             Collections.emptySet());
 
     MapElements<Pair<K, Pair<V, ScoreT>>, Triple<K, V, ScoreT>> format =
@@ -171,7 +187,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
             flow,
             reduce.output(),
             e -> Triple.of(e.getFirst(), e.getSecond().getFirst(), e.getSecond().getSecond()),
-            getHints());
+            getHints(), outputType);
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);
@@ -179,16 +195,28 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     return dag;
   }
 
+  @Override
+  public TypeDescriptor<V> getValueType() {
+    return valueType;
+  }
+
+  public TypeDescriptor<ScoreT> getScoreType() {
+    return scoreType;
+  }
+
   /** Parameters of this operator used in builders. */
   private static final class BuiderParams<
-          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
+      InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
       extends WindowingParams<W> {
 
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyFn;
+    TypeDescriptor<K> keyType;
     UnaryFunction<InputT, V> valueFn;
+    TypeDescriptor<V> valueType;
     UnaryFunction<InputT, ScoreT> scoreFn;
+    TypeDescriptor<ScoreT> scoreType;
 
     public BuiderParams(String name, Dataset<InputT> input) {
       this.name = name;
@@ -268,19 +296,20 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
 
     @Override
-    public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyFn) {
-
-      @SuppressWarnings("unchecked")
-      BuiderParams<InputT, K, ?, ?, ?> paramsCasted = (BuiderParams<InputT, K, ?, ?, ?>) params;
-      paramsCasted.keyFn = requireNonNull(keyFn);
-
-      return new ValueByBuilder<>(paramsCasted);
+    public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
+      return keyBy(keyExtractor, null);
     }
 
     @Override
     public <K> ValueByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
+      @SuppressWarnings("unchecked") BuiderParams<InputT, K, ?, ?, ?> paramsCasted =
+          (BuiderParams<InputT, K, ?, ?, ?>) params;
+
+      paramsCasted.keyFn = requireNonNull(keyExtractor);
+      paramsCasted.keyType = keyType;
+
+      return new ValueByBuilder<>(paramsCasted);
     }
   }
 
@@ -293,18 +322,18 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       this.params = params;
     }
 
-    public <V> ScoreByBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueFn) {
-
-      @SuppressWarnings("unchecked")
-      BuiderParams<InputT, K, V, ?, ?> paramsCasted = (BuiderParams<InputT, K, V, ?, ?>) params;
-
-      paramsCasted.valueFn = requireNonNull(valueFn);
-      return new ScoreByBuilder<>(paramsCasted);
+    public <V> ScoreByBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+      return valueBy(valueExtractor, null);
     }
 
     public <V> ScoreByBuilder<InputT, K, V> valueBy(
-        UnaryFunction<InputT, V> valueFn, TypeDescriptor<V> valueTypeDescriptor) {
-      return valueBy(TypeAwareUnaryFunction.of(valueFn, valueTypeDescriptor));
+        UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> valueType) {
+      @SuppressWarnings("unchecked") BuiderParams<InputT, K, V, ?, ?> paramsCasted =
+          (BuiderParams<InputT, K, V, ?, ?>) params;
+
+      paramsCasted.valueFn = requireNonNull(valueExtractor);
+      paramsCasted.valueType = valueType;
+      return new ScoreByBuilder<>(paramsCasted);
     }
   }
 
@@ -319,12 +348,18 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
 
     public <ScoreT extends Comparable<ScoreT>> WindowByBuilder<InputT, K, V, ScoreT> scoreBy(
         UnaryFunction<InputT, ScoreT> scoreFn) {
+      return scoreBy(scoreFn, null);
+    }
+
+    public <ScoreT extends Comparable<ScoreT>> WindowByBuilder<InputT, K, V, ScoreT> scoreBy(
+        UnaryFunction<InputT, ScoreT> scoreFn, TypeDescriptor<ScoreT> scoreType) {
 
       @SuppressWarnings("unchecked")
       BuiderParams<InputT, K, V, ScoreT, ?> paramsCasted =
           (BuiderParams<InputT, K, V, ScoreT, ?>) params;
 
       paramsCasted.scoreFn = requireNonNull(scoreFn);
+      paramsCasted.scoreType = scoreType;
       return new WindowByBuilder<>(paramsCasted);
     }
   }
@@ -436,16 +471,21 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     @Override
     public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
+
       TopPerKey<InputT, K, V, ScoreT, W> top =
           new TopPerKey<>(
               flow,
               params.name,
               params.input,
               params.keyFn,
+              params.keyType,
               params.valueFn,
+              params.valueType,
               params.scoreFn,
+              params.scoreType,
               params.getWindowing(),
               params.euphoriaWindowing,
+              TypeUtils.triplets(params.keyType, params.valueType, params.scoreType),
               Sets.newHashSet(outputHints));
       flow.add(top);
       return top.output();

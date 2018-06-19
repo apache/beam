@@ -33,7 +33,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunctor;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -70,12 +69,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <h3>Builders:</h3>
  *
  * <ol>
- *   <li>{@code [named] ..................} give name to the operator [optional]
- *   <li>{@code of .......................} input dataset
- *   <li>{@code using ....................} apply {@link UnaryFunctor} to input elements
- *   <li>{@code [eventTimeBy] ............} change event time characteristic of output elements
- *       using {@link ExtractEventTime}
- *   <li>{@code output ...................} build output dataset
+ * <li>{@code [named] ..................} give name to the operator [optional]
+ * <li>{@code of .......................} input dataset
+ * <li>{@code using ....................} apply {@link UnaryFunctor} to input elements
+ * <li>{@code [eventTimeBy] ............} change event time characteristic of output elements
+ * using {@link ExtractEventTime}
+ * <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -91,8 +90,9 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
       Dataset<InputT> input,
       UnaryFunctor<InputT, OutputT> functor,
       @Nullable ExtractEventTime<InputT> evtTimeFn,
-      Set<OutputHint> outputHints) {
-    super(name, flow, input, outputHints);
+      Set<OutputHint> outputHints,
+      TypeDescriptor<OutputT> outputTypeDescriptor) {
+    super(name, flow, input, outputHints, outputTypeDescriptor);
     this.functor = functor;
     this.eventTimeFn = evtTimeFn;
   }
@@ -102,8 +102,9 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
       Flow flow,
       Dataset<InputT> input,
       UnaryFunctor<InputT, OutputT> functor,
-      @Nullable ExtractEventTime<InputT> evtTimeFn) {
-    this(name, flow, input, functor, evtTimeFn, Collections.emptySet());
+      @Nullable ExtractEventTime<InputT> evtTimeFn,
+      TypeDescriptor<OutputT> outputTypeDescriptor) {
+    this(name, flow, input, functor, evtTimeFn, Collections.emptySet(), outputTypeDescriptor);
   }
 
   /**
@@ -116,7 +117,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return new UsingBuilder<>("FlatMap", input);
+    return new Builder<>("FlatMap", input);
   }
 
   /**
@@ -126,7 +127,7 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
    * @return a builder to complete the setup of the new {@link FlatMap} operator
    */
   public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+    return new Builder<>(name);
   }
 
   /**
@@ -148,105 +149,132 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
     return eventTimeFn;
   }
 
-  /** TODO: complete javadoc. */
-  public static class OfBuilder implements Builders.Of {
-    private final String name;
+  // ------------- Builders chain
 
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /**
+   * Builder exposing {@link #of(Dataset)} method.
+   */
+  public interface OfBuilder extends Builders.Of {
 
-    @Override
-    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-      return new UsingBuilder<>(name, input);
-    }
+    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** TODO: complete javadoc. */
-  public static class UsingBuilder<InputT> {
-    private final String name;
-    private final Dataset<InputT> input;
-
-    UsingBuilder(String name, Dataset<InputT> input) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-    }
+  /**
+   * A builder which allows user to determine {@link FlatMap FlatMap's}
+   * {@link UnaryFunctor functor}.
+   * @param <InputT> Input elements type parameter.
+   */
+  public interface UsingBuilder<InputT> {
 
     /**
      * Specifies the user defined map function by which to transform the final operator's input
      * dataset.
      *
      * @param <OutputT> the type of elements the user defined map function will produce to the
-     *     output dataset
+     * output dataset
      * @param functor the user defined map function
      * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    public <OutputT> EventTimeBuilder<InputT, OutputT> using(
-        UnaryFunctor<InputT, OutputT> functor) {
-      return new EventTimeBuilder<>(this, functor);
-    }
+    <OutputT> EventTimeBuilder<InputT, OutputT> using(UnaryFunctor<InputT, OutputT> functor);
 
-    public <OutputT> EventTimeBuilder<InputT, OutputT> using(
-        UnaryFunctor<InputT, OutputT> functor, TypeDescriptor<OutputT> outputTypeDescriptor) {
-      return using(TypeAwareUnaryFunctor.of(functor, outputTypeDescriptor));
-    }
+    <OutputT> EventTimeBuilder<InputT, OutputT> using(UnaryFunctor<InputT, OutputT> functor,
+        TypeDescriptor<OutputT> outputTypeDescriptor);
   }
 
-  /** TODO: complete javadoc. */
-  public static class EventTimeBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
-    private final UsingBuilder<InputT> using;
-    private final UnaryFunctor<InputT, OutputT> functor;
-
-    EventTimeBuilder(UsingBuilder<InputT> using, UnaryFunctor<InputT, OutputT> functor) {
-      this.using = Objects.requireNonNull(using);
-      this.functor = Objects.requireNonNull(functor);
-    }
+  /**
+   * Builder allowing user to specify how event time is associated with input elements.
+   * @param <InputT>
+   * @param <OutputT>
+   */
+  public interface EventTimeBuilder<InputT, OutputT> extends Builders.Output<OutputT> {
 
     /**
-     * Specifies a function to derive the input elements' event time. Processing of the input stream
+     * Specifies a function to derive the input element's event time. Processing of the input stream
      * continues then to proceed with this event time.
      *
      * @param eventTimeFn the event time extraction function
      * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    public OutputBuilder<InputT, OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn) {
-      return new OutputBuilder<>(
-          this.using.name, this.using.input, this.functor, Objects.requireNonNull(eventTimeFn));
-    }
-
-    @Override
-    public Dataset<OutputT> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(this.using.name, this.using.input, this.functor, null)
-          .output(outputHints);
-    }
+    OutputBuilder<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn);
   }
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryFunctor<InputT, OutputT> functor;
-    @Nullable private final ExtractEventTime<InputT> evtTimeFn;
+  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {
 
-    OutputBuilder(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunctor<InputT, OutputT> functor,
-        @Nullable ExtractEventTime<InputT> evtTimeFn) {
+    Dataset<OutputT> output(OutputHint... outputHints);
+  }
+
+  /**
+   * Builder of {@link FlatMap}.
+   */
+  public static class Builder<InputT, OutputT> implements
+      OfBuilder, UsingBuilder<InputT>, EventTimeBuilder<InputT, OutputT>, OutputBuilder<OutputT> {
+
+    private final String name;
+    private Dataset<InputT> input;
+    private UnaryFunctor<InputT, OutputT> functor;
+    @Nullable
+    private TypeDescriptor<OutputT> outputTypeDescriptor;
+    @Nullable
+    private ExtractEventTime<InputT> evtTimeFn;
+
+    Builder(String name) {
+      this.name = Objects.requireNonNull(name);
+    }
+
+    public Builder(String name,
+        Dataset<InputT> input) {
       this.name = name;
       this.input = input;
-      this.functor = functor;
-      this.evtTimeFn = evtTimeFn;
+    }
+
+    @Override
+    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
+      Objects.requireNonNull(input);
+
+      @SuppressWarnings("unchecked")
+      Builder<InputT, ?> casted = (Builder<InputT, ?>) this;
+      casted.input = input;
+      return casted;
+    }
+
+    public <OutputT> EventTimeBuilder<InputT, OutputT> using(
+        UnaryFunctor<InputT, OutputT> functor) {
+      Objects.requireNonNull(functor);
+
+      @SuppressWarnings("unchecked")
+      Builder<InputT, OutputT> casted = (Builder<InputT, OutputT>) this;
+      casted.functor = functor;
+      return casted;
+    }
+
+    public <OutputT> EventTimeBuilder<InputT, OutputT> using(
+        UnaryFunctor<InputT, OutputT> functor, TypeDescriptor<OutputT> outputTypeDescriptor) {
+      Objects.requireNonNull(functor);
+      Objects.requireNonNull(outputTypeDescriptor);
+
+      @SuppressWarnings("unchecked")
+      Builder<InputT, OutputT> casted = (Builder<InputT, OutputT>) this;
+      casted.functor = functor;
+      casted.outputTypeDescriptor = outputTypeDescriptor;
+      return casted;
+    }
+
+
+    public OutputBuilder<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn) {
+      this.evtTimeFn = Objects.requireNonNull(eventTimeFn);
+      return this;
     }
 
     @Override
     public Dataset<OutputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       FlatMap<InputT, OutputT> map =
-          new FlatMap<>(name, flow, input, functor, evtTimeFn, Sets.newHashSet(outputHints));
+          new FlatMap<>(name, flow, input, functor, evtTimeFn,
+              Sets.newHashSet(outputHints), outputTypeDescriptor);
       flow.add(map);
       return map.output();
     }

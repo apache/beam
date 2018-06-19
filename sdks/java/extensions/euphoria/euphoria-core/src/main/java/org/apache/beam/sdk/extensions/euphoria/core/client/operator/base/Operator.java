@@ -22,16 +22,19 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** An operator base class. All operators extends this class. */
 @Audience(Audience.Type.INTERNAL)
-public abstract class Operator<InputT, OutputT> implements Serializable {
+public abstract class Operator<InputT, OutputT> implements Serializable, TypeAware.Output<OutputT> {
 
   /** Name of the operator. */
   private final String name;
@@ -40,9 +43,13 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
 
   protected Set<OutputHint> hints;
 
-  protected Operator(String name, Flow flow) {
+  @Nullable
+  protected final TypeDescriptor<OutputT> outputType; //TODO consider using Optional
+
+  protected Operator(String name, Flow flow, TypeDescriptor<OutputT> outputType) {
     this.name = name;
     this.flow = flow;
+    this.outputType = outputType;
   }
 
   public final String getName() {
@@ -89,4 +96,9 @@ public abstract class Operator<InputT, OutputT> implements Serializable {
 
   /** @return the output dataset */
   public abstract Dataset<OutputT> output();
+
+  @Override
+  public final TypeDescriptor<OutputT> getOutputType() {
+    return outputType;
+  }
 }

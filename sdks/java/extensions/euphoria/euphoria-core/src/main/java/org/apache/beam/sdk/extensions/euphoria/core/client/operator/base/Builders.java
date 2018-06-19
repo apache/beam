@@ -25,7 +25,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -81,10 +80,10 @@ public class Builders {
      *     dataset's elements
      * @return the next builder to complete the setup of the operator
      */
-    <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor);
+    <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType);
 
-    default <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
+    default <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor) {
+      return keyBy(keyExtractor, null);
     }
   }
 

@@ -53,7 +53,8 @@ class FlowTranslator {
     translators.put(FlowUnfolder.InputOperator.class, new InputTranslator());
     translators.put(FlatMap.class, new FlatMapTranslator());
     translators.put(Union.class, new UnionTranslator());
-    translators.put(WrappedPCollectionOperator.class, WrappedPCollectionOperator::translate);
+    translators.put(
+        WrappedInputPCollectionOperator.class, WrappedInputPCollectionOperator::translate);
 
     // extended operators
     translators.put(ReduceByKey.class, new ReduceByKeyTranslator());

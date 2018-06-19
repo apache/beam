@@ -26,25 +26,25 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.values.PCollection;
 
 /** {@link Operator} that serves as a wrapper between a {@link PCollection} and {@link Dataset}. */
-class WrappedPCollectionOperator<T> extends Operator<T, T> {
+class WrappedInputPCollectionOperator<T> extends Operator<T, T> {
 
   final Dataset<T> output;
   final transient PCollection<T> input;
 
-  WrappedPCollectionOperator(BeamFlow flow, PCollection<T> coll) {
-    super("PCollectionWrapper", flow);
+  WrappedInputPCollectionOperator(BeamFlow flow, PCollection<T> coll) {
+    super("PCollectionWrapper", flow, coll.getTypeDescriptor());
     this.input = coll;
     this.output = Datasets.createOutputFor(true, this);
   }
 
-  WrappedPCollectionOperator(BeamFlow flow, PCollection<T> coll, Dataset<T> output) {
-    super("PCollectionWrapper", flow);
+  WrappedInputPCollectionOperator(BeamFlow flow, PCollection<T> coll, Dataset<T> output) {
+    super("PCollectionWrapper", flow, coll.getTypeDescriptor());
     this.input = coll;
     this.output = output;
   }
 
   static PCollection<?> translate(Operator operator, TranslationContext context) {
-    return ((WrappedPCollectionOperator) operator).input;
+    return ((WrappedInputPCollectionOperator) operator).input;
   }
 
   @Override

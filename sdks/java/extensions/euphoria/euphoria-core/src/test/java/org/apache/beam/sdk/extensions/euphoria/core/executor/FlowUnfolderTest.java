@@ -53,6 +53,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -186,13 +188,13 @@ public class FlowUnfolderTest {
     flow = Flow.create();
     MyInputOperator<Integer> source = flow.add(new MyInputOperator<>(flow));
     MySingleInputOperator<Integer, Integer> process =
-        flow.add(new MySingleInputOperator<>(source.output()));
+        flow.add(new MySingleInputOperator<>(source.output(), TypeDescriptors.integers()));
     DAG<Operator<?, ?>> dag = DAG.of(source);
     dag.add(process, source);
     DAG<Operator<?, ?>> unfolded =
         FlowUnfolder.unfold(
             flow,
-            new HashSet<>(
+            (Set<Class<? extends Operator<?, ?>>> ) new HashSet<>(
                 (List) Arrays.asList(MyInputOperator.class, MySingleInputOperator.class)));
     assertEquals(2, unfolded.size());
     assertEquals(1, unfolded.getRoots().size());
@@ -218,7 +220,7 @@ public class FlowUnfolderTest {
     Dataset<T> output = Datasets.createOutputFor(true, this);
 
     MyInputOperator(Flow flow) {
-      super("MyInputOperator", flow);
+      super("MyInputOperator", flow, null);
     }
 
     @Override
@@ -236,8 +238,8 @@ public class FlowUnfolderTest {
 
     final Dataset<OutputT> output = Datasets.createOutputFor(true, this);
 
-    MySingleInputOperator(Dataset<InputT> input) {
-      super("MySingleInputOperator", input.getFlow(), input);
+    MySingleInputOperator(Dataset<InputT> input, TypeDescriptor<OutputT> outType) {
+      super("MySingleInputOperator", input.getFlow(), input, outType);
     }
 
     @Override
