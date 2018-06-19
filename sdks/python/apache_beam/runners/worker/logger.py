@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Python worker logging."""
 
 from __future__ import absolute_import

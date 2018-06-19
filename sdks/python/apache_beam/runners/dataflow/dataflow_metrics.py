@@ -26,6 +26,8 @@ from __future__ import absolute_import
 import numbers
 from collections import defaultdict
 
+from future.utils import iteritems
+
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
@@ -147,7 +149,7 @@ class DataflowMetrics(MetricResults):
 
     # Now we create the MetricResult elements.
     result = []
-    for metric_key, metric in metrics_by_name.items():
+    for metric_key, metric in iteritems(metrics_by_name):
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
       if attempted is None or committed is None:

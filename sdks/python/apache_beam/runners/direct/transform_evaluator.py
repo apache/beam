@@ -24,6 +24,8 @@ import random
 import time
 from builtins import object
 
+from future.utils import iteritems
+
 import apache_beam.io as io
 from apache_beam import coders
 from apache_beam import pvalue
@@ -446,7 +448,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         return timestamp, parsed_message
 
       return [_get_element(message)
-              for unused_ack_id, message in results.items()]
+              for unused_ack_id, message in iteritems(results)]
 
   def finish_bundle(self):
     data = self._read_from_pubsub(self.source.timestamp_attribute)
@@ -717,7 +719,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = []
     bundle = None
-    for encoded_k, vs in self.gbk_items.items():
+    for encoded_k, vs in iteritems(self.gbk_items):
       if not bundle:
         bundle = self._evaluation_context.create_bundle(
             self.output_pcollection)

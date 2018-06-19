@@ -650,7 +650,7 @@ class DataflowRunner(PipelineRunner):
       if (label_renames and
           transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
         # Patch PTransform proto.
-        for old, new in label_renames.iteritems():
+        for old, new in iteritems(label_renames):
           transform_proto.inputs[new] = transform_proto.inputs[old]
           del transform_proto.inputs[old]
 
@@ -658,7 +658,7 @@ class DataflowRunner(PipelineRunner):
         proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
         proto = proto_utils.parse_Bytes(transform_proto.spec.payload,
                                         proto_type)
-        for old, new in label_renames.iteritems():
+        for old, new in iteritems(label_renames):
           proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
           del proto.side_inputs[old]
         transform_proto.spec.payload = proto.SerializeToString()

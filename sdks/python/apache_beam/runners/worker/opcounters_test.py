@@ -154,11 +154,11 @@ class OperationCountersTest(unittest.TestCase):
     value = GlobalWindows.windowed_value('defghij')
     opcounts.update_from(value)
     total_size += coder.estimate_size(value)
-    self.verify_counters(opcounts, 2, (float(total_size) // 2))
+    self.verify_counters(opcounts, 2, (float(total_size) / 2))
     value = GlobalWindows.windowed_value('klmnop')
     opcounts.update_from(value)
     total_size += coder.estimate_size(value)
-    self.verify_counters(opcounts, 3, (float(total_size) // 3))
+    self.verify_counters(opcounts, 3, (float(total_size) / 3))
 
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
@@ -186,12 +186,12 @@ class OperationCountersTest(unittest.TestCase):
                       'i=%d, buckets[i]=%d, expected=%d, ratio=%f' % (
                           i, buckets[i],
                           10 * total_runs / i,
-                          buckets[i] // (10.0 * total_runs / i)))
+                          buckets[i] / (10.0 * total_runs / i)))
       self.assertTrue(buckets[i] < 14 * total_runs / i,
                       'i=%d, buckets[i]=%d, expected=%d, ratio=%f' % (
                           i, buckets[i],
                           10 * total_runs / i,
-                          buckets[i] // (10.0 * total_runs / i)))
+                          buckets[i] / (10.0 * total_runs / i)))
 
 
 if __name__ == '__main__':

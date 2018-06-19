@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
 # cython: profile=True
 
 """Counters collect the progress of the Worker for reporting to the service."""

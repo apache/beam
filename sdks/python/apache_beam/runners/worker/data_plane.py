@@ -31,8 +31,8 @@ from builtins import object
 from builtins import range
 
 import grpc
-import six
 from future import standard_library
+from future.utils import raise_
 from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
@@ -189,7 +189,7 @@ class _GrpcDataChannel(DataChannel):
         except queue.Empty:
           if self._exc_info:
             t, v, tb = self._exc_info
-            six.reraise(t, v, tb)
+            raise_(t, v, tb)
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)

@@ -29,6 +29,8 @@ import re
 from builtins import next
 from builtins import object
 
+from future.utils import itervalues
+
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
@@ -105,7 +107,7 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               next(iter(consumers.values())),
+                               next(itervalues(consumers)),
                                self.windowed_coder)]
 
   def process(self, windowed_value):
