@@ -163,10 +163,9 @@ public class FnHarness {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
-      BeamFnControlClient control = new BeamFnControlClient(id,controlApiServiceDescriptor,
-          channelFactory,
-          outboundObserverFactory,
-          handlers);
+      BeamFnControlClient control =
+          new BeamFnControlClient(
+              id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
