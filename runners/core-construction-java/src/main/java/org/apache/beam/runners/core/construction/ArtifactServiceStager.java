@@ -94,18 +94,22 @@ public class ArtifactServiceStager {
    *
    * @return The artifact staging token returned by the service
    */
-  public String stage(Iterable<StagedFile> files) throws IOException, InterruptedException {
+  public String stage(String stagingSessionToken, Iterable<StagedFile> files)
+      throws IOException, InterruptedException {
     final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (StagedFile file : files) {
-      futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
+      futures.put(
+          file,
+          MoreFutures.supplyAsync(new StagingCallable(stagingSessionToken, file), executorService));
     }
     CompletionStage<StagingResult> stagingResult =
         MoreFutures.allAsList(futures.values())
             .thenApply(ignored -> new ExtractStagingResultsCallable(futures).call());
-    return stageManifest(stagingResult);
+    return stageManifest(stagingSessionToken, stagingResult);
   }
 
-  private String stageManifest(CompletionStage<StagingResult> stagingFuture)
+  private String stageManifest(
+      String stagingSessionToken, CompletionStage<StagingResult> stagingFuture)
       throws InterruptedException {
     try {
       StagingResult stagingResult = MoreFutures.get(stagingFuture);
@@ -114,7 +118,10 @@ public class ArtifactServiceStager {
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
         CommitManifestResponse response =
             blockingStub.commitManifest(
-                CommitManifestRequest.newBuilder().setManifest(manifest).build());
+                CommitManifestRequest.newBuilder()
+                    .setStagingSessionToken(stagingSessionToken)
+                    .setManifest(manifest)
+                    .build());
         return response.getRetrievalToken();
       } else {
         RuntimeException failure =
@@ -133,9 +140,11 @@ public class ArtifactServiceStager {
   }
 
   private class StagingCallable implements ThrowingSupplier<ArtifactMetadata> {
+    private final String stagingSessionToken;
     private final StagedFile file;
 
-    private StagingCallable(StagedFile file) {
+    private StagingCallable(String stagingSessionToken, StagedFile file) {
+      this.stagingSessionToken = stagingSessionToken;
       this.file = file;
     }
 
@@ -146,9 +155,8 @@ public class ArtifactServiceStager {
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
       ArtifactMetadata metadata =
           ArtifactMetadata.newBuilder().setName(file.getStagingName()).build();
-      // TODO: Pass a valid StagingSessionToken. The token can be obtained in PrepareJob request.
       PutArtifactMetadata putMetadata = PutArtifactMetadata.newBuilder().setMetadata(metadata)
-          .setStagingSessionToken("token").build();
+          .setStagingSessionToken(stagingSessionToken).build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(putMetadata).build());
 
       MessageDigest md5Digest = MessageDigest.getInstance("MD5");
