@@ -25,6 +25,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -33,19 +34,50 @@ import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
 import org.junit.Test;
 
-/** Test targeted at {@link ClassAwareKryoCoder}. */
-public class ClassAwareKryoCoderTest {
+/**
+ * Test targeted at {@link KryoCoder}.
+ */
+public class KryoCoderTest {
 
   @Test
-  public void testCoding() throws IOException {
-    ClassAwareKryoCoder<ClassToBeEncoded> coder = new ClassAwareKryoCoder<>(ClassToBeEncoded.class);
+  public void testBasicCoding() throws IOException {
+
+    KryoRegistrar registrar = (k) -> k.register(ClassToBeEncoded.class);
+
+    KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
     assertEncoding(coder);
+  }
+
+  @Test(expected = CoderException.class)
+  public void testWrongRegistrarCoding() throws IOException {
+
+    KryoRegistrar registrar = (k) -> { /* No-op  */};
+
+    KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
+    assertEncoding(coder);
+  }
+
+  @Test(expected = CoderException.class)
+  public void testWrongRegistrarDecoding() throws IOException {
+
+    KryoRegistrar registrarCoding = (k) -> k.register(ClassToBeEncoded.class);
+    KryoRegistrar registrarDecoding = (k) -> { /* No-op  */};
+
+    KryoCoder<ClassToBeEncoded> coderToEncode = KryoCoder.of(registrarCoding);
+    KryoCoder<ClassToBeEncoded> coderToDecode = KryoCoder.of(registrarDecoding);
+
+    assertEncoding(coderToEncode, coderToDecode);
   }
 
   @Test
   public void testCodingOfTwoClassesInSerial() throws IOException {
-    ClassAwareKryoCoder<ClassToBeEncoded> coder = new ClassAwareKryoCoder<>(ClassToBeEncoded.class);
-    ClassAwareKryoCoder<TestClass> secondCoder = new ClassAwareKryoCoder<>(TestClass.class);
+    KryoRegistrar registrar = (k) -> {
+      k.register(ClassToBeEncoded.class);
+      k.register(TestClass.class);
+    };
+
+    KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
+    KryoCoder<TestClass> secondCoder = KryoCoder.of(registrar);
 
     ClassToBeEncoded originalValue = new ClassToBeEncoded("XyZ", 42, Double.NaN);
     TestClass secondOriginalValue = new TestClass("just a parameter");
@@ -68,10 +100,14 @@ public class ClassAwareKryoCoderTest {
     Assert.assertEquals("just a parameter", secondDecodedValue.param);
   }
 
-  /** Test whenever the {@link ClassAwareKryoCoder} is serializable. */
+  /**
+   * Test whenever the {@link KryoCoder} is serializable.
+   */
   @Test
   public void testCoderSerialization() throws IOException, ClassNotFoundException {
-    ClassAwareKryoCoder<ClassToBeEncoded> coder = new ClassAwareKryoCoder<>(ClassToBeEncoded.class);
+    KryoRegistrar registrar = (k) -> k.register(ClassToBeEncoded.class);
+
+    KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(registrar);
     ByteArrayOutputStream outStr = new ByteArrayOutputStream();
     ObjectOutputStream oss = new ObjectOutputStream(outStr);
 
@@ -80,18 +116,19 @@ public class ClassAwareKryoCoderTest {
     oss.close();
 
     ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(outStr.toByteArray()));
-    ClassAwareKryoCoder<ClassToBeEncoded> coderDeserialized =
-        (ClassAwareKryoCoder<ClassToBeEncoded>) ois.readObject();
+    KryoCoder<ClassToBeEncoded> coderDeserialized = (KryoCoder<ClassToBeEncoded>) ois.readObject();
 
-    assertEncoding(coderDeserialized);
+    assertEncoding(coder, coderDeserialized);
   }
 
+
   @Test
-  public void testCodingWithKvCoderKeyIsClassAware() throws IOException {
+  public void testCodingWithKvCoderKeyIsKryoCoder() throws IOException {
+    KryoRegistrar registrar = (k) -> k.register(TestClass.class);
 
     final ListCoder<Void> listCoder = ListCoder.of(VoidCoder.of());
-    final KvCoder<TestClass, List<Void>> kvCoder =
-        KvCoder.of(ClassAwareKryoCoder.of(TestClass.class), listCoder);
+    final KvCoder<TestClass, List<Void>> kvCoder = KvCoder
+        .of(KryoCoder.of(registrar), listCoder);
 
     List<Void> inputValue = new ArrayList<>();
     inputValue.add(null);
@@ -102,8 +139,9 @@ public class ClassAwareKryoCoderTest {
     TestClass inputKey = new TestClass("something");
     kvCoder.encode(KV.of(inputKey, inputValue), byteArrayOutputStream);
 
-    final KV<TestClass, List<Void>> decoded =
-        kvCoder.decode(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
+    final KV<TestClass, List<Void>> decoded = kvCoder
+        .decode(new ByteArrayInputStream(byteArrayOutputStream
+            .toByteArray()));
 
     Assert.assertNotNull(decoded);
     Assert.assertNotNull(decoded.getKey());
@@ -111,13 +149,15 @@ public class ClassAwareKryoCoderTest {
 
     Assert.assertNotNull(decoded.getValue());
     Assert.assertEquals(inputValue, decoded.getValue());
+
   }
 
   @Test
-  public void testCodingWithKvCoderValueIsClassAware() throws IOException {
+  public void testCodingWithKvCoderValueIsKryoCoder() throws IOException {
+    KryoRegistrar registrar = (k) -> k.register(TestClass.class);
 
-    final KvCoder<String, TestClass> kvCoder =
-        KvCoder.of(StringUtf8Coder.of(), ClassAwareKryoCoder.of(TestClass.class));
+    final KvCoder<String, TestClass> kvCoder = KvCoder
+        .of(StringUtf8Coder.of(), KryoCoder.of(registrar));
 
     final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
@@ -125,8 +165,9 @@ public class ClassAwareKryoCoderTest {
     TestClass inputValue = new TestClass("something");
     kvCoder.encode(KV.of(inputKey, inputValue), byteArrayOutputStream);
 
-    final KV<String, TestClass> decoded =
-        kvCoder.decode(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
+    final KV<String, TestClass> decoded = kvCoder
+        .decode(new ByteArrayInputStream(byteArrayOutputStream
+            .toByteArray()));
 
     Assert.assertNotNull(decoded);
     Assert.assertNotNull(decoded.getKey());
@@ -138,10 +179,14 @@ public class ClassAwareKryoCoderTest {
 
   @Test
   public void testCodingWithKvCoderClassToBeEncoded() throws IOException {
+    KryoRegistrar registrar = (k) -> {
+      k.register(TestClass.class);
+      k.register(ClassToBeEncoded.class);
+    };
 
     final ListCoder<Void> listCoder = ListCoder.of(VoidCoder.of());
     final KvCoder<ClassToBeEncoded, List<Void>> kvCoder =
-        KvCoder.of(ClassAwareKryoCoder.of(ClassToBeEncoded.class), listCoder);
+        KvCoder.of(KryoCoder.of(registrar), listCoder);
     List<Void> inputValue = new ArrayList<>();
     inputValue.add(null);
     inputValue.add(null);
@@ -151,8 +196,9 @@ public class ClassAwareKryoCoderTest {
     ClassToBeEncoded inputKey = new ClassToBeEncoded("something", 1, 0.2);
     kvCoder.encode(KV.of(inputKey, inputValue), byteArrayOutputStream);
 
-    final KV<ClassToBeEncoded, List<Void>> decoded =
-        kvCoder.decode(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
+    final KV<ClassToBeEncoded, List<Void>> decoded = kvCoder
+        .decode(new ByteArrayInputStream(byteArrayOutputStream
+            .toByteArray()));
 
     Assert.assertNotNull(decoded);
     Assert.assertNotNull(decoded.getKey());
@@ -162,16 +208,22 @@ public class ClassAwareKryoCoderTest {
     Assert.assertEquals(inputValue, decoded.getValue());
   }
 
-  private void assertEncoding(ClassAwareKryoCoder<ClassToBeEncoded> coder) throws IOException {
+  private void assertEncoding(KryoCoder<ClassToBeEncoded> coder) throws IOException {
+    assertEncoding(coder, coder);
+  }
+
+  private void assertEncoding(KryoCoder<ClassToBeEncoded> coderToEncode,
+      KryoCoder<ClassToBeEncoded> coderToDecode) throws IOException {
+
     ClassToBeEncoded originalValue = new ClassToBeEncoded("XyZ", 42, Double.NaN);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-    coder.encode(originalValue, outputStream);
+    coderToEncode.encode(originalValue, outputStream);
 
     byte[] buf = outputStream.toByteArray();
     ByteArrayInputStream inputStream = new ByteArrayInputStream(buf);
 
-    ClassToBeEncoded decodedValue = coder.decode(inputStream);
+    ClassToBeEncoded decodedValue = coderToDecode.decode(inputStream);
 
     Assert.assertNotNull(decodedValue);
     Assert.assertEquals(originalValue, decodedValue);
@@ -183,7 +235,7 @@ public class ClassAwareKryoCoderTest {
     private Integer secondField;
     private Double thirdField;
 
-    public ClassToBeEncoded(String firstField, Integer secondField, Double thirdField) {
+    ClassToBeEncoded(String firstField, Integer secondField, Double thirdField) {
       this.firstField = firstField;
       this.secondField = secondField;
       this.thirdField = thirdField;
@@ -214,7 +266,7 @@ public class ClassAwareKryoCoderTest {
 
     String param;
 
-    public TestClass(String param) {
+    TestClass(String param) {
       this.param = param;
     }
 
