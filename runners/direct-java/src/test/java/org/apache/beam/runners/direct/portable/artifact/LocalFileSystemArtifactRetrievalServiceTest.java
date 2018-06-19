@@ -194,12 +194,13 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
       Files.write(artifactFile.toPath(), artifact.getValue());
       artifactFiles.add(StagedFile.of(artifactFile, artifactFile.getName()));
     }
+    String stagingSessionToken = "token";
 
     ArtifactServiceStager stager =
         ArtifactServiceStager.overChannel(
             InProcessChannelBuilder.forName(stagerServer.getApiServiceDescriptor().getUrl())
                 .build());
-    stager.stage(artifactFiles);
+    stager.stage(stagingSessionToken, artifactFiles);
 
     retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(
