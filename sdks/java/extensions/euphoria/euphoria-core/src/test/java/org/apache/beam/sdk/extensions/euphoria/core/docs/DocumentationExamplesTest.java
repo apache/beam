@@ -44,9 +44,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Util;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaPTransform;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
@@ -83,6 +85,7 @@ public class DocumentationExamplesTest {
           "Quisque ipsum fermentum nisl at libero accumsan consectetur.",
           "Praesent lobortis ex eget ex rhoncus, quis malesuada risus tristique.",
           "Aliquam risus at orci, porttitor eu turpis et, porttitor semper ligula.");
+
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Ignore("We do not want to actually write output files from this test.")
@@ -840,6 +843,47 @@ public class DocumentationExamplesTest {
     //output will contain: [ 10, 26 ]
 
     PAssert.that(flow.unwrapped(output)).containsInAnyOrder(10, 26);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testTopPerKeyOperator() {
+    BeamFlow flow = BeamFlow.of(pipeline);
+
+    Dataset<String> animals =
+        flow.createInput(
+            ListDataSource.bounded(
+                asList(
+                    "mouse",
+                    "elk",
+                    "rat",
+                    "mule",
+                    "elephant",
+                    "dinosaur",
+                    "cat",
+                    "duck",
+                    "caterpillar")));
+
+    // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]
+    Dataset<Triple<Character, String, Integer>> longestNamesByLetter =
+        TopPerKey.named("longest-animal-names")
+            .of(animals)
+            .keyBy(name -> name.charAt(0)) // first character is the key
+            .valueBy(UnaryFunction.identity()) // value type is the same as input element type
+            .scoreBy(
+                String
+                    ::length) // length defines score, note that Integer implements Comparable<Integer>
+            .output();
+    //longestNamesByLetter wil contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant", 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]
+
+    PAssert.that(flow.unwrapped(longestNamesByLetter))
+        .containsInAnyOrder(
+            Triple.of('m', "mouse", 5),
+            Triple.of('r', "rat", 3),
+            Triple.of('e', "elephant", 8),
+            Triple.of('d', "dinosaur", 8),
+            Triple.of('c', "caterpillar", 11));
 
     pipeline.run();
   }

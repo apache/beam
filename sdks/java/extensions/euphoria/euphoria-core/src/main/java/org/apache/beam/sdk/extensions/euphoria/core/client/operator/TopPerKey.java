@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.Sets;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -31,18 +30,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
@@ -59,7 +53,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * Emits top element for defined keys and windows. The elements are compared by comparable objects
  * extracted by user defined function applied on input elements.
  *
- * <p>Custom {@link Windowing} can be set, otherwise values from input operator are used.
+ * <p>Custom {@link Windowing} can be set.
  *
  * <p>Example:
  *
@@ -96,10 +90,10 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
         InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>>
     implements TypeAware.Value<V> {
 
-  private final UnaryFunction<InputT, V> valueFn;
+  private final UnaryFunction<InputT, V> valueExtractor;
   private final TypeDescriptor<V> valueType;
 
-  private final UnaryFunction<InputT, ScoreT> scoreFn;
+  private final UnaryFunction<InputT, ScoreT> scoreCalculator;
   private final TypeDescriptor<ScoreT> scoreType;
 
   TopPerKey(
@@ -108,9 +102,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
       @Nullable TypeDescriptor<K> keyType,
-      UnaryFunction<InputT, V> valueFn,
+      UnaryFunction<InputT, V> valueExtractor,
       TypeDescriptor<V> valueType,
-      @Nullable UnaryFunction<InputT, ScoreT> scoreFn,
+      @Nullable UnaryFunction<InputT, ScoreT> scoreCalculator,
       TypeDescriptor<ScoreT> scoreType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
@@ -127,9 +121,9 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
         euphoriaWindowing,
         outputHints);
 
-    this.valueFn = valueFn;
+    this.valueExtractor = valueExtractor;
     this.valueType = valueType;
-    this.scoreFn = scoreFn;
+    this.scoreCalculator = scoreCalculator;
     this.scoreType = scoreType;
   }
 
@@ -157,49 +151,61 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
   }
 
   public UnaryFunction<InputT, V> getValueExtractor() {
-    return valueFn;
+    return valueExtractor;
   }
 
   public UnaryFunction<InputT, ScoreT> getScoreExtractor() {
-    return scoreFn;
+    return scoreCalculator;
   }
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
-    StateSupport.MergeFromStateMerger<KV<V, ScoreT>, KV<V, ScoreT>, MaxScored<V, ScoreT>>
-        stateCombiner = new StateSupport.MergeFromStateMerger<>();
-
-    TypeDescriptor<KV<V, ScoreT>> rsbkValueType = TypeUtils.keyValues(valueType, scoreType);
-
-    ReduceStateByKey<InputT, K, KV<V, ScoreT>, KV<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
-        new ReduceStateByKey<>(
-            getName() + "::ReduceStateByKey",
+    // Firs we need to remap input elements to elements containing value and score
+    // in order to make following ReduceByKey combinable
+    MapElements<InputT, Triple<K, V, ScoreT>> inputMapperToScoredKvs =
+        new MapElements<>(
+            getName() + ":: ExtractKeyValueAndScore",
             flow,
             input,
-            keyExtractor,
+            (InputT element) ->
+                Triple.of(
+                    keyExtractor.apply(element),
+                    valueExtractor.apply(element),
+                    scoreCalculator.apply(element)),
+            outputType);
+
+    ReduceByKey<Triple<K, V, ScoreT>, K, Triple<K, V, ScoreT>, Triple<K, V, ScoreT>, W> reduce =
+        new ReduceByKey<>(
+            getName() + ":: ReduceByKey",
+            flow,
+            inputMapperToScoredKvs.output(),
+            Triple::getFirst,
             keyType,
-            e -> KV.of(valueFn.apply(e), scoreFn.apply(e)),
-            rsbkValueType,
+            UnaryFunction.identity(),
+            outputType,
             windowing,
             euphoriaWindowing,
-            (StateContext context, Collector<KV<V, ScoreT>> collector) ->
-                new MaxScored<>(context.getStorageProvider()),
-            stateCombiner,
-            TypeUtils.keyValues(keyType, rsbkValueType),
-            Collections.emptySet());
+            (CombinableReduceFunction<Triple<K, V, ScoreT>>)
+                (triplets) ->
+                    triplets
+                        .reduce((a, b) -> a.getThird().compareTo(b.getThird()) > 0 ? a : b)
+                        .orElseThrow(IllegalStateException::new),
+            getHints(),
+            TypeUtils.keyValues(keyType, outputType));
 
-    MapElements<KV<K, KV<V, ScoreT>>, Triple<K, V, ScoreT>> format =
+    MapElements<KV<K, Triple<K, V, ScoreT>>, Triple<K, V, ScoreT>> format =
         new MapElements<>(
-            getName() + "::MapElements",
+            getName() + "::MapToOutputFormat",
             flow,
             reduce.output(),
-            e -> Triple.of(e.getKey(), e.getValue().getKey(), e.getValue().getValue()),
+            KV::getValue,
             getHints(),
             outputType);
 
-    DAG<Operator<?, ?>> dag = DAG.of(reduce);
+    DAG<Operator<?, ?>> dag = DAG.of(inputMapperToScoredKvs);
+    dag.add(reduce, inputMapperToScoredKvs);
     dag.add(format, reduce);
 
     return dag;
@@ -228,60 +234,13 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     UnaryFunction<InputT, ScoreT> scoreFn;
     TypeDescriptor<ScoreT> scoreType;
 
-    public BuiderParams(String name, Dataset<InputT> input) {
+    BuiderParams(String name, Dataset<InputT> input) {
       this.name = name;
       this.input = input;
     }
   }
 
-  /** TODO: complete javadoc. */
-  private static final class MaxScored<V, CompareT extends Comparable<CompareT>>
-      implements State<KV<V, CompareT>, KV<V, CompareT>>,
-          StateSupport.MergeFrom<MaxScored<V, CompareT>> {
-
-    static final ValueStorageDescriptor<KV> MAX_STATE_DESCR =
-        ValueStorageDescriptor.of("max", KV.class, KV.of(null, null));
-
-    final ValueStorage<KV<V, CompareT>> curr;
-
-    @SuppressWarnings("unchecked")
-    MaxScored(StorageProvider storageProvider) {
-      curr = (ValueStorage) storageProvider.getValueStorage(MAX_STATE_DESCR);
-    }
-
-    @Override
-    public void add(KV<V, CompareT> element) {
-      KV<V, CompareT> c = curr.get();
-      if (c.getKey() == null || element.getValue().compareTo(c.getValue()) > 0) {
-        curr.set(element);
-      }
-    }
-
-    @Override
-    public void flush(Collector<KV<V, CompareT>> context) {
-      KV<V, CompareT> c = curr.get();
-      if (c.getKey() != null) {
-        context.collect(c);
-      }
-    }
-
-    @Override
-    public void close() {
-      curr.clear();
-    }
-
-    @Override
-    public void mergeFrom(MaxScored<V, CompareT> other) {
-      KV<V, CompareT> o = other.curr.get();
-      if (o.getKey() != null) {
-        this.add(o);
-      }
-    }
-  }
-
-  // ~ -----------------------------------------------------------------------------
-
-  /** TODO: complete javadoc. */
+  /** Star of builders chain. */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -296,7 +255,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Key extractor defining builder. */
   public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
 
     private final BuiderParams<InputT, ?, ?, ?, ?> params;
@@ -323,7 +282,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Value extractor defining builder. */
   public static class ValueByBuilder<InputT, K> {
 
     private final BuiderParams<InputT, K, ?, ?, ?> params;
@@ -347,7 +306,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Score calculator defining builder. */
   public static class ScoreByBuilder<InputT, K, V> {
 
     private final BuiderParams<InputT, K, V, ?, ?> params;
@@ -374,7 +333,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** First of windowing defining builders. */
   public static class WindowByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>>
       implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, ScoreT, ?>>,
           Builders.Output<Triple<K, V, ScoreT>>,

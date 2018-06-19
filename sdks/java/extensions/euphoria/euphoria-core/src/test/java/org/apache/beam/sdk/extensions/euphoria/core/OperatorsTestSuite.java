@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.testkit.MapElementsTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.ReduceByKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.ReduceWindowTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.SumByKeyTest;
+import org.apache.beam.sdk.extensions.euphoria.core.testkit.TopPerKeyTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.UnionTest;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.TestSuiteRunner;
 import org.junit.runner.RunWith;
@@ -44,7 +45,7 @@ import org.junit.runners.Suite;
   ReduceByKeyTest.class,
   //    ReduceStateByKeyTest.class,
   SumByKeyTest.class,
-  //    TopPerKeyTest.class, - uncomment when ReduceStateByKey is supported
+  TopPerKeyTest.class,
   UnionTest.class,
   //        WindowingTest.class,
   ReduceWindowTest.class
