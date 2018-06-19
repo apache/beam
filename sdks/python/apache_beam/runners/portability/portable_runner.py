@@ -66,7 +66,7 @@ class PortableRunner(runner.PipelineRunner):
     if 'USER' in os.environ:
       # Perhaps also test if this was built?
       logging.info('Using latest locally built Python SDK docker image.')
-      return os.environ['USER'] + '-docker.apache.bintray.io/beam/python:latest'
+      return os.environ['USER'] + '-docker-apache.bintray.io/beam/python:latest'
     else:
       logging.warning('Could not find a Python SDK docker image.')
       return 'unknown'
