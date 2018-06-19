@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -99,11 +98,6 @@ public class BeamEnumerableConverterTest {
   }
 
   private static class FakeTable implements BeamSqlTable {
-    @Override
-    public BeamIOType getSourceType() {
-      return null;
-    }
-
     @Override
     public PCollection<Row> buildIOReader(Pipeline pipeline) {
       return null;
