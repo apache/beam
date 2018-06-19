@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -33,14 +36,14 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.util.Pair;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, TypeName> JAVA_CLASS_TO_FIELDTYPE =
+
+  private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
       ImmutableMap.<Class, TypeName>builder()
           .put(Byte.class, TypeName.BYTE)
           .put(Short.class, TypeName.INT16)
@@ -99,6 +102,22 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
   }
 
+  @AutoValue
+  abstract static class ExpressionTestCase {
+
+    private static ExpressionTestCase of(
+        String sqlExpr, Object expectedResult, FieldType resultFieldType) {
+      return new AutoValue_BeamSqlBuiltinFunctionsIntegrationTestBase_ExpressionTestCase(
+          sqlExpr, expectedResult, resultFieldType);
+    }
+
+    abstract String sqlExpr();
+
+    abstract Object expectedResult();
+
+    abstract FieldType resultFieldType();
+  }
+
   /**
    * Helper class to make write integration test for built-in functions easier.
    *
@@ -115,10 +134,22 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
    * }</pre>
    */
   public class ExpressionChecker {
-    private transient List<Pair<String, Object>> exps = new ArrayList<>();
+    private transient List<ExpressionTestCase> exps = new ArrayList<>();
 
     public ExpressionChecker addExpr(String expression, Object expectedValue) {
-      exps.add(Pair.of(expression, expectedValue));
+      // Because of erasure, we can only automatically infer non-parameterized types
+      TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
+      checkArgument(
+          resultTypeName != null,
+          "Could not infer a Beam type for %s."
+              + " Parameterized types must be provided explicitly.");
+      addExpr(expression, expectedValue, FieldType.of(resultTypeName));
+      return this;
+    }
+
+    public ExpressionChecker addExpr(
+        String expression, Object expectedValue, FieldType resultFieldType) {
+      exps.add(ExpressionTestCase.of(expression, expectedValue, resultFieldType));
       return this;
     }
 
@@ -126,15 +157,11 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     public void buildRunAndCheck() {
       PCollection<Row> inputCollection = getTestPCollection();
 
-      for (Pair<String, Object> testCase : exps) {
-        String expression = testCase.left;
-        Object expectedValue = testCase.right;
+      for (ExpressionTestCase testCase : exps) {
+        String expression = testCase.sqlExpr();
+        Object expectedValue = testCase.expectedResult();
         String sql = String.format("SELECT %s FROM PCOLLECTION", expression);
-        Schema schema =
-            Schema.builder()
-                .addField(
-                    expression, FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(expectedValue.getClass())))
-                .build();
+        Schema schema = Schema.builder().addField(expression, testCase.resultFieldType()).build();
 
         PCollection<Row> output =
             inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
