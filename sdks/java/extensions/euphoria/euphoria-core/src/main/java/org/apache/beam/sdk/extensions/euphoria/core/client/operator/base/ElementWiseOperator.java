@@ -22,6 +22,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Operator working element-wise, with no context between elements. No windowing scheme is needed to
@@ -34,8 +35,9 @@ public abstract class ElementWiseOperator<InputT, OutputT>
   protected final Dataset<OutputT> output;
 
   protected ElementWiseOperator(
-      String name, Flow flow, Dataset<InputT> input, Set<OutputHint> outputHints) {
-    super(name, flow, input);
+      String name, Flow flow, Dataset<InputT> input, Set<OutputHint> outputHints,
+      TypeDescriptor<OutputT> outputType) {
+    super(name, flow, input, outputType);
     this.output = createOutput(input, outputHints);
   }
 

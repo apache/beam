@@ -30,7 +30,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A convenient alias for assignment of event time.
@@ -56,8 +58,9 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
       Flow flow,
       Dataset<InputT> input,
       ExtractEventTime<InputT> eventTimeFn,
-      Set<OutputHint> outputHints) {
-    super(name, flow, input, outputHints);
+      Set<OutputHint> outputHints,
+      TypeDescriptor<InputT> outputType) {
+    super(name, flow, input, outputHints, outputType);
     this.eventTimeFn = eventTimeFn;
   }
 
@@ -89,7 +92,8 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(
         new FlatMap<>(
-            getName(), getFlow(), input, (i, c) -> c.collect(i), eventTimeFn, getHints()));
+            getName(), getFlow(), input, (i, c) -> c.collect(i), eventTimeFn, getHints(),
+            outputType));
   }
 
   /**
@@ -100,8 +104,11 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     return eventTimeFn;
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public static class OfBuilder implements Builders.Of {
+
     private final String name;
 
     OfBuilder(String name) {
@@ -114,8 +121,11 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public static class UsingBuilder<InputT> {
+
     private final String name;
     private final Dataset<InputT> input;
 
@@ -139,6 +149,7 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
+
     private final String name;
     private final Dataset<InputT> input;
     private final ExtractEventTime<InputT> eventTimeFn;
@@ -152,8 +163,11 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
+
       AssignEventTime<InputT> op =
-          new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet(outputHints));
+          new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet(outputHints),
+              TypeUtils.getDatasetElementType(input));
+
       flow.add(op);
       return op.output();
     }

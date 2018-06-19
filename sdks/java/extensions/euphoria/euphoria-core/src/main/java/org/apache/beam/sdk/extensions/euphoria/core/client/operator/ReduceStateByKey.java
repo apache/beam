@@ -38,7 +38,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateFactory;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateMerger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -112,8 +112,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 public class ReduceStateByKey<
         InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Pair<K, OutputT>, W,
-        ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
+    InputT, InputT, K, Pair<K, OutputT>, W,
+    ReduceStateByKey<InputT, K, V, OutputT, StateT, W>> {
 
   private final StateFactory<V, OutputT, StateT> stateFactory;
 
@@ -126,13 +126,16 @@ public class ReduceStateByKey<
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
+      TypeDescriptor<K> keyType,
       UnaryFunction<InputT, V> valueExtractor,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       StateFactory<V, OutputT, StateT> stateFactory,
       StateMerger<V, OutputT, StateT> stateMerger,
+      @Nullable TypeDescriptor<Pair<K, OutputT>> outputType,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, keyExtractor, windowing, euphoriaWindowing, outputHints);
+    super(name, flow, input, outputType, keyExtractor, keyType, windowing, euphoriaWindowing,
+        outputHints);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateMerger;
@@ -189,6 +192,7 @@ public class ReduceStateByKey<
     return valueExtractor;
   }
 
+
   /** Parameters of this operator used in builders. */
   public static class BuilderParams<
           InputT, K, V, OutputT, StateT extends State<V, OutputT>, W extends BoundedWindow>
@@ -197,15 +201,21 @@ public class ReduceStateByKey<
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
+    TypeDescriptor<K> keyType;
     UnaryFunction<InputT, V> valueExtractor;
     StateFactory<V, OutputT, StateT> stateFactory;
     StateMerger<V, OutputT, StateT> stateMerger;
+    @Nullable
+    TypeDescriptor<OutputT> simpleOutputType;
 
     public BuilderParams(
-        String name, Dataset<InputT> input, UnaryFunction<InputT, K> keyExtractor) {
+        String name, Dataset<InputT> input,
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
+
       this.name = name;
       this.input = input;
       this.keyExtractor = keyExtractor;
+      this.keyType = keyType;
     }
   }
 
@@ -237,24 +247,19 @@ public class ReduceStateByKey<
 
     @Override
     public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
-
-      BuilderParams<InputT, K, ?, ?, ?, ?> params =
-          new BuilderParams<>(name, input, Objects.requireNonNull(keyExtractor));
-
-      return new ValueByBuilder<>(params);
+      return keyBy(keyExtractor, null);
     }
 
     @Override
     public <K> ValueByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
 
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
+      BuilderParams<InputT, K, ?, ?, ?, ?> params = new BuilderParams<>(
+          name, input, Objects.requireNonNull(keyExtractor), keyType);
+
+      return new ValueByBuilder<>(params);
     }
 
-    public <K> ValueByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, Class<K> typeHint) {
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, TypeDescriptor.of(typeHint)));
-    }
   }
 
   /** TODO: complete javadoc. */
@@ -305,17 +310,25 @@ public class ReduceStateByKey<
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public <OutputT, StateT extends State<V, OutputT>>
-        MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
-            StateFactory<V, OutputT, StateT> stateFactory) {
+    MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
+        StateFactory<V, OutputT, StateT> stateFactory, TypeDescriptor<OutputT> outputType) {
 
       @SuppressWarnings("unchecked")
       final BuilderParams<InputT, K, V, OutputT, StateT, ?> paramsCasted =
           (BuilderParams<InputT, K, V, OutputT, StateT, ?>) params;
 
       paramsCasted.stateFactory = Objects.requireNonNull(stateFactory);
+      paramsCasted.simpleOutputType = outputType;
 
       return new MergeStateByBuilder<>(paramsCasted);
     }
+
+    public <OutputT, StateT extends State<V, OutputT>>
+    MergeStateByBuilder<InputT, K, V, OutputT, StateT> stateFactory(
+        StateFactory<V, OutputT, StateT> stateFactory) {
+      return stateFactory(stateFactory, null);
+    }
+
   }
 
   /** TODO: complete javadoc. */
@@ -463,11 +476,13 @@ public class ReduceStateByKey<
               flow,
               params.input,
               params.keyExtractor,
+              params.keyType,
               params.valueExtractor,
               params.getWindowing(),
               params.euphoriaWindowing,
               params.stateFactory,
               params.stateMerger,
+              TypeUtils.pairs(params.keyType, params.simpleOutputType),
               Sets.newHashSet(outputHints));
       flow.add(reduceStateByKey);
 

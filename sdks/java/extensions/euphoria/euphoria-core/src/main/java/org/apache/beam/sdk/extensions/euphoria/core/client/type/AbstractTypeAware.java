@@ -22,7 +22,12 @@ import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.TypeDescriptorAware;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeDescriptorAware<T> {
+/**
+ * TODO: to be removed.
+ * @param <FuncT>
+ * @param <T>
+ */
+public abstract class AbstractTypeAware<FuncT, T> implements Serializable, TypeDescriptorAware<T> {
 
   private final FuncT function;
   private final TypeDescriptor<T> typeHint;
