@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -40,12 +41,16 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
@@ -152,15 +157,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
-  private static PipelineResult run(
-      PipelineOptions options, BeamRelNode node, DoFn<Row, Void> doFn) {
-    Pipeline pipeline = Pipeline.create(options);
-    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(doFn));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-    return result;
-  }
-
   private static PipelineResult limitRun(
       PipelineOptions options,
       BeamRelNode node,
@@ -209,7 +205,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
     Collector.globalValues.put(id, values);
-    run(options, node, new Collector());
+
+    Pipeline pipeline = Pipeline.create(options);
+    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(new Collector()));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
     Collector.globalValues.remove(id);
 
     return Linq4j.asEnumerable(values);
@@ -324,15 +325,22 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   private static Enumerable<Object> count(PipelineOptions options, BeamRelNode node) {
-    PipelineResult result = run(options, node, new RowCounter());
-    MetricQueryResults metrics =
-        result
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
-                    .build());
-    long count = metrics.getCounters().iterator().next().getAttempted();
+    Pipeline pipeline = Pipeline.create(options);
+    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(new RowCounter()));
+    PipelineResult result = pipeline.run();
+
+    long count = 0;
+    if (!containsUnboundedPCollection(pipeline)) {
+      result.waitUntilFinish();
+      MetricQueryResults metrics =
+          result
+              .metrics()
+              .queryMetrics(
+                  MetricsFilter.builder()
+                      .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
+                      .build());
+      count = metrics.getCounters().iterator().next().getAttempted();
+    }
     return Linq4j.singletonEnumerable(count);
   }
 
@@ -359,5 +367,22 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     throw new RuntimeException(
         "Cannot get limit count from RelNode tree with root " + node.getRelTypeName());
+  }
+
+  private static boolean containsUnboundedPCollection(Pipeline p) {
+    class BoundednessVisitor extends PipelineVisitor.Defaults {
+      IsBounded boundedness = IsBounded.BOUNDED;
+
+      @Override
+      public void visitValue(PValue value, Node producer) {
+        if (value instanceof PCollection) {
+          boundedness = boundedness.and(((PCollection) value).isBounded());
+        }
+      }
+    }
+
+    BoundednessVisitor visitor = new BoundednessVisitor();
+    p.traverseTopologically(visitor);
+    return visitor.boundedness == IsBounded.UNBOUNDED;
   }
 }
