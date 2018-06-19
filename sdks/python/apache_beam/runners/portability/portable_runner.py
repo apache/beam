@@ -23,6 +23,7 @@ import grpc
 
 from apache_beam import coders
 from apache_beam.internal import pickler
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import pipeline_context
@@ -89,6 +90,15 @@ class PortableRunner(runner.PipelineRunner):
           coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
           pcoll.coder_id = proto_context.coders.get_id(coder)
       proto_context.coders.populate_map(proto_pipeline.components.coders)
+
+    # Some runners won't detect the GroupByKey transform unless it has no
+    # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
+    for _, transform_proto in list(
+        proto_pipeline.components.transforms.items()):
+      if transform_proto.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
+        for sub_transform in transform_proto.subtransforms:
+          del proto_pipeline.components.transforms[sub_transform]
+        del transform_proto.subtransforms[:]
 
     job_service = self._create_job_service()
     prepare_response = job_service.Prepare(
