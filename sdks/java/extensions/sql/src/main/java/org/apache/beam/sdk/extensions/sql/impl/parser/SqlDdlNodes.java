@@ -17,12 +17,15 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
@@ -58,6 +61,16 @@ public class SqlDdlNodes {
       schema = schema.getSubSchema(p, true);
     }
     return Pair.of(schema, name);
+  }
+
+  static @Nullable String getString(SqlNode n) {
+    if (n == null) {
+      return null;
+    }
+    if (n instanceof SqlIdentifier) {
+      return ((SqlIdentifier) n).toString();
+    }
+    return ((NlsString) SqlLiteral.value(n)).getValue();
   }
 }
 

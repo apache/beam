@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -29,11 +30,17 @@ import org.apache.calcite.rel.core.TableScan;
 /** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
-  private BeamSqlTable sqlTable;
+  private final BeamSqlTable sqlTable;
+  private final Map<String, String> pipelineOptions;
 
-  public BeamIOSourceRel(RelOptCluster cluster, RelOptTable table, BeamSqlTable sqlTable) {
+  public BeamIOSourceRel(
+      RelOptCluster cluster,
+      RelOptTable table,
+      BeamSqlTable sqlTable,
+      Map<String, String> pipelineOptions) {
     super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
     this.sqlTable = sqlTable;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
@@ -51,5 +58,10 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   protected BeamSqlTable getBeamSqlTable() {
     return sqlTable;
+  }
+
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return pipelineOptions;
   }
 }

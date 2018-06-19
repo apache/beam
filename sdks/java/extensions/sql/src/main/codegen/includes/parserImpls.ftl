@@ -285,4 +285,48 @@ Schema.FieldType SimpleType() :
     }
 }
 
+SqlSetOptionBeam SqlSetOptionBeam(Span s, String scope) :
+{
+    SqlIdentifier name;
+    final SqlNode val;
+}
+{
+    (
+        <SET> {
+            s.add(this);
+        }
+        name = CompoundIdentifier()
+        <EQ>
+        (
+            val = Literal()
+        |
+            val = SimpleIdentifier()
+        |
+            <ON> {
+                // OFF is handled by SimpleIdentifier, ON handled here.
+                val = new SqlIdentifier(token.image.toUpperCase(Locale.ROOT),
+                    getPos());
+            }
+        )
+        {
+            return new SqlSetOptionBeam(s.end(val), scope, name, val);
+        }
+    |
+        <RESET> {
+            s.add(this);
+        }
+        (
+            name = CompoundIdentifier()
+        |
+            <ALL> {
+                name = new SqlIdentifier(token.image.toUpperCase(Locale.ROOT),
+                    getPos());
+            }
+        )
+        {
+            return new SqlSetOptionBeam(s.end(name), scope, name, null);
+        }
+    )
+}
+
 // End parserImpls.ftl
