@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
@@ -91,7 +92,7 @@ public class PubsubToBigqueryIT implements Serializable {
             + "  pubsub_topic.payload.name \n"
             + "FROM pubsub_topic";
 
-    sqlEnv.parseQuery(pipeline, insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
     pipeline.run();
 

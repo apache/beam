@@ -18,20 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -103,9 +100,9 @@ public class BeamSqlEnv {
     defaultSchema.add(functionName, new UdafImpl(combineFn));
   }
 
-  public PCollection<Row> parseQuery(Pipeline pipeline, String query) throws ParseException {
+  public BeamRelNode parseQuery(String query) throws ParseException {
     try {
-      return BeamSqlRelUtils.toPCollection(pipeline, planner.convertToBeamRel(query));
+      return planner.convertToBeamRel(query);
     } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new ParseException(String.format("Unable to parse query %s", query), e);
     }

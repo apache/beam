@@ -32,7 +32,7 @@ public abstract class BaseRelTest {
   private static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
 
   protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline) {
-    return env.parseQuery(pipeline, sql);
+    return BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(sql));
   }
 
   protected static void registerTable(String tableName, BeamSqlTable table) {
