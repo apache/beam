@@ -30,8 +30,8 @@ from builtins import object
 from builtins import range
 from weakref import WeakValueDictionary
 
-import six
 from future import standard_library
+from future.utils import raise_
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
@@ -446,7 +446,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        six.reraise(t, v, tb)
+        raise_(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()

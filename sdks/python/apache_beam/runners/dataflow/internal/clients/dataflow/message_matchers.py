@@ -16,6 +16,7 @@
 #
 from __future__ import absolute_import
 
+from future.utils import iteritems
 from hamcrest.core.base_matcher import BaseMatcher
 
 IGNORED = object()
@@ -50,7 +51,7 @@ class MetricStructuredNameMatcher(BaseMatcher):
     if self.origin != IGNORED and item.origin != self.origin:
       return False
     if self.context != IGNORED:
-      for key, name in self.context.items():
+      for key, name in iteritems(self.context):
         if key not in item.context:
           return False
         if name != IGNORED and item.context[key] != name:

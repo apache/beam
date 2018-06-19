@@ -36,7 +36,6 @@ from io import BytesIO
 import pkg_resources
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
-import six
 
 from future import standard_library
 
@@ -65,6 +64,11 @@ standard_library.install_aliases()
 # are expected by the workers.
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 
 class Step(object):
@@ -305,7 +309,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return six.text_type(shortened), length
+      return unicode(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':

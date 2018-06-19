@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
 # cython: profile=True
 
 """Worker operations executor.
@@ -30,7 +31,7 @@ from builtins import next
 from builtins import object
 from builtins import zip
 
-import six
+from future.utils import raise_
 
 from apache_beam.internal import util
 from apache_beam.pvalue import TaggedOutput
@@ -41,6 +42,13 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+  basestring        # pylint: disable=basestring-builtin
+except NameError:
+  unicode = str
+  basestring = str
 
 
 class NameContext(object):
@@ -620,7 +628,7 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    six.reraise(type(new_exn), new_exn, original_traceback)
+    raise_(type(new_exn), new_exn, original_traceback)
 
 
 class OutputProcessor(object):
@@ -657,7 +665,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, six.string_types):
+        if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -699,7 +707,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, six.string_types):
+        if not isinstance(tag, (str, unicode)):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 

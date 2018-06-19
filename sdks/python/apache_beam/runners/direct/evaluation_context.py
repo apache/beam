@@ -81,8 +81,8 @@ class _SideInputsContainer(object):
       self._transform_to_side_inputs[side.pvalue.producer].append(side)
 
   def __repr__(self):
-    views_string = (', '.join(str(elm) for elm in list(self._views.values()))
-                    if list(self._views.values()) else '[]')
+    views_string = (', '.join(str(elm) for elm in self._views.values())
+                    if self._views.values() else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
   def get_value_or_block_until_ready(self, side_input, task, block_until):

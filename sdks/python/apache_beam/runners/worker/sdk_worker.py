@@ -32,8 +32,8 @@ from builtins import range
 from concurrent import futures
 
 import grpc
-import six
 from future import standard_library
+from future.utils import raise_
 from future.utils import with_metaclass
 
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -411,7 +411,7 @@ class GrpcStateHandler(object):
     while not future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        six.reraise(t, v, tb)
+        raise_(t, v, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
