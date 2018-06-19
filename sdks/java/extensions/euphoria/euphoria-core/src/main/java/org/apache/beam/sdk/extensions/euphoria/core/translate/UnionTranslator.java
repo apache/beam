@@ -15,11 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 
-dependencies {
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    testCompile library.java.junit
+class UnionTranslator implements OperatorTranslator<Union> {
+
+  private static <T> PCollection<T> doTranslate(Union<T> operator, TranslationContext context) {
+    return PCollectionList.of(context.getInputs(operator))
+        .apply(operator.getName(), Flatten.pCollections());
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public PCollection<?> translate(Union operator, TranslationContext context) {
+    return doTranslate(operator, context);
+  }
 }
