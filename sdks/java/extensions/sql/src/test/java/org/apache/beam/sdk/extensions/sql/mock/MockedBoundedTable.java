@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -87,11 +86,6 @@ public class MockedBoundedTable extends MockedTable {
     List<Row> rows = buildRows(getSchema(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
-  }
-
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
   }
 
   @Override

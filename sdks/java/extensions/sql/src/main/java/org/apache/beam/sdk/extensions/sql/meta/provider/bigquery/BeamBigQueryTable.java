@@ -21,7 +21,6 @@ import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
@@ -42,11 +41,6 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
   public BeamBigQueryTable(Schema beamSchema, String tableSpec) {
     super(beamSchema);
     this.tableSpec = tableSpec;
-  }
-
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
   }
 
   @Override
