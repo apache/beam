@@ -18,68 +18,100 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate.coder;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.VoidFunction;
-import org.objenesis.strategy.StdInstantiatorStrategy;
+import org.apache.commons.compress.utils.BoundedInputStream;
 
-/** Coder using Kryo as (de)serialization mechanism. TODO: we should drop this class entirely */
+/**
+ * Coder using Kryo as (de)serialization mechanism. See {@link RegisterCoders} to get more details
+ * of how to use it
+ */
 public class KryoCoder<T> extends CustomCoder<T> {
 
-  private static final VoidFunction<Kryo> FACTORY =
-      () -> {
-        final Kryo instance = new Kryo();
-        ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())
-            .setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-        return instance;
-      };
-  private static AtomicBoolean reinitialize = new AtomicBoolean(true);
-  private static ThreadLocal<Kryo> kryo = ThreadLocal.withInitial(FACTORY::apply);
-  // factory that need to be serialized and deserialized
-  // use the current static factory, that has been set
-  private final VoidFunction<Kryo> factory = FACTORY;
+  /**
+   * Client-defined class registrations to {@link Kryo}.
+   * <p>
+   * {@link KryoCoder} needs it to be able to create a {@link Kryo} instance with correct class
+   * registrations after its deserialization.
+   * </p>
+   */
+  private final KryoRegistrar registrar;
 
-  @Override
-  public void encode(T t, OutputStream out) throws IOException {
-    final byte[] bytes;
+  private KryoCoder(KryoRegistrar registrar) {
+    this.registrar = registrar;
+  }
 
-    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        final Output output = new Output(baos)) {
-      kryo.get().writeClassAndObject(output, t);
-      output.flush();
-      bytes = baos.toByteArray();
-    }
-    final DataOutputStream dos = new DataOutputStream(out);
-    dos.writeInt(bytes.length);
-    dos.write(bytes);
+  /**
+   * Creates a {@link KryoCoder} instance which will use {@link Kryo} without class registration.
+   * That degrades performance. Use {@link #of(KryoRegistrar)} whenever possible.
+   */
+  public KryoCoder() {
+    this(KryoFactory.NO_OP_REGISTRAR);
+  }
+
+  /**
+   * Creates a {@link KryoCoder} instance which will use {@link Kryo} with classes registered by
+   * {@code registrar}.
+   */
+  public static <T> KryoCoder<T> of(KryoRegistrar registrar) {
+    return new KryoCoder<>(registrar);
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public T decode(InputStream is) throws IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
 
-    final DataInputStream dis = new DataInputStream(is);
-    final int size = dis.readInt();
-    final byte[] buffer = new byte[size];
-    if (size != dis.read(buffer, 0, size)) {
-      throw new IllegalStateException("This should never happen.");
+    Output output = KryoFactory.getKryoOutput();
+    output.clear();
+    Kryo kryo = KryoFactory.getOrCreateKryo(registrar);
+    try {
+      kryo.writeClassAndObject(output, value);
+    } catch (IllegalArgumentException e) {
+      throw new CoderException(String.format("Cannot encode given object of type '%s'. "
+              + "Forgotten kryo registration is possible explanation.",
+          (value == null) ? null : value.getClass().getSimpleName()), e);
     }
-    try (final InputStream in = new ByteArrayInputStream(buffer);
-        final Input input = new Input(in)) {
 
-      return (T) kryo.get().readClassAndObject(input);
+    DataOutputStream dos = new DataOutputStream(outStream);
+    // write length of encoded object first to get ability to limit read in decode() to one object
+    dos.writeInt(output.position());
+    outStream.write(output.getBuffer(), 0, output.position());
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws IOException {
+
+    // read length of objects in bytes first
+    DataInputStream dis = new DataInputStream(inStream);
+    int lengthOfDecodedObject = dis.readInt();
+
+    Input input = KryoFactory.getKryoInput();
+
+    // limit the input stream to not allow kryo to read beyond the current object
+    BoundedInputStream limitedStream = new BoundedInputStream(inStream, lengthOfDecodedObject);
+    input.setInputStream(limitedStream);
+
+    Kryo kryo = KryoFactory.getOrCreateKryo(registrar);
+
+    try {
+
+      @SuppressWarnings("unchecked")
+      T outObject = (T) kryo.readClassAndObject(input);
+      return outObject;
+
+    } catch (KryoException e) {
+      throw new CoderException(String.format(
+          "Cannot decode object of length %d bytes from input stream. "
+              + "Forgotten kryo registration is possible explanation.", lengthOfDecodedObject), e);
     }
+
   }
 
   @Override
@@ -87,18 +119,4 @@ public class KryoCoder<T> extends CustomCoder<T> {
     // nop
   }
 
-  // serialization
-
-  private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-    if (reinitialize.getAndSet(false)) {
-      if (kryo == null) {
-        kryo = ThreadLocal.withInitial(factory::apply);
-      }
-    }
-    ois.defaultReadObject();
-  }
-
-  private void writeObject(ObjectOutputStream oos) throws IOException {
-    oos.defaultWriteObject();
-  }
 }
