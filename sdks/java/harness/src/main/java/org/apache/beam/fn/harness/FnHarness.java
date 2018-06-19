@@ -39,6 +39,7 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -127,6 +128,8 @@ public class FnHarness {
         channelFactory::forDescriptor)) {
 
       LOG.info("Fn Harness started");
+      // Register standard file systems.
+      FileSystems.setDefaultPipelineOptions(options);
       EnumMap<BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<InstructionRequest, Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
