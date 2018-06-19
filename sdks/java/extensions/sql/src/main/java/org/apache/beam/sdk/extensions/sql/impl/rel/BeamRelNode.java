@@ -25,7 +25,6 @@ import org.apache.calcite.rel.RelNode;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 public interface BeamRelNode extends RelNode {
-
   /**
    * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
    * DFS(Depth-First-Search) algorithm.

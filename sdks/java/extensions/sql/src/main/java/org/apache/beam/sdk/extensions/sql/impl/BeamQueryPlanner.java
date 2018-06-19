@@ -26,6 +26,7 @@ import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
@@ -113,8 +114,8 @@ class BeamQueryPlanner {
   }
 
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
-  BeamRelNode convertToBeamRel(String sqlStatement)
-      throws ValidationException, RelConversionException, SqlParseException {
+  public BeamRelNode convertToBeamRel(String sqlStatement)
+      throws ValidationException, RelConversionException, SqlParseException, CannotPlanException {
     BeamRelNode beamRelNode;
     Planner planner = getPlanner();
     try {
@@ -122,6 +123,7 @@ class BeamQueryPlanner {
       SqlNode validated = planner.validate(parsed);
       LOG.info("SQL:\n" + validated);
 
+      // root of original logical plan
       RelRoot root = planner.rel(validated);
       LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
 
@@ -131,8 +133,10 @@ class BeamQueryPlanner {
               .replace(BeamLogicalConvention.INSTANCE)
               .replace(root.collation)
               .simplify();
+
+      // beam physical plan
       beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
-      LOG.info("BeamSQL>\n" + RelOptUtil.toString(beamRelNode));
+      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
     }
