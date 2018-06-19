@@ -84,11 +84,11 @@ class FlinkBatchSideInputHandlerFactory implements MultimapSideInputHandlerFacto
         sideInputToCollection.get(
             SideInputId.newBuilder().setTransformId(transformId).setLocalName(sideInputId).build());
     checkArgument(collectionNode != null, "No side input for %s/%s", transformId, sideInputId);
-    List<Object> broadcastVariable = runtimeContext.getBroadcastVariable(collectionNode.getId());
+    List<WindowedValue<KV<K, V>>> broadcastVariable =
+        runtimeContext.getBroadcastVariable(collectionNode.getId());
 
     ImmutableMultimap.Builder<SideInputKey<K, W>, V> multimap = ImmutableMultimap.builder();
-    for (Object element : broadcastVariable) {
-      WindowedValue<KV<K, V>> windowedValue = (WindowedValue<KV<K, V>>) element;
+    for (WindowedValue<KV<K, V>> windowedValue : broadcastVariable) {
       K key = windowedValue.getValue().getKey();
       V value = windowedValue.getValue().getValue();
 
