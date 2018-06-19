@@ -32,6 +32,7 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -97,7 +98,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     for (Map.Entry<String, String> entry : map.entrySet()) {
       args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
     }
-    return PipelineOptionsFactory.fromArgs(args).withValidation().create();
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+    options.as(ApplicationNameOptions.class).setAppName("BeamSql");
+    return options;
   }
 
   public static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {
