@@ -46,8 +46,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -116,7 +115,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
       Dataset<RightT> right,
       UnaryFunction<LeftT, K> leftKeyExtractor,
       UnaryFunction<RightT, K> rightKeyExtractor,
+      TypeDescriptor<K> keyType,
       BinaryFunctor<LeftT, RightT, OutputT> functor,
+      TypeDescriptor<Pair<K, OutputT>> outputType,
       Type type,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
@@ -124,6 +125,7 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     super(
         name,
         flow,
+        outputType,
         windowing,
         euphoriaWindowing,
         (Either<LeftT, RightT> elem) -> {
@@ -131,7 +133,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
             return leftKeyExtractor.apply(elem.left());
           }
           return rightKeyExtractor.apply(elem.right());
-        });
+        },
+        keyType);
+
     this.left = left;
     this.right = right;
     this.leftKeyExtractor = leftKeyExtractor;
@@ -190,35 +194,43 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
   public DAG<Operator<?, ?>> getBasicOps() {
     final Flow flow = getFlow();
 
+    TypeDescriptor<RightT> rightType = TypeUtils.getDatasetElementType(right);
+    TypeDescriptor<LeftT> leftType = TypeUtils.getDatasetElementType(left);
+    TypeDescriptor<Either<LeftT, RightT>> eitherLeftRightType =
+        TypeUtils.eithers(leftType, rightType);
+
     final MapElements<LeftT, Either<LeftT, RightT>> leftMap =
-        new MapElements<>(getName() + "::Map-left", flow, left, Either::left);
+        new MapElements<>(getName() + "::Map-left", flow, left, Either::left, eitherLeftRightType);
 
     final MapElements<RightT, Either<LeftT, RightT>> rightMap =
-        new MapElements<>(getName() + "::Map-right", flow, right, Either::right);
+        new MapElements<>(getName() + "::Map-right", flow, right, Either::right,
+            eitherLeftRightType);
 
-    final Union<Either<LeftT, RightT>> union =
-        new Union<>(
-            getName() + "::Union", flow, Arrays.asList(leftMap.output(), rightMap.output()));
+    final Union<Either<LeftT, RightT>> union = new Union<>(
+        getName() + "::Union", flow, Arrays.asList(leftMap.output(),
+        rightMap.output()), eitherLeftRightType);
 
     final ReduceStateByKey<
             Either<LeftT, RightT>, K, Either<LeftT, RightT>, OutputT, StableJoinState, W>
         reduce =
-            new ReduceStateByKey(
-                getName() + "::ReduceStateByKey",
-                flow,
-                union.output(),
-                keyExtractor,
-                e -> e,
-                getWindowing(),
-                euphoriaWindowing,
-                (StateContext context, Collector ctx) -> {
-                  StorageProvider storages = context.getStorageProvider();
-                  return ctx == null
-                      ? new StableJoinState(storages)
-                      : new EarlyEmittingJoinState(storages, ctx);
-                },
-                new StateSupport.MergeFromStateMerger<>(),
-                getHints());
+        new ReduceStateByKey(
+            getName() + "::ReduceStateByKey",
+            flow,
+            union.output(),
+            keyExtractor,
+            keyType,
+            UnaryFunction.identity(),
+            getWindowing(),
+            euphoriaWindowing,
+            (StateContext context, Collector ctx) -> {
+              StorageProvider storages = context.getStorageProvider();
+              return ctx == null
+                  ? new StableJoinState(storages)
+                  : new EarlyEmittingJoinState(storages, ctx);
+            },
+            new StateSupport.MergeFromStateMerger<>(),
+            outputType,
+            getHints());
 
     final DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);
@@ -243,7 +255,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     Dataset<RightT> right;
     UnaryFunction<LeftT, K> leftKeyExtractor;
     UnaryFunction<RightT, K> rightKeyExtractor;
+    TypeDescriptor<K> keyType;
     BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
+    TypeDescriptor<OutputT> outType;
     Type type;
 
     BuilderParams(String name, Dataset<LeftT> left, Dataset<RightT> right, Type type) {
@@ -289,7 +303,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        TypeDescriptor<K> keyTypeDescriptor) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
@@ -297,16 +312,14 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
 
       paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
+      paramsCasted.keyType = keyTypeDescriptor;
       return new UsingBuilder<>(paramsCasted);
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
         UnaryFunction<LeftT, K> leftKeyExtractor,
-        UnaryFunction<RightT, K> rightKeyExtractor,
-        TypeDescriptor<K> keyTypeDescriptor) {
-      return by(
-          TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
-          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
+        UnaryFunction<RightT, K> rightKeyExtractor) {
+      return by(leftKeyExtractor, rightKeyExtractor, null);
     }
   }
 
@@ -320,21 +333,22 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     }
 
     public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
-        BinaryFunctor<LeftT, RightT, OutputT> joinFunc) {
+        BinaryFunctor<LeftT, RightT, OutputT> joinFunc,
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
           (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
 
       paramsCasted.joinFunc = Objects.requireNonNull(joinFunc);
+      paramsCasted.outType = outputTypeDescriptor;
 
       return new Join.WindowingBuilder<>(paramsCasted);
     }
 
     public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
-        BinaryFunctor<LeftT, RightT, OutputT> joinFunc,
-        TypeDescriptor<OutputT> outputTypeDescriptor) {
-      return using(TypeAwareBinaryFunctor.of(joinFunc, outputTypeDescriptor));
+        BinaryFunctor<LeftT, RightT, OutputT> joinFunc) {
+      return using(joinFunc, null);
     }
   }
 
@@ -454,7 +468,9 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
               params.right,
               params.leftKeyExtractor,
               params.rightKeyExtractor,
+              params.keyType,
               params.joinFunc,
+              TypeUtils.pairs(params.keyType, params.outType),
               params.type,
               params.getWindowing(),
               params.euphoriaWindowing,

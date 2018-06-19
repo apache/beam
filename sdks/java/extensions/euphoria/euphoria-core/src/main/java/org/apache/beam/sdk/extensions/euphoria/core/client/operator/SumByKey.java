@@ -36,7 +36,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
@@ -79,7 +80,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
 public class SumByKey<InputT, K, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>> {
+    InputT, InputT, K, Pair<K, Long>, W, SumByKey<InputT, K, W>>
+implements TypeAware.Value<Long>{
 
   private final UnaryFunction<InputT, Long> valueExtractor;
 
@@ -88,7 +90,9 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
+      TypeDescriptor<K> keyType,
       UnaryFunction<InputT, Long> valueExtractor,
+      @Nullable TypeDescriptor<Pair<K, Long>> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing) {
     this(
@@ -96,7 +100,9 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
         flow,
         input,
         keyExtractor,
+        keyType,
         valueExtractor,
+        outputType,
         windowing,
         euphoriaWindowing,
         Collections.emptySet());
@@ -107,11 +113,14 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> keyExtractor,
+      TypeDescriptor<K> keyType,
       UnaryFunction<InputT, Long> valueExtractor,
+      @Nullable TypeDescriptor<Pair<K, Long>> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
-    super(name, flow, input, keyExtractor, windowing, euphoriaWindowing, outputHints);
+    super(name, flow, input, outputType, keyExtractor, keyType,
+        windowing, euphoriaWindowing, outputHints);
     this.valueExtractor = valueExtractor;
   }
 
@@ -150,8 +159,13 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
             windowing,
             euphoriaWindowing,
             Sums.ofLongs(),
-            getHints());
+            getHints(), outputType, keyType);
     return DAG.of(reduceByKey);
+  }
+
+  @Override
+  public TypeDescriptor<Long> getValueType() {
+    return TypeDescriptors.longs();
   }
 
   /** Parameters of this operator used in builders. */
@@ -161,6 +175,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
+    TypeDescriptor<K> keyType;
     UnaryFunction<InputT, Long> valueExtractor;
 
     BuilderParams(String name, Dataset<InputT> input) {
@@ -196,19 +211,20 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
 
     @Override
     public <K> ValueByWindowByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
+      return keyBy(keyExtractor, null);
+    }
+
+    @Override
+    public <K> ValueByWindowByBuilder<InputT, K> keyBy(
+        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, K, ?> paramsCasted = (BuilderParams<InputT, K, ?>) params;
 
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
+      paramsCasted.keyType = keyType;
 
       return new ValueByWindowByBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <K> ValueByWindowByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 
@@ -225,7 +241,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     }
 
     public WindowByBuilder<InputT, K> valueBy(UnaryFunction<InputT, Long> valueExtractor) {
-      params.valueExtractor = TypeAwareUnaryFunction.of(valueExtractor, TypeDescriptors.longs());
+      params.valueExtractor = valueExtractor;
       return new WindowByBuilder<>(params);
     }
 
@@ -357,13 +373,16 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
     @Override
     public Dataset<Pair<K, Long>> output(OutputHint... outputHints) {
       Flow flow = params.input.getFlow();
+
       SumByKey<InputT, K, W> sumByKey =
           new SumByKey<>(
               params.name,
               flow,
               params.input,
               params.keyExtractor,
+              params.keyType,
               params.valueExtractor,
+              TypeUtils.pairs(params.keyType, TypeDescriptors.longs()),
               params.getWindowing(),
               params.euphoriaWindowing,
               Sets.newHashSet(outputHints));

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Operator working on some context. */
 @Audience(Audience.Type.INTERNAL)
@@ -37,9 +38,10 @@ public abstract class WindowWiseOperator<InputT, OutputT, W extends BoundedWindo
   public WindowWiseOperator(
       String name,
       Flow flow,
+      TypeDescriptor<OutputT> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       Windowing euphoriaWindowing) {
-    super(name, flow);
+    super(name, flow, outputType);
     this.windowing = windowing;
     this.euphoriaWindowing = euphoriaWindowing;
   }

@@ -104,8 +104,8 @@ public class BeamFlow extends Flow {
   }
 
   /**
-   * Create flow from input {@link PCollection} which is {@linkplain
-   * PCollection#isFinishedSpecifying() finished specifying}.
+   * Create flow from input {@link PCollection} which is
+   * {@linkplain PCollection#isFinishedSpecifying() finished specifying}.
    *
    * @param pCollection the input {@link PCollection} to wrap into new flow
    * @param <T> type of {@link PCollection} element
@@ -139,10 +139,11 @@ public class BeamFlow extends Flow {
   /**
    * Registers the provided {@link Coder} for the given class.
    *
-   * <p>Consider using {@link
-   * org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders} when registering
-   * more coders at once.
-   *
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
    * @param clazz class of element to be encoded/decoded
    * @param coder coder to encode/decode instances of given class
    * @param <T> type parameter of the class to be encoded
@@ -154,10 +155,11 @@ public class BeamFlow extends Flow {
   /**
    * Registers the provided {@link Coder} for the given type.
    *
-   * <p>Consider using {@link
-   * org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders} when registering
-   * more coders at once.
-   *
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
    * @param typeDescriptor type of element to be encoded/decoded
    * @param coder coder to encode/decode instances of given class
    * @param <T> type parameter of the class to be encoded
@@ -169,9 +171,11 @@ public class BeamFlow extends Flow {
   /**
    * Registers the provided {@link Coder} for the given class.
    *
-   * <p>Consider using {@link
-   * org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders} when registering
-   * more coders at once.
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
    *
    * @param coderProvider
    */
@@ -208,7 +212,8 @@ public class BeamFlow extends Flow {
 
   @SuppressWarnings("unchecked")
   private <T> void wrapFinishedInputPCollection(PCollection<T> inputPCollection) {
-    WrappedPCollectionOperator<T> wrap = new WrappedPCollectionOperator<>(this, inputPCollection);
+    WrappedInputPCollectionOperator<T> wrap =
+        new WrappedInputPCollectionOperator<>(this, inputPCollection);
     wrapped.put(inputPCollection, wrap.output);
     context.setFinishedPCollection(wrap.output, inputPCollection);
     super.add(wrap);
@@ -256,7 +261,7 @@ public class BeamFlow extends Flow {
   }
 
   private <T> Dataset<T> newDataset(PCollection<T> coll) {
-    Operator<?, T> wrap = new WrappedPCollectionOperator<>(this, coll);
+    Operator<?, T> wrap = new WrappedInputPCollectionOperator<>(this, coll);
     add(wrap);
     return wrap.output();
   }
@@ -269,7 +274,7 @@ public class BeamFlow extends Flow {
         operator
             .listInputs()
             .stream()
-            .map(d -> (Operator<?, ?>) new WrappedPCollectionOperator(this, unwrapped(d), d))
+            .map(d -> (Operator<?, ?>) new WrappedInputPCollectionOperator(this, unwrapped(d), d))
             .collect(Collectors.toList());
     final DAG<Operator<?, ?>> dag;
     if (inputOperators.isEmpty()) {

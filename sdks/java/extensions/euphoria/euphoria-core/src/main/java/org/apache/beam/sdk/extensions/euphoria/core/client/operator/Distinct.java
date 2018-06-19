@@ -37,11 +37,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -72,18 +75,20 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 )
 public class Distinct<InputT, OutputT, W extends BoundedWindow>
     extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
+    InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
 
   Distinct(
       String name,
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, OutputT> mapper,
+      TypeDescriptor<OutputT> outputTypeDescriptor,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, mapper, windowing, euphoriaWindowing, outputHints);
+    super(name, flow, input, outputTypeDescriptor, mapper, outputTypeDescriptor, windowing,
+        euphoriaWindowing, outputHints);
   }
 
   /**
@@ -113,6 +118,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = input.getFlow();
     String name = getName() + "::" + "ReduceByKey";
+
     ReduceByKey<InputT, OutputT, Void, Void, W> reduce =
         new ReduceByKey<>(
             name,
@@ -123,11 +129,14 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
             windowing,
             euphoriaWindowing,
             (CombinableReduceFunction<Void>) e -> null,
-            Collections.emptySet());
+            Collections.emptySet(),
+            TypeUtils.pairs(outputType, TypeDescriptors.nulls()),
+            outputType);
 
     MapElements format =
         new MapElements<>(
-            getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst, getHints());
+            getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst, getHints(),
+            outputType);
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);
@@ -140,6 +149,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, OutputT> mapper;
+    TypeDescriptor<OutputT> outputTypeDescriptor;
 
     public BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
@@ -188,12 +198,20 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
     public <OutputT> WindowingBuilder<InputT, OutputT> mapped(
         UnaryFunction<InputT, OutputT> mapper) {
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, OutputT, ?> paramsCasted = (BuilderParams<InputT, OutputT, ?>) params;
+      return mapped(mapper, null);
+    }
+
+    public <OutputT> WindowingBuilder<InputT, OutputT> mapped(
+        UnaryFunction<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputTypeDescriptor) {
+
+      @SuppressWarnings("unchecked") BuilderParams<InputT, OutputT, ?> paramsCasted =
+          (BuilderParams<InputT, OutputT, ?>) params;
 
       paramsCasted.mapper = Objects.requireNonNull(mapper);
+      paramsCasted.outputTypeDescriptor = outputTypeDescriptor;
 
       return new WindowingBuilder<>(paramsCasted);
+
     }
 
     @Override
@@ -202,7 +220,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, InputT, ?> paramsCasted = (BuilderParams<InputT, InputT, ?>) params;
 
-      paramsCasted.mapper = e -> e;
+      setIdentityMapper(paramsCasted);
       return new OutputBuilder<>(paramsCasted).output();
     }
 
@@ -213,10 +231,17 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, InputT, W> paramsCasted = (BuilderParams<InputT, InputT, W>) params;
 
-      paramsCasted.mapper = e -> e;
+      setIdentityMapper(paramsCasted);
       paramsCasted.windowFn = Objects.requireNonNull(windowing);
 
       return new TriggerByBuilder<>(paramsCasted);
+    }
+
+    private void setIdentityMapper(BuilderParams<InputT, InputT, ?> paramsCasted) {
+      paramsCasted.mapper = UnaryFunction.identity();
+
+      // retrieve output type from previous operator input
+      paramsCasted.outputTypeDescriptor = TypeUtils.getDatasetElementType(paramsCasted.input);
     }
 
     @Override
@@ -349,6 +374,7 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
               flow,
               params.input,
               params.mapper,
+              params.outputTypeDescriptor,
               params.getWindowing(),
               params.euphoriaWindowing,
               Sets.newHashSet(outputHints));

@@ -35,13 +35,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -71,11 +72,14 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, K> extractor,
+      TypeDescriptor<K> keyType,
+      TypeDescriptor<Pair<K, Long>> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, input, extractor, windowing, euphoriaWindowing, outputHints);
+    super(name, flow, input, outputType, extractor, keyType, windowing, euphoriaWindowing,
+        outputHints);
   }
 
   /**
@@ -109,7 +113,9 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
             input.getFlow(),
             input,
             keyExtractor,
+            keyType,
             e -> 1L,
+            outputType,
             windowing,
             euphoriaWindowing,
             getHints());
@@ -122,6 +128,8 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     String name;
     Dataset<InputT> input;
     UnaryFunction<InputT, K> keyExtractor;
+    TypeDescriptor<K> keyType;
+
 
     private BuilderParams(String name, Dataset<InputT> input) {
       this.name = name;
@@ -154,18 +162,20 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
     }
 
     @Override
-    public <K> WindowingBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
+    public <K> WindowingBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor,
+        TypeDescriptor<K> keyType) {
 
       @SuppressWarnings("unchecked")
       BuilderParams<InputT, K, ?> paramsCasted = (BuilderParams<InputT, K, ?>) params;
       paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
+      paramsCasted.keyType = keyType;
       return new WindowingBuilder<>(paramsCasted);
     }
 
     @Override
     public <K> WindowingBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
-      return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
+        UnaryFunction<InputT, K> keyExtractor) {
+      return keyBy(keyExtractor, null);
     }
   }
 
@@ -276,6 +286,8 @@ public class CountByKey<InputT, K, W extends BoundedWindow>
               flow,
               params.input,
               params.keyExtractor,
+              params.keyType,
+              TypeUtils.pairs(params.keyType, TypeDescriptors.longs()),
               params.getWindowing(),
               params.euphoriaWindowing,
               Sets.newHashSet(outputHints));

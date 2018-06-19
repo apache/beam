@@ -37,7 +37,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.Node;
 
-/** Unfold {@code Flow} to contain only selected operators. */
+/**
+ * Unfold {@code Flow} to contain only selected operators.
+ */
 @Audience(Audience.Type.EXECUTOR)
 public class FlowUnfolder {
 
@@ -65,7 +67,7 @@ public class FlowUnfolder {
    *
    * @param flow the original flow to be unfolded
    * @param wantTranslate user defined function determining which operators the caller wants to
-   *     translate itself without being further expanded into their basic operations
+   * translate itself without being further expanded into their basic operations
    * @return the unfolded/expanded version of the given flow
    */
   public static DAG<Operator<?, ?>> unfold(
@@ -79,8 +81,8 @@ public class FlowUnfolder {
    *
    * @param dag the original DAG
    * @param wantTranslate predicate determining whether a particular operator instance will be
-   *     translated separately and, thus, should be left in the resulting DAG or whether it is to be
-   *     expanded into its basic ops.
+   * translated separately and, thus, should be left in the resulting DAG or whether it is to be
+   * expanded into its basic ops.
    * @return the translated DAG consisting of basic operators only
    */
   @SuppressWarnings("unchecked")
@@ -253,13 +255,16 @@ public class FlowUnfolder {
         });
   }
 
-  /** Node added as a producer of inputs. This is dummy "operator" with the same input as output. */
+  /**
+   * Node added as a producer of inputs. This is dummy "operator" with the same input as output.
+   */
   public static final class InputOperator<T> extends Operator<T, T> {
 
     private final Dataset<T> ds;
 
     InputOperator(Dataset<T> ds) {
-      super("InputOperator", ds.getFlow());
+      super("InputOperator", ds.getFlow(),
+          (ds.getProducer() != null) ? ds.getProducer().getOutputType() : null);
       this.ds = ds;
       this.hints = Collections.emptySet();
     }

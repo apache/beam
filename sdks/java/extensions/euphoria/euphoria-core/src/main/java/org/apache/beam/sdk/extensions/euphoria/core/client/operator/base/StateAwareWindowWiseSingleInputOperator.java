@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Operator operating on window level with state information. */
 @Audience(Audience.Type.INTERNAL)
@@ -49,12 +50,14 @@ public abstract class StateAwareWindowWiseSingleInputOperator<
       String name,
       Flow flow,
       Dataset<InputT> input,
+      TypeDescriptor<OutputT> outputType,
       UnaryFunction<KeyInT, K> extractor,
+      TypeDescriptor<K> keyType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
       Set<OutputHint> outputHints) {
 
-    super(name, flow, windowing, euphoriaWindowing, extractor);
+    super(name, flow, outputType, windowing, euphoriaWindowing, extractor, keyType);
     this.input = input;
     this.output = createOutput(input, outputHints);
   }

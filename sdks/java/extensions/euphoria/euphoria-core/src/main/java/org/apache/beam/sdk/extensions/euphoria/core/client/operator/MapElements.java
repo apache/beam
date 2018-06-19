@@ -33,6 +33,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Element
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Simple one-to-one transformation of input elements. It is a special case of {@link FlatMap} with
@@ -42,11 +43,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
  * <h3>Builders:</h3>
  *
  * <ol>
- *   <li>{@code [named] ..................} give name to the operator [optional]
- *   <li>{@code of .......................} input dataset
- *   <li>{@code using ....................} apply {@link UnaryFunction} or {@link UnaryFunctionEnv}
- *       to input elements
- *   <li>{@code output ...................} build output dataset
+ * <li>{@code [named] ..................} give name to the operator [optional]
+ * <li>{@code of .......................} input dataset
+ * <li>{@code using ....................} apply {@link UnaryFunction} or {@link UnaryFunctionEnv}
+ * to input elements
+ * <li>{@code output ...................} build output dataset
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
@@ -56,8 +57,10 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
   final UnaryFunctionEnv<InputT, OutputT> mapper;
 
   MapElements(
-      String name, Flow flow, Dataset<InputT> input, UnaryFunction<InputT, OutputT> mapper) {
-    this(name, flow, input, (el, ctx) -> mapper.apply(el), Collections.emptySet());
+      String name, Flow flow, Dataset<InputT> input, UnaryFunction<InputT, OutputT> mapper,
+      TypeDescriptor<OutputT> outputTypeDescriptor) {
+    this(name, flow, input, (el, ctx) -> mapper.apply(el), Collections.emptySet(),
+        outputTypeDescriptor);
   }
 
   MapElements(
@@ -65,8 +68,9 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
       Flow flow,
       Dataset<InputT> input,
       UnaryFunction<InputT, OutputT> mapper,
-      Set<OutputHint> outputHints) {
-    this(name, flow, input, (el, ctx) -> mapper.apply(el), outputHints);
+      Set<OutputHint> outputHints,
+      TypeDescriptor<OutputT> outputTypeDescriptor) {
+    this(name, flow, input, (el, ctx) -> mapper.apply(el), outputHints, outputTypeDescriptor);
   }
 
   MapElements(
@@ -74,8 +78,9 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
       Flow flow,
       Dataset<InputT> input,
       UnaryFunctionEnv<InputT, OutputT> mapper,
-      Set<OutputHint> outputHints) {
-    super(name, flow, input, outputHints);
+      Set<OutputHint> outputHints,
+      TypeDescriptor<OutputT> outputTypeDescriptor) {
+    super(name, flow, input, outputHints, outputTypeDescriptor);
     this.mapper = mapper;
   }
 
@@ -118,15 +123,18 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
             input,
             (i, c) -> c.collect(mapper.apply(i, c.asContext())),
             null,
-            getHints()));
+            getHints(), outputType));
   }
 
   public UnaryFunctionEnv<InputT, OutputT> getMapper() {
     return mapper;
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public static class OfBuilder implements Builders.Of {
+
     private final String name;
 
     OfBuilder(String name) {
@@ -139,8 +147,11 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     }
   }
 
-  /** TODO: complete javadoc. */
+  /**
+   * TODO: complete javadoc.
+   */
   public static class UsingBuilder<InputT> {
+
     private final String name;
     private final Dataset<InputT> input;
 
@@ -161,6 +172,11 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
       return new OutputBuilder<>(name, input, ((el, ctx) -> mapper.apply(el)));
     }
 
+    public <OutputT> OutputBuilder<InputT, OutputT> using(UnaryFunction<InputT, OutputT> mapper,
+        TypeDescriptor<OutputT> outputType) {
+      return new OutputBuilder<>(name, input, (el, ctx) -> mapper.apply(el), outputType);
+    }
+
     /**
      * The mapping function that takes input element and outputs the OutputT type element.
      *
@@ -170,7 +186,12 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
      */
     public <OutputT> OutputBuilder<InputT, OutputT> using(
         UnaryFunctionEnv<InputT, OutputT> mapper) {
-      return new OutputBuilder<>(name, input, mapper);
+      return using(mapper, null);
+    }
+
+    public <OutputT> OutputBuilder<InputT, OutputT> using(
+        UnaryFunctionEnv<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputType) {
+      return new OutputBuilder<>(name, input, mapper, outputType);
     }
   }
 
@@ -179,21 +200,33 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
    * #output(OutputHint...)}.
    */
   public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
+
     private final String name;
     private final Dataset<InputT> input;
     private final UnaryFunctionEnv<InputT, OutputT> mapper;
+    private final TypeDescriptor<OutputT> outputTypeDescriptor;
+
+    OutputBuilder(String name, Dataset<InputT> input, UnaryFunctionEnv<InputT, OutputT> mapper,
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
+      this.name = name;
+      this.input = input;
+      this.mapper = mapper;
+      this.outputTypeDescriptor = outputTypeDescriptor;
+    }
 
     OutputBuilder(String name, Dataset<InputT> input, UnaryFunctionEnv<InputT, OutputT> mapper) {
       this.name = name;
       this.input = input;
       this.mapper = mapper;
+      this.outputTypeDescriptor = null;
     }
 
     @Override
     public Dataset<OutputT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       MapElements<InputT, OutputT> map =
-          new MapElements<>(name, flow, input, mapper, Sets.newHashSet(outputHints));
+          new MapElements<>(name, flow, input, mapper, Sets.newHashSet(outputHints),
+              outputTypeDescriptor);
       flow.add(map);
 
       return map.output();

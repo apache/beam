@@ -35,7 +35,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
@@ -94,7 +94,7 @@ public class CoderTest {
 
     translationContext.getCoder(
         TypeAwareReduceFunctor.of(
-            reduceFunctor, TypeHint.pairs(NotSerializableClass.class, String.class)));
+            reduceFunctor, TypeUtils.pairs(NotSerializableClass.class, String.class)));
   }
 
   @Test

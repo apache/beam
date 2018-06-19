@@ -37,4 +37,14 @@ public interface UnaryFunction<InputT, OutputT> extends Serializable {
    * @return the result of the function application
    */
   OutputT apply(InputT what);
+
+  /**
+   * Returns a {@link UnaryFunction} that always returns its input argument.
+   *
+   * @param <T> the type of the input and output objects to the function
+   * @return a function that always returns its input argument
+   */
+  static <T> UnaryFunction<T, T> identity() {
+    return t -> t;
+  }
 }

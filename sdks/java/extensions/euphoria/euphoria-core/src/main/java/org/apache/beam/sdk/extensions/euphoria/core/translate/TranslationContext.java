@@ -45,6 +45,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.AbstractTypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
@@ -178,7 +179,7 @@ class TranslationContext {
           ((TypeAwareUnaryFunction<InputT, OutputT>) unaryFunction).getTypeDescriptor());
     }
 
-    return inferCoderFromLambda(unaryFunction).orElse(getFallbackCoder(unaryFunction));
+    return inferCoderFromLambda(unaryFunction).orElseGet(()->getFallbackCoder(unaryFunction));
   }
 
   private <InputT, OutputT> Coder<OutputT> getCoderBasedOnFunctor(
@@ -228,14 +229,13 @@ class TranslationContext {
   }
 
   <InputT, OutputT> Coder<OutputT> getCoder(ReduceFunctor<InputT, OutputT> reduceFunctor) {
-    if (reduceFunctor instanceof TypeAwareReduceFunctor) {
+    if (reduceFunctor instanceof AbstractTypeAware) {
       return getCoder(
           ((TypeAwareReduceFunctor<InputT, OutputT>) reduceFunctor).getTypeDescriptor());
     }
     return getFallbackCoder(reduceFunctor);
   }
 
-  @SuppressWarnings("unchecked")
   private <T> Coder<T> getCoder(TypeDescriptor<T> typeHint) {
     try {
       return pipeline.getCoderRegistry().getCoder(typeHint);
@@ -276,8 +276,8 @@ class TranslationContext {
       ReduceStateByKey rbsk = (ReduceStateByKey) op;
       // TODO
       return new KryoCoder<>();
-    } else if (op instanceof WrappedPCollectionOperator) {
-      return ((WrappedPCollectionOperator) op).input.getCoder();
+    } else if (op instanceof WrappedInputPCollectionOperator) {
+      return ((WrappedInputPCollectionOperator) op).input.getCoder();
     } else if (op == null) {
       // TODO
       return new KryoCoder<>();

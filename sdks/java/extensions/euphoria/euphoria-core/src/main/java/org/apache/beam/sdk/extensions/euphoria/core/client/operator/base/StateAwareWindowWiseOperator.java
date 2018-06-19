@@ -23,34 +23,48 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Win
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Operator with internal state. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
-        InputT,
-        KeyInT,
-        K,
-        OutputT,
-        W extends BoundedWindow,
-        OperatorT extends StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
-    extends WindowWiseOperator<InputT, OutputT, W> implements StateAware<KeyInT, K> {
+    InputT,
+    KeyInT,
+    K,
+    OutputT,
+    W extends BoundedWindow,
+    OperatorT extends
+        StateAwareWindowWiseOperator<InputT, KeyInT, K, OutputT, W, OperatorT>>
+    extends WindowWiseOperator<InputT, OutputT, W>
+    implements StateAware<KeyInT, K>, TypeAware.Key<K> {
 
   protected final UnaryFunction<KeyInT, K> keyExtractor;
+  @Nullable
+  protected final TypeDescriptor<K> keyType;
 
   protected StateAwareWindowWiseOperator(
       String name,
       Flow flow,
+      @Nullable TypeDescriptor<OutputT> outputType,
       @Nullable WindowingDesc<Object, W> windowing,
       @Nullable Windowing euphoriaWindowing,
-      UnaryFunction<KeyInT, K> keyExtractor) {
+      UnaryFunction<KeyInT, K> keyExtractor,
+      TypeDescriptor<K> keyType) {
 
-    super(name, flow, windowing, euphoriaWindowing);
+    super(name, flow, outputType, windowing, euphoriaWindowing);
     this.keyExtractor = keyExtractor;
+    this.keyType = keyType;
   }
 
   @Override
   public UnaryFunction<KeyInT, K> getKeyExtractor() {
     return keyExtractor;
+  }
+
+  @Override
+  public TypeDescriptor<K> getKeyType() {
+    return keyType;
   }
 }

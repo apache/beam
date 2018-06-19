@@ -27,8 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareBinaryFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -108,7 +106,8 @@ public class FullJoin {
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
+        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor,
+        TypeDescriptor<K> keyType) {
 
       @SuppressWarnings("unchecked")
       final BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
@@ -116,17 +115,15 @@ public class FullJoin {
 
       paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
+      paramsCasted.keyType = keyType;
 
       return new UsingBuilder<>(paramsCasted);
     }
 
     public <K> UsingBuilder<LeftT, RightT, K> by(
         UnaryFunction<LeftT, K> leftKeyExtractor,
-        UnaryFunction<RightT, K> rightKeyExtractor,
-        TypeDescriptor<K> keyTypeDescriptor) {
-      return by(
-          TypeAwareUnaryFunction.of(leftKeyExtractor, keyTypeDescriptor),
-          TypeAwareUnaryFunction.of(rightKeyExtractor, keyTypeDescriptor));
+        UnaryFunction<RightT, K> rightKeyExtractor) {
+      return by(leftKeyExtractor, rightKeyExtractor, null);
     }
   }
 
@@ -140,7 +137,8 @@ public class FullJoin {
     }
 
     public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
-        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc) {
+        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc,
+        TypeDescriptor<OutputT> outputTypeDescriptor) {
 
       Objects.requireNonNull(joinFunc);
 
@@ -151,26 +149,15 @@ public class FullJoin {
       paramsCasted.joinFunc =
           (left, right, context) ->
               joinFunc.apply(Optional.ofNullable(left), Optional.ofNullable(right), context);
+      paramsCasted.outType = outputTypeDescriptor;
 
       return new Join.WindowingBuilder<>(paramsCasted);
     }
 
     public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
-        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc,
-        TypeDescriptor<OutputT> outputTypeDescriptor) {
-      Objects.requireNonNull(joinFunc);
+        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc) {
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
-          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
-
-      paramsCasted.joinFunc =
-          TypeAwareBinaryFunctor.of(
-              (left, right, context) ->
-                  joinFunc.apply(Optional.ofNullable(left), Optional.ofNullable(right), context),
-              outputTypeDescriptor);
-
-      return new Join.WindowingBuilder<>(paramsCasted);
+      return using(joinFunc, null);
     }
   }
 }
