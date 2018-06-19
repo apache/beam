@@ -85,9 +85,9 @@ class MetricResult(object):
   Attributes:
     key: A ``MetricKey`` that identifies the metric and bundle of this result.
     committed: The committed updates of the metric. This attribute's type is
-      that of the underlying cell data (e.g. int, DistributionData).
+      of metric type result (e.g. int, DistributionResult, GaugeResult).
     attempted: The logical updates of the metric. This attribute's type is that
-      of the underlying cell data (e.g. int, DistributionData).
+      of metric type result (e.g. int, DistributionResult, GaugeResult).
   """
   def __init__(self, key, committed, attempted):
     """Initializes ``MetricResult``.
