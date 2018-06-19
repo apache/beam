@@ -15,8 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.core.translate.coder;
+
+import com.esotericsoftware.kryo.Kryo;
+import java.io.Serializable;
 
 /**
- * Euphoria API focused on Beam coders.
+ * Interface to be implemented by clients to register their classes with {@link Kryo}.
+ *
+ * <p>
+ * {@link KryoRegistrar KryoRegistrars} have to be stateless and {@link Serializable}.
+ * </p>
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate.coder;
+public interface KryoRegistrar extends Serializable {
+
+  /**
+   * Implementations should call variants of {@link Kryo#register(Class)} to register custom classes
+   * with given {@link Kryo} instance.
+   */
+  void registerClasses(Kryo kryo);
+}
