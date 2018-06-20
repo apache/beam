@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.google.common.collect.Iterables;
@@ -26,16 +25,20 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.ClassAwareKryoCoder;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.io.BeamWriteSink;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Flow} that can be used in Euphoria operator constructions and integrates seamlessly with
@@ -102,8 +105,8 @@ public class BeamFlow extends Flow {
   }
 
   /**
-   * Create flow from input {@link PCollection} which is {@linkplain
-   * PCollection#isFinishedSpecifying() finished specifying}.
+   * Create flow from input {@link PCollection} which is
+   * {@linkplain PCollection#isFinishedSpecifying() finished specifying}.
    *
    * @param pCollection the input {@link PCollection} to wrap into new flow
    * @param <T> type of {@link PCollection} element
@@ -132,6 +135,69 @@ public class BeamFlow extends Flow {
     PCollection<T> output = InputTranslator.doTranslate(source, context);
     context.setPCollection(ret, output);
     return ret;
+  }
+
+  /**
+   * Registers the provided {@link Coder} for the given class.
+   *
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
+   * @param clazz class of element to be encoded/decoded
+   * @param coder coder to encode/decode instances of given class
+   * @param <T> type parameter of the class to be encoded
+   */
+  public <T> void registerCoder(Class<T> clazz, Coder<T> coder) {
+    pipeline.getCoderRegistry().registerCoderForClass(clazz, coder);
+  }
+
+  /**
+   * Registers the provided {@link Coder} for the given type.
+   *
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
+   * @param typeDescriptor type of element to be encoded/decoded
+   * @param coder coder to encode/decode instances of given class
+   * @param <T> type parameter of the class to be encoded
+   */
+  public <T> void registerCoder(TypeDescriptor<T> typeDescriptor, Coder<T> coder) {
+    pipeline.getCoderRegistry().registerCoderForType(typeDescriptor, coder);
+  }
+
+  /**
+   * Registers the provided {@link Coder} for the given class.
+   *
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
+   *
+   * @param coderProvider
+   */
+  public void registerCoder(CoderProvider coderProvider) {
+    pipeline.getCoderRegistry().registerCoderProvider(coderProvider);
+  }
+
+  /**
+   * Registers new {@link ClassAwareKryoCoder} for the given raw class.
+   *
+   * <p>
+   * Consider using
+   * {@link org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders}
+   * when registering more coders at once.
+   * </p>
+   *
+   * @param clazz class of element to be encoded/decoded
+   * @param <T> type parameter of the class to be encoded
+   */
+  public <T> void registerKryoCoder(Class<T> clazz){
+    registerCoder(clazz, new ClassAwareKryoCoder<>(clazz));
   }
 
   /**
