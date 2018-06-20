@@ -17,10 +17,14 @@
  */
 
 import common_job_properties
+import JobBuilder
+
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-job('beam_PostCommit_Java_GradleBuild') {
+JobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java PostCommit',
+  'Java SDK Post Commit Tests', this) {
+
   description('Runs PostCommit tests on the Java SDK.')
 
   // Execute concurrent builds if necessary.
@@ -33,15 +37,6 @@ job('beam_PostCommit_Java_GradleBuild') {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java SDK Post Commit Tests',
-      'Run Java PostCommit')
 
   // Gradle goals for this job.
   steps {
