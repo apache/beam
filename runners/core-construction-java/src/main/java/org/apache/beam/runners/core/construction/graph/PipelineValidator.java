@@ -56,7 +56,6 @@ public class PipelineValidator {
           // Nothing to validate for MAP_WINDOWS, READ, CREATE_VIEW.
           .put(getUrn(Composites.COMBINE_PER_KEY), PipelineValidator::validateCombine)
           .put(getUrn(Composites.COMBINE_GLOBALLY), PipelineValidator::validateCombine)
-          .put(getUrn(Composites.COMBINE_GROUPED_VALUES), PipelineValidator::validateCombine)
           // Nothing to validate for RESHUFFLE and WRITE_FILES
           .put(getUrn(CombineComponents.COMBINE_PGBKCV), PipelineValidator::validateCombine)
           .put(
@@ -73,6 +72,7 @@ public class PipelineValidator {
           .put(
               getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS),
               PipelineValidator::validateCombine)
+          .put(getUrn(CombineComponents.COMBINE_GROUPED_VALUES), PipelineValidator::validateCombine)
           .put(
               getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION),
               PipelineValidator::validateParDo)
