@@ -135,13 +135,13 @@ public class LengthPrefixUnknownCodersTest {
   public void test() throws IOException {
     MessageWithComponents originalCoderProto = CoderTranslation.toProto(original);
     Components.Builder builder = originalCoderProto.getComponents().toBuilder();
-    String coderId = LengthPrefixUnknownCoders.generateUniqueId("rootTestId",
-        originalCoderProto.getComponents().getCodersMap().keySet());
+    String coderId =
+        LengthPrefixUnknownCoders.generateUniqueId(
+            "rootTestId", originalCoderProto.getComponents()::containsCoders);
     builder.putCoders(coderId, originalCoderProto.getCoder());
-    MessageWithComponents updatedCoderProto = LengthPrefixUnknownCoders.forCoder(
-        coderId, builder.build(), replaceWithByteArray);
-    assertEquals(expected,
-        CoderTranslation.fromProto(updatedCoderProto.getCoder(),
-            RehydratedComponents.forComponents(updatedCoderProto.getComponents())));
+    String updatedCoderId = LengthPrefixUnknownCoders.addLengthPrefixedCoder(
+        coderId, builder, replaceWithByteArray);
+    assertEquals(
+        expected, RehydratedComponents.forComponents(builder.build()).getCoder(updatedCoderId));
   }
 }
