@@ -404,11 +404,8 @@ class DataflowRunner(PipelineRunner):
       for the View transforms introduced to produce side inputs to a ParDo.
     """
     return {
-        '@type': 'kind:stream',
-        'component_encodings': [input_encoding],
-        'is_stream_like': {
-            'value': True
-        },
+        '@type': input_encoding['@type'],
+        'component_encodings': [input_encoding]
     }
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
