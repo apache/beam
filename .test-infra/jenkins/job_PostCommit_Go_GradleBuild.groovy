@@ -24,6 +24,7 @@ import JobBuilder
 // of postcommit tests.
 JobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
   './gradlew :goPostCommit', this) {
+
   description('Runs Go PostCommit tests against master.')
 
   // Execute concurrent builds if necessary.
