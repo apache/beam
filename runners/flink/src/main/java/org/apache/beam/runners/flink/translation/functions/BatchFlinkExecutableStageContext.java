@@ -57,7 +57,8 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
     return FlinkBatchStateRequestHandler.forStage(executableStage, runtimeContext);
   }
 
-  private void cleanUp() throws Exception {
+  @Override
+  protected void finalize() throws Exception {
     jobBundleFactory.close();
   }
 
@@ -71,16 +72,6 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
       cachedContexts =
           CacheBuilder.newBuilder()
               .weakValues()
-              .removalListener(
-                  (RemovalNotification<JobInfo, BatchFlinkExecutableStageContext> removal) -> {
-                    try {
-                      removal.getValue().cleanUp();
-                    } catch (Exception e) {
-                      LOG.warn(
-                          "Error cleaning up bundle factory for job " + removal.getKey().jobId(),
-                          e);
-                    }
-                  })
               .build(
                   new CacheLoader<JobInfo, BatchFlinkExecutableStageContext>() {
                     @Override
