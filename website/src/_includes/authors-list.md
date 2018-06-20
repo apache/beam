@@ -1,0 +1,1 @@
+{% assign count = authors | size %}{% for name in authors %}{% if forloop.first == false and count > 2 %},{% endif %}{% if forloop.last and count > 1 %} &amp;{% endif %}{% assign author = site.data.authors[name] %} {{ author.name }} {% if author.twitter %}[<a href="https://twitter.com/{{ author.twitter }}">@{{ author.twitter }}</a>]{% endif %}{% endfor %}
