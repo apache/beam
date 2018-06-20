@@ -43,6 +43,8 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
+from apache_beam.transforms.userstate import StateSpec
+from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
@@ -278,6 +280,41 @@ def get_function_arguments(obj, func):
   return inspect.getargspec(f)
 
 
+class _DoFnParam(object):
+  """DoFn parameter."""
+
+  def __init__(self, param_id):
+    self.param_id = param_id
+
+  def __eq__(self, other):
+    if type(self) == type(other):
+      return self.param_id == other.param_id
+    return False
+
+  def __repr__(self):
+    return self.param_id
+
+
+class _StateDoFnParam(_DoFnParam):
+  """State DoFn parameter."""
+
+  def __init__(self, state_spec):
+    if not isinstance(state_spec, StateSpec):
+      raise ValueError("DoFn.StateParam expected StateSpec object.")
+    self.state_spec = state_spec
+    self.param_id = 'StateParam(%s)' % state_spec.name
+
+
+class _TimerDoFnParam(_DoFnParam):
+  """Timer DoFn parameter."""
+
+  def __init__(self, timer_spec):
+    if not isinstance(timer_spec, TimerSpec):
+      raise ValueError("DoFn.TimerParam expected TimerSpec object.")
+    self.timer_spec = timer_spec
+    self.param_id = 'TimerParam(%s)' % timer_spec.name
+
+
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -290,13 +327,21 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   callable object using the CallableWrapperDoFn class.
   """
 
-  ElementParam = 'ElementParam'
-  SideInputParam = 'SideInputParam'
-  TimestampParam = 'TimestampParam'
-  WindowParam = 'WindowParam'
-  WatermarkReporterParam = 'WatermarkReporterParam'
+  # Parameters that can be used in the .process() method.
+  ElementParam = _DoFnParam('ElementParam')
+  SideInputParam = _DoFnParam('SideInputParam')
+  TimestampParam = _DoFnParam('TimestampParam')
+  WindowParam = _DoFnParam('WindowParam')
+  WatermarkReporterParam = _DoFnParam('WatermarkReporterParam')
 
-  DoFnParams = [ElementParam, SideInputParam, TimestampParam, WindowParam]
+  DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
+                       WindowParam, WatermarkReporterParam]
+
+  # Parameters to access state and timers.  Not restricted to use only in the
+  # .process() method. Usage: DoFn.StateParam(state_spec),
+  # DoFn.TimerParam(timer_spec).
+  StateParam = _StateDoFnParam
+  TimerParam = _TimerDoFnParam
 
   @staticmethod
   def from_callable(fn):
