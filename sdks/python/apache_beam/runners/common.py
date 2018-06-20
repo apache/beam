@@ -41,6 +41,7 @@ from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
 from apache_beam.transforms.core import RestrictionProvider
+from apache_beam.transforms.userstate import UserStateUtils
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
@@ -208,18 +209,29 @@ class DoFnSignature(object):
     self._validate_process()
     self._validate_bundle_method(self.start_bundle_method)
     self._validate_bundle_method(self.finish_bundle_method)
+    self._validate_stateful_dofn()
 
   def _validate_process(self):
     """Validate that none of the DoFnParameters are repeated in the function
     """
-    for param in core.DoFn.DoFnParams:
-      assert self.process_method.defaults.count(param) <= 1
+    param_ids = [d.param_id for d in self.process_method.defaults
+                 if isinstance(d, core._DoFnParam)]
+    if len(param_ids) != len(set(param_ids)):
+      raise ValueError(
+          'DoFn %r has duplicate process method parameters: %s.' % (
+              self.do_fn, param_ids))
 
   def _validate_bundle_method(self, method_wrapper):
     """Validate that none of the DoFnParameters are used in the function
     """
-    for param in core.DoFn.DoFnParams:
-      assert param not in method_wrapper.defaults
+    for param in core.DoFn.DoFnProcessParams:
+      if param in method_wrapper.defaults:
+        raise ValueError(
+            'DoFn.process() method-only parameter %s cannot be used in %s.' %
+            (param, method_wrapper))
+
+  def _validate_stateful_dofn(self):
+    UserStateUtils.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
     return any([isinstance(default, RestrictionProvider) for default in
