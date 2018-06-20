@@ -39,7 +39,7 @@ import (
 // present and uncorrupted. It interprets each artifact name as a relative
 // path under the dest directory. It does not retrieve valid artifacts already
 // present.
-func Materialize(ctx context.Context, endpoint string, dest string) ([]*pb.ArtifactMetadata, error) {
+func Materialize(ctx context.Context, endpoint string, rt string, dest string) ([]*pb.ArtifactMetadata, error) {
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
@@ -48,17 +48,17 @@ func Materialize(ctx context.Context, endpoint string, dest string) ([]*pb.Artif
 
 	client := pb.NewArtifactRetrievalServiceClient(cc)
 
-	m, err := client.GetManifest(ctx, &pb.GetManifestRequest{})
+	m, err := client.GetManifest(ctx, &pb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest: %v", err)
 	}
 	md := m.GetManifest().GetArtifact()
-	return md, MultiRetrieve(ctx, client, 10, md, dest)
+	return md, MultiRetrieve(ctx, client, 10, md, rt, dest)
 }
 
 // MultiRetrieve retrieves multiple artifacts concurrently, using at most 'cpus'
 // goroutines. It retries each artifact a few times. Convenience wrapper.
-func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, cpus int, list []*pb.ArtifactMetadata, dest string) error {
+func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, cpus int, list []*pb.ArtifactMetadata, rt string, dest string) error {
 	if len(list) == 0 {
 		return nil
 	}
@@ -86,7 +86,7 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 
 				var failures []string
 				for {
-					err := Retrieve(ctx, client, a, dest)
+					err := Retrieve(ctx, client, a, rt, dest)
 					if err == nil || permErr.Error() != nil {
 						break // done or give up
 					}
@@ -109,7 +109,7 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 // retrieved. If not, it retrieves into the dest directory. It overwrites any
 // previous retrieval attempt and may leave a corrupt/partial local file on
 // failure.
-func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, dest string) error {
+func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, dest string) error {
 	filename := filepath.Join(dest, filepath.FromSlash(a.Name))
 
 	_, err := os.Stat(filename)
@@ -137,15 +137,15 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		return err
 	}
-	return retrieve(ctx, client, a, filename)
+	return retrieve(ctx, client, a, rt, filename)
 }
 
 // retrieve retrieves the given artifact and stores it as the given filename.
 // It validates that the given MD5 matches the content and fails otherwise.
 // It expects the file to not exist, but does not clean up on failure and
 // may leave a corrupt file.
-func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, filename string) error {
-	stream, err := client.GetArtifact(ctx, &pb.GetArtifactRequest{Name: a.Name})
+func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, filename string) error {
+	stream, err := client.GetArtifact(ctx, &pb.GetArtifactRequest{Name: a.Name, RetrievalToken: rt})
 	if err != nil {
 		return err
 	}

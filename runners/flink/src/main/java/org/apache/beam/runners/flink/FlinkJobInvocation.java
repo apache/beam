@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
@@ -49,12 +50,17 @@ import org.slf4j.LoggerFactory;
 public class FlinkJobInvocation implements JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvocation.class);
 
-  public static FlinkJobInvocation create(String id, ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline, FlinkPipelineOptions pipelineOptions) {
-    return new FlinkJobInvocation(id, executorService, pipeline, pipelineOptions);
+  public static FlinkJobInvocation create(
+      String id,
+      String retrievalToken,
+      ListeningExecutorService executorService,
+      Pipeline pipeline,
+      FlinkPipelineOptions pipelineOptions) {
+    return new FlinkJobInvocation(id, retrievalToken, executorService, pipeline, pipelineOptions);
   }
 
   private final String id;
+  private final String retrievalToken;
   private final ListeningExecutorService executorService;
   private final RunnerApi.Pipeline pipeline;
   private final FlinkPipelineOptions pipelineOptions;
@@ -64,9 +70,14 @@ public class FlinkJobInvocation implements JobInvocation {
   @Nullable
   private ListenableFuture<PipelineResult> invocationFuture;
 
-  private FlinkJobInvocation(String id, ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline, FlinkPipelineOptions pipelineOptions) {
+  private FlinkJobInvocation(
+      String id,
+      String retrievalToken,
+      ListeningExecutorService executorService,
+      RunnerApi.Pipeline pipeline,
+      FlinkPipelineOptions pipelineOptions) {
     this.id = id;
+    this.retrievalToken = retrievalToken;
     this.executorService = executorService;
     this.pipeline = pipeline;
     this.pipelineOptions = pipelineOptions;
@@ -81,8 +92,12 @@ public class FlinkJobInvocation implements JobInvocation {
     LOG.info("Translating pipeline to Flink program.");
     // Fused pipeline proto.
     RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
-    JobInfo jobInfo = JobInfo.create(
-        id, pipelineOptions.getJobName(), PipelineOptionsTranslation.toProto(pipelineOptions));
+    JobInfo jobInfo =
+        JobInfo.create(
+            id,
+            pipelineOptions.getJobName(),
+            retrievalToken,
+            PipelineOptionsTranslation.toProto(pipelineOptions));
     final JobExecutionResult result;
 
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(fusedPipeline)) {

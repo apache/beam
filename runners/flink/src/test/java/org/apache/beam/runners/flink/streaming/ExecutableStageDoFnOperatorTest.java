@@ -91,7 +91,8 @@ public class ExecutableStageDoFnOperatorTest {
                   .putPcollections("input", PCollection.getDefaultInstance())
                   .build())
           .build();
-  private final JobInfo jobInfo = JobInfo.create("job-id", "job-name", Struct.getDefaultInstance());
+  private final JobInfo jobInfo =
+      JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
 
   @Before
   public void setUpMocks() {
