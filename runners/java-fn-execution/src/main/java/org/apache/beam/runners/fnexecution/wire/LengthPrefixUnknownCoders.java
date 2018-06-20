@@ -16,43 +16,36 @@
 
 package org.apache.beam.runners.fnexecution.wire;
 
-import com.google.common.collect.Sets;
-import java.util.Set;
+import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 
-/**
- * Utilities for replacing or wrapping unknown coders with {@link LengthPrefixCoder}.
- */
+/** Utilities for replacing or wrapping unknown coders with {@link LengthPrefixCoder}. */
 public class LengthPrefixUnknownCoders {
   /**
    * Recursively traverse the coder tree and wrap the first unknown coder in every branch with a
    * {@link LengthPrefixCoder} unless an ancestor coder is itself a {@link LengthPrefixCoder}. If
-   * {@code replaceWithByteArrayCoder} is set, then replace that unknown coder with a
-   * {@link ByteArrayCoder}. Note that no ids that are generated will collide with the ids supplied
-   * within the {@link Components#getCodersMap() coder map} key space.
+   * {@code replaceWithByteArrayCoder} is set, then replace that unknown coder with a {@link
+   * ByteArrayCoder}. Note that no ids that are generated will collide with the ids supplied within
+   * the {@link Components#getCodersMap() coder map} key space.
    *
    * @param coderId The root coder contained within {@code coders} to start the recursive descent
-   * from.
+   *     from.
    * @param components Contains the root coder and all component coders.
-   * @param replaceWithByteArrayCoder whether to replace an unknown coder with a
-   * {@link ByteArrayCoder}.
-   * @return A {@link MessageWithComponents} with the
-   * {@link MessageWithComponents#getCoder() root coder} and its component coders. Note that no ids
-   * that are generated will collide with the ids supplied within the
-   * {@link Components#getCodersMap() coder map} key space.
+   * @param replaceWithByteArrayCoder whether to replace an unknown coder with a {@link
+   *     ByteArrayCoder}.
+   * @return Id of the original coder (if unchanged) or the newly generated length-prefixed coder.
    */
-  public static RunnerApi.MessageWithComponents forCoder(
-      String coderId,
-      RunnerApi.Components components,
-      boolean replaceWithByteArrayCoder) {
-
+  public static String addLengthPrefixedCoder(
+      String coderId, RunnerApi.Components.Builder components, boolean replaceWithByteArrayCoder) {
     RunnerApi.Coder currentCoder = components.getCodersOrThrow(coderId);
+    RunnerApi.Coder newCoder;
+
+    Coder lengthPrefixedByteArrayCoder = addLengthPrefixByteArrayCoder(components);
 
     // We handle three cases:
     //  1) the requested coder is already a length prefix coder. In this case we just honor the
@@ -62,109 +55,69 @@ public class LengthPrefixUnknownCoders {
     //  3) the requested coder is an unknown coder. In this case we either wrap the requested coder
     //     with a length prefix coder or replace it with a length prefix byte array coder.
     if (ModelCoders.LENGTH_PREFIX_CODER_URN.equals(currentCoder.getSpec().getSpec().getUrn())) {
-      if (replaceWithByteArrayCoder) {
-        return createLengthPrefixByteArrayCoder(coderId, components);
-      }
-
-      MessageWithComponents.Builder rvalBuilder = MessageWithComponents.newBuilder();
-      rvalBuilder.setCoder(currentCoder);
-      rvalBuilder.setComponents(components);
-      return rvalBuilder.build();
+      newCoder = replaceWithByteArrayCoder ? lengthPrefixedByteArrayCoder : currentCoder;
     } else if (ModelCoders.urns().contains(currentCoder.getSpec().getSpec().getUrn())) {
-      return lengthPrefixUnknownComponentCoders(coderId, components, replaceWithByteArrayCoder);
+      newCoder = addForModelCoder(currentCoder, components, replaceWithByteArrayCoder);
     } else {
-      return lengthPrefixUnknownCoder(coderId, components, replaceWithByteArrayCoder);
+      newCoder =
+          replaceWithByteArrayCoder
+              ? lengthPrefixedByteArrayCoder
+              : wrapWithLengthPrefixCoder(coderId);
     }
+
+    if (newCoder.equals(currentCoder)) {
+      return coderId;
+    }
+    String newCoderId = generateUniqueId(coderId + "-length_prefix", components::containsCoders);
+    components.putCoders(newCoderId, newCoder);
+    return newCoderId;
   }
 
-  private static MessageWithComponents lengthPrefixUnknownComponentCoders(
-      String coderId,
-      RunnerApi.Components components,
-      boolean replaceWithByteArrayCoder) {
-
-    MessageWithComponents.Builder rvalBuilder = MessageWithComponents.newBuilder();
-    RunnerApi.Coder currentCoder = components.getCodersOrThrow(coderId);
-    RunnerApi.Coder.Builder updatedCoder = currentCoder.toBuilder();
-    // Rebuild the component coder ids to handle if any of the component coders changed.
-    updatedCoder.clearComponentCoderIds();
-    for (final String componentCoderId : currentCoder.getComponentCoderIdsList()) {
-      MessageWithComponents componentCoder =
-          forCoder(componentCoderId, components, replaceWithByteArrayCoder);
-      String newComponentCoderId = componentCoderId;
-      if (!components.getCodersOrThrow(componentCoderId).equals(componentCoder.getCoder())) {
-        // Generate a new id if the component coder changed.
-        newComponentCoderId = generateUniqueId(
-            coderId + "-length_prefix",
-            Sets.union(components.getCodersMap().keySet(),
-                rvalBuilder.getComponents().getCodersMap().keySet()));
-      }
-      updatedCoder.addComponentCoderIds(newComponentCoderId);
-      rvalBuilder.getComponentsBuilder().putCoders(newComponentCoderId, componentCoder.getCoder());
-      // Insert all component coders of the component coder.
-      rvalBuilder.getComponentsBuilder().putAllCoders(
-          componentCoder.getComponents().getCodersMap());
+  private static Coder addForModelCoder(
+      Coder coder, RunnerApi.Components.Builder components, boolean replaceWithByteArrayCoder) {
+    RunnerApi.Coder.Builder builder = coder.toBuilder().clearComponentCoderIds();
+    for (String componentCoderId : coder.getComponentCoderIdsList()) {
+      builder.addComponentCoderIds(
+          addLengthPrefixedCoder(componentCoderId, components, replaceWithByteArrayCoder));
     }
-    rvalBuilder.setCoder(updatedCoder);
-
-    return rvalBuilder.build();
+    return builder.build();
   }
 
   // If we are handling an unknown URN then we need to wrap it with a length prefix coder.
   // If requested we also replace the unknown coder with a byte array coder.
-  private static MessageWithComponents lengthPrefixUnknownCoder(
-      String coderId,
-      RunnerApi.Components components,
-      boolean replaceWithByteArrayCoder) {
-    MessageWithComponents.Builder rvalBuilder = MessageWithComponents.newBuilder();
-    RunnerApi.Coder currentCoder = components.getCodersOrThrow(coderId);
-
-    String lengthPrefixComponentCoderId = coderId;
-    if (replaceWithByteArrayCoder) {
-      return createLengthPrefixByteArrayCoder(coderId, components);
-    } else {
-      rvalBuilder.getComponentsBuilder().putCoders(coderId, currentCoder);
-    }
-
-    rvalBuilder
-        .getCoderBuilder()
-        .addComponentCoderIds(lengthPrefixComponentCoderId)
+  private static Coder wrapWithLengthPrefixCoder(String coderId) {
+    Coder.Builder lengthPrefixed = Coder.newBuilder().addComponentCoderIds(coderId);
+    lengthPrefixed
         .getSpecBuilder()
         .getSpecBuilder()
-        .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN);
-    return rvalBuilder.build();
+        .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN)
+        .build();
+    return lengthPrefixed.build();
   }
 
-  private static MessageWithComponents createLengthPrefixByteArrayCoder(
-      String coderId,
-      RunnerApi.Components components) {
-    MessageWithComponents.Builder rvalBuilder = MessageWithComponents.newBuilder();
-
-    String byteArrayCoderId = generateUniqueId(
-        coderId + "-byte_array",
-        Sets.union(components.getCodersMap().keySet(),
-            rvalBuilder.getComponents().getCodersMap().keySet()));
+  /** Adds the (singleton) length-prefixed byte array coder. */
+  private static Coder addLengthPrefixByteArrayCoder(RunnerApi.Components.Builder components) {
+    // Add byte array coder
+    String byteArrayCoderId = generateUniqueId("byte_array", components::containsCoders);
     Coder.Builder byteArrayCoder = Coder.newBuilder();
-    byteArrayCoder
-        .getSpecBuilder()
-        .getSpecBuilder()
-        .setUrn(ModelCoders.BYTES_CODER_URN);
-    rvalBuilder.getComponentsBuilder().putCoders(byteArrayCoderId,
-        byteArrayCoder.build());
-    rvalBuilder.getCoderBuilder()
+    byteArrayCoder.getSpecBuilder().getSpecBuilder().setUrn(ModelCoders.BYTES_CODER_URN);
+    components.putCoders(byteArrayCoderId, byteArrayCoder.build());
+
+    // Wrap it into length-prefixed coder
+    Coder.Builder lengthPrefixByteArrayCoder = Coder.newBuilder();
+    lengthPrefixByteArrayCoder
         .addComponentCoderIds(byteArrayCoderId)
         .getSpecBuilder()
         .getSpecBuilder()
         .setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN);
 
-    return rvalBuilder.build();
+    return lengthPrefixByteArrayCoder.build();
   }
 
-  /**
-   * Generates a unique id given a prefix and the set of existing ids.
-   */
-  static String generateUniqueId(String prefix, Set<String> existingIds) {
+  /** Generates a unique id given a prefix and the set of existing ids. */
+  static String generateUniqueId(String prefix, Predicate<String> isExistingId) {
     int i = 0;
-    while (existingIds.contains(prefix + i)) {
+    while (isExistingId.test(prefix + i)) {
       i += 1;
     }
     return prefix + i;
