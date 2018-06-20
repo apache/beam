@@ -18,15 +18,16 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
@@ -47,7 +48,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
@@ -118,37 +118,41 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
-    BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-    BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
-    if (!seekable(leftRelNode) && seekable(rightRelNode)) {
-      return BeamSqlRelUtils.toPCollection(pipeline, leftRelNode, cache);
+  public List<RelNode> getPCollectionInputs() {
+    if (isSideInputJoin()) {
+      return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
     }
-    return BeamRelNode.super.buildPInput(pipeline, cache);
+    return BeamRelNode.super.getPCollectionInputs();
   }
 
   @Override
-  public PTransform<PInput, PCollection<Row>> buildPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PInput, PCollection<Row>> {
+  private boolean isSideInputJoin() {
+    BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
+    BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
+    return !seekable(leftRelNode) && seekable(rightRelNode);
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PInput pinput) {
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
       BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
       final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
 
-      if (pinput instanceof PCollection) {
-        return joinAsLookup(leftRelNode, rightRelNode, (PCollection<Row>) pinput)
+      if (isSideInputJoin()) {
+        checkArgument(pinput.size() == 1, "More than one input received for side input join");
+        return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0))
             .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
       }
 
       Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
-      PCollectionList<Row> input = (PCollectionList<Row>) pinput;
-      assert input.size() == 2;
-      PCollection<Row> leftRows = input.get(0);
-      PCollection<Row> rightRows = input.get(1);
+      assert pinput.size() == 2;
+      PCollection<Row> leftRows = pinput.get(0);
+      PCollection<Row> rightRows = pinput.get(1);
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);

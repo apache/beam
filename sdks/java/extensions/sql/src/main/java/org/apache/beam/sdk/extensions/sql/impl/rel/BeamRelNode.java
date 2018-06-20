@@ -17,37 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.RelNode;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 public interface BeamRelNode extends RelNode {
 
-  /** Transforms the inputs into a PInput. */
-  default PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
-    List<RelNode> inputs = getInputs();
-    if (inputs.size() == 0) {
-      return pipeline.begin();
-    }
-    List<PCollection<Row>> pInputs = new ArrayList(inputs.size());
-    for (RelNode input : inputs) {
-      pInputs.add(BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache));
-    }
-    if (pInputs.size() == 1) {
-      return pInputs.get(0);
-    }
-    return PCollectionList.of(pInputs);
-  }
+  default List<RelNode> getPCollectionInputs() {
+    return getInputs();
+  };
 
-  PTransform<PInput, PCollection<Row>> buildPTransform();
+  PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
 
   /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
   default Map<String, String> getPipelineOptions() {

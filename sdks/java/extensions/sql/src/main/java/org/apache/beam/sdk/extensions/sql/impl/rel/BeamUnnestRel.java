@@ -22,9 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
@@ -37,7 +35,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -78,21 +76,20 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   }
 
   @Override
-  public PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
-    BeamRelNode input = BeamSqlRelUtils.getBeamRelInput(left);
-    return BeamSqlRelUtils.toPCollection(pipeline, input, cache);
+  public List<RelNode> getPCollectionInputs() {
+    return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
   }
 
   @Override
-  public PTransform<PInput, PCollection<Row>> buildPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PInput, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
     @Override
-    public PCollection<Row> expand(PInput pinput) {
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
       // The set of rows where we run the correlated unnest for each row
-      PCollection<Row> outer = (PCollection<Row>) pinput;
+      PCollection<Row> outer = pinput.get(0);
 
       // The correlated subquery
       BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
