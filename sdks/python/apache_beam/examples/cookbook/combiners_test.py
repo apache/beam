@@ -23,6 +23,8 @@ The input data is generated simply with a Create transform and the output is
 checked directly on the last PCollection produced.
 """
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 
