@@ -112,6 +112,9 @@ rat {
 
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
+
+    // TODO: [BEAM-4568] Website sources need to have apache headers
+    "website/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
