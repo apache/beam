@@ -49,6 +49,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides.TransformReplacement;
 import org.apache.beam.runners.direct.ExecutableGraph;
@@ -104,12 +105,19 @@ public class ReferenceRunner {
   }
 
   private RunnerApi.Pipeline executable(RunnerApi.Pipeline original) {
-    RunnerApi.Pipeline withGbks =
+    RunnerApi.Pipeline p = original;
+
+    p =
         ProtoOverrides.updateTransform(
             PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-            original,
+            p,
             new PortableGroupByKeyReplacer());
-    return GreedyPipelineFuser.fuse(withGbks).toPipeline();
+    PipelineValidator.validate(p);
+
+    p = GreedyPipelineFuser.fuse(p).toPipeline();
+    PipelineValidator.validate(p);
+
+    return p;
   }
 
   private static Set<PCollectionNode> getKeyedPCollections(
@@ -283,6 +291,7 @@ public class ReferenceRunner {
         String gbkoId = uniqueId(String.format("%s/GBKO", gbkId), components::containsTransforms);
         PTransform gbko =
             PTransform.newBuilder()
+                .setUniqueName(String.format("%s/GBKO", gbk.getUniqueName()))
                 .putAllInputs(gbk.getInputsMap())
                 .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GBKO_URN))
                 .putOutputs("output", kwiCollectionId)
@@ -300,6 +309,7 @@ public class ReferenceRunner {
         String gabwId = uniqueId(String.format("%s/GABW", gbkId), components::containsTransforms);
         PTransform gabw =
             PTransform.newBuilder()
+                .setUniqueName(String.format("%s/GABW", gbk.getUniqueName()))
                 .putInputs("input", kwiCollectionId)
                 .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GABW_URN))
                 .putAllOutputs(gbk.getOutputsMap())
