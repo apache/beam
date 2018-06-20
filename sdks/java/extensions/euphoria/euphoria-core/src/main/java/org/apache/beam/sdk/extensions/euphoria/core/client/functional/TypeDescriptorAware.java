@@ -19,17 +19,18 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
+import org.apache.beam.sdk.values.TypeDescriptor;
+
 
 /** @param <T> */
 @Audience(Audience.Type.INTERNAL)
-public interface TypeHintAware<T> extends Serializable {
+public interface TypeDescriptorAware<T> extends Serializable {
 
   /**
    * Retrieve type hint associated with this object. Mostly this represents type returned by
    * function.
    *
-   * @return {@link TypeHint} associated with this object
+   * @return {@link TypeDescriptor} associated with this object
    */
-  TypeHint<T> getTypeHint();
+  TypeDescriptor<T> getTypeDescriptor();
 }

@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Save output type of {@link BinaryFunctor}.
@@ -31,12 +32,12 @@ public class TypeAwareBinaryFunctor<LeftT, RightT, OutT>
 
   private TypeAwareBinaryFunctor(
       BinaryFunctor<LeftT, RightT, OutT> function,
-      TypeHint<OutT> typeHint) {
+      TypeDescriptor<OutT> typeHint) {
     super(function, typeHint);
   }
 
   public static <LeftT, RightT, OutT> TypeAwareBinaryFunctor<LeftT, RightT, OutT> of(
-      BinaryFunctor<LeftT, RightT, OutT> function, TypeHint<OutT> typeHint) {
+      BinaryFunctor<LeftT, RightT, OutT> function, TypeDescriptor<OutT> typeHint) {
     return new TypeAwareBinaryFunctor<>(function, typeHint);
   }
 

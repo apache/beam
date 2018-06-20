@@ -26,11 +26,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 
@@ -82,7 +82,7 @@ public class Builders {
      */
     <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor);
 
-    default <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeHint<K> typeHint) {
+    default <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> typeHint) {
       return keyBy(TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
