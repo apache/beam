@@ -24,9 +24,9 @@ import errno
 import logging
 import sys
 import time
+from builtins import next
+from builtins import object
 from socket import error as SocketError
-
-import six
 
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
@@ -48,6 +48,11 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # pylint: enable=ungrouped-imports
+
+try:
+  unicode           # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 
 def key_comparator(k1, k2):
@@ -90,7 +95,7 @@ def compare_path(p1, p2):
   3. If no `id` is defined for both paths, then their `names` are compared.
   """
 
-  result = cmp(p1.kind, p2.kind)
+  result = (p1.kind > p2.kind) - (p1.kind < p2.kind)
   if result != 0:
     return result
 
@@ -98,12 +103,12 @@ def compare_path(p1, p2):
     if not p2.HasField('id'):
       return -1
 
-    return cmp(p1.id, p2.id)
+    return (p1.id > p2.id) - (p1.id < p2.id)
 
   if p2.HasField('id'):
     return 1
 
-  return cmp(p1.name, p2.name)
+  return (p1.name > p2.name) - (p1.name < p2.name)
 
 
 def get_datastore(project):
@@ -255,7 +260,7 @@ def make_kind_stats_query(namespace, kind, latest_timestamp):
 
   kind_filter = datastore_helper.set_property_filter(
       query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL,
-      six.text_type(kind))
+      unicode(kind))
   timestamp_filter = datastore_helper.set_property_filter(
       query_pb2.Filter(), 'timestamp', PropertyFilter.EQUAL,
       latest_timestamp)
@@ -294,6 +299,9 @@ class QueryIterator(object):
     self._req.query.limit.value = min(self._BATCH_SIZE, self._limit)
     resp = self._datastore.run_query(self._req)
     return resp
+
+  def __next__(self):
+    return next(self.__iter__())
 
   def __iter__(self):
     more_results = True

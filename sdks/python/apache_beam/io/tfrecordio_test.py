@@ -15,18 +15,22 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import binascii
-import cStringIO
 import glob
 import gzip
+import io
 import logging
 import os
 import pickle
 import random
 import re
 import unittest
+from builtins import range
 
 import crcmod
+from future import standard_library
 
 import apache_beam as beam
 from apache_beam import Create
@@ -41,6 +45,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+standard_library.install_aliases()
 
 try:
   import tensorflow as tf  # pylint: disable=import-error
@@ -81,15 +87,15 @@ class TestTFRecordUtil(unittest.TestCase):
     self.record = binascii.a2b_base64(FOO_RECORD_BASE64)
 
   def _as_file_handle(self, contents):
-    result = cStringIO.StringIO()
+    result = io.BytesIO()
     result.write(contents)
-    result.reset()
+    result.seek(0)
     return result
 
   def _increment_value_at_index(self, value, index):
     l = list(value)
-    l[index] = chr(ord(l[index]) + 1)
-    return ''.join(l)
+    l[index] = bytes(ord(l[index]) + 1)
+    return "".join(l)
 
   def _test_error(self, record, error_text):
     with self.assertRaisesRegexp(ValueError, re.escape(error_text)):
@@ -122,7 +128,7 @@ class TestTFRecordUtil(unittest.TestCase):
             '\x03\x00\x00\x00\x00\x00\x00\x00', crc32c_fn=crc32c_fn))
 
   def test_write_record(self):
-    file_handle = cStringIO.StringIO()
+    file_handle = io.BytesIO()
     _TFRecordUtil.write_record(file_handle, 'foo')
     self.assertEqual(self.record, file_handle.getvalue())
 
@@ -143,9 +149,9 @@ class TestTFRecordUtil(unittest.TestCase):
 
   def test_compatibility_read_write(self):
     for record in ['', 'blah', 'another blah']:
-      file_handle = cStringIO.StringIO()
+      file_handle = io.BytesIO()
       _TFRecordUtil.write_record(file_handle, record)
-      file_handle.reset()
+      file_handle.seek(0)
       actual = _TFRecordUtil.read_record(file_handle)
       self.assertEqual(record, actual)
 
@@ -391,7 +397,7 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
   def create_inputs(self):
     input_array = [[random.random() - 0.5 for _ in range(15)]
                    for _ in range(12)]
-    memfile = cStringIO.StringIO()
+    memfile = io.BytesIO()
     pickle.dump(input_array, memfile)
     return memfile.getvalue()
 
@@ -445,7 +451,7 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
       file_path_prefix = temp_dir.create_temp_file('result')
 
       example = tf.train.Example()
-      example.features.feature['int'].int64_list.value.extend(range(3))
+      example.features.feature['int'].int64_list.value.extend(list(range(3)))
       example.features.feature['bytes'].bytes_list.value.extend(
           [b'foo', b'bar'])
 

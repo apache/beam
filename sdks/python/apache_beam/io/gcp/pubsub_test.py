@@ -18,9 +18,14 @@
 
 """Unit tests for PubSub sources and sinks."""
 
+from __future__ import absolute_import
+
 import functools
 import logging
 import unittest
+from builtins import object
+from builtins import range
+from builtins import zip
 
 import hamcrest as hc
 import mock

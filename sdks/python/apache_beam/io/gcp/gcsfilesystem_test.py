@@ -20,6 +20,7 @@
 
 import logging
 import unittest
+from builtins import zip
 
 import mock
 

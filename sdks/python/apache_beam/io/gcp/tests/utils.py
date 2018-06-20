@@ -18,6 +18,8 @@
 
 """Utility methods for testing on GCP."""
 
+from __future__ import absolute_import
+
 import logging
 
 from apache_beam.utils import retry
