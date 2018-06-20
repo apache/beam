@@ -332,8 +332,8 @@ public class BeamSqlDslJoinTest {
 
   private PCollection<Row> queryFromOrderTables(String sql) {
     return tuple(
-            "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
-            "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
+            "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline.begin()).setCoder(SOURCE_CODER),
+            "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline.begin()).setCoder(SOURCE_CODER))
         .apply("join", SqlTransform.query(sql))
         .setCoder(RESULT_CODER);
   }

@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.kafka.common.TopicPartition;
@@ -76,7 +74,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
       getPTransformForOutput();
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(PBegin begin) {
     KafkaIO.Read<byte[], byte[]> kafkaRead = null;
     if (topics != null) {
       kafkaRead =
@@ -98,30 +96,26 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
       throw new IllegalArgumentException("One of topics and topicPartitions must be configurated.");
     }
 
-    return PBegin.in(pipeline)
+    return begin
         .apply("read", kafkaRead.withoutMetadata())
         .apply("in_format", getPTransformForInput());
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+  public POutput buildIOWriter(PCollection<Row> input) {
     checkArgument(
         topics != null && topics.size() == 1, "Only one topic can be acceptable as output.");
+    assert topics != null;
 
-    return new PTransform<PCollection<Row>, POutput>() {
-      @Override
-      public PDone expand(PCollection<Row> input) {
-        return input
-            .apply("out_reformat", getPTransformForOutput())
-            .apply(
-                "persistent",
-                KafkaIO.<byte[], byte[]>write()
-                    .withBootstrapServers(bootstrapServers)
-                    .withTopic(topics.get(0))
-                    .withKeySerializer(ByteArraySerializer.class)
-                    .withValueSerializer(ByteArraySerializer.class));
-      }
-    };
+    return input
+        .apply("out_reformat", getPTransformForOutput())
+        .apply(
+            "persistent",
+            KafkaIO.<byte[], byte[]>write()
+                .withBootstrapServers(bootstrapServers)
+                .withTopic(topics.get(0))
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer(ByteArraySerializer.class));
   }
 
   public String getBootstrapServers() {

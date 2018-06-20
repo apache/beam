@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -37,7 +38,6 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -76,7 +76,7 @@ public class BigQueryWriteIT implements Serializable {
 
     String insertStatement = "INSERT INTO ORDERS VALUES (1, 'foo', ARRAY['123', '456'])";
 
-    PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(insertStatement));
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
@@ -116,7 +116,7 @@ public class BigQueryWriteIT implements Serializable {
             + "    name as `name`, \n"
             + "    arr as `arr` \n"
             + " FROM ORDERS_IN_MEMORY";
-    PCollectionTuple.empty(pipeline).apply(sqlEnv.parseQuery(insertStatement));
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 

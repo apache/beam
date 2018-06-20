@@ -78,20 +78,23 @@ public class BeamTextCSVTableTest {
   @Test
   public void testBuildIOReader() {
     PCollection<Row> rows =
-        new BeamTextCSVTable(schema, readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
+        new BeamTextCSVTable(schema, readerSourceFile.getAbsolutePath())
+            .buildIOReader(pipeline.begin());
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
   }
 
   @Test
   public void testBuildIOWriter() {
-    new BeamTextCSVTable(schema, readerSourceFile.getAbsolutePath())
-        .buildIOReader(pipeline)
-        .apply(new BeamTextCSVTable(schema, writerTargetFile.getAbsolutePath()).buildIOWriter());
+    PCollection<Row> input =
+        new BeamTextCSVTable(schema, readerSourceFile.getAbsolutePath())
+            .buildIOReader(pipeline.begin());
+    new BeamTextCSVTable(schema, writerTargetFile.getAbsolutePath()).buildIOWriter(input);
     pipeline.run();
 
     PCollection<Row> rows =
-        new BeamTextCSVTable(schema, writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
+        new BeamTextCSVTable(schema, writerTargetFile.getAbsolutePath())
+            .buildIOReader(pipeline2.begin());
 
     // confirm the two reads match
     PAssert.that(rows).containsInAnyOrder(testDataRows);

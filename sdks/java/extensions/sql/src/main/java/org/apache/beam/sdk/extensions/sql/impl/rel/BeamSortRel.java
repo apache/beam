@@ -34,7 +34,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -121,17 +121,15 @@ public class BeamSortRel extends Sort implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PInput, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PInput, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+    public PCollection<Row> expand(PInput pinput) {
+      PCollection<Row> upstream = (PCollection<Row>) pinput;
       Type windowType =
           upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
       if (!windowType.equals(GlobalWindow.class)) {

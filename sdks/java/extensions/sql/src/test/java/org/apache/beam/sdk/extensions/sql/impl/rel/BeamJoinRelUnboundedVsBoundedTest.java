@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
@@ -30,8 +29,8 @@ import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
@@ -112,12 +111,12 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     }
 
     @Override
-    public PCollection<Row> buildIOReader(Pipeline pipeline) {
+    public PCollection<Row> buildIOReader(PBegin begin) {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
+    public POutput buildIOWriter(PCollection<Row> input) {
       throw new UnsupportedOperationException();
     }
 

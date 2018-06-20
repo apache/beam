@@ -29,8 +29,9 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -59,16 +60,15 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PInput, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PInput, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+    public PCollection<Row> expand(PInput pinput) {
 
-      String stageName = BeamSqlRelUtils.getStageName(BeamValuesRel.this);
       if (tuples.isEmpty()) {
         throw new IllegalStateException("Values with empty tuples!");
       }
@@ -77,10 +77,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
 
-      return inputPCollections
-          .getPipeline()
-          .apply(stageName, Create.of(rows))
-          .setCoder(schema.getRowCoder());
+      return ((PBegin) pinput).apply(Create.of(rows)).setCoder(schema.getRowCoder());
     }
   }
 

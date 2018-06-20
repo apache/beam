@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -92,7 +93,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     registerFunctions(sqlEnv);
 
-    return PCollectionTuple.empty(input.getPipeline()).apply(sqlEnv.parseQuery(queryString()));
+    return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }
 
   private Map<String, BeamSqlTable> toTableMap(PInput inputs) {
