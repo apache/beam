@@ -135,7 +135,6 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     this.provisioningServer = provisioningServer;
     this.environmentCache =
         CacheBuilder.newBuilder()
-            .weakValues()
             .removalListener(
                 ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
                   LOG.debug("Cleaning up for environment {}", notification.getKey().getUrl());

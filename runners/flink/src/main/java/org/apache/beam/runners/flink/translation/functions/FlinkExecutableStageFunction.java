@@ -62,6 +62,7 @@ public class FlinkExecutableStageFunction<InputT>
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
+  private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient StageBundleFactory<InputT> stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
@@ -82,7 +83,7 @@ public class FlinkExecutableStageFunction<InputT>
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
     // TODO: Wire this into the distributed cache and make it pluggable.
-    FlinkExecutableStageContext stageContext = contextFactory.get(jobInfo);
+    stageContext = contextFactory.get(jobInfo);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
@@ -118,6 +119,8 @@ public class FlinkExecutableStageFunction<InputT>
   @Override
   public void close() throws Exception {
     try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
+    // Remove the reference to stageContext and make stageContext available for garbage collection.
+    stageContext = null;
   }
 
   /**
