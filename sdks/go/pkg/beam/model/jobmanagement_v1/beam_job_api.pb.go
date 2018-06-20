@@ -57,7 +57,7 @@ func (x JobMessage_MessageImportance) String() string {
 	return proto.EnumName(JobMessage_MessageImportance_name, int32(x))
 }
 func (JobMessage_MessageImportance) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{9, 0}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{9, 0}
 }
 
 type JobState_Enum int32
@@ -107,7 +107,7 @@ func (x JobState_Enum) String() string {
 	return proto.EnumName(JobState_Enum_name, int32(x))
 }
 func (JobState_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{11, 0}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{11, 0}
 }
 
 // Prepare is a synchronous request that returns a preparationId back
@@ -115,9 +115,9 @@ func (JobState_Enum) EnumDescriptor() ([]byte, []int) {
 // Throws error ALREADY_EXISTS if the jobName is reused. Runners are permitted to deduplicate based on the name of the job.
 // Throws error UNKNOWN for all other issues
 type PrepareJobRequest struct {
-	Pipeline             *pipeline_v1.Pipeline `protobuf:"bytes,1,opt,name=pipeline" json:"pipeline,omitempty"`
-	PipelineOptions      *_struct.Struct       `protobuf:"bytes,2,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
-	JobName              string                `protobuf:"bytes,3,opt,name=job_name,json=jobName" json:"job_name,omitempty"`
+	Pipeline             *pipeline_v1.Pipeline `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	PipelineOptions      *_struct.Struct       `protobuf:"bytes,2,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
+	JobName              string                `protobuf:"bytes,3,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -127,7 +127,7 @@ func (m *PrepareJobRequest) Reset()         { *m = PrepareJobRequest{} }
 func (m *PrepareJobRequest) String() string { return proto.CompactTextString(m) }
 func (*PrepareJobRequest) ProtoMessage()    {}
 func (*PrepareJobRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{0}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{0}
 }
 func (m *PrepareJobRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrepareJobRequest.Unmarshal(m, b)
@@ -171,13 +171,13 @@ func (m *PrepareJobRequest) GetJobName() string {
 type PrepareJobResponse struct {
 	// (required) The ID used to associate calls made while preparing the job. preparationId is used
 	// to run the job.
-	PreparationId string `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId" json:"preparation_id,omitempty"`
+	PreparationId string `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId,proto3" json:"preparation_id,omitempty"`
 	// An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
 	// staged to this endpoint, and will be available during job execution.
-	ArtifactStagingEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=artifact_staging_endpoint,json=artifactStagingEndpoint" json:"artifact_staging_endpoint,omitempty"`
+	ArtifactStagingEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=artifact_staging_endpoint,json=artifactStagingEndpoint,proto3" json:"artifact_staging_endpoint,omitempty"`
 	// (required) Token for the artifact staging. This token also represent an artifact
 	// staging session with the artifact staging service.
-	StagingSessionToken  string   `protobuf:"bytes,3,opt,name=staging_session_token,json=stagingSessionToken" json:"staging_session_token,omitempty"`
+	StagingSessionToken  string   `protobuf:"bytes,3,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -187,7 +187,7 @@ func (m *PrepareJobResponse) Reset()         { *m = PrepareJobResponse{} }
 func (m *PrepareJobResponse) String() string { return proto.CompactTextString(m) }
 func (*PrepareJobResponse) ProtoMessage()    {}
 func (*PrepareJobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{1}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{1}
 }
 func (m *PrepareJobResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrepareJobResponse.Unmarshal(m, b)
@@ -235,10 +235,10 @@ func (m *PrepareJobResponse) GetStagingSessionToken() string {
 type RunJobRequest struct {
 	// (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
 	// must have been completed.
-	PreparationId string `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId" json:"preparation_id,omitempty"`
+	PreparationId string `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId,proto3" json:"preparation_id,omitempty"`
 	// (optional) If any artifacts have been staged for this job, contains the retrieval_token returned
 	// from the CommitManifestResponse.
-	RetrievalToken       string   `protobuf:"bytes,2,opt,name=retrieval_token,json=retrievalToken" json:"retrieval_token,omitempty"`
+	RetrievalToken       string   `protobuf:"bytes,2,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -248,7 +248,7 @@ func (m *RunJobRequest) Reset()         { *m = RunJobRequest{} }
 func (m *RunJobRequest) String() string { return proto.CompactTextString(m) }
 func (*RunJobRequest) ProtoMessage()    {}
 func (*RunJobRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{2}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{2}
 }
 func (m *RunJobRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RunJobRequest.Unmarshal(m, b)
@@ -283,7 +283,7 @@ func (m *RunJobRequest) GetRetrievalToken() string {
 }
 
 type RunJobResponse struct {
-	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -293,7 +293,7 @@ func (m *RunJobResponse) Reset()         { *m = RunJobResponse{} }
 func (m *RunJobResponse) String() string { return proto.CompactTextString(m) }
 func (*RunJobResponse) ProtoMessage()    {}
 func (*RunJobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{3}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{3}
 }
 func (m *RunJobResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RunJobResponse.Unmarshal(m, b)
@@ -324,7 +324,7 @@ func (m *RunJobResponse) GetJobId() string {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 type CancelJobRequest struct {
-	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -334,7 +334,7 @@ func (m *CancelJobRequest) Reset()         { *m = CancelJobRequest{} }
 func (m *CancelJobRequest) String() string { return proto.CompactTextString(m) }
 func (*CancelJobRequest) ProtoMessage()    {}
 func (*CancelJobRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{4}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{4}
 }
 func (m *CancelJobRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CancelJobRequest.Unmarshal(m, b)
@@ -363,7 +363,7 @@ func (m *CancelJobRequest) GetJobId() string {
 
 // Valid responses include any terminal state or CANCELLING
 type CancelJobResponse struct {
-	State                JobState_Enum `protobuf:"varint,1,opt,name=state,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
+	State                JobState_Enum `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -373,7 +373,7 @@ func (m *CancelJobResponse) Reset()         { *m = CancelJobResponse{} }
 func (m *CancelJobResponse) String() string { return proto.CompactTextString(m) }
 func (*CancelJobResponse) ProtoMessage()    {}
 func (*CancelJobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{5}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{5}
 }
 func (m *CancelJobResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CancelJobResponse.Unmarshal(m, b)
@@ -404,7 +404,7 @@ func (m *CancelJobResponse) GetState() JobState_Enum {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 type GetJobStateRequest struct {
-	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -414,7 +414,7 @@ func (m *GetJobStateRequest) Reset()         { *m = GetJobStateRequest{} }
 func (m *GetJobStateRequest) String() string { return proto.CompactTextString(m) }
 func (*GetJobStateRequest) ProtoMessage()    {}
 func (*GetJobStateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{6}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{6}
 }
 func (m *GetJobStateRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetJobStateRequest.Unmarshal(m, b)
@@ -442,7 +442,7 @@ func (m *GetJobStateRequest) GetJobId() string {
 }
 
 type GetJobStateResponse struct {
-	State                JobState_Enum `protobuf:"varint,1,opt,name=state,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
+	State                JobState_Enum `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -452,7 +452,7 @@ func (m *GetJobStateResponse) Reset()         { *m = GetJobStateResponse{} }
 func (m *GetJobStateResponse) String() string { return proto.CompactTextString(m) }
 func (*GetJobStateResponse) ProtoMessage()    {}
 func (*GetJobStateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{7}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{7}
 }
 func (m *GetJobStateResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetJobStateResponse.Unmarshal(m, b)
@@ -484,7 +484,7 @@ func (m *GetJobStateResponse) GetState() JobState_Enum {
 // and job messages back; one is used for logging and the other for detecting
 // the job ended.
 type JobMessagesRequest struct {
-	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId" json:"job_id,omitempty"`
+	JobId                string   `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -494,7 +494,7 @@ func (m *JobMessagesRequest) Reset()         { *m = JobMessagesRequest{} }
 func (m *JobMessagesRequest) String() string { return proto.CompactTextString(m) }
 func (*JobMessagesRequest) ProtoMessage()    {}
 func (*JobMessagesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{8}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{8}
 }
 func (m *JobMessagesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobMessagesRequest.Unmarshal(m, b)
@@ -522,10 +522,10 @@ func (m *JobMessagesRequest) GetJobId() string {
 }
 
 type JobMessage struct {
-	MessageId            string                       `protobuf:"bytes,1,opt,name=message_id,json=messageId" json:"message_id,omitempty"`
-	Time                 string                       `protobuf:"bytes,2,opt,name=time" json:"time,omitempty"`
-	Importance           JobMessage_MessageImportance `protobuf:"varint,3,opt,name=importance,enum=org.apache.beam.model.job_management.v1.JobMessage_MessageImportance" json:"importance,omitempty"`
-	MessageText          string                       `protobuf:"bytes,4,opt,name=message_text,json=messageText" json:"message_text,omitempty"`
+	MessageId            string                       `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Time                 string                       `protobuf:"bytes,2,opt,name=time,proto3" json:"time,omitempty"`
+	Importance           JobMessage_MessageImportance `protobuf:"varint,3,opt,name=importance,proto3,enum=org.apache.beam.model.job_management.v1.JobMessage_MessageImportance" json:"importance,omitempty"`
+	MessageText          string                       `protobuf:"bytes,4,opt,name=message_text,json=messageText,proto3" json:"message_text,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                     `json:"-"`
 	XXX_unrecognized     []byte                       `json:"-"`
 	XXX_sizecache        int32                        `json:"-"`
@@ -535,7 +535,7 @@ func (m *JobMessage) Reset()         { *m = JobMessage{} }
 func (m *JobMessage) String() string { return proto.CompactTextString(m) }
 func (*JobMessage) ProtoMessage()    {}
 func (*JobMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{9}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{9}
 }
 func (m *JobMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobMessage.Unmarshal(m, b)
@@ -597,7 +597,7 @@ func (m *JobMessagesResponse) Reset()         { *m = JobMessagesResponse{} }
 func (m *JobMessagesResponse) String() string { return proto.CompactTextString(m) }
 func (*JobMessagesResponse) ProtoMessage()    {}
 func (*JobMessagesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{10}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{10}
 }
 func (m *JobMessagesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobMessagesResponse.Unmarshal(m, b)
@@ -622,10 +622,10 @@ type isJobMessagesResponse_Response interface {
 }
 
 type JobMessagesResponse_MessageResponse struct {
-	MessageResponse *JobMessage `protobuf:"bytes,1,opt,name=message_response,json=messageResponse,oneof"`
+	MessageResponse *JobMessage `protobuf:"bytes,1,opt,name=message_response,json=messageResponse,proto3,oneof"`
 }
 type JobMessagesResponse_StateResponse struct {
-	StateResponse *GetJobStateResponse `protobuf:"bytes,2,opt,name=state_response,json=stateResponse,oneof"`
+	StateResponse *GetJobStateResponse `protobuf:"bytes,2,opt,name=state_response,json=stateResponse,proto3,oneof"`
 }
 
 func (*JobMessagesResponse_MessageResponse) isJobMessagesResponse_Response() {}
@@ -737,7 +737,7 @@ func (m *JobState) Reset()         { *m = JobState{} }
 func (m *JobState) String() string { return proto.CompactTextString(m) }
 func (*JobState) ProtoMessage()    {}
 func (*JobState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_job_api_232c0299d3f2a840, []int{11}
+	return fileDescriptor_beam_job_api_1fb9125c215633d2, []int{11}
 }
 func (m *JobState) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobState.Unmarshal(m, b)
@@ -1080,9 +1080,9 @@ var _JobService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "beam_job_api.proto",
 }
 
-func init() { proto.RegisterFile("beam_job_api.proto", fileDescriptor_beam_job_api_232c0299d3f2a840) }
+func init() { proto.RegisterFile("beam_job_api.proto", fileDescriptor_beam_job_api_1fb9125c215633d2) }
 
-var fileDescriptor_beam_job_api_232c0299d3f2a840 = []byte{
+var fileDescriptor_beam_job_api_1fb9125c215633d2 = []byte{
 	// 954 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x56, 0x4f, 0x6f, 0xe3, 0x44,
 	0x14, 0xaf, 0xd3, 0x34, 0x4d, 0x5e, 0xb7, 0x89, 0x3b, 0xa5, 0x6a, 0x36, 0x02, 0xb4, 0x58, 0x82,
